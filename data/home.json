@@ -202,10 +202,6 @@
         "a": "UE 5.4 through 5.8 are verified against real projects. UE 5.3 is untested. UE 4.x and 5.0–5.2 are not supported."
       },
       {
-        "q": "Is it free?",
-        "a": "Yes—direct download is always free. A Fab marketplace listing is in progress and will carry no additional cost."
-      },
-      {
         "q": "Does it send data to the cloud?",
         "a": "No telemetry, no analytics, no cloud dependency. Everything runs on your machine. Your project never leaves your local environment."
       },

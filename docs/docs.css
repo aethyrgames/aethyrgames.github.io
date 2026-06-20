@@ -91,7 +91,6 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 /* SKU badges */
 .sku{font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;
   padding:.12rem .45rem;border-radius:3px;vertical-align:middle;margin-left:.4rem}
-.sku.fab{color:#06060f;background:linear-gradient(100deg,var(--cyan),var(--magenta))}
 
 /* story cards (tutorials index) */
 .stories{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin:1.6rem 0}
