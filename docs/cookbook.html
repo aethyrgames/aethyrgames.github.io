@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Spellbook · Aethyr docs</title>
-<meta name="description" content="A spellbook of bite-sized Aethyr recipes: one sentence you say to your AI, one thing it does. Reading, authoring, refactoring, auditing, data, art, and AI graphs." />
+<meta name="description" content="A spellbook of bite-sized Aethyr incantations: one sentence you say to your AI, one thing it does. Reading, authoring, refactoring, auditing, data, art, and AI graphs." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -52,7 +52,7 @@
       <h1>The <span class="arc">spellbook</span>.</h1>
       <p class="lead">Bite-sized incantations: one sentence you say, one thing Aethyr does. Skim
         for the move you need, say it in your own words, and let your AI pick the tools. Every
-        recipe here lives inside the shipping build.</p>
+        incantation here lives inside the shipping build.</p>
       <div class="note tip"><p>Most of these are <strong>reads</strong>: they can't change
         anything, so they're always safe to run. The <a href="#g-author">author</a> and
         <a href="#g-refactor">refactor</a> groups write, and every write goes through a compile
@@ -72,7 +72,7 @@
       </div>
 
 <h2 id="g-understand">⌖ Understand a Blueprint</h2>
-<p>Orient before you touch anything. Every recipe here is read-only.</p>
+<p>Orient before you touch anything. Every incantation here is read-only.</p>
 <div class="spellgrid">
 <div class="spell">
   <p class="incant"><span class="g">⌖</span> &ldquo;What does /Game/AI/BP_Enemy actually do? Give me the 10-second version.&rdquo;</p>
@@ -145,14 +145,14 @@
 <p>Turn sentences into compiled graphs. Every write flows through a compile gate and an automatic backup.</p>
 <div class="spellgrid">
 <div class="spell">
-  <p class="incant"><span class="g">✶</span> &ldquo;On BP_Enemy, add a float called MaxHealth that starts at 250&rdquo;</p>
-  <p class="d">Aethyr declares the member variable, sets its type, and seals in the default, then compiles. One sentence, one typed field.</p>
+  <p class="incant"><span class="g">✶</span> &ldquo;On BP_Turret, add an AmmoCount int, default 30, that designers can tweak in Details and that replicates to clients&rdquo;</p>
+  <p class="d">Aethyr declares the member variable, sets its type and default, and marks it instance-editable and replicated, so it shows in the Details panel and stays synced over the network. One sentence, one typed field.</p>
   <p class="seq"><b>add_variable</b></p>
 </div>
 <div class="spell">
-  <p class="incant"><span class="g">✶</span> &ldquo;Give BP_Turret an AmmoCount int that designers can tweak in Details and that replicates to clients&rdquo;</p>
-  <p class="d">One call exposes the variable as instance-editable and marks it replicated, so it shows in the Details panel and stays synced over the network.</p>
-  <p class="seq"><b>add_variable</b></p>
+  <p class="incant"><span class="g">✶</span> &ldquo;In BP_Turret's Tick, set that Branch's Condition pin literal to true&rdquo;</p>
+  <p class="d">Aethyr writes the literal default straight onto the node's input pin, no wire needed, so an unconnected pin still carries the value you want.</p>
+  <p class="seq"><b>set_pin_default</b></p>
 </div>
 <div class="spell">
   <p class="incant"><span class="g">✶</span> &ldquo;Bump the default FireRate on BP_Turret from 0.5 to 0.2&rdquo;</p>
@@ -241,7 +241,7 @@
 </div>
 <div class="spell">
   <p class="incant"><span class="g">⟁</span> &ldquo;This event graph on BP_Turret is a spaghetti mess, line it up into readable columns&rdquo;</p>
-  <p class="d">Aethyr re-flows the graph into tidy left-to-right columns by execution order, so the logic reads cleanly. It only moves nodes, no wires or behavior change.</p>
+  <p class="d">Aethyr re-flows the graph into execution-order columns so it reads instead of tangles. It is a v1 grid layout, not as polished as the editor's built-in tidy. It only moves nodes, no wires or behavior change.</p>
   <p class="seq"><b>auto_layout_graph</b></p>
 </div>
 </div>
@@ -348,6 +348,11 @@
   <p class="incant"><span class="g">◎</span> &ldquo;Read the DoorOpen Timeline inside BP_Turret and list every curve key with its time, value, and interpolation.&rdquo;</p>
   <p class="d">Aethyr reads a Timeline embedded in a Blueprint and returns each curve key in full, so you can audit the motion without scrubbing the editor.</p>
   <p class="seq"><b>read_timeline</b></p>
+</div>
+<div class="spell">
+  <p class="incant"><span class="g">◎</span> &ldquo;Read the LS_Intro level sequence: its playback range and every top-level track.&rdquo;</p>
+  <p class="d">Aethyr returns the sequence start and end seconds and its top-level tracks, so you audit a cinematic's shape without opening Sequencer.</p>
+  <p class="seq"><b>read_level_sequence</b></p>
 </div>
 <div class="spell">
   <p class="incant"><span class="g">◎</span> &ldquo;Walk the widget tree of WBP_HUD and show me every widget, its class, and its parent.&rdquo;</p>

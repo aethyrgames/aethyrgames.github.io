@@ -191,7 +191,7 @@
     Let me stage it first so you can see the shape before anything touches disk. The handler binds
     the <code>Trigger</code> begin-overlap event, reads <code>HealAmount</code>, and calls a heal
     on the overlapping actor along with the wiring between them.
-    <div class="tools" style="margin-top:.6rem">used <b>compile_function</b> (pseudocode → node graph) → <b>preview_ops</b></div>
+    <div class="tools" style="margin-top:.6rem">used <b>add_node</b> (component-bound begin-overlap event) → <b>add_node</b> (heal call) → <b>wire_pins</b> → <b>preview_ops</b></div>
   </div>
   <div class="turn you"><span class="who">you</span>Looks right. Commit it.</div>
   <div class="turn ai"><span class="who">bp-batches · your AI</span>
@@ -259,37 +259,32 @@
 <div class="note tip"><p><strong>Reads are free and fearless.</strong> Every call in this whole
   walkthrough is read-only, so you can map an unfamiliar project as aggressively as you
   like. Nothing here can dirty a package, trigger a save, or alter one node.</p></div>
-<div class="note arc"><p><strong>When you do start editing:</strong> the safety net is the same
-  one the rest of the site shows. A ritual previews before it applies, every write passes a
-  compile gate, and the original <code>.uasset</code> is backed up before the first save, so a
-  bad edit rolls back to exactly what you cloned.</p></div>
 
 <h2 id="grow-stat">⑦ Grow a bare stat into a system <span class="aud vet">the safety one</span></h2>
-<p>A Blueprint holds one lonely <code>Health</code> float; you want a clamped, replicated system without ever leaving the asset half-rewritten.</p>
+<p>A Blueprint holds one lonely <code>AmmoCount</code> int with no rules around it; you want a categorized, replicated system with a guard the rest of the graph can ask, without ever leaving the asset half-rewritten.</p>
 <div class="chat">
-  <div class="turn you"><span class="who">you</span>Before we touch anything, what variables does <code>BP_Enemy</code> actually have right now?</div>
+  <div class="turn you"><span class="who">you</span>Before we touch anything, what variables does <code>BP_Turret</code> actually have right now?</div>
   <div class="turn ai"><span class="who">Aethyr · your AI</span>
-    One variable: <code>Health</code>, a bare <code>float</code> (default 100), no category, not replicated. Nothing else. So it's a number with no rules around it yet.
+    One variable: <code>AmmoCount</code>, a bare <code>int</code> (default 30), no category, not replicated. Only the fire logic reads it. So it's a number with no structure around it yet.
     <div class="tools" style="margin-top:.6rem">used <b>list_variables</b></div>
   </div>
-  <div class="turn you"><span class="who">you</span>Right. Grow it into a real system: rename <code>Health</code> to <code>CurrentHealth</code>, add a <code>MaxHealth</code> float that's editable, replicated, default 100, and a <code>TakeDamage(Amount)</code> function that subtracts the damage and clamps <code>CurrentHealth</code> to the [0, MaxHealth] range. File both vars under a <code>Vitals</code> category. And do it as one move, I don't want a half-finished asset.</div>
+  <div class="turn you"><span class="who">you</span>Grow it into a real system: rename <code>AmmoCount</code> to <code>CurrentAmmo</code>, add a <code>MaxAmmo</code> int that's editable, replicated, default 30, and a <code>HasAmmo()</code> function that returns whether <code>CurrentAmmo</code> is above zero. File both vars under an <code>Ammo</code> category. One move, I don't want a half-finished asset.</div>
   <div class="turn ai"><span class="who">bp-batches · your AI</span>
     Staged as a single batch, nothing written yet. Let me dry-run it first so you can see exactly what it touches.
     <div class="tools" style="margin-top:.6rem">used <b>preview_ops</b></div>
   </div>
   <div class="turn ai"><span class="who">Aethyr · your AI</span>
-    The preview comes back clean: <strong>1 rename</strong> (<code>Health</code> → <code>CurrentHealth</code>, all 0 existing references rewritten), <strong>1 new variable</strong> (<code>MaxHealth</code>, float, <code>EditAnywhere</code> + replicated, default 100), <strong>1 new function</strong> (<code>TakeDamage</code> with an <code>Amount</code> input, body subtracts then clamps to <code>[0, MaxHealth]</code>), and both vars filed under <code>Vitals</code>. No conflicts, no name collisions, no dangling pins.
-    <div class="tools" style="margin-top:.6rem">used <b>rename_variable</b> · <b>add_variable</b> · <b>add_function</b> → <b>add_function_input</b> → <b>add_node</b> → <b>wire_pins</b> · <b>set_variable_category</b> ×2</div>
+    The preview comes back clean: <strong>1 rename</strong> (<code>AmmoCount</code> → <code>CurrentAmmo</code>, every existing reference rewritten), <strong>1 new variable</strong> (<code>MaxAmmo</code>, int, <code>EditAnywhere</code> + replicated, default 30), <strong>1 new function</strong> (<code>HasAmmo</code> returning a bool, body compares <code>CurrentAmmo</code> against zero), and both vars filed under <code>Ammo</code>. No conflicts, no name collisions, no dangling pins.
+    <div class="tools" style="margin-top:.6rem">used <b>rename_variable</b> · <b>add_variable</b> · <b>add_function</b> → <b>add_function_output</b> → <b>add_node</b> → <b>wire_pins</b> · <b>set_variable_category</b> ×2</div>
   </div>
   <div class="turn you"><span class="who">you</span>That's exactly it. Commit it.</div>
   <div class="turn ai"><span class="who">bp-batches · your AI</span>
-    Applied as one atomic transaction. The rename, the new <code>MaxHealth</code>, the <code>TakeDamage</code> function, and both category moves landed together. <code>TakeDamage</code> compiled clean, so the whole batch held; had the clamp failed to build, the rename would have reverted with it and you'd be back at the bare float, untouched. Verified after: <code>BP_Enemy</code> is compile-clean, no errors, no warnings.
-    <div class="tools" style="margin-top:.6rem">used <b>apply_ops</b> → <b>compile_function</b> → <b>get_compile_status</b></div>
+    Applied as one atomic transaction. The rename, the new <code>MaxAmmo</code>, the <code>HasAmmo</code> getter, and both category moves landed together. <code>HasAmmo</code> compiled clean, so the whole batch held; had the getter failed to build, the rename would have reverted with it and you'd be back at the bare int, untouched. Verified after: <code>BP_Turret</code> is compile-clean, no errors, no warnings.
+    <div class="tools" style="margin-top:.6rem">used <b>apply_ops</b> → <b>get_compile_status</b></div>
   </div>
 </div>
 <div class="note arc"><p><strong>Why preview first:</strong> <code>preview_ops</code> walks the entire batch against the live Blueprint and reports what it <em>would</em> do, the rename count, the new symbols, any collision, without writing a single byte. You approve a plan, not a guess.</p></div>
-<div class="note warn"><p><strong>All or nothing:</strong> <code>apply_ops</code> runs the batch as one transaction behind the compile gate. If the <code>TakeDamage</code> clamp had failed to compile, the rename and the new variable roll back with it, so the asset is never stranded between a bare float and a finished system. A backup is written before the first save, either way.</p></div>
-<div class="note tip"><p><strong>Reads are free, so look first:</strong> <code>list_variables</code> never mutates and costs you nothing within a turn. Confirming the starting shape before you plan a change is the cheap habit that makes the expensive step safe.</p></div>
+<div class="note warn"><p><strong>All or nothing:</strong> <code>apply_ops</code> runs the batch as one transaction behind the compile gate. If the <code>HasAmmo</code> getter had failed to compile, the rename and the new variable roll back with it, so the asset is never stranded between a bare int and a finished system. A backup is written before the first save, either way.</p></div>
 
 <h2 id="fork-variant">⑧ Fork a proven Blueprint into a variant <span class="aud vet">no copy-paste</span></h2>
 <p>You have a working <code>BP_Enemy</code> and you want a meaner sibling, <code>BP_EliteEnemy</code>, that shares every line of logic but hits harder.</p>
@@ -314,7 +309,7 @@
     Touched only two defaults on the variant: <code>MaxHealth</code> 100 → 250 and
     <code>AttackDamage</code> 25 → 40. No graph edits, no structural change. Backed up the
     asset before the first write, then saved through the compile gate.
-    <div class="tools" style="margin-top:.6rem">used <b>set_variable_default</b> ×2 → <b>compile_function</b></div>
+    <div class="tools" style="margin-top:.6rem">used <b>set_variable_default</b> ×2 → <b>get_compile_status</b></div>
   </div>
   <div class="turn you"><span class="who">you</span>Prove it. I want to see that the <em>only</em> differences from <code>BP_Enemy</code> are those two numbers, nothing structural snuck in.</div>
   <div class="turn ai"><span class="who">Aethyr · your AI</span>
@@ -351,12 +346,11 @@
   </div>
   <div class="turn you"><span class="who">you</span>Before I judge it, show me how it's meant to play. Read the ability set it belongs to, and tell me how its tag is categorized.</div>
   <div class="turn ai"><span class="who">Aethyr · your AI</span>
-    The ability set grants one ability for that weapon, bound to the tag
-    <code>Ability.Weapon.Rail.Fire</code>. Browsing the gameplay tags, it lives under
-    <code>Ability.Weapon</code> alongside the other primaries, not under an
-    <code>Ability.Power</code> or <code>Ability.Ultimate</code> branch. So the design files it as
-    a standard primary fire, not a charged super. At <code>72</code> damage, the number and the
-    category disagree.
+    The ability set grants one ability for that weapon. Browsing the gameplay tags, its fire
+    ability sits at <code>Ability.Weapon.Rail.Fire</code>, in the <code>Ability.Weapon</code>
+    branch alongside the other primaries, not under an <code>Ability.Power</code> or
+    <code>Ability.Ultimate</code> branch. So the design files it as a standard primary fire, not a
+    charged super. At <code>72</code> damage, the number and the category disagree.
     <div class="tools" style="margin-top:.6rem">used <b>read_ability_set</b> → <b>list_gameplay_tags</b></div>
   </div>
   <div class="turn you"><span class="who">you</span>If I nerf it, how far does that ripple? Find what references the Rail weapon asset.</div>
@@ -376,23 +370,26 @@
     referenced by two loadouts and one turret.
     <div class="tools" style="margin-top:.6rem">used <b>read_config_value</b></div>
   </div>
-  <div class="turn you"><span class="who">you</span>Good. When I do cut its damage, plan the change first so I can see what it touches before anything saves.</div>
+  <div class="turn you"><span class="who">you</span>Good. So if I want to cut its damage, where does that change actually happen?</div>
   <div class="turn ai"><span class="who">Aethyr · your AI</span>
-    Here is the dry run for the edit, nothing written: one value change to the
-    <code>Weapon_Rail</code> row's damage, no rewired graph, no other rows affected. When you
-    approve, the write goes through a compile gate and an automatic backup before it saves. Say
-    the word and I apply it.
-    <div class="tools" style="margin-top:.6rem">used <b>preview_ops</b> (dry run, nothing written)</div>
+    The damage value lives in the <code>WeaponStats</code> DataTable, so the change itself is a
+    data edit you make in the editor or your content pipeline. Aethyr reads DataTables but does
+    not write them, so it can't apply this one for you, by design. What it hands you is the
+    decision: a primary-tier weapon at super-tier damage, live in this mode, with the exact two
+    loadouts and one turret a nerf would ripple into. Re-read the row anytime to confirm the
+    value before and after you change it by hand.
+    <div class="tools" style="margin-top:.6rem">used <b>read_data_table</b> to re-confirm the <code>Weapon_Rail</code> row</div>
   </div>
 </div>
 <div class="note tip"><p><strong>Reads are cheap and safe.</strong> Every audit step here was a
   read: the table, the ability set, the tags, the referencers, the config flag. Nothing was
   loaded for write, nothing was checked out, and no <code>.uasset</code> changed on disk. You can
   trace a balance question end to end and walk away with the editor still untouched.</p></div>
-<div class="note arc"><p><strong>When you do decide to act,</strong> the same care holds. The
-  plan above was a dry run that wrote nothing, and the real edit only lands after you approve it,
-  passing a compile gate and writing an automatic backup before it saves. The audit you just did
-  and the edit that follows are two deliberate, separate acts.</p></div>
+<div class="note arc"><p><strong>Read, then act, are two separate steps.</strong> Everything above
+  was read-only: nothing was loaded for write, nothing saved. Aethyr's DataTable tools are
+  read-only, so the actual damage change is a separate edit you make in the editor or your content
+  pipeline by hand. The payoff of the audit is that you make that change already knowing the tier
+  mismatch and every asset it touches.</p></div>
 
 <h2 id="batch-recover">⑩ When a batch goes sideways <span class="aud vet">recovery</span></h2>
 <p>A five-step edit trips on step four, and the whole thing rolls back untouched, exactly the safety net you want.</p>
