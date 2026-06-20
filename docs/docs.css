@@ -126,6 +126,23 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .pager{display:flex;justify-content:space-between;gap:14px;margin-top:3rem;padding-top:1.6rem;border-top:1px solid var(--line)}
 .pager a{font-family:var(--f-display);font-size:.95rem}
 
+/* spellbook: bite-sized recipe cards (cookbook page) */
+.spellnav{display:flex;flex-wrap:wrap;gap:.5rem;margin:1.4rem 0 2.2rem}
+.spellnav a{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.05em;color:var(--ink-dim);
+  border:1px solid var(--line);border-radius:20px;padding:.32rem .8rem;transition:color .2s,border-color .2s}
+.spellnav a:hover{color:var(--cyan);border-color:rgba(28,230,255,.3);text-decoration:none}
+.spellgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin:1.2rem 0 1rem}
+.spell{border:1px solid var(--line);border-radius:10px;padding:15px 17px;
+  background:linear-gradient(160deg,rgba(20,22,46,.45),rgba(10,10,22,.3));
+  transition:border-color .25s,transform .25s var(--ease)}
+.spell:hover{border-color:var(--violet);transform:translateY(-3px)}
+.spell .incant{font-size:.95rem;color:var(--ink);display:flex;gap:.5rem;align-items:flex-start;margin:0;max-width:none}
+.spell .incant .g{color:var(--violet);font-size:1.05rem;line-height:1.35;flex:none;
+  filter:drop-shadow(0 0 8px rgba(155,107,255,.45))}
+.spell .d{font-size:.84rem;color:var(--ink-dim);margin:.5rem 0 .65rem;max-width:none}
+.spell .seq{font-family:var(--f-mono);font-size:.73rem;color:var(--ink-dim);margin:0;max-width:none}
+.spell .seq b{color:var(--ember);font-weight:500}
+
 @media(max-width:880px){
   :root{--sb:0}
   .wrap{grid-template-columns:1fr}
