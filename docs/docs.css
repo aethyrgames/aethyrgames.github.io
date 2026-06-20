@@ -196,10 +196,12 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
   :root{--sb:0}
   .wrap{grid-template-columns:1fr}
   .navtoggle{display:flex}
-  /* sidebar becomes a slide-in drawer */
+  /* sidebar becomes a slide-in drawer: solid panel (overlay dims the page),
+     no backdrop-filter/will-change so the nav text stays crisp */
   .side{display:block;position:fixed;top:0;left:0;z-index:50;
     width:min(86vw,300px);height:100vh;height:100dvh;
-    transform:translateX(-100%);transition:transform .3s var(--ease);will-change:transform}
+    background:var(--void-2);backdrop-filter:none;
+    transform:translateX(-100%);transition:transform .3s var(--ease)}
   body.nav-open{overflow:hidden}
   body.nav-open .side{transform:none;box-shadow:0 24px 60px rgba(0,0,0,.55)}
   body.nav-open .nav-ov{opacity:1;pointer-events:auto}
