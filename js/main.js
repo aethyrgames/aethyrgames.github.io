@@ -1,6 +1,121 @@
 /* Aethyr: Arcane Terminal · interactions */
-(() => {
+(async () => {
   'use strict';
+
+  /* ---- load home page content from JSON (must happen before init) ---- */
+  try {
+    const data = await fetch('data/home.json', { cache: 'no-cache' }).then(r => r.json());
+
+    if (data.meta) {
+      document.title = data.meta.title || document.title;
+      document.getElementById('page-desc')?.setAttribute('content', data.meta.description || '');
+      document.getElementById('og-title')?.setAttribute('content', data.meta.title || '');
+      document.getElementById('og-desc')?.setAttribute('content', data.meta.description || '');
+    }
+
+    const navLinks = document.getElementById('site-nav-links');
+    if (navLinks && data.nav?.links) {
+      navLinks.innerHTML = data.nav.links.map(l =>
+        '<a href="' + l.href + '"' + (l.class ? ' class="' + l.class + '"' : '') + '>' + l.label + '</a>'
+      ).join('');
+    }
+
+    const eyebrow = document.getElementById('hero-eyebrow');
+    if (eyebrow && data.hero?.eyebrow) eyebrow.innerHTML = '<span class="pulse-dot"></span> ' + data.hero.eyebrow;
+
+    const heroTitle = document.getElementById('hero-title');
+    if (heroTitle && data.hero?.title) {
+      heroTitle.innerHTML = data.hero.title.map((t, i) =>
+        '<span class="' + (data.hero.titleClasses?.[i] || 'glitch') + '" data-text="' + t + '">' + t + '</span>'
+      ).join('');
+    }
+
+    const heroSub = document.getElementById('hero-sub');
+    if (heroSub && data.hero?.sub) heroSub.innerHTML = data.hero.sub;
+
+    const heroCta = document.getElementById('hero-cta');
+    if (heroCta && data.hero?.cta) {
+      heroCta.innerHTML = data.hero.cta.map(b =>
+        '<a class="' + b.class + '" href="' + b.href + '"' + (b.download ? ' download' : '') + '><span>' + b.label + '</span></a>'
+      ).join('');
+    }
+
+    const heroStats = document.getElementById('hero-stats');
+    if (heroStats && data.hero?.stats) {
+      heroStats.innerHTML = data.hero.stats.map(s =>
+        '<li><b' + (s.dataCount ? ' data-count="' + s.dataCount + '"' : '') + '>' + s.value + '</b><span>' + s.label + '</span></li>'
+      ).join('');
+    }
+
+    const marqueeSet = document.getElementById('marquee-set');
+    if (marqueeSet && data.marquee) {
+      marqueeSet.innerHTML = data.marquee.map(t => '<span>' + t + '</span><i>◇</i>').join('');
+    }
+
+    const featuresHead = document.getElementById('features-head');
+    if (featuresHead && data.features) {
+      featuresHead.innerHTML =
+        '<span class="kicker">' + data.features.kicker + '</span>' +
+        '<h2>' + data.features.heading + '</h2>';
+    }
+    const featuresGrid = document.getElementById('features-grid');
+    if (featuresGrid && data.features?.cards) {
+      featuresGrid.innerHTML = data.features.cards.map((c, i) =>
+        '<article class="card reveal-up" style="--i:' + i + '">' +
+        '<div class="card-glyph">' + c.glyph + '</div>' +
+        '<h3>' + c.title + '</h3>' +
+        '<p>' + c.body + '</p>' +
+        '<span class="card-tag">' + c.tag + '</span>' +
+        '</article>'
+      ).join('');
+    }
+
+    const flowHead = document.getElementById('flow-head');
+    if (flowHead && data.flow) {
+      flowHead.innerHTML =
+        '<span class="kicker">' + data.flow.kicker + '</span>' +
+        '<h2>' + data.flow.heading + '</h2>';
+    }
+    const flowSteps = document.getElementById('flow-steps');
+    if (flowSteps && data.flow?.steps) {
+      flowSteps.innerHTML = data.flow.steps.map((s, i) =>
+        '<li class="step reveal-up" style="--i:' + i + '">' +
+        '<span class="step-no">' + s.no + '</span>' +
+        '<h3>' + s.title + '</h3>' +
+        '<p>' + s.body + '</p>' +
+        '</li>'
+      ).join('');
+    }
+
+    const summonInner = document.getElementById('summon-inner');
+    if (summonInner && data.summon) {
+      const ctaHTML = data.summon.cta.map(b => {
+        const btn = '<a class="' + b.class + '" href="' + b.href + '"' +
+          (b.download ? ' download' : '') + (b.soon ? ' data-soon' : '') +
+          '><span>' + b.label + '</span></a>';
+        return b.soon ? '<span class="soon-wrap">' + btn + '</span>' : btn;
+      }).join('');
+      summonInner.innerHTML =
+        '<span class="kicker">' + data.summon.kicker + '</span>' +
+        '<h2>' + data.summon.heading + '</h2>' +
+        '<p>' + data.summon.body + '</p>' +
+        '<div class="summon-cta">' + ctaHTML + '</div>' +
+        '<p class="fineprint">' + data.summon.fineprint + '</p>';
+    }
+
+    const footer = document.getElementById('site-footer');
+    if (footer && data.footer) {
+      footer.innerHTML =
+        '<div class="foot-brand"><img class="foot-mark" src="img/brand/aethyr-crystal.svg" alt="" aria-hidden="true" width="20" height="20"> Aethyr</div>' +
+        '<p class="foot-note">' + data.footer.tagline + '</p>' +
+        '<p class="foot-legal">' + data.footer.legal + '</p>';
+    }
+  } catch (err) {
+    console.error('loadHomeContent error:', err);
+  }
+
+  /* ==== all init below runs after JSON content is in the DOM ==== */
+
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---- nav solidify on scroll ---- */
@@ -16,6 +131,13 @@
       setTimeout(() => el.classList.add('in'), 120 + d * 130);
     });
   });
+  // Trigger immediately if already loaded (async JSON fetch may finish after 'load')
+  if (document.readyState === 'complete') {
+    document.querySelectorAll('.hero .reveal').forEach((el) => {
+      const d = parseInt(el.dataset.d || '0', 10);
+      setTimeout(() => el.classList.add('in'), 120 + d * 130);
+    });
+  }
 
   /* ---- scroll reveals ---- */
   const io = new IntersectionObserver(
@@ -67,7 +189,6 @@
     let li = 0;
     const line = () => {
       if (li >= script.length) {
-        // pause on the finished conversation, then fade out before retyping
         setTimeout(() => {
           out.style.opacity = '0';
           setTimeout(() => { out.innerHTML = ''; li = 0; out.style.opacity = '1'; line(); }, 500);
@@ -94,20 +215,17 @@
   }
 
   /* ---- "coming soon" buttons ---- */
-  function initSoonBadges() {
-    document.querySelectorAll('[data-soon]').forEach((b) => b.addEventListener('click', (e) => {
-      e.preventDefault();
-      b.animate(
-        [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }],
-        { duration: 280, easing: 'ease-in-out' }
-      );
-    }));
-  }
-  initSoonBadges();
+  document.querySelectorAll('[data-soon]').forEach((b) => b.addEventListener('click', (e) => {
+    e.preventDefault();
+    b.animate(
+      [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }],
+      { duration: 280, easing: 'ease-in-out' }
+    );
+  }));
 
   /* ---- seamless marquee: clone the set to overflow the viewport, then mirror it
      so translateX(-50%) lands exactly one set over and never snaps or gaps ---- */
-  function initMarquee() {
+  (() => {
     const track = document.querySelector('.marquee-track');
     const marquee = track && track.parentElement;
     const set = track && track.querySelector('.marquee-set');
@@ -124,34 +242,18 @@
       const clone = set.cloneNode(true);
       clone.setAttribute('aria-hidden', 'true');
       track.appendChild(clone);
-      // constant scroll speed (~90px/s) regardless of how wide the set ended up
       track.style.setProperty('--marquee-dur', Math.max(20, Math.round(setW / 90)) + 's');
     };
     build();
     let rt;
     addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(build, 200); });
-  }
-  initMarquee();
-
-  /* ---- scroll reveals (re-usable init for dynamic content) ---- */
-  function initReveals() {
-    const revealIo = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) { e.target.classList.add('in'); revealIo.unobserve(e.target); }
-      }),
-      { threshold: 0.18 }
-    );
-    document.querySelectorAll('.reveal-up:not(.in)').forEach((el) => revealIo.observe(el));
-  }
+  })();
 
   /* ====================================================================
      Blueprint-node constellation, the signature backdrop.
      Nodes drift; nearby nodes wire together; pins pulse; parallax to mouse.
      ==================================================================== */
   const cv = document.getElementById('constellation');
-  // Skip the animated canvas on reduced-motion AND on small / touch screens:
-  // the per-frame redraw is the main cause of jank on phones, so they keep
-  // the static gradient backdrop instead.
   const lowPower = innerWidth < 760 || matchMedia('(pointer:coarse)').matches;
   if (!cv || reduce || lowPower) return;
   const ctx = cv.getContext('2d');
@@ -188,7 +290,6 @@
       a.x += a.vx; a.y += a.vy;
       if (a.x < 0 || a.x > W) a.vx *= -1;
       if (a.y < 0 || a.y > H) a.vy *= -1;
-      // wires to neighbours
       for (let j = i + 1; j < nodes.length; j++) {
         const b = nodes[j];
         const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
@@ -199,7 +300,6 @@
           gr.addColorStop(1, `rgba(${b.c},${o})`);
           ctx.strokeStyle = gr; ctx.lineWidth = DPR;
           ctx.beginPath();
-          // orthogonal "Blueprint wire" elbow
           const midx = (a.x + b.x) / 2;
           ctx.moveTo(a.x + px, a.y + py);
           ctx.lineTo(midx + px, a.y + py);
@@ -209,7 +309,6 @@
         }
       }
     }
-    // node "pins"
     for (const a of nodes) {
       const pulse = 0.55 + 0.45 * Math.sin(t * 0.002 + a.ph);
       ctx.fillStyle = `rgba(${a.c},${0.5 + pulse * 0.4})`;
@@ -223,7 +322,6 @@
   }
   addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth; my = e.clientY / innerHeight; }, { passive: true });
   addEventListener('resize', () => { cancelAnimationFrame(raf); resize(); raf = requestAnimationFrame(draw); });
-  // pause when tab hidden
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) cancelAnimationFrame(raf);
     else raf = requestAnimationFrame(draw);
@@ -231,153 +329,3 @@
   resize();
   raf = requestAnimationFrame(draw);
 })();
-
-/* ---- home content loader ---- */
-async function loadHomeContent() {
-  try {
-    const data = await fetch('data/home.json', { cache: 'no-cache' }).then(r => r.json());
-
-    // meta
-    if (data.meta) {
-      document.title = data.meta.title || document.title;
-      document.getElementById('page-desc')?.setAttribute('content', data.meta.description || '');
-      document.getElementById('og-title')?.setAttribute('content', data.meta.title || '');
-      document.getElementById('og-desc')?.setAttribute('content', data.meta.description || '');
-    }
-
-    // nav
-    const navLinks = document.getElementById('site-nav-links');
-    if (navLinks && data.nav?.links) {
-      navLinks.innerHTML = data.nav.links.map(l =>
-        '<a href="' + l.href + '"' + (l.class ? ' class="' + l.class + '"' : '') + '>' + l.label + '</a>'
-      ).join('');
-    }
-
-    // hero eyebrow
-    const eyebrow = document.getElementById('hero-eyebrow');
-    if (eyebrow && data.hero?.eyebrow) eyebrow.innerHTML = '<span class="pulse-dot"></span> ' + data.hero.eyebrow;
-
-    // hero title
-    const heroTitle = document.getElementById('hero-title');
-    if (heroTitle && data.hero?.title) {
-      heroTitle.innerHTML = data.hero.title.map((t, i) =>
-        '<span class="' + (data.hero.titleClasses?.[i] || 'glitch') + '" data-text="' + t + '">' + t + '</span>'
-      ).join('');
-    }
-
-    // hero sub
-    const heroSub = document.getElementById('hero-sub');
-    if (heroSub && data.hero?.sub) heroSub.innerHTML = data.hero.sub;
-
-    // hero cta
-    const heroCta = document.getElementById('hero-cta');
-    if (heroCta && data.hero?.cta) {
-      heroCta.innerHTML = data.hero.cta.map(b =>
-        '<a class="' + b.class + '" href="' + b.href + '"' + (b.download ? ' download' : '') + '><span>' + b.label + '</span></a>'
-      ).join('');
-    }
-
-    // hero stats
-    const heroStats = document.getElementById('hero-stats');
-    if (heroStats && data.hero?.stats) {
-      heroStats.innerHTML = data.hero.stats.map(s =>
-        '<li><b' + (s.dataCount ? ' data-count="' + s.dataCount + '"' : '') + '>' + s.value + '</b><span>' + s.label + '</span></li>'
-      ).join('');
-    }
-
-    // marquee
-    const marqueeSet = document.getElementById('marquee-set');
-    if (marqueeSet && data.marquee) {
-      marqueeSet.innerHTML = data.marquee.map(t => '<span>' + t + '</span><i>◇</i>').join('');
-    }
-
-    // features
-    const featuresHead = document.getElementById('features-head');
-    if (featuresHead && data.features) {
-      featuresHead.innerHTML =
-        '<span class="kicker">' + data.features.kicker + '</span>' +
-        '<h2>' + data.features.heading + '</h2>';
-    }
-    const featuresGrid = document.getElementById('features-grid');
-    if (featuresGrid && data.features?.cards) {
-      featuresGrid.innerHTML = data.features.cards.map((c, i) =>
-        '<article class="card reveal-up" style="--i:' + i + '">' +
-        '<div class="card-glyph">' + c.glyph + '</div>' +
-        '<h3>' + c.title + '</h3>' +
-        '<p>' + c.body + '</p>' +
-        '<span class="card-tag">' + c.tag + '</span>' +
-        '</article>'
-      ).join('');
-    }
-
-    // flow
-    const flowHead = document.getElementById('flow-head');
-    if (flowHead && data.flow) {
-      flowHead.innerHTML =
-        '<span class="kicker">' + data.flow.kicker + '</span>' +
-        '<h2>' + data.flow.heading + '</h2>';
-    }
-    const flowSteps = document.getElementById('flow-steps');
-    if (flowSteps && data.flow?.steps) {
-      flowSteps.innerHTML = data.flow.steps.map((s, i) =>
-        '<li class="step reveal-up" style="--i:' + i + '">' +
-        '<span class="step-no">' + s.no + '</span>' +
-        '<h3>' + s.title + '</h3>' +
-        '<p>' + s.body + '</p>' +
-        '</li>'
-      ).join('');
-    }
-
-    // summon
-    const summonInner = document.getElementById('summon-inner');
-    if (summonInner && data.summon) {
-      const ctaHTML = data.summon.cta.map(b => {
-        const btn = '<a class="' + b.class + '" href="' + b.href + '"' + (b.download ? ' download' : '') + (b.soon ? ' data-soon' : '') + '><span>' + b.label + '</span></a>';
-        return b.soon ? '<span class="soon-wrap">' + btn + '</span>' : btn;
-      }).join('');
-      summonInner.innerHTML =
-        '<span class="kicker">' + data.summon.kicker + '</span>' +
-        '<h2>' + data.summon.heading + '</h2>' +
-        '<p>' + data.summon.body + '</p>' +
-        '<div class="summon-cta">' + ctaHTML + '</div>' +
-        '<p class="fineprint">' + data.summon.fineprint + '</p>';
-    }
-
-    // footer
-    const footer = document.getElementById('site-footer');
-    if (footer && data.footer) {
-      footer.innerHTML =
-        '<div class="foot-brand"><img class="foot-mark" src="img/brand/aethyr-crystal.svg" alt="" aria-hidden="true" width="20" height="20"> Aethyr</div>' +
-        '<p class="foot-note">' + data.footer.tagline + '</p>' +
-        '<p class="foot-legal">' + data.footer.legal + '</p>';
-    }
-
-    // re-run count-up on newly rendered stats
-    document.querySelectorAll('[data-count]').forEach(el => {
-      const target = parseInt(el.dataset.count, 10);
-      if (isNaN(target)) return;
-      let start = null;
-      function tick(ts) {
-        if (!start) start = ts;
-        const p = Math.min((ts - start) / 1200, 1);
-        el.textContent = Math.floor(p * target);
-        if (p < 1) requestAnimationFrame(tick);
-      }
-      requestAnimationFrame(tick);
-    });
-
-    // re-init reveals on dynamically added elements
-    initReveals();
-
-    // re-init data-soon buttons
-    initSoonBadges();
-
-    // re-clone marquee
-    initMarquee();
-
-  } catch (err) {
-    console.error('loadHomeContent error:', err);
-  }
-}
-
-loadHomeContent();
