@@ -132,7 +132,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 @media(max-width:560px){.dl-body{flex-basis:100%}.dl-btn{width:100%;justify-content:center}}
 
 /* story cards (tutorials index) */
-.stories{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:1.6rem 0}
+.stories{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin:1.6rem 0}
 .story{display:block;padding:22px;border:1px solid var(--line);border-radius:10px;
   background:linear-gradient(160deg,rgba(20,22,46,.5),rgba(10,10,22,.35));transition:transform .3s var(--ease),border-color .3s}
 .story:hover{transform:translateY(-5px);border-color:var(--cyan);text-decoration:none}
@@ -159,7 +159,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .tools td{padding:.55rem .7rem;border-bottom:1px solid var(--line);vertical-align:top}
 .tools td:first-child{white-space:nowrap;width:1%}
 .tools .t{font-family:var(--f-mono);font-size:.82rem;color:var(--cyan)}
-.tools .d{color:var(--ink-dim)}
+.tools .d{color:var(--ink-dim);overflow-wrap:anywhere}
 
 .pager{display:flex;justify-content:space-between;gap:14px;margin-top:3rem;padding-top:1.6rem;border-top:1px solid var(--line)}
 .pager a{font-family:var(--f-display);font-size:.95rem}
@@ -169,7 +169,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .spellnav a{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.05em;color:var(--ink-dim);
   border:1px solid var(--line);border-radius:20px;padding:.32rem .8rem;transition:color .2s,border-color .2s}
 .spellnav a:hover{color:var(--cyan);border-color:rgba(28,230,255,.3);text-decoration:none}
-.spellgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin:1.2rem 0 1rem}
+.spellgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;margin:1.2rem 0 1rem}
 .spell{border:1px solid var(--line);border-radius:10px;padding:15px 17px;
   background:linear-gradient(160deg,rgba(20,22,46,.45),rgba(10,10,22,.3));
   transition:border-color .25s,transform .25s var(--ease)}
@@ -181,9 +181,41 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .spell .seq{font-family:var(--f-mono);font-size:.73rem;color:var(--ink-dim);margin:0;max-width:none}
 .spell .seq b{color:var(--ember);font-weight:500}
 
+/* mobile nav toggle + off-canvas drawer */
+.navtoggle{display:none;flex-direction:column;justify-content:center;gap:5px;
+  width:40px;height:36px;padding:0 10px;background:rgba(20,22,46,.5);
+  border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.navtoggle span{display:block;height:2px;width:18px;background:var(--ink);border-radius:2px;
+  transition:transform .25s var(--ease),opacity .2s}
+.nav-ov{position:fixed;inset:0;z-index:40;background:rgba(4,4,10,.6);backdrop-filter:blur(2px);
+  opacity:0;pointer-events:none;transition:opacity .3s var(--ease)}
+/* long unbroken tokens (paths, env vars) must never force horizontal scroll */
+.doc p code,.doc li code,.doc td code{overflow-wrap:anywhere}
+
 @media(max-width:880px){
   :root{--sb:0}
   .wrap{grid-template-columns:1fr}
-  .side{display:none}
+  .navtoggle{display:flex}
+  /* sidebar becomes a slide-in drawer */
+  .side{display:block;position:fixed;top:0;left:0;z-index:50;
+    width:min(86vw,300px);height:100vh;height:100dvh;
+    transform:translateX(-100%);transition:transform .3s var(--ease);will-change:transform}
+  body.nav-open{overflow:hidden}
+  body.nav-open .side{transform:none;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+  body.nav-open .nav-ov{opacity:1;pointer-events:auto}
+  body.nav-open .navtoggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  body.nav-open .navtoggle span:nth-child(2){opacity:0}
+  body.nav-open .navtoggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  /* let the tool-name column wrap instead of forcing the table wide */
+  .tools td:first-child{white-space:normal;width:auto}
 }
-@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+@media(max-width:600px){
+  /* stack each tool row as a card: no sideways scroll on phones */
+  .tools,.tools tbody,.tools tr,.tools td{display:block;width:auto}
+  .tools tr{border-bottom:1px solid var(--line);padding:.55rem 0}
+  .tools tr:last-child{border-bottom:none}
+  .tools td{border-bottom:none;padding:.1rem 0}
+  .tools .t{font-size:.84rem}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}
+  .side{transition:none}}

@@ -20,7 +20,7 @@
 <div class="bg"></div><div class="grain"></div>
 <div class="wrap">
 
-  <aside class="side">
+  <aside class="side" id="sidenav">
     <a class="brand" href="../index.html"><img class="sig" src="../img/brand/aethyr-crystal.svg" alt="" aria-hidden="true" width="18" height="18"> Aethyr</a>
     <a class="home" href="../index.html">← back to site</a>
     <nav>
@@ -43,6 +43,7 @@
 
   <div class="main">
     <div class="topbar">
+      <button class="navtoggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidenav"><span></span><span></span><span></span></button>
       <span class="crumbs">docs / <b>spellbook</b></span>
       <span class="badge">bite-sized</span>
     </div>
@@ -397,6 +398,7 @@
     </article>
   </div>
 </div>
+<script src="docs.js"></script>
 <script>
   const links=[...document.querySelectorAll('.side nav a[href^="#"]')];
   const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
