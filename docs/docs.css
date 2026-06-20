@@ -8,6 +8,7 @@
   --ease:cubic-bezier(.2,.7,.2,1); --sb:280px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+*:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:2px;}
 html{scroll-behavior:smooth;scroll-padding-top:78px}
 body{font-family:var(--f-body);background:var(--void);color:var(--ink-2);line-height:1.7;
   -webkit-font-smoothing:antialiased}
@@ -130,7 +131,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .spellnav a{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.05em;color:var(--ink-dim);
   border:1px solid var(--line);border-radius:20px;padding:.32rem .8rem;transition:color .2s,border-color .2s}
 .spellnav a:hover{color:var(--cyan);border-color:rgba(28,230,255,.3);text-decoration:none}
-.spellgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;margin:1.2rem 0 1rem}
+.spell-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;margin:1.2rem 0 1rem}
 .spell{border:1px solid var(--line);border-radius:10px;padding:15px 17px;
   background:linear-gradient(160deg,rgba(20,22,46,.45),rgba(10,10,22,.3));
   transition:border-color .25s,transform .25s var(--ease)}
@@ -141,6 +142,52 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .spell .d{font-size:.84rem;color:var(--ink-dim);margin:.5rem 0 .65rem;max-width:none}
 .spell .seq{font-family:var(--f-mono);font-size:.73rem;color:var(--ink-dim);margin:0;max-width:none}
 .spell .seq b{color:var(--ember);font-weight:500}
+
+/* spell card supplementary elements */
+.spell-desc{color:var(--ink-dim);font-size:.85rem;line-height:1.5;margin:.4rem 0 .6rem;}
+.spell-tools{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem;}
+
+/* tool category sections */
+.tool-category{margin-bottom:2rem;}
+.tool-category:last-child{margin-bottom:0;}
+.tool-count{font-size:.75rem;color:var(--ink-dim);margin-bottom:.75rem;font-family:'JetBrains Mono',monospace;}
+
+/* tool table */
+.tool-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+.tool-table th{text-align:left;padding:.5rem .75rem;color:var(--ink-dim);font-weight:500;border-bottom:1px solid var(--line);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;}
+.tool-table td{padding:.5rem .75rem;border-bottom:1px solid var(--line);vertical-align:top;}
+.tool-table td:first-child{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--cyan);white-space:nowrap;}
+.tool-table tr:last-child td{border-bottom:none;}
+.tool-table tr:hover td{background:var(--panel);}
+
+/* flag table */
+.flag-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+.flag-table th{text-align:left;padding:.5rem .75rem;color:var(--ink-dim);font-weight:500;border-bottom:1px solid var(--line);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;}
+.flag-table td{padding:.5rem .75rem;border-bottom:1px solid var(--line);vertical-align:top;}
+.flag-table td:first-child{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--violet);white-space:nowrap;}
+.flag-table tr:last-child td{border-bottom:none;}
+
+/* backend table */
+.backend-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+.backend-table th{text-align:left;padding:.5rem .75rem;color:var(--ink-dim);font-weight:500;border-bottom:1px solid var(--line);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;}
+.backend-table td{padding:.5rem .75rem;border-bottom:1px solid var(--line);vertical-align:top;}
+.backend-table td:first-child{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--ember);white-space:nowrap;}
+.backend-table tr:last-child td{border-bottom:none;}
+
+/* skill list */
+.skill-list{display:flex;flex-direction:column;gap:1.5rem;}
+.skill-row{display:grid;grid-template-columns:1fr 2fr;gap:1rem;padding:1rem;background:var(--panel);border:1px solid var(--line);border-radius:6px;}
+.skill-name{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:.5rem;}
+.skill-name .badge{font-size:.65rem;padding:.15rem .5rem;border-radius:4px;background:rgba(155,107,255,.15);border:1px solid rgba(155,107,255,.25);color:var(--violet);font-family:'JetBrains Mono',monospace;}
+
+/* section helpers */
+.sec-icon{font-size:1.5rem;margin-bottom:.5rem;}
+.section-intro{color:var(--ink-dim);font-size:.95rem;line-height:1.6;margin:-.5rem 0 1.5rem;}
+
+/* error page */
+.error-page{text-align:center;padding:3rem 1rem;}
+.error-page h1{color:var(--cyan);}
+.error-page p{color:var(--ink-dim);margin:.5rem 0 1.5rem;}
 
 /* download dock */
 .dl{position:relative;display:flex;align-items:center;gap:18px 22px;flex-wrap:wrap;

@@ -30,9 +30,9 @@ function renderCategories(categories) {
   for (const cat of categories) {
     h += '<div class="tool-category">'
       + '<h3>' + esc(cat.name) + ' <span class="tool-count">' + (cat.count || cat.tools.length) + '</span></h3>'
-      + '<table class="tool-table"><tbody>';
+      + '<table class="tool-table"><thead><tr><th scope="col">Name</th><th scope="col">Description</th></tr></thead><tbody>';
     for (const tool of (cat.tools || [])) {
-      h += '<tr><td><code>' + esc(tool.name) + '</code></td><td>' + tool.description + '</td></tr>';
+      h += '<tr><td><code>' + esc(tool.name) + '</code></td><td>' + esc(tool.description) + '</td></tr>';
     }
     h += '</tbody></table></div>';
   }
@@ -40,6 +40,7 @@ function renderCategories(categories) {
 }
 
 function renderSkills(skills) {
+  // skill descriptions may contain intentional HTML (e.g. <code> tags) — left unescaped
   let h = '<div class="skill-list">';
   for (const sk of skills) {
     h += '<div class="skill-row">'
@@ -53,15 +54,15 @@ function renderSkills(skills) {
 }
 
 function renderFlags(flags) {
-  let h = '<table class="flag-table"><tbody>';
+  let h = '<table class="flag-table"><thead><tr><th scope="col">Name</th><th scope="col">Description</th></tr></thead><tbody>';
   for (const f of flags) {
-    h += '<tr><td><code>' + esc(f.name) + '</code></td><td>' + f.description + '</td></tr>';
+    h += '<tr><td><code>' + esc(f.name) + '</code></td><td>' + esc(f.description) + '</td></tr>';
   }
   return h + '</tbody></table>';
 }
 
 function renderBackends(backends) {
-  let h = '<table class="backend-table"><tbody>';
+  let h = '<table class="backend-table"><thead><tr><th scope="col">Name</th><th scope="col">Description</th></tr></thead><tbody>';
   for (const b of backends) {
     h += '<tr><td><code>' + esc(b.name) + '</code></td><td>' + esc(b.description) + '</td></tr>';
   }
@@ -109,7 +110,7 @@ async function loadDocsPage(jsonPath) {
         + '<img class="sig" src="/img/brand/aethyr-crystal.svg" alt="" aria-hidden="true" width="18" height="18"> '
         + esc(s.brand?.label ?? 'Aethyr') + '</a>';
       if (s.backHref) sideHTML += '<a class="home" href="' + esc(s.backHref) + '">&larr; back to site</a>';
-      sideHTML += '<nav>';
+      sideHTML += '<nav aria-label="Docs navigation">';
       for (const section of (s.sections || [])) {
         sideHTML += '<h4>' + (section.heading || '') + '</h4>';
         for (const item of (section.items || [])) {
@@ -215,6 +216,11 @@ function initMobileNav() {
   const set = open => {
     document.body.classList.toggle('nav-open', open);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      var firstLink = side.querySelector('a'); if (firstLink) firstLink.focus();
+    } else {
+      btn.focus();
+    }
   };
   btn.addEventListener('click', () => set(!document.body.classList.contains('nav-open')));
   ov.addEventListener('click', () => set(false));

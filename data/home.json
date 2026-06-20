@@ -116,7 +116,7 @@
         "glyph": "⟁",
         "title": "All-or-nothing batches",
         "body": "Chain a dozen edits into one transaction. If step seven fails, the whole thing rolls back; your graph is never left half-rewritten.",
-        "tag": "atomic"
+        "tag": "3 batch tools"
       },
       {
         "glyph": "◎",
@@ -133,7 +133,8 @@
     ]
   },
   "clients": {
-    "heading": "Works with every MCP client.",
+    "kicker": "// COMPATIBILITY",
+    "heading": "Works with any stdio MCP client.",
     "items": [
       {
         "name": "Claude"
@@ -189,24 +190,24 @@
         "a": "No. Every write goes through a compile gate: if the Blueprint doesn't compile, the save is aborted. Before anything changes, an automatic backup copy is made. Reads are entirely zero-write—nothing on disk changes."
       },
       {
-        "q": "Which MCP clients does it support?",
-        "a": "Any client that speaks the stdio MCP transport—Claude (Anthropic), Cursor, GitHub Copilot, Windsurf, Cline, and others. If your client can load an MCP server, Aethyr works with it."
-      },
-      {
-        "q": "Does it need the Unreal Editor open?",
-        "a": "No. Aethyr auto-routes each call: if an editor is running on the project it connects to the live session; otherwise it drives a headless editor automatically. No babysitting an editor window required."
-      },
-      {
-        "q": "Which UE versions are supported?",
-        "a": "UE 5.4 through 5.8 are verified against real projects. UE 5.3 is untested. UE 4.x and 5.0–5.2 are not supported."
-      },
-      {
         "q": "Does it send data to the cloud?",
         "a": "No telemetry, no analytics, no cloud dependency. Everything runs on your machine. Your project never leaves your local environment."
       },
       {
         "q": "Can I use it read-only?",
         "a": "Yes. By default Aethyr only reads. Write operations are gated behind the AETHYR_ALLOW_WRITE=1 environment variable. Set it only when you want edits to happen."
+      },
+      {
+        "q": "Does it need the Unreal Editor open?",
+        "a": "No. Aethyr auto-routes each call: if an editor is running on the project it connects to the live session; otherwise it drives a headless editor automatically. No babysitting an editor window required."
+      },
+      {
+        "q": "Which MCP clients does it support?",
+        "a": "Any client that speaks the stdio MCP transport—Claude (Anthropic), Cursor, GitHub Copilot, Windsurf, Cline, and others. If your client can load an MCP server, Aethyr works with it."
+      },
+      {
+        "q": "Which UE versions are supported?",
+        "a": "UE 5.4 through 5.8 are verified against real projects. UE 5.3 is untested. UE 4.x and 5.0–5.2 are not supported."
       }
     ]
   },
@@ -217,17 +218,17 @@
     "cta": [
       {
         "href": "downloads/aethyr-mcp-ue5-plugin.zip",
-        "label": "↓ Download plugin",
+        "label": "↓ Download free",
         "class": "btn btn-primary big",
         "download": true
       },
       {
         "href": "/docs/",
-        "label": "▸ Start with the docs",
+        "label": "▸ Read the docs",
         "class": "btn btn-ghost big"
       }
     ],
-    "fineprint": "Free forever · no telemetry · local only"
+    "fineprint": "Free to download · no telemetry · local only"
   },
   "footer": {
     "tagline": "Made for builders who'd rather describe a mechanic than wire it by hand.",

@@ -4,7 +4,10 @@
 
   /* ---- load home page content from JSON (must happen before init) ---- */
   try {
-    const data = await fetch('data/home.json', { cache: 'no-cache' }).then(r => r.json());
+    const data = await fetch('data/home.json', { cache: 'no-cache' }).then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
 
     if (data.meta) {
       document.title = data.meta.title || document.title;
@@ -63,7 +66,7 @@
     if (clientsInner && data.clients) {
       clientsInner.innerHTML = '<h3 class="clients-head">' + data.clients.heading + '</h3>'
         + '<div class="clients-list">'
-        + data.clients.items.map(c =>
+        + (data.clients?.items || []).map(c =>
             '<span class="client-chip">' + c.name + (c.note ? ' <small>' + c.note + '</small>' : '') + '</span>'
           ).join('')
         + '</div>';
@@ -108,8 +111,9 @@
     if (snippetInner && data.snippet) {
       const safeCode = data.snippet.code
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const snippetKicker = data.snippet.kicker || '// QUICK START';
       snippetInner.innerHTML =
-        '<div class="section-head reveal-up"><span class="kicker">// QUICK START</span>'
+        '<div class="section-head reveal-up"><span class="kicker">' + snippetKicker + '</span>'
         + '<h2>' + data.snippet.heading + '</h2>'
         + '<p class="snippet-caption">' + data.snippet.caption + '</p></div>'
         + '<div class="snippet-wrap reveal-up">'
@@ -133,8 +137,9 @@
 
     const faqInner = document.getElementById('faq-inner');
     if (faqInner && data.faq) {
+      const faqKicker = data.faq.kicker || '// FAQ';
       faqInner.innerHTML =
-        '<div class="section-head reveal-up"><span class="kicker">// FAQ</span>'
+        '<div class="section-head reveal-up"><span class="kicker">' + faqKicker + '</span>'
         + '<h2>' + data.faq.heading + '</h2></div>'
         + data.faq.items.map(item =>
             '<details class="faq-item">'
@@ -146,7 +151,7 @@
 
     const summonInner = document.getElementById('summon-inner');
     if (summonInner && data.summon) {
-      const ctaHTML = data.summon.cta.map(b => {
+      const ctaHTML = (data.summon?.cta || []).map(b => {
         const btn = '<a class="' + b.class + '" href="' + b.href + '"' +
           (b.download ? ' download' : '') + (b.soon ? ' data-soon' : '') +
           '><span>' + b.label + '</span></a>';
@@ -183,6 +188,7 @@
 
   /* ---- nav solidify on scroll ---- */
   const nav = document.getElementById('nav');
+  if (!nav) return;
   const onScroll = () => nav.classList.toggle('solid', window.scrollY > 40);
   onScroll();
   addEventListener('scroll', onScroll, { passive: true });
@@ -311,6 +317,35 @@
     let rt;
     addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(build, 200); });
   })();
+
+  /* ---- home mobile nav ---- */
+  function initHomeNav() {
+    var toggle = document.getElementById('nav-toggle');
+    var navEl = document.getElementById('nav');
+    if (!toggle || !navEl) return;
+    toggle.addEventListener('click', function() {
+      var isOpen = document.body.classList.toggle('nav-open');
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) {
+        var firstLink = document.querySelector('#site-nav-links a');
+        if (firstLink) firstLink.focus();
+      }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && document.body.classList.contains('nav-open')) {
+        document.body.classList.remove('nav-open');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.focus();
+      }
+    });
+    document.addEventListener('click', function(e) {
+      if (document.body.classList.contains('nav-open') && !navEl.contains(e.target)) {
+        document.body.classList.remove('nav-open');
+        toggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+  initHomeNav();
 
   /* ====================================================================
      Blueprint-node constellation, the signature backdrop.

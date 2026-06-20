@@ -14,11 +14,16 @@
 <link rel="icon" type="image/png" sizes="32x32" href="img/brand/aethyr-favicon-32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="img/brand/aethyr-favicon-16.png" />
 <link rel="apple-touch-icon" href="img/brand/aethyr-icon-512.png" />
+<link rel="canonical" href="https://aethyr.gg/" />
 <meta name="theme-color" content="#070710" />
 <meta property="og:title" id="og-title" content="Aethyr for Unreal Engine 5: AI that speaks Blueprint" />
 <meta property="og:description" id="og-desc" content="A corruption-safe MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language." />
-<meta property="og:image" content="img/brand/aethyr-icon-512.png" />
+<meta property="og:image" content="https://aethyr.gg/img/brand/aethyr-icon-512.png" />
+<meta property="og:image:width" content="512" />
+<meta property="og:image:height" content="512" />
 <meta property="og:type" content="website" />
+<meta property="og:url" content="https://aethyr.gg/" />
+<meta property="og:site_name" content="Aethyr" />
 <meta name="twitter:card" content="summary_large_image" />
 <script type="application/ld+json">
 {
@@ -128,7 +133,14 @@
       <circle cx="1002" cy="312" r="26" fill="url(#bokehMag)"/>
     </svg>
   </a>
-  <nav class="nav-links" id="site-nav-links"></nav>
+  <button class="nav-toggle" id="nav-toggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="site-nav-links"><span></span><span></span><span></span></button>
+  <nav class="nav-links" id="site-nav-links">
+    <a href="#features">Features</a>
+    <a href="#flow">How it works</a>
+    <a href="/docs/">Docs</a>
+    <a href="/changelog/">Changelog</a>
+    <a href="/docs/" class="nav-cta">Get it</a>
+  </nav>
 </header>
 
 <main id="top">
@@ -188,5 +200,10 @@
 <footer class="foot" id="site-footer"></footer>
 
 <script src="js/main.js"></script>
+<noscript>
+  <style>.hero-title,.hero-sub,.hero-cta{opacity:1!important;transform:none!important}</style>
+  <h1 style="position:absolute;left:-9999px">Aethyr for Unreal Engine 5: AI that speaks Blueprint</h1>
+  <p style="position:absolute;left:-9999px">A corruption-safe MCP server that lets any AI assistant read and author Unreal Engine 5 Blueprints in plain language. Works with Claude, Cursor, GitHub Copilot, Windsurf, Cline, and any stdio MCP client.</p>
+</noscript>
 </body>
 </html>
