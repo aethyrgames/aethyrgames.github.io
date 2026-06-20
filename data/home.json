@@ -167,7 +167,7 @@
       {
         "no": "01",
         "title": "Bind your AI",
-        "body": "Drop the server into your MCP client's config. One block, paste-and-go for Claude."
+        "body": "Drop the server into your MCP client's config. One JSON block — paste, point at your project, done."
       },
       {
         "no": "02",
