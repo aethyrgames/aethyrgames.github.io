@@ -314,7 +314,7 @@ a{color:inherit;text-decoration:none}
 .foot-mark{width:20px;height:20px;vertical-align:-4px;
   filter:drop-shadow(0 0 8px rgba(28,230,255,.45))}
 .foot-note{color:var(--ink-dim);margin:.6rem 0;font-weight:300}
-.foot-legal{font-family:var(--f-mono);font-size:.68rem;color:#5a608a;letter-spacing:.04em}
+.foot-legal{font-family:var(--f-mono);font-size:.68rem;color:var(--ink-dim);opacity:.6;letter-spacing:.04em}
 
 /* ---- brand lockup micro-animation ----
    Cheap (small SVG), so it stays on for mobile; the global
@@ -344,7 +344,6 @@ a{color:inherit;text-decoration:none}
 /* ---- responsive ---- */
 @media(max-width:860px){
   .flow-wrap{grid-template-columns:1fr}
-  .nav-links a:not(.nav-cta){display:none}
 }
 /* mobile: drop the GPU-heavy compositing layers (full-screen blend-mode overlays)
    and the drifting canvas so the page renders smoothly on phones. The static
@@ -378,23 +377,8 @@ a{color:inherit;text-decoration:none}
 .clients-list{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
 .client-chip{font-family:var(--f-mono);font-size:.82rem;letter-spacing:.04em;
   color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:.5rem 1rem;
-  background:rgba(20,22,46,.35)}
+  background:rgba(20,22,46,.35);cursor:default}
 .client-chip small{font-size:.7rem;color:var(--ink-dim);opacity:.65;margin-left:.3rem}
-
-/* ---- config snippet section ---- */
-.snippet-section{position:relative;z-index:5;max-width:1320px;margin:0 auto;
-  padding:0 clamp(20px,7vw,120px) 0;
-  border-top:1px solid var(--line)}
-.snippet-caption{color:var(--ink-dim);font-weight:300;max-width:52ch;margin:.5rem 0 0}
-.snippet-wrap{position:relative;margin-top:1.8rem}
-.snippet-code{background:rgba(5,5,12,.9);border:1px solid rgba(28,230,255,.22);border-radius:10px;
-  padding:22px 24px;overflow-x:auto;font-family:var(--f-mono);font-size:.88rem;
-  line-height:1.75;color:var(--ink-2)}
-.copy-btn{position:absolute;top:12px;right:12px;font-family:var(--f-mono);font-size:.72rem;
-  letter-spacing:.06em;color:var(--ink-dim);background:rgba(20,22,46,.8);
-  border:1px solid var(--line);border-radius:6px;padding:.35rem .8rem;cursor:pointer;
-  transition:color .2s,border-color .2s,background .2s}
-.copy-btn:hover{color:var(--cyan);border-color:rgba(28,230,255,.3);background:rgba(28,230,255,.06)}
 
 /* ---- FAQ section ---- */
 .faq-section{position:relative;z-index:5;max-width:860px;margin:0 auto;
@@ -424,12 +408,10 @@ a{color:inherit;text-decoration:none}
 /* new-section mobile */
 @media(max-width:640px){
   .scroll-cue{ display:none }
-  .copy-btn{ position:static; display:block; margin:0 0 10px auto }
   .trust-badge{ font-size:.65rem; padding:.25rem .6rem }
   .client-chip{ font-size:.75rem; padding:.35rem .75rem }
   .foot-links{ gap:.75rem }
-  .snippet-section{ padding-block: clamp(40px,8vw,80px) }
-  .faq-section{ padding-block: clamp(40px,8vw,80px) }
+  .faq-section{ padding-block-end: clamp(40px,8vw,80px) }
 }
 @media(max-width:480px){
   .clients-list{ gap:.5rem }

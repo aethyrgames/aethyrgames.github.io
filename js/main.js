@@ -64,7 +64,9 @@
 
     const clientsInner = document.getElementById('clients-inner');
     if (clientsInner && data.clients) {
-      clientsInner.innerHTML = '<h3 class="clients-head">' + data.clients.heading + '</h3>'
+      const clientsKicker = data.clients.kicker
+        ? '<span class="kicker">' + data.clients.kicker + '</span>' : '';
+      clientsInner.innerHTML = clientsKicker + '<h2 class="clients-head">' + data.clients.heading + '</h2>'
         + '<div class="clients-list">'
         + (data.clients?.items || []).map(c =>
             '<span class="client-chip">' + c.name + (c.note ? ' <small>' + c.note + '</small>' : '') + '</span>'
