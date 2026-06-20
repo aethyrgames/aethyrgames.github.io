@@ -6,25 +6,34 @@ Live at **[aethyr-mcp.github.io](https://aethyr-mcp.github.io)**.
 
 ## What's in this repo
 
-| Path | What it is |
-|---|---|
-| `index.html` | Main product landing page |
-| `docs/index.html` | Get Started (quickstart, concepts) |
-| `docs/tutorials.html` | User-story tutorials |
-| `docs/reference.html` | Tool and config reference |
-| `css/styles.css` | Shared site styles (Arcane Terminal design system) |
-| `js/main.js` | Site interactions (scroll reveals, typewriter, count-up) |
-| `img/brand/` | Aethyr lockup, crystal mark, and favicons |
+| Path | URL | What it is |
+|---|---|---|
+| `index.html` | `/` | Main product landing page |
+| `docs/index.html` | `/docs/` | Get Started (quickstart, concepts) |
+| `docs/tutorials/index.html` | `/docs/tutorials/` | User-story tutorials |
+| `docs/reference/index.html` | `/docs/reference/` | Tool and config reference |
+| `docs/cookbook/index.html` | `/docs/cookbook/` | Spellbook: quick recipes |
+| `data/home.json` | — | Content for the landing page |
+| `data/docs-index.json` | — | Content for the Get Started page |
+| `data/docs-tutorials.json` | — | Content for the tutorials page |
+| `data/docs-reference.json` | — | Content for the reference page |
+| `data/docs-cookbook.json` | — | Content for the cookbook page |
+| `js/docs.js` | — | Shared renderer for all docs pages |
+| `js/main.js` | — | Site interactions (scroll reveals, typewriter, count-up) |
+| `css/styles.css` | — | Shared site styles (Arcane Terminal design system) |
+| `img/brand/` | — | Aethyr lockup, crystal mark, and favicons |
+
+Docs pages are minimal JS-rendered templates. All page content lives in the corresponding `data/*.json` file and is hydrated at load time by `js/docs.js`. To change copy, edit the JSON — no HTML required.
 
 ## Running locally
 
-No build step. Open any HTML file directly in a browser, or serve from the repo root:
+No build step. Serve from the repo root (required — relative asset paths depend on it):
 
 ```
 npx serve .
 ```
 
-Docs pages are in `docs/` and reference assets with relative paths (`../img/`, `../css/`), so they need to be served from the repo root rather than opened as standalone files.
+Then visit `http://localhost:3000/docs/tutorials/` etc. Opening HTML files directly won't work for the folder-based pages because the JSON fetch uses a relative path.
 
 ## Deploying
 

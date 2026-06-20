@@ -1,0 +1,413 @@
+{
+  "meta": {
+    "title": "Spellbook · Aethyr docs",
+    "description": "A spellbook of bite-sized Aethyr recipes: one sentence you say to your AI, one thing it does. Reading, authoring, refactoring, auditing, data, art, and AI graphs."
+  },
+  "sidebar": {
+    "brand": {
+      "href": "/",
+      "label": "Aethyr"
+    },
+    "backHref": "/",
+    "sections": [
+      {
+        "heading": "Spellbook",
+        "items": [
+          { "href": "#g-understand", "label": "Understand a Blueprint" },
+          { "href": "#g-find", "label": "Find and navigate" },
+          { "href": "#g-author", "label": "Author by asking" },
+          { "href": "#g-components", "label": "Components and interfaces" },
+          { "href": "#g-refactor", "label": "Refactor safely" },
+          { "href": "#g-batch", "label": "Batch and verify" },
+          { "href": "#g-data", "label": "Data and gameplay tables" },
+          { "href": "#g-art", "label": "Art, FX, and timelines" },
+          { "href": "#g-ai", "label": "AI graphs and class reflection" }
+        ]
+      },
+      {
+        "heading": "Go deeper",
+        "items": [
+          { "href": "/docs/tutorials/", "label": "Ritual walkthroughs →" },
+          { "href": "/docs/reference/", "label": "Tool & config reference →" },
+          { "href": "/docs/", "label": "Quickstart & setup →" }
+        ]
+      }
+    ]
+  },
+  "topbar": {
+    "crumbs": ["docs", "spellbook"],
+    "badge": "bite-sized"
+  },
+  "article": {
+    "heading": "The spellbook.",
+    "lead": "Bite-sized incantations: one sentence you say, one thing Aethyr does. Skim for the move you need, say it in your own words, and let your AI pick the tools. Every recipe here lives inside the shipping build.",
+    "note": {
+      "type": "tip",
+      "html": "<p>Most of these are <strong>reads</strong>: they can't change anything, so they're always safe to run. The <a href=\"#g-author\">author</a> and <a href=\"#g-refactor\">refactor</a> groups write, and every write goes through a compile gate and an automatic backup. Want the long-form stories instead? See the <a href=\"/docs/tutorials/\">ritual walkthroughs</a>.</p>"
+    },
+    "spellnav": [
+      { "href": "#g-understand", "label": "Understand" },
+      { "href": "#g-find", "label": "Find" },
+      { "href": "#g-author", "label": "Author" },
+      { "href": "#g-components", "label": "Components" },
+      { "href": "#g-refactor", "label": "Refactor" },
+      { "href": "#g-batch", "label": "Batch" },
+      { "href": "#g-data", "label": "Data" },
+      { "href": "#g-art", "label": "Art & FX" },
+      { "href": "#g-ai", "label": "AI" }
+    ],
+    "sections": [
+      {
+        "id": "g-understand",
+        "heading": "Understand a Blueprint",
+        "icon": "⌖",
+        "intro": "Orient before you touch anything. Every recipe here is read-only.",
+        "spells": [
+          {
+            "incant": "\"What does /Game/AI/BP_Enemy actually do? Give me the 10-second version.\"",
+            "description": "Aethyr returns a one-screen brief: parent class, variable and function counts, and the graph shape, without loading the whole asset. Use it to decide where to look next.",
+            "tools": ["summarize_blueprint"]
+          },
+          {
+            "incant": "\"Is the event graph on BP_Turret worth opening, or is it basically empty?\"",
+            "description": "Aethyr peeks at the graph and reports just its node count and a histogram of node kinds. You learn whether it is two nodes or two hundred before paying to read it.",
+            "tools": ["peek_graph"]
+          },
+          {
+            "incant": "\"Pull the full picture on /Game/Items/BP_HealthPickup: parent, interfaces, variables, all of it.\"",
+            "description": "Aethyr reads the Blueprint metadata in one pass: parent class, implemented interfaces, every variable, and summaries of each function and graph. This is the full orientation when the 10-second brief is not enough.",
+            "tools": ["read_blueprint"]
+          },
+          {
+            "incant": "\"Show me how the event graph on BP_Enemy is actually wired up.\"",
+            "description": "Aethyr returns the real node-by-node topology of the event graph: every node, its pins, and the connections between them. This is the wiring, not a summary.",
+            "tools": ["get_graph"]
+          },
+          {
+            "incant": "\"Read me the ApplyDamage function on BP_Turret, signature and body.\"",
+            "description": "Aethyr fetches one function by name: its inputs, outputs, and the nodes inside it. Scope your read to a single function instead of the whole Blueprint.",
+            "tools": ["get_function"]
+          },
+          {
+            "incant": "\"What components are bolted onto BP_Enemy, and how are they parented?\"",
+            "description": "Aethyr lists every component on the actor, the mesh, collision, audio, and the rest, with the attachment hierarchy so you can see what is nested under what.",
+            "tools": ["get_components"]
+          }
+        ]
+      },
+      {
+        "id": "g-find",
+        "heading": "Find and navigate",
+        "icon": "⊹",
+        "intro": "Answer \"where is X\" across an entire project. Read-only.",
+        "spells": [
+          {
+            "incant": "\"Where does BP_Enemy touch its Health variable? Show me every node that reads or writes it.\"",
+            "description": "Sweeps all of the Blueprint's graphs in one pass and returns each get and set of that variable, so you never miss a hidden write in some side function.",
+            "tools": ["find_node"]
+          },
+          {
+            "incant": "\"Which Blueprints under /Game/AI override TakeDamage or implement the Interactable interface?\"",
+            "description": "Scans a path and lists every Blueprint that overrides the named function or implements the interface, so you can find all the subclasses that customize a behavior at once.",
+            "tools": ["find_overriders"]
+          },
+          {
+            "incant": "\"Before I rename /Game/Items/BP_HealthPickup, show me everything that references it.\"",
+            "description": "Returns the full blast radius: every asset pointing at the target, so a rename or delete does not silently break a referencing Blueprint or DataTable.",
+            "tools": ["get_referencers"]
+          },
+          {
+            "incant": "\"What does BP_Turret pull in when it loads? List its dependencies.\"",
+            "description": "Walks the asset outward and lists everything it drags into memory on load, so you can spot a heavy mesh or material chain inflating the cook.",
+            "tools": ["get_dependencies"]
+          },
+          {
+            "incant": "\"I half-remember a DataTable called something like 'WeaponStats' but not where it lives. Find it.\"",
+            "description": "Matches on a name fragment across the whole project and returns the candidates with their package paths, so a partial memory is enough to land on the asset.",
+            "tools": ["find_asset"]
+          },
+          {
+            "incant": "\"There's a node in BP_Turret's logic I don't recognize. What is it, what are its pins, and is it pure?\"",
+            "description": "Identifies a K2 node by class and reports its title, pins, purity, and owning module, so an unfamiliar node stops being a mystery before you wire it.",
+            "tools": ["describe_k2node"]
+          }
+        ]
+      },
+      {
+        "id": "g-author",
+        "heading": "Author by asking",
+        "icon": "✶",
+        "intro": "Turn sentences into compiled graphs. Every write flows through a compile gate and an automatic backup.",
+        "spells": [
+          {
+            "incant": "\"On BP_Enemy, add a float called MaxHealth that starts at 250\"",
+            "description": "Aethyr declares the member variable, sets its type, and seals in the default, then compiles. One sentence, one typed field.",
+            "tools": ["add_variable"]
+          },
+          {
+            "incant": "\"Give BP_Turret an AmmoCount int that designers can tweak in Details and that replicates to clients\"",
+            "description": "One call exposes the variable as instance-editable and marks it replicated, so it shows in the Details panel and stays synced over the network.",
+            "tools": ["add_variable"]
+          },
+          {
+            "incant": "\"Bump the default FireRate on BP_Turret from 0.5 to 0.2\"",
+            "description": "Aethyr rewrites just the variable's default on the class, leaving every wire and node untouched, then recompiles.",
+            "tools": ["set_variable_default"]
+          },
+          {
+            "incant": "\"Write a TakeDamage function on BP_Enemy: subtract the incoming amount from Health, and if Health drops to zero, call Die\"",
+            "description": "Describe the behavior in plain pseudocode and Aethyr lowers it into a real, wired graph, compile-checked before it lands.",
+            "tools": ["compile_function"]
+          },
+          {
+            "incant": "\"In BP_Turret's Tick, drop a Branch and feed it bHasTarget\"",
+            "description": "Aethyr spawns the Branch node and threads the boolean into its Condition pin, so you never drag a wire by hand.",
+            "tools": ["add_node", "wire_pins"]
+          },
+          {
+            "incant": "\"Add an ApplyHeal function to /Game/Items/BP_HealthPickup that takes a Target actor and a float Amount and returns the new health\"",
+            "description": "Aethyr declares the function, then adds each typed input and the typed return pin in order, leaving a clean signature ready to fill in.",
+            "tools": ["add_function", "add_function_input", "add_function_output"]
+          },
+          {
+            "incant": "\"Make a new BP_HoloProjector under /Game/FX that extends AActor\"",
+            "description": "Aethyr creates the asset against any parent class you name and compiles it clean, ready for variables and graphs.",
+            "tools": ["create_blueprint"]
+          }
+        ]
+      },
+      {
+        "id": "g-components",
+        "heading": "Components and interfaces",
+        "icon": "❖",
+        "intro": "Assemble an actor's parts and the contracts it fulfils.",
+        "spells": [
+          {
+            "incant": "\"Give BP_Turret a static mesh component called Barrel, plus an audio component for the firing loop\"",
+            "description": "Aethyr adds the component to the construction-script tree by class, names it, and saves through the compile gate with a backup. Works for static mesh, audio, collision shapes, scene roots, anything.",
+            "tools": ["add_component"]
+          },
+          {
+            "incant": "\"On BP_HealthPickup, set the mesh component to /Game/Items/SM_Potion and bump the sphere collision radius to 96\"",
+            "description": "Aethyr writes author-time defaults straight onto a component: the mesh asset, a sphere radius, a sound to play, a material override. The values land on the construction-script template, not at runtime.",
+            "tools": ["set_component_property"]
+          },
+          {
+            "incant": "\"Parent the MuzzleFlash particle under the Barrel mesh on BP_Turret\"",
+            "description": "Aethyr re-parents one component beneath another in the construction-script hierarchy, fixing up the attachment so the child sits under the muzzle in the tree and inherits the parent transform.",
+            "tools": ["attach_component"]
+          },
+          {
+            "incant": "\"Drop the old PointLight component off BP_Enemy, we moved to a baked glow\"",
+            "description": "Aethyr removes a component from the tree and saves the slimmer actor through the compile gate. Read the parts first with get_components if you want to confirm the exact name.",
+            "tools": ["get_components", "remove_component"]
+          },
+          {
+            "incant": "\"Make BP_Enemy implement BPI_Damageable and stub out every function the interface demands\"",
+            "description": "Aethyr adds the interface to the Blueprint and auto-generates a stub graph for each function the contract requires, ready for you to fill in. No more hand-adding events one by one.",
+            "tools": ["implement_interface"]
+          }
+        ]
+      },
+      {
+        "id": "g-refactor",
+        "heading": "Refactor safely",
+        "icon": "⟁",
+        "intro": "Restructure without breaking call sites. Renames update references for you.",
+        "spells": [
+          {
+            "incant": "\"Rename the Health variable on BP_Enemy to CurrentHP and fix every node that uses it\"",
+            "description": "Aethyr renames the member and rewires every get and set node that referenced it, so no call site is left dangling. The edit passes a compile gate and is backed up first.",
+            "tools": ["rename_variable"]
+          },
+          {
+            "incant": "\"Change Ammo on BP_Turret from int to float and keep the existing get and set nodes connected\"",
+            "description": "Aethyr retypes the variable in place and re-pins the existing get and set nodes to the new type, instead of you deleting and re-dropping them. Watch the compile status for any wire that no longer matches.",
+            "tools": ["retype_variable"]
+          },
+          {
+            "incant": "\"Put Damage, FireRate, and Range under a 'Combat' category on BP_Turret's Details panel\"",
+            "description": "Aethyr stamps the category metadata on each variable so the Details panel groups them under one collapsible header. Purely organizational, the values and types are untouched.",
+            "tools": ["set_variable_category"]
+          },
+          {
+            "incant": "\"Drop the leftover DebugSpawnCount variable from /Game/Items/BP_HealthPickup, nothing reads it anymore\"",
+            "description": "First sweep the graph for any node that still touches the variable, then drop the member. Aethyr removes it from the Blueprint, compiles, and saves behind an automatic backup. The lookup runs first so you only delete something nothing reads.",
+            "tools": ["find_node", "delete_variable"]
+          },
+          {
+            "incant": "\"Delete that orphaned PrintString node in BP_Enemy's event graph and unhook its pins cleanly\"",
+            "description": "Locate the exact node by its GUID, then sever it. Aethyr removes the node and detaches its links without leaving stray wires behind, so you delete precisely the one you mean.",
+            "tools": ["find_node", "delete_node"]
+          },
+          {
+            "incant": "\"This event graph on BP_Turret is a spaghetti mess, line it up into readable columns\"",
+            "description": "Aethyr re-flows the graph into tidy left-to-right columns by execution order, so the logic reads cleanly. It only moves nodes, no wires or behavior change.",
+            "tools": ["auto_layout_graph"]
+          }
+        ]
+      },
+      {
+        "id": "g-batch",
+        "heading": "Batch and verify",
+        "icon": "⟐",
+        "intro": "Many edits as one unit; confirm what will change before, and that it compiled after.",
+        "spells": [
+          {
+            "incant": "\"On BP_Enemy, add a Health float, a TakeDamage function, and wire it into the event graph, all or nothing\"",
+            "description": "Aethyr runs every write as one transaction. If any step trips the compile gate, the whole batch rolls back and BP_Enemy stays exactly as it was.",
+            "tools": ["apply_ops"]
+          },
+          {
+            "incant": "\"Before you touch BP_Turret, show me exactly which nodes, pins, and variables this batch will change\"",
+            "description": "Aethyr replays the batch as a dry run and reports every asset it would touch. Nothing is written and no backup is taken until you say go.",
+            "tools": ["preview_ops"]
+          },
+          {
+            "incant": "\"Copy the whole Fire event graph from BP_Turret into BP_Enemy with all the wiring intact\"",
+            "description": "Aethyr clones the graph node for node and preserves every connection, so the pasted logic lands wired, not as a loose pile of nodes.",
+            "tools": ["clone_graph", "get_compile_status"]
+          },
+          {
+            "incant": "\"I deleted a few variables on /Game/Items/BP_HealthPickup; find any nodes still pointing at things that no longer exist\"",
+            "description": "Aethyr walks the graphs and flags every node still referencing a variable or function that was removed, so the orphans surface before the compiler does.",
+            "tools": ["find_dangling_references"]
+          },
+          {
+            "incant": "\"Did my refactor of BP_Turret actually match BP_Enemy? Diff them but ignore node positions and GUIDs\"",
+            "description": "Aethyr compares the two Blueprints by structure alone: variables, functions, nodes, and wiring. Cosmetic layout and fresh GUIDs are normalized out.",
+            "tools": ["bp_structural_diff"]
+          },
+          {
+            "incant": "\"I just finished rewiring BP_HealthPickup; confirm it compiles clean before I move on\"",
+            "description": "Aethyr reports the current compile state with any errors and warnings, so you know the asset is healthy after a round of edits without opening the editor.",
+            "tools": ["get_compile_status"]
+          }
+        ]
+      },
+      {
+        "id": "g-data",
+        "heading": "Data and gameplay tables",
+        "icon": "▦",
+        "intro": "Read the project's data-driven design. Every ritual here is read-only: nothing opens the editor, nothing saves.",
+        "spells": [
+          {
+            "incant": "\"dump the WeaponStats DataTable for me, every row and column, like a spreadsheet\"",
+            "description": "Aethyr resolves the row-struct type, lists the columns, and returns every row value keyed by row name. No editor edit, no save.",
+            "tools": ["read_data_table"]
+          },
+          {
+            "incant": "\"what's actually on /Game/Items/DA_HealthPickup? show me every property\"",
+            "description": "Aethyr reads the DataAsset and surfaces each reflected property with its current value, so you see the tuning without opening the editor.",
+            "tools": ["read_data_asset"]
+          },
+          {
+            "incant": "\"which abilities does the BP_Player ability set grant, and at what levels?\"",
+            "description": "Aethyr reads the Gameplay Ability System ability set and lists each granted ability class paired with its level. Quick way to audit who gets what.",
+            "tools": ["read_ability_set"]
+          },
+          {
+            "incant": "\"list every gameplay tag under Ability.Damage so I can pick the right one\"",
+            "description": "Aethyr walks the project's gameplay tag dictionary and returns the tags, optionally filtered by a prefix. Spell the tag right the first time.",
+            "tools": ["list_gameplay_tags"]
+          },
+          {
+            "incant": "\"what's the DefaultGameMode set to in DefaultEngine.ini?\"",
+            "description": "Aethyr reads one config (.ini) value by section and key, so you can confirm a default game-mode or a tuning knob without grepping the config tree.",
+            "tools": ["read_config_value"]
+          },
+          {
+            "incant": "\"I just cloned this project, what engine version and plugins is MyGame on?\"",
+            "description": "Aethyr reads the .uproject metadata: engine version, enabled plugins, and project descriptor fields. The fastest way to orient to an unfamiliar project.",
+            "tools": ["get_project_metadata"]
+          },
+          {
+            "incant": "\"the BP_Turret placed in the level has different settings than its class, show me its overrides\"",
+            "description": "Aethyr reads a level-placed actor's per-instance overrides, including World Partition and One-File-Per-Actor edits, so you see exactly what diverges from the Blueprint defaults.",
+            "tools": ["read_actor_instance"]
+          }
+        ]
+      },
+      {
+        "id": "g-art",
+        "heading": "Art, FX, and timelines",
+        "icon": "◎",
+        "intro": "Inspect the look and feel across disciplines. Read-only: nothing here mutates an asset.",
+        "spells": [
+          {
+            "incant": "\"Pull up the M_Hologram material, show me its node graph, and name every scalar and vector parameter exposed on it.\"",
+            "description": "Aethyr reads the material expression graph and lists its exposed scalar and vector parameters, so you know the knobs before you ever open an instance in the editor.",
+            "tools": ["read_material"]
+          },
+          {
+            "incant": "\"What scalar, vector, and texture overrides does MI_Hologram_Cyan set on its parent?\"",
+            "description": "Aethyr dumps a material instance's overridden parameters (scalar, vector, and texture), so you can see exactly where the child diverges from the base.",
+            "tools": ["get_material_instance_params"]
+          },
+          {
+            "incant": "\"Give me the triangle count, the full LOD chain, and the vertex counts for SM_TurretBase.\"",
+            "description": "Aethyr reports the static mesh triangle budget, every LOD level, and per-LOD vertex counts in one read, no editor poking required.",
+            "tools": ["get_static_mesh_info"]
+          },
+          {
+            "incant": "\"Open the NS_MuzzleFlash Niagara system and tell me its emitter handles and every exposed user parameter.\"",
+            "description": "Aethyr reads the Niagara system, enumerating its emitter handles and the user parameters it exposes for a Blueprint to drive.",
+            "tools": ["read_niagara_system"]
+          },
+          {
+            "incant": "\"Read the DoorOpen Timeline inside BP_Turret and list every curve key with its time, value, and interpolation.\"",
+            "description": "Aethyr reads a Timeline embedded in a Blueprint and returns each curve key in full, so you can audit the motion without scrubbing the editor.",
+            "tools": ["read_timeline"]
+          },
+          {
+            "incant": "\"Walk the widget tree of WBP_HUD and show me every widget, its class, and its parent.\"",
+            "description": "Aethyr reads a UMG widget Blueprint and returns the full hierarchy, each widget with its class and parent, so you can map the layout at a glance.",
+            "tools": ["read_widget_blueprint"]
+          },
+          {
+            "incant": "\"List the sections and notifies on the AM_Reload montage.\"",
+            "description": "Aethyr reads an anim montage and lays out its sections and notify tracks, so you can confirm the timing hooks before you wire gameplay to them in a Blueprint.",
+            "tools": ["read_anim_montage"]
+          }
+        ]
+      },
+      {
+        "id": "g-ai",
+        "heading": "AI graphs and class reflection",
+        "icon": "⎇",
+        "intro": "Understand behavior logic and the reflected class surface. Read-only.",
+        "spells": [
+          {
+            "incant": "\"Walk me through the Behavior Tree on BP_Enemy: what composites, decorators, services, and tasks does it run?\"",
+            "description": "Aethyr reads the whole node graph in one pass and labels every node by kind, so you see selectors, sequences, guard decorators, and leaf tasks without opening the editor.",
+            "tools": ["read_behavior_tree"]
+          },
+          {
+            "incant": "\"Show me the State Tree for BP_Turret: every state and each transition with the trigger that fires it.\"",
+            "description": "Aethyr walks the state hierarchy and lists each transition next to its trigger condition, so you can trace exactly how the turret moves from idle to acquire to fire.",
+            "tools": ["read_state_tree"]
+          },
+          {
+            "incant": "\"Read the Anim Blueprint for BP_Player and map out its state machines and the states inside them.\"",
+            "description": "Aethyr surfaces each AnimGraph state machine and the states it contains, so you can follow the locomotion flow from idle to walk to jump at a glance.",
+            "tools": ["read_anim_blueprint"]
+          },
+          {
+            "incant": "\"Inspect the AActor subclass behind /Game/Items/BP_HealthPickup: full ancestor chain, every UPROPERTY, every UFUNCTION.\"",
+            "description": "Aethyr reflects the UClass directly, reporting the parent chain plus all reflected properties and functions, so you know the native surface a Blueprint inherits before you touch it.",
+            "tools": ["get_class_info"]
+          },
+          {
+            "incant": "\"Which functions on UGameplayStatics can I call from a graph, and which are pure?\"",
+            "description": "Aethyr lists every callable UFUNCTION with its flags, so you can tell BlueprintCallable from BlueprintPure before you drop a node into BP_Enemy.",
+            "tools": ["list_functions"]
+          }
+        ]
+      }
+    ],
+    "pager": {
+      "prev": { "href": "/docs/tutorials/", "label": "Ritual walkthroughs" },
+      "next": { "href": "/docs/reference/", "label": "Reference: every tool" }
+    }
+  }
+}

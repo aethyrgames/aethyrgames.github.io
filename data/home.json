@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "title": "Aethyr for Unreal Engine 5: AI that speaks Blueprint",
+    "description": "A corruption-safe MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 82 proven tools. No editor scripting."
+  },
+  "nav": {
+    "links": [
+      { "href": "#features", "label": "Powers" },
+      { "href": "#flow", "label": "How it works" },
+      { "href": "/docs/", "label": "Docs" },
+      { "href": "#summon", "label": "Get it", "class": "nav-cta" }
+    ]
+  },
+  "hero": {
+    "eyebrow": "MCP SERVER · UNREAL ENGINE 5",
+    "title": ["AI THAT SPEAKS", "BLUEPRINT"],
+    "titleClasses": ["glitch", "glitch arcane"],
+    "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting, no C++, and <strong>nothing that can corrupt your assets.</strong>",
+    "cta": [
+      { "href": "#summon", "label": "⚡ Get it on Fab", "class": "btn btn-primary" },
+      { "href": "downloads/aethyr-mcp-ue5-plugin.zip", "label": "↓ Download", "class": "btn btn-ghost", "download": true },
+      { "href": "/docs/", "label": "▸ Read the docs", "class": "btn btn-ghost" }
+    ],
+    "stats": [
+      { "value": "82", "dataCount": 82, "label": "proven tools" },
+      { "value": "0", "label": "corruption vectors" },
+      { "value": "5.8+", "label": "Unreal Engine" }
+    ]
+  },
+  "marquee": [
+    "READ ANY BLUEPRINT", "AUTHOR SAFELY", "SPEAK IN PLAIN LANGUAGE",
+    "ATOMIC + BACKED-UP WRITES", "WORKS HEADLESS", "ANY MCP CLIENT"
+  ],
+  "features": {
+    "kicker": "// THE POWERS",
+    "heading": "An arsenal your AI<br>can actually <span class=\"grad\">wield</span>.",
+    "cards": [
+      { "glyph": "⌖", "title": "See everything", "body": "Variables, functions, graphs, nodes, components, interfaces, timelines: your AI reads the whole structure of a Blueprint, no guessing.", "tag": "read" },
+      { "glyph": "✶", "title": "Author by asking", "body": "“Add a dash ability with a 2-second cooldown.” It spawns the variables, wires the nodes, and compiles, the way you’d do it by hand, but spoken.", "tag": "write" },
+      { "glyph": "⛨", "title": "Corruption-safe by design", "body": "Every write saves through a compile gate and an automatic backup ring. Anything that could damage a project simply isn’t in this build.", "tag": "safe" },
+      { "glyph": "⟁", "title": "All-or-nothing batches", "body": "Chain a dozen edits into one transaction. If step seven fails, the whole thing rolls back; your graph is never left half-rewritten.", "tag": "atomic" },
+      { "glyph": "◎", "title": "Your AI, your client", "body": "Speaks the Model Context Protocol, so it works with any MCP client, Claude included. Point it at a <code>.uproject</code> and go.", "tag": "mcp" },
+      { "glyph": "◳", "title": "Runs in the dark", "body": "Drives a headless editor or talks to a live one over a socket, auto-routing per call. No babysitting an editor window required.", "tag": "headless" }
+    ]
+  },
+  "flow": {
+    "kicker": "// THE RITUAL",
+    "heading": "Three steps to a<br>talking <span class=\"grad\">grimoire</span>.",
+    "steps": [
+      { "no": "01", "title": "Bind your AI", "body": "Drop the server into your MCP client’s config. One block, paste-and-go for Claude, Copilot, or Cursor." },
+      { "no": "02", "title": "Speak the intent", "body": "Ask in plain language. “What does BP_Enemy do?” “Refactor this into a function.” “Give the player a double-jump.”" },
+      { "no": "03", "title": "Watch it weave", "body": "It reads, edits, compiles, and saves: atomically, backed up, on the real asset. You review the diff." }
+    ]
+  },
+  "summon": {
+    "kicker": "// ACQUIRE",
+    "heading": "One package.<br>The proven core.",
+    "body": "A single, focused build with only the tools we’d stake our reputation on, every one verified against real projects. Landing on Epic’s Fab marketplace.",
+    "cta": [
+      { "href": "downloads/aethyr-mcp-ue5-plugin.zip", "label": "↓ Download plugin", "class": "btn btn-primary big", "download": true },
+      { "href": "#", "label": "⚡ Coming to Fab", "class": "btn btn-ghost big", "soon": true },
+      { "href": "/docs/", "label": "▸ Start with the docs", "class": "btn btn-ghost big" }
+    ],
+    "fineprint": "Built for Unreal Engine 5.8 · no telemetry"
+  },
+  "footer": {
+    "tagline": "Made for builders who’d rather describe a mechanic than wire it by hand.",
+    "legal": "Unreal Engine is a trademark of Epic Games, Inc., referenced for compatibility only. All artwork original."
+  }
+}

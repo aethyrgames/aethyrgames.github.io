@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "title": "Get Started · Aethyr docs",
+    "description": "Install Aethyr, connect Claude / Copilot / Cursor over MCP, install the skills + audit agent, and make your first edit by asking."
+  },
+  "sidebar": {
+    "brand": { "href": "/", "label": "Aethyr" },
+    "backHref": "/",
+    "sections": [
+      {
+        "heading": "Get started",
+        "items": [
+          { "href": "#what", "label": "What it is" },
+          { "href": "#quickstart", "label": "5-minute quickstart" },
+          { "href": "#connect", "label": "Connect your AI" },
+          { "href": "#skills", "label": "Skills &amp; the audit agent" },
+          { "href": "#concepts", "label": "How it works" }
+        ]
+      },
+      {
+        "heading": "Learn by doing",
+        "items": [
+          { "href": "/docs/tutorials/", "label": "User-story tutorials →" },
+          { "href": "/docs/cookbook/", "label": "Spellbook: quick recipes →" }
+        ]
+      },
+      {
+        "heading": "Look it up",
+        "items": [
+          { "href": "/docs/reference/", "label": "Tool &amp; config reference →" }
+        ]
+      }
+    ]
+  },
+  "topbar": { "crumbs": [{ "label": "docs" }, { "label": "get started", "current": true }], "badge": "82-tool build" },
+  "article": {
+    "heading": "Speak <span class=\"arc\">Blueprint</span>.",
+    "lead": "Aethyr is an MCP server that lets your AI assistant read and author Unreal Engine 5 Blueprints in plain language. This page gets you from zero to your first AI-made edit in about five minutes.",
+    "audNote": "Both of you are covered: beginner steps are spelled out; the deeper \"how it works\" notes are marked for the vets.",
+    "sections": [
+      {
+        "id": "what",
+        "heading": "What it actually is",
+        "html": "<p>Two pieces that travel together:</p><ul><li>A <strong>UE editor plugin</strong> that knows how to introspect and safely mutate Blueprint assets.</li><li>A <strong>standalone MCP server</strong> (<code>AethyrMcp</code>) that speaks the Model Context Protocol, so AI clients can drive that plugin by talking to it: no Python, no editor scripting, no C++.</li></ul><p>This build ships <strong>82 tools</strong>, deliberately the subset we’re confident works without any chance of corrupting your project. Reads can’t mutate anything; every write saves through a compile check and an automatic backup.</p>"
+      },
+      {
+        "id": "quickstart",
+        "heading": "5-minute quickstart",
+        "html": "<ol><li><strong>Get the plugin.</strong> Install Aethyr from Fab <span class=\"sku fab\">Fab</span> into your project’s <code>Plugins/</code> folder and enable it. <span class=\"aud new\">New</span> Restart the editor when prompted.</li><li><strong>Point it at your project.</strong> The server needs to know which <code>.uproject</code> to drive. It auto-discovers one above its own folder, or you set <code>AETHYR_PROJECT</code> (next step).</li><li><strong>Connect your AI client</strong> over MCP (below).</li><li><strong>Ask it something.</strong> Try: <em>“List the Blueprints under /Game and tell me what BP_PlayerCharacter does.”</em></li></ol><div class=\"note tip\"><p><strong>That’s the whole loop.</strong> From here, everything is just asking for what you want. See the <a href=\"/docs/tutorials/\">user-story tutorials</a>.</p></div>"
+      },
+      {
+        "id": "connect",
+        "heading": "Connect your AI",
+        "html": "<p>Aethyr is a standard MCP <em>stdio</em> server. Add it to your client’s MCP config. The shape is the same everywhere, only the file location differs.</p><h3>Claude Code / Claude Desktop / Cursor / Copilot</h3><pre><code><span class=\"c\">// mcpServers block (claude_desktop_config.json, .cursor/mcp.json, .mcp.json, etc.)</span>\n{\n  <span class=\"k\">“mcpServers”</span>: {\n    <span class=\"k\">“aethyr”</span>: {\n      <span class=\"k\">“command”</span>: <span class=\"s\">“C:/Path/To/AethyrMcp.exe”</span>,\n      <span class=\"k\">“env”</span>: {\n        <span class=\"k\">“AETHYR_PROJECT”</span>: <span class=\"s\">“C:/Path/To/YourGame.uproject”</span>,\n        <span class=\"k\">“AETHYR_ALLOW_WRITE”</span>: <span class=\"s\">“1”</span>\n      }\n    }\n  }\n}</code></pre><div class=\"note arc\"><p><strong>Read-only by default.</strong> The server refuses every write tool until you set <code>AETHYR_ALLOW_WRITE=1</code>, so an exploratory session can’t change anything by accident. Leave it off until you want edits.</p></div><p><span class=\"aud vet\">Vet</span> The backend is <code>auto</code> by default: it probes per call and routes to a <strong>live</strong> editor if one’s open (over a local socket), or spins a <strong>headless</strong> editor when it isn’t. You never pick a backend by hand.</p>"
+      },
+      {
+        "id": "skills",
+        "heading": "Skills &amp; the audit agent",
+        "html": "<p>The plugin ships Claude <strong>skills</strong> and an <strong>agent</strong> that teach your AI how to use the tools well. Install them with the bundled script (<code>Install-ClaudeAssets.ps1</code>), or point your client’s skills folder at the plugin’s <code>Claude/</code> directory.</p><ul><li><code>aethyr</code>: the core skill: reading and editing a Blueprint, the wire format, per-tool guidance.</li><li><code>bp-batches</code>: multi-step edits as one atomic transaction (<code>apply_ops</code> / <code>preview_ops</code> / <code>compile_function</code>).</li><li><code>bp-debug</code>: what to do when a call fails: error codes, recovery, partial-write cleanup.</li><li><strong>Agent</strong> <code>bp-audit</code>: a read-only structural auditor. Ask it “audit /Game/AI” and it fans out reads and returns a tight report without touching anything.</li></ul><div class=\"note tip\"><p><strong>Why this matters:</strong> the skills are what turn “call a tool” into “do the right sequence of tools.” With them installed, your AI reaches for <code>preview_ops</code> before a risky batch, keys links on <code>(node, pin)</code>, and explains a failure instead of flailing.</p></div>"
+      },
+      {
+        "id": "concepts",
+        "heading": "How it works (for the curious)",
+        "html": "<p><span class=\"aud vet\">Vet</span> A few load-bearing ideas:</p><ul><li><strong>Progressive vs. full surface.</strong> This 82-tool build advertises its whole surface on <code>tools/list</code>, small enough that your AI sees everything at once.</li><li><strong>Corruption-safety is structural.</strong> Every kept write flows through <code>CompileAndSaveBlueprint</code>: it won’t save a graph that failed to compile (unless you opt in), and it copies the asset to a backup ring before the first save of a session.</li><li><strong>Atomic batches.</strong> <code>apply_ops</code> with <code>atomic:true</code> reverts <em>every</em> change in the batch if any step fails, so your asset is never left half-rewritten.</li><li><strong>Package paths, not object paths.</strong> Everything addresses assets as <code>/Game/AI/BP_Foo</code>, never <code>/Game/AI/BP_Foo.BP_Foo</code>.</li></ul>"
+      }
+    ],
+    "pager": { "next": { "href": "/docs/tutorials/", "label": "Learn by doing: user-story tutorials →" } }
+  }
+}

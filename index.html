@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Aethyr for Unreal Engine 5: AI that speaks Blueprint</title>
-<meta name="description" content="A corruption-safe MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 82 proven tools. No editor scripting." />
+<title id="page-title">Aethyr for Unreal Engine 5: AI that speaks Blueprint</title>
+<meta name="description" id="page-desc" content="A corruption-safe MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Cinzel:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -15,9 +15,8 @@
 <link rel="icon" type="image/png" sizes="16x16" href="img/brand/aethyr-favicon-16.png" />
 <link rel="apple-touch-icon" href="img/brand/aethyr-icon-512.png" />
 <meta name="theme-color" content="#070710" />
-<!-- og:image should become an absolute https URL (plus a 1200x630 social card) once the domain is set. -->
-<meta property="og:title" content="Aethyr for Unreal Engine 5: AI that speaks Blueprint" />
-<meta property="og:description" content="A corruption-safe MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language." />
+<meta property="og:title" id="og-title" content="Aethyr for Unreal Engine 5: AI that speaks Blueprint" />
+<meta property="og:description" id="og-desc" content="A corruption-safe MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language." />
 <meta property="og:image" content="img/brand/aethyr-icon-512.png" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -37,7 +36,6 @@
     <svg class="brand-lockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 380" role="img" aria-label="Aethyr">
       <title>Aethyr</title>
       <desc>Cyan crystal mark with the AETHYR wordmark and a particle weave on a deep void field.</desc>
-      <!-- AETHYR master lockup. Palette per STYLE_GUIDE.md :root tokens. Cyan-led, white wordmark, void black. -->
       <defs>
         <radialGradient id="gemAura"><stop offset="0%" stop-color="#1ce6ff" stop-opacity=".40"/><stop offset="55%" stop-color="#1ce6ff" stop-opacity=".10"/><stop offset="100%" stop-color="#1ce6ff" stop-opacity="0"/></radialGradient>
         <radialGradient id="leak"><stop offset="0%" stop-color="#9b6bff" stop-opacity=".16"/><stop offset="45%" stop-color="#1ce6ff" stop-opacity=".06"/><stop offset="100%" stop-color="#1ce6ff" stop-opacity="0"/></radialGradient>
@@ -48,11 +46,8 @@
         <radialGradient id="bokehMag"><stop offset="0%" stop-color="#ff2bd6" stop-opacity=".34"/><stop offset="55%" stop-color="#ff2bd6" stop-opacity=".12"/><stop offset="100%" stop-color="#ff2bd6" stop-opacity="0"/></radialGradient>
         <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       </defs>
-
       <ellipse cx="270" cy="185" rx="150" ry="190" fill="url(#gemAura)"/>
       <ellipse cx="400" cy="190" rx="220" ry="150" fill="url(#leak)"/>
-
-      <!-- crystal -->
       <g>
         <polygon points="270,46 215,110 270,110" fill="#16c4ec"/>
         <polygon points="270,54 232,98 270,98" fill="#aef2ff" opacity=".55"/>
@@ -78,8 +73,6 @@
           <line class="xtl-glint-ember" x1="350" y1="152" x2="335" y2="170" stroke="#ff8a4c" stroke-width="1.2" opacity=".45"/>
         </g>
       </g>
-
-      <!-- particle weave -->
       <g class="xtl-weave">
         <polygon class="xtl-shard" style="--o:.85" points="372,144 380,152 369,154" fill="#1ce6ff" opacity=".85"/>
         <polygon class="xtl-shard" style="--o:.70" points="392,124 398,131 389,132" fill="#e8ecff" opacity=".70"/>
@@ -100,8 +93,6 @@
         <polygon class="xtl-shard" style="--o:.40" points="982,150 988,157 978,158" fill="#9b6bff" opacity=".40"/>
         <polygon class="xtl-shard" style="--o:.35" points="1042,182 1047,188 1038,189" fill="#e8ecff" opacity=".35"/>
       </g>
-
-      <!-- blueprint-wire nod: right-angle elbows + typed pins -->
       <g class="xtl-wires">
         <polyline points="506,168 540,168 540,196" fill="none" stroke="#1ce6ff" stroke-width="1.4" stroke-linecap="round" opacity=".40"/>
         <circle cx="506" cy="168" r="2.4" fill="#1ce6ff" opacity=".55"/>
@@ -110,8 +101,6 @@
         <circle cx="700" cy="182" r="2.2" fill="#9b6bff" opacity=".50"/>
         <circle cx="730" cy="160" r="2.2" fill="#1ce6ff" opacity=".50"/>
       </g>
-
-      <!-- wordmark: custom monoline caps, delta A, open R. White, no fill color. -->
       <g class="xtl-wordmark" filter="url(#glow)" fill="none" stroke="#eef1ff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M509,150 L486,222 M509,150 L532,222"/>
         <path d="M592,150 L592,222 M592,150 L634,150 M592,186 L628,186 M592,222 L634,222"/>
@@ -120,193 +109,57 @@
         <path d="M904,150 L925,186 M946,150 L925,186 M925,186 L925,222"/>
         <path d="M1008,150 L1008,222 M1008,150 L1042,150 M1044,150 L1044,186 M1044,186 L1016,186 M1024,186 L1050,222"/>
       </g>
-
-      <!-- foreground bokeh -->
       <circle cx="92" cy="300" r="34" fill="url(#bokehCyan)"/>
       <circle cx="1044" cy="88" r="28" fill="url(#bokehViolet)"/>
       <circle cx="150" cy="92" r="20" fill="url(#bokehWhite)"/>
       <circle cx="1002" cy="312" r="26" fill="url(#bokehMag)"/>
     </svg>
   </a>
-  <nav class="nav-links">
-    <a href="#features">Powers</a>
-    <a href="#flow">How it works</a>
-    <a href="docs/index.html">Docs</a>
-    <a class="nav-cta" href="#summon">Get it</a>
-  </nav>
+  <nav class="nav-links" id="site-nav-links"></nav>
 </header>
 
 <main id="top">
-
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-inner">
-    <div class="eyebrow reveal" data-d="0">
-      <span class="pulse-dot"></span> MCP&nbsp;SERVER · UNREAL&nbsp;ENGINE&nbsp;5
+  <section class="hero" id="hero-section">
+    <div class="hero-inner">
+      <div class="eyebrow reveal" data-d="0" id="hero-eyebrow"></div>
+      <h1 class="hero-title reveal" data-d="1" id="hero-title"></h1>
+      <p class="hero-sub reveal" data-d="2" id="hero-sub"></p>
+      <div class="hero-cta reveal" data-d="3" id="hero-cta"></div>
+      <ul class="hero-stats reveal" data-d="4" id="hero-stats"></ul>
     </div>
+    <a class="scroll-cue" href="#features" aria-label="Scroll down"><span></span></a>
+  </section>
 
-    <h1 class="hero-title reveal" data-d="1">
-      <span class="glitch" data-text="AI THAT SPEAKS">AI THAT SPEAKS</span>
-      <span class="glitch arcane" data-text="BLUEPRINT">BLUEPRINT</span>
-    </h1>
-
-    <p class="hero-sub reveal" data-d="2">
-      Point your AI assistant at your project and just <em>ask</em>.
-      It reads and rewrites your Unreal&nbsp;Engine&nbsp;5 Blueprints in plain
-      language, with no editor scripting, no C++, and <strong>nothing that can
-      corrupt your assets.</strong>
-    </p>
-
-    <div class="hero-cta reveal" data-d="3">
-      <a class="btn btn-primary" href="#summon">
-        <span>⚡ Get it on Fab</span>
-      </a>
-      <a class="btn btn-ghost" href="downloads/aethyr-mcp-ue5-plugin.zip" download>
-        <span>↓ Download</span>
-      </a>
-      <a class="btn btn-ghost" href="docs/index.html">
-        <span>▸ Read the docs</span>
-      </a>
-    </div>
-
-    <ul class="hero-stats reveal" data-d="4">
-      <li><b data-count="82">82</b><span>proven tools</span></li>
-      <li><b>0</b><span>corruption vectors</span></li>
-      <li><b>5.8+</b><span>Unreal Engine</span></li>
-    </ul>
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track"><div class="marquee-set" id="marquee-set"></div></div>
   </div>
 
-  <a class="scroll-cue" href="#features" aria-label="Scroll down">
-    <span></span>
-  </a>
-</section>
+  <section class="features" id="features">
+    <div class="section-head reveal-up" id="features-head"></div>
+    <div class="card-grid" id="features-grid"></div>
+  </section>
 
-<!-- MARQUEE: one set; JS clones it to fill the viewport and mirrors it for a seamless loop -->
-<div class="marquee" aria-hidden="true">
-  <div class="marquee-track">
-    <div class="marquee-set">
-      <span>READ ANY BLUEPRINT</span><i>◇</i><span>AUTHOR SAFELY</span><i>◇</i><span>SPEAK IN PLAIN LANGUAGE</span><i>◇</i><span>ATOMIC + BACKED-UP WRITES</span><i>◇</i><span>WORKS HEADLESS</span><i>◇</i><span>ANY MCP CLIENT</span><i>◇</i>
-    </div>
-  </div>
-</div>
-
-<!-- FEATURES -->
-<section class="features" id="features">
-  <div class="section-head reveal-up">
-    <span class="kicker">// THE&nbsp;POWERS</span>
-    <h2>An arsenal your AI<br>can actually <span class="grad">wield</span>.</h2>
-  </div>
-
-  <div class="card-grid">
-    <article class="card reveal-up" style="--i:0">
-      <div class="card-glyph">⌖</div>
-      <h3>See everything</h3>
-      <p>Variables, functions, graphs, nodes, components, interfaces, timelines: your AI reads the whole structure of a Blueprint, no guessing.</p>
-      <span class="card-tag">read</span>
-    </article>
-    <article class="card reveal-up" style="--i:1">
-      <div class="card-glyph">✶</div>
-      <h3>Author by asking</h3>
-      <p>"Add a dash ability with a 2-second cooldown." It spawns the variables, wires the nodes, and compiles, the way you'd do it by hand, but spoken.</p>
-      <span class="card-tag">write</span>
-    </article>
-    <article class="card reveal-up" style="--i:2">
-      <div class="card-glyph">⛨</div>
-      <h3>Corruption-safe by design</h3>
-      <p>Every write saves through a compile gate and an automatic backup ring. Anything that could damage a project simply isn't in this build.</p>
-      <span class="card-tag">safe</span>
-    </article>
-    <article class="card reveal-up" style="--i:3">
-      <div class="card-glyph">⟁</div>
-      <h3>All-or-nothing batches</h3>
-      <p>Chain a dozen edits into one transaction. If step seven fails, the whole thing rolls back; your graph is never left half-rewritten.</p>
-      <span class="card-tag">atomic</span>
-    </article>
-    <article class="card reveal-up" style="--i:4">
-      <div class="card-glyph">◎</div>
-      <h3>Your AI, your client</h3>
-      <p>Speaks the Model Context Protocol, so it works with any MCP client, Claude included. Point it at a <code>.uproject</code> and go.</p>
-      <span class="card-tag">mcp</span>
-    </article>
-    <article class="card reveal-up" style="--i:5">
-      <div class="card-glyph">◳</div>
-      <h3>Runs in the dark</h3>
-      <p>Drives a headless editor or talks to a live one over a socket, auto-routing per call. No babysitting an editor window required.</p>
-      <span class="card-tag">headless</span>
-    </article>
-  </div>
-</section>
-
-<!-- FLOW -->
-<section class="flow" id="flow">
-  <div class="section-head reveal-up">
-    <span class="kicker">// THE&nbsp;RITUAL</span>
-    <h2>Three steps to a<br>talking <span class="grad">grimoire</span>.</h2>
-  </div>
-
-  <div class="flow-wrap">
-    <ol class="steps">
-      <li class="step reveal-up" style="--i:0">
-        <span class="step-no">01</span>
-        <h3>Bind your AI</h3>
-        <p>Drop the server into your MCP client's config. One block, paste-and-go for Claude, Copilot, or Cursor.</p>
-      </li>
-      <li class="step reveal-up" style="--i:1">
-        <span class="step-no">02</span>
-        <h3>Speak the intent</h3>
-        <p>Ask in plain language. "What does BP_Enemy do?" "Refactor this into a function." "Give the player a double-jump."</p>
-      </li>
-      <li class="step reveal-up" style="--i:2">
-        <span class="step-no">03</span>
-        <h3>Watch it weave</h3>
-        <p>It reads, edits, compiles, and saves: atomically, backed up, on the real asset. You review the diff.</p>
-      </li>
-    </ol>
-
-    <div class="terminal reveal-up" style="--i:1">
-      <div class="terminal-bar">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <em>claude · aethyr</em>
+  <section class="flow" id="flow">
+    <div class="section-head reveal-up" id="flow-head"></div>
+    <div class="flow-wrap">
+      <ol class="steps" id="flow-steps"></ol>
+      <div class="terminal reveal-up" style="--i:1">
+        <div class="terminal-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <em>claude · aethyr</em>
+        </div>
+        <pre class="terminal-body"><code id="typed"></code><span class="caret">▋</span></pre>
       </div>
-      <pre class="terminal-body"><code id="typed"></code><span class="caret">▋</span></pre>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- SUMMON / CTA -->
-<section class="summon" id="summon">
-  <div class="summon-ring" aria-hidden="true"></div>
-  <div class="summon-inner reveal-up">
-    <span class="kicker">// ACQUIRE</span>
-    <h2>One package.<br>The proven core.</h2>
-    <p>A single, focused build with only the tools we'd stake our reputation on,
-      every one verified against real projects. Landing on Epic's Fab marketplace.</p>
-    <div class="summon-cta">
-      <a class="btn btn-primary big" href="downloads/aethyr-mcp-ue5-plugin.zip" download>
-        <span>↓ Download plugin</span>
-      </a>
-      <span class="soon-wrap">
-        <a class="btn btn-ghost big" href="#" data-soon>
-          <span>⚡ Coming to Fab</span>
-        </a>
-      </span>
-      <a class="btn btn-ghost big" href="docs/index.html">
-        <span>▸ Start with the docs</span>
-      </a>
-    </div>
-    <p class="fineprint">Built for Unreal&nbsp;Engine&nbsp;5.8 · no&nbsp;telemetry</p>
-  </div>
-</section>
-
+  <section class="summon" id="summon">
+    <div class="summon-ring" aria-hidden="true"></div>
+    <div class="summon-inner reveal-up" id="summon-inner"></div>
+  </section>
 </main>
 
-<footer class="foot">
-  <div class="foot-brand">
-    <img class="foot-mark" src="img/brand/aethyr-crystal.svg" alt="" aria-hidden="true" width="20" height="20"> Aethyr
-  </div>
-  <p class="foot-note">Made for builders who'd rather describe a mechanic than wire it by hand.</p>
-  <p class="foot-legal">Unreal Engine is a trademark of Epic Games, Inc., referenced for compatibility only. All artwork original.</p>
-</footer>
+<footer class="foot" id="site-footer"></footer>
 
 <script src="js/main.js"></script>
 </body>
