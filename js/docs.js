@@ -230,15 +230,29 @@ function initMobileNav() {
 
 function initScrollSpy() {
   const links = [...document.querySelectorAll('.side nav a[href^="#"]')];
+  if (!links.length) return;
   const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
-  const io = new IntersectionObserver(
-    es => es.forEach(e => {
-      if (e.isIntersecting) {
-        links.forEach(l => l.classList.remove('active'));
-        map.get(e.target.id)?.classList.add('active');
-      }
-    }),
-    { rootMargin: '-20% 0px -70% 0px' }
-  );
-  document.querySelectorAll('.doc [id]').forEach(s => io.observe(s));
+  const sections = [...document.querySelectorAll('.doc [id]')].filter(s => map.has(s.id));
+  if (!sections.length) return;
+
+  let current = null, ticking = false;
+
+  function spy() {
+    const threshold = window.innerHeight * 0.3;
+    let active = null;
+    for (const s of sections) {
+      if (s.getBoundingClientRect().top <= threshold) active = s;
+    }
+    if (active !== current) {
+      current = active;
+      links.forEach(l => l.classList.remove('active'));
+      if (active) map.get(active.id)?.classList.add('active');
+    }
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) { requestAnimationFrame(spy); ticking = true; }
+  }, { passive: true });
+  spy();
 }
