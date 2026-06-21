@@ -238,7 +238,8 @@ function initScrollSpy() {
   let current = null, ticking = false;
 
   function spy() {
-    const threshold = window.innerHeight * 0.3;
+    const atBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10;
+    const threshold = atBottom ? window.innerHeight : window.innerHeight * 0.3;
     let active = null;
     for (const s of sections) {
       if (s.getBoundingClientRect().top <= threshold) active = s;
