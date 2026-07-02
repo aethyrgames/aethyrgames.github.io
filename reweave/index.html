@@ -250,7 +250,7 @@
 
     /* ── Conversion table ── */
     .rw-converts-grid {
-      display:grid; grid-template-columns:repeat(3,1fr);
+      display:grid; grid-template-columns:repeat(2,1fr);
       gap:clamp(12px,2vw,24px); margin-top:2.5rem;
     }
     .rw-col {
@@ -677,7 +677,7 @@
       <div class="rw-head reveal-up">
         <span class="kicker">// CONVERSION MAP</span>
         <h2>What <span class="rw-grad-ue">crosses</span> the boundary.</h2>
-        <p>Reweave is layout and widget scaffolding — not a runtime web renderer. Know what converts cleanly, what gets baked, and what needs a different approach.</p>
+        <p>Reweave is layout and widget scaffolding — not a runtime web renderer. Know what converts cleanly and what gets approximated today.</p>
       </div>
       <div class="rw-converts-grid reveal-up">
 
@@ -712,18 +712,6 @@
           </ul>
         </div>
 
-        <div class="rw-col">
-          <h3><span class="ic-no">✗</span> Out of scope</h3>
-          <ul>
-            <li>Animations on layout properties (width, height, margin — no UMG reflow)</li>
-            <li>Scroll-driven animations</li>
-            <li>JavaScript behavior</li>
-            <li>Canvas and WebGL</li>
-            <li>3D / perspective transforms</li>
-            <li>mix-blend-mode vs backdrop</li>
-            <li>Embedded iframes</li>
-          </ul>
-        </div>
 
       </div>
     </div>
