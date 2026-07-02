@@ -176,7 +176,7 @@
     .rw-grad-web { color:var(--ember); }
 
     /* ── Steps ── */
-    .rw-steps { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(12px,2vw,20px); }
+    .rw-steps { display:grid; grid-template-columns:repeat(2,1fr); gap:clamp(12px,2vw,20px); }
     .rw-step {
       padding:1.8rem; border:1px solid var(--line); border-radius:6px;
       background:var(--panel); display:flex; flex-direction:column; gap:.85rem;
@@ -479,8 +479,8 @@
     <div class="rw-wrap">
       <div class="rw-head reveal-up">
         <span class="kicker">// THE CONVERSION</span>
-        <h2>From <span class="rw-grad-web">web</span> to <span class="rw-grad-ue">Unreal</span> in three steps.</h2>
-        <p>No runtime web renderer. No engine plugin to configure. Just a capture CLI and an Unreal import.</p>
+        <h2>From <span class="rw-grad-web">web</span> to <span class="rw-grad-ue">Unreal</span> in two steps.</h2>
+        <p>No runtime web renderer. No engine plugin to configure. Write HTML, drop it into Unreal.</p>
       </div>
       <div class="rw-steps">
 
@@ -493,18 +493,10 @@
         </div>
 
         <div class="rw-step reveal-up" style="--i:1">
-          <span class="rw-step-num c-mid">02</span>
-          <span class="rw-step-tag">// CAPTURE</span>
-          <h3>Bundle</h3>
-          <p>One CLI command. Reweave renders the page in a sandboxed Playwright session, walks the DOM, and writes a bundle: normalized structure, computed styles, deduped assets.</p>
-          <code class="rw-cmd">cd Tools/capture<br>node src/index.js page.html --out ./MyBundle</code>
-        </div>
-
-        <div class="rw-step reveal-up" style="--i:2">
-          <span class="rw-step-num c-ue">03</span>
+          <span class="rw-step-num c-ue">02</span>
           <span class="rw-step-tag">// OUTPUT</span>
           <h3>Import</h3>
-          <p>Drag <code>index.reweave</code> into the Unreal Content Browser. You get an editable Widget Blueprint, a <code>*_VM</code> ViewModel with FieldNotify bindings, imported textures, and a fidelity report under <code>Saved/Reweave/</code>.</p>
+          <p>Drop your <code>.html</code> file directly into the Unreal Content Browser. Get an editable Widget Blueprint, a <code>*_VM</code> ViewModel with FieldNotify bindings, imported textures, and a fidelity report.</p>
         </div>
 
       </div>
