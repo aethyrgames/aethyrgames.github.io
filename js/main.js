@@ -39,7 +39,7 @@
     const heroCta = document.getElementById('hero-cta');
     if (heroCta && data.hero?.cta) {
       heroCta.innerHTML = data.hero.cta.map(b =>
-        '<a class="' + b.class + '" href="' + b.href + '"' + (b.download ? ' download' : '') + '><span>' + b.label + '</span></a>'
+        '<a class="' + b.class + '" href="' + b.href + '"' + (b.target ? ' target="' + b.target + '" rel="noopener"' : '') + (b.download ? ' download' : '') + '><span>' + b.label + '</span></a>'
       ).join('');
     }
 
@@ -151,7 +151,7 @@
     if (summonInner && data.summon) {
       const ctaHTML = (data.summon?.cta || []).map(b => {
         const btn = '<a class="' + b.class + '" href="' + b.href + '"' +
-          (b.download ? ' download' : '') + (b.soon ? ' data-soon' : '') +
+          (b.target ? ' target="' + b.target + '" rel="noopener"' : '') + (b.download ? ' download' : '') + (b.soon ? ' data-soon' : '') +
           '><span>' + b.label + '</span></a>';
         return b.soon ? '<span class="soon-wrap">' + btn + '</span>' : btn;
       }).join('');

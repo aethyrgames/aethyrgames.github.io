@@ -43,7 +43,8 @@
       {
         "href": "https://github.com/defessler/Aethyr-MCP/releases",
         "label": "↓ Download free",
-        "class": "btn btn-primary"
+        "class": "btn btn-primary",
+        "target": "_blank"
       },
       {
         "href": "/docs/",
@@ -232,7 +233,8 @@
       {
         "href": "https://github.com/defessler/Aethyr-MCP/releases",
         "label": "↓ Download free",
-        "class": "btn btn-primary big"
+        "class": "btn btn-primary big",
+        "target": "_blank"
       },
       {
         "href": "/docs/",
