@@ -1,0 +1,30 @@
+Aethyr MCP — Attribution + Share-Alike License
+Copyright (c) 2026 Doug Fessler
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software ("the Software"), to use, copy, modify, merge, publish, and
+distribute it, subject to the following conditions:
+
+1. Attribution.
+   Every distribution of the Software, modified or unmodified, must:
+   a. retain this copyright notice and these conditions in all source files; and
+   b. include the following credit wherever third-party acknowledgements are
+      displayed (documentation, README, about screen, or equivalent):
+
+         Aethyr MCP — created by Doug Fessler  https://aethyr.gg
+
+2. Share-Alike.
+   Any modified version you distribute must be released under these same terms.
+   The corresponding source code must be made publicly available at the time
+   of distribution.
+
+3. No Additional Restrictions.
+   You may not impose terms on recipients that are more restrictive than
+   these conditions.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.

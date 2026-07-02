@@ -242,12 +242,7 @@
         "class": "btn btn-ghost big"
       }
     ],
-    "fineprint": "Free to download · no telemetry · local only",
-    "studio": {
-      "label": "Running NDA work or building for a studio?",
-      "linkLabel": "Reach out",
-      "href": "mailto:hello@aethyr.gg"
-    }
+    "fineprint": "Free and open source · no telemetry · local only"
   },
   "footer": {
     "tagline": "Made for builders who'd rather describe a mechanic than wire it by hand.",
@@ -266,7 +261,11 @@
         "label": "Security"
       },
       {
-        "href": "https://github.com/aethyrgames/aethyrgames.github.io",
+        "href": "https://github.com/defessler/Aethyr-MCP/blob/main/LICENSE",
+        "label": "License"
+      },
+      {
+        "href": "https://github.com/defessler/Aethyr-MCP",
         "label": "GitHub"
       }
     ]
