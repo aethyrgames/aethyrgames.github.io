@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reweave — HTML to UMG Widget Blueprint for Unreal Engine</title>
+  <meta name="description" content="Convert any HTML/CSS page into an editable UMG Widget Blueprint with auto-generated MVVM ViewModel. No C++ required. Free and open source.">
+  <meta property="og:title" content="Reweave — HTML to UMG for Unreal Engine">
+  <meta property="og:description" content="Write web. Speak Unreal. Paste any HTML page, get a Widget Blueprint.">
+  <meta property="og:url" content="https://aethyr.gg/reweave/">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Cinzel:wght@700;900&family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    /* ═══════════════════════════════════════════════════════
+       Reweave identity layer
+       Ember (#ff8a4c) = HTML / web side
+       Cyan  (#1ce6ff) = UMG / Unreal side
+       ═══════════════════════════════════════════════════════ */
+
+    /* ── Nav brand ── */
+    .rw-brand { display:flex; flex-direction:column; gap:2px; text-decoration:none; }
+    .rw-wordmark {
+      font-family:var(--f-arcane); font-weight:700;
+      font-size:clamp(1.05rem,1.9vw,1.42rem); letter-spacing:.1em;
+      background:linear-gradient(110deg,var(--ember) 0%,var(--violet) 52%,var(--cyan) 100%);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+    }
+    .rw-by {
+      font-family:var(--f-mono); font-size:.58rem; letter-spacing:.22em;
+      color:var(--ink-dim); text-transform:uppercase;
+    }
+
+    /* ── Beta badge ── */
+    .rw-beta {
+      display:inline-flex; align-items:center; gap:.48rem; width:max-content;
+      font-family:var(--f-mono); font-size:.65rem; letter-spacing:.2em; text-transform:uppercase;
+      color:var(--ember); border:1px solid rgba(255,138,76,.28); border-radius:2px;
+      padding:.35rem .78rem; background:rgba(255,138,76,.06);
+    }
+    .rw-beta-dot {
+      width:6px; height:6px; border-radius:50%; background:var(--ember);
+      box-shadow:0 0 8px rgba(255,138,76,.85); animation:pulse 1.8s ease-in-out infinite;
+    }
+
+    /* ── Hero ── */
+    .rw-hero {
+      position:relative; z-index:5;
+      display:grid; grid-template-columns:1fr 1fr;
+      align-items:center; gap:clamp(28px,5vw,72px);
+      min-height:100vh;
+      padding:120px clamp(20px,7vw,100px) 80px;
+      max-width:1440px; margin:0 auto;
+    }
+    .rw-hero-content { display:flex; flex-direction:column; gap:0; }
+
+    .rw-title {
+      font-family:var(--f-display); font-weight:700;
+      font-size:clamp(2.4rem,5.8vw,5.4rem); line-height:.94;
+      letter-spacing:-.015em; text-transform:uppercase;
+      margin:1.4rem 0 1.6rem;
+    }
+    .rw-title .web {
+      display:block; color:var(--ember);
+      text-shadow:0 0 40px rgba(255,138,76,.45);
+    }
+    .rw-title .ue {
+      display:block;
+      background:linear-gradient(100deg,var(--cyan),var(--violet) 45%,var(--magenta));
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+      filter:drop-shadow(0 0 22px rgba(155,107,255,.4));
+    }
+
+    .rw-sub {
+      max-width:44ch; font-size:clamp(.93rem,1.4vw,1.16rem);
+      color:var(--ink-dim); font-weight:300; line-height:1.74;
+    }
+    .rw-sub strong { color:var(--ink); font-weight:500; }
+
+    .rw-cta-row { display:flex; flex-wrap:wrap; gap:12px; margin:2rem 0; }
+
+    .rw-stats {
+      list-style:none; display:flex; flex-wrap:wrap;
+      gap:clamp(14px,3.2vw,42px);
+      padding-top:1.4rem; border-top:1px solid var(--line);
+    }
+    .rw-stats li { display:flex; flex-direction:column; }
+    .rw-stats b {
+      font-family:var(--f-display); font-weight:700;
+      font-size:clamp(1.5rem,2.7vw,2.2rem); line-height:1; color:var(--ink);
+    }
+    .rw-stats span {
+      font-family:var(--f-mono); font-size:.66rem; letter-spacing:.15em;
+      color:var(--ink-dim); text-transform:uppercase; margin-top:.35rem;
+    }
+
+    /* ── Comparison frame (hero right column) ── */
+    .rw-frame {
+      position:relative; border-radius:10px; overflow:hidden;
+      border:1px solid rgba(130,150,230,.18);
+      box-shadow:0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(255,138,76,.06);
+      animation:rw-breathe 5s ease-in-out infinite;
+    }
+    @keyframes rw-breathe {
+      0%,100% { box-shadow:0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(255,138,76,.06); }
+      50%      { box-shadow:0 24px 64px rgba(0,0,0,.55), 0 0 28px rgba(28,230,255,.09); }
+    }
+    .rw-frame-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:.54rem 1rem; background:rgba(5,5,18,.88);
+      border-bottom:1px solid rgba(130,150,230,.12);
+    }
+    .rw-frame-label {
+      font-family:var(--f-mono); font-size:.62rem; letter-spacing:.2em;
+      color:var(--ink-dim); text-transform:uppercase;
+    }
+    .rw-frame-ssim {
+      font-family:var(--f-mono); font-size:.7rem; letter-spacing:.05em;
+      color:var(--cyan); text-shadow:0 0 10px rgba(28,230,255,.55);
+    }
+    .rw-frame-panels {
+      display:flex; position:relative;
+      border-bottom:1px solid rgba(130,150,230,.12);
+    }
+    .rw-panel {
+      flex:1; display:flex; align-items:center; gap:.4rem;
+      font-family:var(--f-mono); font-size:.62rem;
+      letter-spacing:.14em; text-transform:uppercase;
+      padding:.3rem .8rem;
+    }
+    .rw-panel.html { color:var(--ember); background:rgba(255,138,76,.07); }
+    .rw-panel.umg  { color:var(--cyan);  background:rgba(28,230,255,.05); }
+    .rw-panel-line {
+      position:absolute; left:50%; top:0; bottom:0; width:1px;
+      background:linear-gradient(to bottom,var(--ember),var(--cyan));
+    }
+    .rw-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+    .rw-dot.html { background:var(--ember); box-shadow:0 0 7px rgba(255,138,76,.9); }
+    .rw-dot.umg  { background:var(--cyan);  box-shadow:0 0 7px rgba(28,230,255,.9); }
+    .rw-frame img { display:block; width:100%; height:auto; }
+
+    /* ── Marquee ── */
+    .rw-marquee {
+      position:relative; z-index:5; overflow:hidden;
+      border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+      padding:.84rem 0;
+    }
+    .rw-track {
+      display:flex; align-items:center; gap:2rem; width:max-content;
+      font-family:var(--f-mono); font-size:.7rem;
+      letter-spacing:.22em; text-transform:uppercase; color:var(--ink-dim);
+      animation:rw-march 32s linear infinite;
+    }
+    .rw-track .hi { color:var(--ember); }
+    @keyframes rw-march { to { transform:translateX(-50%); } }
+    @media(prefers-reduced-motion:reduce){ .rw-track { animation:none; } }
+
+    /* ── Section layout ── */
+    .rw-section { position:relative; z-index:5; }
+    .rw-wrap {
+      padding:clamp(60px,9vw,120px) clamp(20px,7vw,100px);
+      max-width:1200px; margin:0 auto;
+    }
+    .rw-head { max-width:640px; margin-bottom:3rem; }
+    .rw-head h2 {
+      font-family:var(--f-display); font-weight:700; text-transform:uppercase;
+      font-size:clamp(1.8rem,3.8vw,3.2rem); line-height:1.06; letter-spacing:-.01em;
+    }
+    .rw-head p { color:var(--ink-dim); font-size:.95rem; line-height:1.65; margin-top:.75rem; }
+    .rw-grad-ue {
+      background:linear-gradient(100deg,var(--cyan),var(--violet));
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+    }
+    .rw-grad-web { color:var(--ember); }
+
+    /* ── Steps ── */
+    .rw-steps { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(12px,2vw,20px); }
+    .rw-step {
+      padding:1.8rem; border:1px solid var(--line); border-radius:6px;
+      background:var(--panel); display:flex; flex-direction:column; gap:.85rem;
+      transition:border-color .3s;
+    }
+    .rw-step:hover { border-color:rgba(28,230,255,.2); }
+    .rw-step-num {
+      font-family:var(--f-arcane); font-weight:700;
+      font-size:clamp(1.9rem,3.2vw,2.8rem); line-height:1; letter-spacing:.02em;
+    }
+    .rw-step-num.c-web { color:var(--ember); text-shadow:0 0 18px rgba(255,138,76,.4); }
+    .rw-step-num.c-mid {
+      background:linear-gradient(110deg,var(--ember) 0%,var(--violet) 50%,var(--cyan) 100%);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+    }
+    .rw-step-num.c-ue { color:var(--cyan); text-shadow:0 0 18px rgba(28,230,255,.4); }
+    .rw-step-tag {
+      font-family:var(--f-mono); font-size:.6rem; letter-spacing:.18em;
+      text-transform:uppercase; color:var(--ink-dim); opacity:.65; margin-top:-.4rem;
+    }
+    .rw-step h3 {
+      font-family:var(--f-display); font-size:.92rem; font-weight:600;
+      letter-spacing:.08em; text-transform:uppercase; color:var(--ink);
+    }
+    .rw-step p { font-size:.86rem; color:var(--ink-dim); line-height:1.66; }
+    .rw-step p code { font-family:var(--f-mono); font-size:.8em; color:var(--cyan); }
+    .rw-cmd {
+      display:block; font-family:var(--f-mono); font-size:.72rem; line-height:1.6;
+      color:var(--cyan); background:rgba(28,230,255,.05);
+      border:1px solid rgba(28,230,255,.13); border-radius:4px;
+      padding:.55rem .85rem; margin-top:auto; word-break:break-all;
+    }
+
+    /* ── Gallery ── */
+    .rw-gallery-grid {
+      display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+    }
+    .rw-gcard {
+      border:1px solid var(--line); border-radius:8px; overflow:hidden;
+      background:rgba(7,7,22,.6); cursor:default;
+      opacity:0; transform:translateY(18px);
+      transition:opacity .6s var(--ease), transform .6s var(--ease),
+                  border-color .3s, box-shadow .3s;
+    }
+    .rw-gcard.in { opacity:1; transform:none; transition-delay:calc(var(--i,0)*70ms); }
+    .rw-gcard:hover {
+      border-color:rgba(28,230,255,.25);
+      box-shadow:0 0 20px rgba(28,230,255,.07);
+    }
+    .rw-gcard img {
+      display:block; width:100%; height:172px;
+      object-fit:cover; object-position:top left;
+      transition:opacity .18s;
+    }
+    .rw-gcard-foot {
+      display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+      padding:.58rem .85rem; border-top:1px solid var(--line);
+    }
+    .rw-gcard-name {
+      font-family:var(--f-mono); font-size:.59rem; letter-spacing:.12em;
+      text-transform:uppercase; color:var(--ink-dim); flex:1; min-width:0;
+    }
+    .rw-gcard-ssim {
+      font-family:var(--f-mono); font-size:.68rem; color:var(--ink-dim); white-space:nowrap;
+    }
+    .rw-gcard-ssim b {
+      color:var(--cyan); text-shadow:0 0 8px rgba(28,230,255,.5); font-size:.78rem;
+    }
+    .rw-gcard-w { font-family:var(--f-mono); font-size:.57rem; color:var(--ink-dim); opacity:.5; }
+    .rw-gif-hint { font-family:var(--f-mono); font-size:.57rem; color:var(--ember); opacity:.7; }
+
+    /* ── Conversion table ── */
+    .rw-converts-grid {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:clamp(12px,2vw,24px); margin-top:2.5rem;
+    }
+    .rw-col {
+      padding:1.5rem; border:1px solid var(--line); border-radius:6px; background:var(--panel);
+    }
+    .rw-col h3 {
+      font-family:var(--f-display); font-size:.76rem; font-weight:600;
+      letter-spacing:.1em; text-transform:uppercase;
+      display:flex; align-items:center; gap:.5rem; margin-bottom:1.1rem;
+    }
+    .rw-col ul { list-style:none; display:flex; flex-direction:column; gap:.42rem; }
+    .rw-col li { font-size:.83rem; color:var(--ink-dim); line-height:1.45; }
+    .ic-yes   { color:var(--cyan); }
+    .ic-approx{ color:var(--ember); }
+    .ic-no    { color:var(--ink-dim); opacity:.42; }
+
+    /* ── CTA / summon ── */
+    .rw-summon {
+      position:relative; z-index:5; text-align:center;
+      padding:clamp(80px,12vw,160px) clamp(20px,7vw,100px);
+      overflow:hidden;
+    }
+    .rw-summon-glow {
+      position:absolute; inset:0; pointer-events:none;
+      background:radial-gradient(60% 70% at 50% 40%,rgba(155,107,255,.1) 0%,transparent 65%);
+    }
+    .rw-summon h2 {
+      font-family:var(--f-display); font-weight:700; text-transform:uppercase;
+      font-size:clamp(2rem,4.4vw,3.6rem); line-height:1.06; letter-spacing:-.01em;
+      margin-bottom:.9rem;
+    }
+    .rw-summon-sub {
+      color:var(--ink-dim); font-size:.98rem; max-width:44ch;
+      margin:0 auto 2.4rem; line-height:1.62;
+    }
+    .rw-summon-btns { display:flex; justify-content:center; flex-wrap:wrap; gap:14px; }
+    .rw-summon-fine {
+      margin-top:1.2rem; font-family:var(--f-mono); font-size:.67rem;
+      letter-spacing:.14em; color:var(--ink-dim); opacity:.6;
+    }
+
+    /* ── Footer ── */
+    .rw-footer {
+      position:relative; z-index:5; border-top:1px solid var(--line);
+      padding:2rem clamp(20px,7vw,100px);
+      display:flex; align-items:center; justify-content:space-between;
+      flex-wrap:wrap; gap:1rem;
+    }
+    .rw-footer-left { font-size:.8rem; color:var(--ink-dim); line-height:1.65; }
+    .rw-footer-left a { color:var(--ink); text-decoration:none; transition:color .2s; }
+    .rw-footer-left a:hover { color:var(--cyan); }
+    .rw-footer-links {
+      display:flex; gap:1.5rem;
+      font-family:var(--f-mono); font-size:.67rem;
+      letter-spacing:.1em; text-transform:uppercase;
+    }
+    .rw-footer-links a { color:var(--ink-dim); text-decoration:none; transition:color .2s; }
+    .rw-footer-links a:hover { color:var(--ink); }
+
+    /* ── Responsive ── */
+    @media(max-width:960px){
+      .rw-hero { grid-template-columns:1fr; min-height:auto; padding-top:100px; }
+      .rw-frame { display:none; }
+      .rw-steps { grid-template-columns:1fr; }
+      .rw-gallery-grid { grid-template-columns:repeat(2,1fr); }
+      .rw-converts-grid { grid-template-columns:1fr; }
+    }
+    @media(max-width:580px){
+      .rw-gallery-grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="constellation" aria-hidden="true"></canvas>
+  <div class="grid-horizon" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <!-- ── Nav ── -->
+  <nav class="nav" role="navigation" aria-label="Site navigation">
+    <a href="/" class="brand rw-brand" aria-label="Reweave — back to aethyr.gg">
+      <span class="rw-wordmark">REWEAVE</span>
+      <span class="rw-by">by aethyr.gg</span>
+    </a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#converts">What converts</a>
+      <a href="https://github.com/defessler/unreal-web-ui" class="nav-cta" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <section class="rw-hero">
+
+    <div class="rw-hero-content reveal">
+      <div class="rw-beta"><span class="rw-beta-dot"></span>Beta · UE 5.6+</div>
+      <h1 class="rw-title">
+        <span class="web">WRITE WEB.</span>
+        <span class="ue">SPEAK UNREAL.</span>
+      </h1>
+      <p class="rw-sub">
+        Paste any HTML page. Get an editable <strong>UMG Widget Blueprint</strong>,
+        a <strong>MVVM ViewModel</strong>, and a pixel-level fidelity score.
+        No C++ required.
+      </p>
+      <div class="rw-cta-row">
+        <a href="https://github.com/defessler/unreal-web-ui" class="btn btn-primary" target="_blank" rel="noopener">
+          <span>↓ Get Reweave</span>
+        </a>
+        <a href="#how" class="btn btn-ghost">
+          <span>▸ How it works</span>
+        </a>
+      </div>
+      <ul class="rw-stats">
+        <li><b>0.97+</b><span>avg SSIM fidelity</span></li>
+        <li><b>0</b><span>lines of C++</span></li>
+        <li><b>~200</b><span>max widgets</span></li>
+        <li><b>5.6+</b><span>Unreal Engine</span></li>
+      </ul>
+    </div>
+
+    <!-- Right: comparison frame -->
+    <div class="rw-frame reveal">
+      <div class="rw-frame-bar">
+        <span class="rw-frame-label">◈ REWEAVE · FIDELITY VIEWER</span>
+        <span class="rw-frame-ssim">SSIM <b>0.981</b></span>
+      </div>
+      <div class="rw-frame-panels">
+        <div class="rw-panel html"><span class="rw-dot html"></span>HTML · source</div>
+        <div class="rw-panel-line" aria-hidden="true"></div>
+        <div class="rw-panel umg"><span class="rw-dot umg"></span>UMG · widget</div>
+      </div>
+      <img src="compare/settings-form_compare.png"
+           alt="Settings form: HTML original on left, UMG Widget Blueprint on right. SSIM fidelity 0.981, 46 widgets."
+           loading="eager">
+    </div>
+
+  </section>
+
+  <!-- ── Marquee ── -->
+  <div class="rw-marquee" aria-hidden="true">
+    <div class="rw-track">
+      <span class="hi">HTML → UMG</span><span>·</span>
+      <span>MVVM VIEWMODEL</span><span>·</span>
+      <span>SSIM FIDELITY</span><span>·</span>
+      <span class="hi">ZERO C++</span><span>·</span>
+      <span>WIDGET BLUEPRINTS</span><span>·</span>
+      <span>DOM TO SLATE</span><span>·</span>
+      <span>ASSET PIPELINE</span><span>·</span>
+      <span class="hi">UE 5.6+</span><span>·</span>
+      <span>FREE &amp; OPEN SOURCE</span><span>·</span>
+      <span class="hi">HTML → UMG</span><span>·</span>
+      <span>MVVM VIEWMODEL</span><span>·</span>
+      <span>SSIM FIDELITY</span><span>·</span>
+      <span class="hi">ZERO C++</span><span>·</span>
+      <span>WIDGET BLUEPRINTS</span><span>·</span>
+      <span>DOM TO SLATE</span><span>·</span>
+      <span>ASSET PIPELINE</span><span>·</span>
+      <span class="hi">UE 5.6+</span><span>·</span>
+      <span>FREE &amp; OPEN SOURCE</span><span>·</span>
+    </div>
+  </div>
+
+  <!-- ── How it works ── -->
+  <section id="how" class="rw-section">
+    <div class="rw-wrap">
+      <div class="rw-head reveal-up">
+        <span class="kicker">// THE CONVERSION</span>
+        <h2>From <span class="rw-grad-web">web</span> to <span class="rw-grad-ue">Unreal</span> in three steps.</h2>
+        <p>No runtime web renderer. No engine plugin to configure. Just a capture CLI and an Unreal import.</p>
+      </div>
+      <div class="rw-steps">
+
+        <div class="rw-step reveal-up" style="--i:0">
+          <span class="rw-step-num c-web">01</span>
+          <span class="rw-step-tag">// SOURCE</span>
+          <h3>Write</h3>
+          <p>Author your UI in HTML and CSS as you normally would — any framework, any design system. Reweave doesn't care how it was built.</p>
+          <code class="rw-cmd">&lt;!-- your page.html --&gt;<br>&lt;link rel="stylesheet" href="ui.css"&gt;</code>
+        </div>
+
+        <div class="rw-step reveal-up" style="--i:1">
+          <span class="rw-step-num c-mid">02</span>
+          <span class="rw-step-tag">// CAPTURE</span>
+          <h3>Bundle</h3>
+          <p>One CLI command. Reweave renders the page in a sandboxed Playwright session, walks the DOM, and writes a bundle: normalized structure, computed styles, deduped assets.</p>
+          <code class="rw-cmd">cd Tools/capture<br>node src/index.js page.html --out ./MyBundle</code>
+        </div>
+
+        <div class="rw-step reveal-up" style="--i:2">
+          <span class="rw-step-num c-ue">03</span>
+          <span class="rw-step-tag">// OUTPUT</span>
+          <h3>Import</h3>
+          <p>Drag <code>index.reweave</code> into the Unreal Content Browser. You get an editable Widget Blueprint, a <code>*_VM</code> ViewModel with FieldNotify bindings, imported textures, and a fidelity report under <code>Saved/Reweave/</code>.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Gallery ── -->
+  <section id="gallery" class="rw-section">
+    <div class="rw-wrap">
+      <div class="rw-head reveal-up">
+        <span class="kicker">// FIDELITY GALLERY</span>
+        <h2>See the <span class="rw-grad-ue">output</span>.</h2>
+        <p>Real HTML pages converted to UMG Widget Blueprints. Hover examples with ↺ to toggle between source and output.</p>
+      </div>
+      <div class="rw-gallery-grid">
+
+        <div class="rw-gcard" style="--i:0"
+             data-still="compare/settings-form_compare.png"
+             data-gif="compare/settings-form_toggle.gif">
+          <img src="compare/settings-form_compare.png"
+               alt="Settings form: HTML vs UMG. SSIM 0.981, 46 widgets.">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Settings · Form controls</span>
+            <span class="rw-gcard-ssim">SSIM <b>0.981</b></span>
+            <span class="rw-gcard-w">46w</span>
+            <span class="rw-gif-hint">hover ↺</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:1"
+             data-still="compare/card-grid_compare.png"
+             data-gif="compare/card-grid_toggle.gif">
+          <img src="compare/card-grid_compare.png"
+               alt="Product card grid: HTML vs UMG. SSIM 0.982, 32 widgets.">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Product Card Grid</span>
+            <span class="rw-gcard-ssim">SSIM <b>0.982</b></span>
+            <span class="rw-gcard-w">32w</span>
+            <span class="rw-gif-hint">hover ↺</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:2">
+          <img src="compare/login-form_compare.png"
+               alt="Login form: HTML vs UMG. SSIM 0.975, 26 widgets.">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Login · Form + validation</span>
+            <span class="rw-gcard-ssim">SSIM <b>0.975</b></span>
+            <span class="rw-gcard-w">26w</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:3"
+             data-still="compare/stress-dashboard_compare.png"
+             data-gif="compare/stress-dashboard_toggle.gif">
+          <img src="compare/stress-dashboard_compare.png"
+               alt="Complex dashboard: HTML vs UMG. SSIM 0.874, 212 widgets.">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Stress Dashboard</span>
+            <span class="rw-gcard-ssim">SSIM <b>0.874</b></span>
+            <span class="rw-gcard-w">212w</span>
+            <span class="rw-gif-hint">hover ↺</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:4">
+          <img src="compare/animated-hud_compare.png"
+               alt="Animated game HUD: HTML vs UMG. SSIM 0.968, 13 widgets.">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Animated HUD</span>
+            <span class="rw-gcard-ssim">SSIM <b>0.968</b></span>
+            <span class="rw-gcard-w">13w</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:5">
+          <img src="compare/hud-components_compare.png"
+               alt="HUD component library: multiple components, SSIM 0.994–0.997.">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">HUD Components</span>
+            <span class="rw-gcard-ssim">SSIM <b>0.997</b></span>
+            <span class="rw-gcard-w">12–40w each</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── What converts ── -->
+  <section id="converts" class="rw-section">
+    <div class="rw-wrap">
+      <div class="rw-head reveal-up">
+        <span class="kicker">// CONVERSION MAP</span>
+        <h2>What <span class="rw-grad-ue">crosses</span> the boundary.</h2>
+        <p>Reweave is layout and widget scaffolding — not a runtime web renderer. Know what converts cleanly, what gets baked, and what needs a different approach.</p>
+      </div>
+      <div class="rw-converts-grid reveal-up">
+
+        <div class="rw-col">
+          <h3><span class="ic-yes">✓</span> Converts cleanly</h3>
+          <ul>
+            <li>DOM tree structure</li>
+            <li>Flex and box layout</li>
+            <li>Absolute positioning (from rects)</li>
+            <li>Colors — sRGB → linear</li>
+            <li>Typography: family, size, weight</li>
+            <li>Opacity and visibility</li>
+            <li>2D CSS transforms</li>
+            <li>Button, input, checkbox, select</li>
+            <li>Progress bars</li>
+            <li>Repeated lists → UListView</li>
+            <li>Images → imported textures</li>
+          </ul>
+        </div>
+
+        <div class="rw-col">
+          <h3><span class="ic-approx">≈</span> Approximated</h3>
+          <ul>
+            <li>CSS gradients (baked to texture)</li>
+            <li>CSS grid fr units</li>
+            <li>Border radius (nearest UMG match)</li>
+            <li>Box shadow (partial)</li>
+            <li>Inline SVG (rasterized)</li>
+          </ul>
+        </div>
+
+        <div class="rw-col">
+          <h3><span class="ic-no">✗</span> Out of scope</h3>
+          <ul>
+            <li>CSS animations — wire via MVVM instead</li>
+            <li>JavaScript behavior</li>
+            <li>Canvas and WebGL</li>
+            <li>Embedded iframes</li>
+            <li>Video and audio elements</li>
+            <li>Live dynamic content</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA ── -->
+  <section class="rw-summon">
+    <div class="rw-summon-glow" aria-hidden="true"></div>
+    <div class="reveal-up">
+      <span class="kicker">// ACQUIRE</span>
+      <h2>Free and<br><span class="rw-grad-ue">open source.</span></h2>
+      <p class="rw-summon-sub">
+        Built for game developers who'd rather design in the browser than wire widgets by hand. Source on GitHub, free to use and extend under the Attribution + Share-Alike license.
+      </p>
+      <div class="rw-summon-btns">
+        <a href="https://github.com/defessler/unreal-web-ui" class="btn btn-primary big" target="_blank" rel="noopener">
+          <span>↓ Get Reweave on GitHub</span>
+        </a>
+        <a href="/" class="btn btn-ghost big">
+          <span>← Aethyr MCP</span>
+        </a>
+      </div>
+      <p class="rw-summon-fine">Beta · UE 5.6+ · Windows · No telemetry · Attribution + Share-Alike</p>
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer class="rw-footer">
+    <div class="rw-footer-left">
+      Reweave is part of the <a href="/">Aethyr</a> family of Unreal Engine developer tools.<br>
+      <span style="font-size:.76rem;opacity:.65">Unreal Engine is a trademark of Epic Games, Inc., referenced for compatibility only.</span>
+    </div>
+    <nav class="rw-footer-links" aria-label="Footer links">
+      <a href="https://github.com/defessler/unreal-web-ui" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/defessler/Aethyr-MCP/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+      <a href="/changelog/">Changelog</a>
+      <a href="/">Aethyr MCP</a>
+    </nav>
+  </footer>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // Nav solidification
+    const nav = document.querySelector('.nav');
+    const onScroll = () => nav.classList.toggle('solid', scrollY > 40);
+    addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    // Intersection observer: reveals + gallery cards
+    const io = new IntersectionObserver(
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      }),
+      { threshold: 0.08, rootMargin: '0px 0px -36px 0px' }
+    );
+    document.querySelectorAll('.reveal, .reveal-up, .rw-gcard').forEach(el => io.observe(el));
+
+    // Gallery GIF swap on hover
+    document.querySelectorAll('.rw-gcard[data-gif]').forEach(card => {
+      const img   = card.querySelector('img');
+      const still = card.dataset.still;
+      const gif   = card.dataset.gif;
+      card.addEventListener('mouseenter', () => { img.src = gif; });
+      card.addEventListener('mouseleave', () => { img.src = still; });
+    });
+
+    // Constellation backdrop (same tuning as main site + ember in palette)
+    const cv = document.getElementById('constellation');
+    const reduce   = matchMedia('(prefers-reduced-motion:reduce)').matches;
+    const lowPower = innerWidth < 760 || matchMedia('(pointer:coarse)').matches;
+    if (!cv || reduce || lowPower) return;
+    const ctx = cv.getContext('2d');
+    let W, H, DPR, nodes, mx = 0.5, my = 0.5, raf;
+    const palette = ['28,230,255', '255,43,214', '155,107,255', '255,138,76'];
+    const count   = () => Math.min(42, Math.floor((innerWidth * innerHeight) / 34000));
+    function resize() {
+      DPR = Math.min(2, devicePixelRatio || 1);
+      W = cv.width  = innerWidth  * DPR;
+      H = cv.height = innerHeight * DPR;
+      cv.style.width  = innerWidth  + 'px';
+      cv.style.height = innerHeight + 'px';
+      spawn();
+    }
+    function spawn() {
+      nodes = Array.from({ length: count() }, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.22 * DPR,
+        vy: (Math.random() - 0.5) * 0.22 * DPR,
+        r:  (1.2 + Math.random() * 2.2) * DPR,
+        c:  palette[(Math.random() * palette.length) | 0],
+        ph: Math.random() * Math.PI * 2,
+      }));
+    }
+    function draw(t) {
+      ctx.clearRect(0, 0, W, H);
+      const link = 125 * DPR, px = (mx - 0.5) * 26 * DPR, py = (my - 0.5) * 26 * DPR;
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        a.x += a.vx; a.y += a.vy;
+        if (a.x < 0 || a.x > W) a.vx *= -1;
+        if (a.y < 0 || a.y > H) a.vy *= -1;
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d < link) {
+            const o  = (1 - d / link) * 0.5;
+            const gr = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+            gr.addColorStop(0, `rgba(${a.c},${o})`);
+            gr.addColorStop(1, `rgba(${b.c},${o})`);
+            ctx.strokeStyle = gr; ctx.lineWidth = DPR;
+            ctx.beginPath();
+            const mx2 = (a.x + b.x) / 2;
+            ctx.moveTo(a.x + px, a.y + py);
+            ctx.lineTo(mx2  + px, a.y + py);
+            ctx.lineTo(mx2  + px, b.y + py);
+            ctx.lineTo(b.x  + px, b.y + py);
+            ctx.stroke();
+          }
+        }
+      }
+      for (const a of nodes) {
+        const pulse = 0.55 + 0.45 * Math.sin(t * 0.002 + a.ph);
+        ctx.fillStyle  = `rgba(${a.c},${0.5 + pulse * 0.4})`;
+        ctx.shadowBlur  = 12 * DPR;
+        ctx.shadowColor = `rgba(${a.c},0.8)`;
+        ctx.beginPath();
+        ctx.rect(a.x - a.r + px, a.y - a.r + py, a.r * 2, a.r * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      raf = requestAnimationFrame(draw);
+    }
+    addEventListener('pointermove', e => {
+      mx = e.clientX / innerWidth; my = e.clientY / innerHeight;
+    }, { passive: true });
+    addEventListener('resize', () => {
+      cancelAnimationFrame(raf); resize(); raf = requestAnimationFrame(draw);
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) cancelAnimationFrame(raf);
+      else raf = requestAnimationFrame(draw);
+    });
+    resize();
+    raf = requestAnimationFrame(draw);
+  })();
+  </script>
+</body>
+</html>
