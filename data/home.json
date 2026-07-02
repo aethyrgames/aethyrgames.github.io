@@ -242,7 +242,7 @@
         "class": "btn btn-ghost big"
       }
     ],
-    "fineprint": "Free and open source · no telemetry · local only"
+    "fineprint": "Free · no telemetry · local only"
   },
   "footer": {
     "tagline": "Made for builders who'd rather describe a mechanic than wire it by hand.",
