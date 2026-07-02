@@ -41,10 +41,9 @@
     "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting, no C++, and <strong>nothing that can corrupt your assets.</strong>",
     "cta": [
       {
-        "href": "downloads/aethyr-mcp-ue5-plugin.zip",
+        "href": "https://github.com/defessler/Aethyr-MCP/releases",
         "label": "↓ Download free",
-        "class": "btn btn-primary",
-        "download": true
+        "class": "btn btn-primary"
       },
       {
         "href": "/docs/",
@@ -231,10 +230,9 @@
     "body": "A single, focused build with only the tools we'd stake our reputation on, every one verified against real projects.",
     "cta": [
       {
-        "href": "downloads/aethyr-mcp-ue5-plugin.zip",
+        "href": "https://github.com/defessler/Aethyr-MCP/releases",
         "label": "↓ Download free",
-        "class": "btn btn-primary big",
-        "download": true
+        "class": "btn btn-primary big"
       },
       {
         "href": "/docs/",
