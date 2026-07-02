@@ -358,7 +358,7 @@
   let W, H, DPR, nodes, mx = 0.5, my = 0.5, raf;
 
   const palette = ['28,230,255', '255,43,214', '155,107,255'];
-  const NODE_COUNT = () => Math.min(54, Math.floor((window.innerWidth * window.innerHeight) / 26000));
+  const NODE_COUNT = () => Math.min(42, Math.floor((window.innerWidth * window.innerHeight) / 34000));
 
   function resize() {
     DPR = Math.min(2, devicePixelRatio || 1);
@@ -372,8 +372,8 @@
     const n = NODE_COUNT();
     nodes = Array.from({ length: n }, () => ({
       x: Math.random() * W, y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.12 * DPR,
-      vy: (Math.random() - 0.5) * 0.12 * DPR,
+      vx: (Math.random() - 0.5) * 0.22 * DPR,
+      vy: (Math.random() - 0.5) * 0.22 * DPR,
       r: (1.2 + Math.random() * 2.2) * DPR,
       c: palette[(Math.random() * palette.length) | 0],
       ph: Math.random() * Math.PI * 2,
@@ -381,7 +381,7 @@
   }
   function draw(t) {
     ctx.clearRect(0, 0, W, H);
-    const link = 150 * DPR, px = (mx - 0.5) * 26 * DPR, py = (my - 0.5) * 26 * DPR;
+    const link = 125 * DPR, px = (mx - 0.5) * 26 * DPR, py = (my - 0.5) * 26 * DPR;
 
     for (let i = 0; i < nodes.length; i++) {
       const a = nodes[i];
