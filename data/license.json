@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "title": "License — Aethyr",
+    "description": "Aethyr MCP Attribution + Share-Alike License. Free to use, modify, and distribute with credit and share-alike terms."
+  },
+  "sidebar": {
+    "brand": { "href": "/", "label": "Aethyr" },
+    "backHref": "/",
+    "sections": [
+      {
+        "heading": "License",
+        "items": [
+          { "href": "#attribution", "label": "Attribution" },
+          { "href": "#share-alike", "label": "Share-Alike" },
+          { "href": "#no-restrictions", "label": "No Additional Restrictions" },
+          { "href": "#warranty", "label": "Warranty" }
+        ]
+      },
+      {
+        "heading": "Resources",
+        "items": [
+          { "href": "/docs/", "label": "Documentation" },
+          { "href": "/security/", "label": "Security & Privacy" },
+          { "href": "/", "label": "← Back to site" }
+        ]
+      }
+    ]
+  },
+  "topbar": {
+    "crumbs": ["aethyr.gg", "license"]
+  },
+  "article": {
+    "heading": "License",
+    "lead": "Aethyr MCP — Attribution + Share-Alike License. Copyright © 2026 Doug Fessler.",
+    "sections": [
+      {
+        "id": "attribution",
+        "heading": "1. Attribution",
+        "html": "<p>Every distribution of the Software, modified or unmodified, must:</p><ol><li>Retain this copyright notice and these conditions in all source files.</li><li>Include the following credit wherever third-party acknowledgements are displayed (documentation, README, about screen, or equivalent):<pre><code>Aethyr MCP — created by Doug Fessler  https://aethyr.gg</code></pre></li></ol>"
+      },
+      {
+        "id": "share-alike",
+        "heading": "2. Share-Alike",
+        "html": "<p>Any modified version you distribute must be released under these same terms. The corresponding source code must be made publicly available at the time of distribution.</p>"
+      },
+      {
+        "id": "no-restrictions",
+        "heading": "3. No Additional Restrictions",
+        "html": "<p>You may not impose terms on recipients that are more restrictive than these conditions.</p>"
+      },
+      {
+        "id": "warranty",
+        "heading": "Warranty Disclaimer",
+        "html": "<p>THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>"
+      }
+    ],
+    "pager": {
+      "prev": { "href": "/security/", "label": "← Security & Privacy" },
+      "next": { "href": "/", "label": "Back to site →" }
+    }
+  }
+}
