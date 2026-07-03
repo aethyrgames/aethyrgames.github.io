@@ -3,7 +3,7 @@
   --void:#0b0c1a; --void-2:#12142a; --panel:rgba(28,31,58,.5);
   --cyan:#2fb9ff; --magenta:#ff2bd6; --violet:#9b6bff; --ember:#ff8a4c;
   --ink:#e8ecff; --ink-2:#c3c9ec; --ink-dim:#a3aad3; --line:rgba(130,150,230,.16);
-  --f-display:'Chakra Petch',sans-serif; --f-arcane:'Cinzel',serif;
+  --f-display:'Chakra Petch',sans-serif; --f-arcane:'Fraunces',serif;
   --f-body:'Sora',sans-serif; --f-mono:'JetBrains Mono',monospace;
   --ease:cubic-bezier(.2,.7,.2,1); --sb:280px;
 }
