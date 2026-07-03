@@ -2,6 +2,8 @@
 (async () => {
   'use strict';
 
+  const kicker = (label) => '<span class="kicker"><span class="kicker-g">◈</span><span class="kicker-rule"></span><span class="kicker-text">' + label + '</span></span>';
+
   /* ---- load home page content from JSON (must happen before init) ---- */
   try {
     const data = await fetch('data/home.json', { cache: 'no-cache' }).then(r => {
@@ -24,7 +26,7 @@
     }
 
     const eyebrow = document.getElementById('hero-eyebrow');
-    if (eyebrow && data.hero?.eyebrow) eyebrow.innerHTML = '<span class="pulse-dot"></span> ' + data.hero.eyebrow;
+    if (eyebrow && data.hero?.eyebrow) eyebrow.innerHTML = '<span class="pulse-dot"></span><span class="kicker-rule"></span><span class="kicker-text">' + data.hero.eyebrow + '</span>';
 
     const heroTitle = document.getElementById('hero-title');
     if (heroTitle && data.hero?.title) {
@@ -45,8 +47,8 @@
 
     const heroStats = document.getElementById('hero-stats');
     if (heroStats && data.hero?.stats) {
-      heroStats.innerHTML = data.hero.stats.map(s =>
-        '<li><b' + (s.dataCount ? ' data-count="' + s.dataCount + '"' : '') + '>' + s.value + '</b><span>' + s.label + '</span></li>'
+      heroStats.innerHTML = data.hero.stats.map((s, i) =>
+        '<li><b class="' + (i === 0 ? 'stat-primary' : 'stat-sec') + '"' + (s.dataCount ? ' data-count="' + s.dataCount + '"' : '') + '>' + s.value + '</b><span>' + s.label + '</span></li>'
       ).join('');
     }
 
@@ -64,8 +66,7 @@
 
     const clientsInner = document.getElementById('clients-inner');
     if (clientsInner && data.clients) {
-      const clientsKicker = data.clients.kicker
-        ? '<span class="kicker">' + data.clients.kicker + '</span>' : '';
+      const clientsKicker = data.clients.kicker ? kicker(data.clients.kicker) : '';
       clientsInner.innerHTML = clientsKicker + '<h2 class="clients-head">' + data.clients.heading + '</h2>'
         + '<div class="clients-list">'
         + (data.clients?.items || []).map(c =>
@@ -76,9 +77,7 @@
 
     const featuresHead = document.getElementById('features-head');
     if (featuresHead && data.features) {
-      featuresHead.innerHTML =
-        '<span class="kicker">' + data.features.kicker + '</span>' +
-        '<h2>' + data.features.heading + '</h2>';
+      featuresHead.innerHTML = kicker(data.features.kicker) + '<h2>' + data.features.heading + '</h2>';
     }
     const featuresGrid = document.getElementById('features-grid');
     if (featuresGrid && data.features?.cards) {
@@ -95,7 +94,7 @@
     const compareInner = document.getElementById('compare-inner');
     if (compareInner && data.compare) {
       const cmp = data.compare;
-      let cmpHTML = '<div class="section-head"><span class="kicker">' + cmp.kicker + '</span>'
+      let cmpHTML = '<div class="section-head">' + kicker(cmp.kicker)
         + '<h2>' + cmp.heading + '</h2></div>'
         + (cmp.note ? '<p class="compare-note">' + cmp.note + '</p>' : '')
         + '<div class="compare-scroll"><table class="compare-table"><thead><tr><th></th>'
@@ -118,9 +117,7 @@
 
     const flowHead = document.getElementById('flow-head');
     if (flowHead && data.flow) {
-      flowHead.innerHTML =
-        '<span class="kicker">' + data.flow.kicker + '</span>' +
-        '<h2>' + data.flow.heading + '</h2>';
+      flowHead.innerHTML = kicker(data.flow.kicker) + '<h2>' + data.flow.heading + '</h2>';
     }
     const flowSteps = document.getElementById('flow-steps');
     if (flowSteps && data.flow?.steps) {
@@ -135,9 +132,9 @@
 
     const faqInner = document.getElementById('faq-inner');
     if (faqInner && data.faq) {
-      const faqKicker = data.faq.kicker || '// FAQ';
+      const faqKicker = data.faq.kicker || 'FAQ';
       faqInner.innerHTML =
-        '<div class="section-head reveal-up"><span class="kicker">' + faqKicker + '</span>'
+        '<div class="section-head reveal-up">' + kicker(faqKicker)
         + '<h2>' + data.faq.heading + '</h2></div>'
         + data.faq.items.map(item =>
             '<details class="faq-item">'
@@ -156,7 +153,7 @@
         return b.soon ? '<span class="soon-wrap">' + btn + '</span>' : btn;
       }).join('');
       summonInner.innerHTML =
-        '<span class="kicker">' + data.summon.kicker + '</span>' +
+        kicker(data.summon.kicker) +
         '<h2>' + data.summon.heading + '</h2>' +
         '<p>' + data.summon.body + '</p>' +
         '<div class="summon-cta">' + ctaHTML + '</div>' +

@@ -91,7 +91,7 @@
     "ANY MCP CLIENT"
   ],
   "features": {
-    "kicker": "// THE POWERS",
+    "kicker": "THE POWERS",
     "heading": "An arsenal your AI<br>can actually <span class=\"grad\">wield</span>.",
     "cards": [
       {
@@ -133,7 +133,7 @@
     ]
   },
   "clients": {
-    "kicker": "// COMPATIBILITY",
+    "kicker": "COMPATIBILITY",
     "heading": "Works with any stdio MCP client.",
     "items": [
       {
@@ -162,7 +162,7 @@
     "code": "{\n  \"mcpServers\": {\n    \"aethyr-ue5\": {\n      \"command\": \"C:\\\\path\\\\to\\\\aethyr-mcp.exe\",\n      \"env\": {\n        \"UE_PROJECT\": \"C:\\\\Game\\\\MyGame.uproject\"\n      }\n    }\n  }\n}"
   },
   "compare": {
-    "kicker": "// VS THE FIELD",
+    "kicker": "VS THE FIELD",
     "heading": "Why not just use<br>the <span class=\"grad\">free one</span>?",
     "note": "Epic shipped an experimental in-editor MCP server in UE 5.8. Here's how Aethyr is different.",
     "cols": ["Aethyr", "Epic Native MCP (5.8)", "Generic AI Copilot"],
@@ -176,7 +176,7 @@
     ]
   },
   "flow": {
-    "kicker": "// THE RITUAL",
+    "kicker": "THE RITUAL",
     "heading": "Three steps to a<br>talking <span class=\"grad\">grimoire</span>.",
     "steps": [
       {
@@ -226,7 +226,7 @@
     ]
   },
   "summon": {
-    "kicker": "// ACQUIRE",
+    "kicker": "ACQUIRE",
     "heading": "One package.<br>The proven core.",
     "body": "A single, focused build with only the tools we'd stake our reputation on, every one verified against real projects.",
     "cta": [
