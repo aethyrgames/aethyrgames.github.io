@@ -96,36 +96,42 @@
     "cards": [
       {
         "glyph": "⌖",
+        "accent": "cyan",
         "title": "See everything",
         "body": "Variables, functions, graphs, nodes, components, interfaces, timelines: your AI reads the whole structure of a Blueprint, no guessing.",
         "tag": "32 read tools"
       },
       {
         "glyph": "✶",
+        "accent": "magenta",
         "title": "Author by asking",
         "body": "&ldquo;Add a dash ability with a 2-second cooldown.&rdquo; It spawns the variables, wires the nodes, and compiles—the way you'd do it by hand, but spoken.",
         "tag": "47 write tools"
       },
       {
         "glyph": "⛨",
+        "accent": "ember",
         "title": "Corruption-safe by design",
         "body": "Every write saves through a compile gate and an automatic backup ring. Anything that could damage a project simply isn't in this build.",
         "tag": "safe"
       },
       {
         "glyph": "⟁",
+        "accent": "violet",
         "title": "All-or-nothing batches",
         "body": "Chain a dozen edits into one transaction. If step seven fails, the whole thing rolls back; your graph is never left half-rewritten.",
         "tag": "3 batch tools"
       },
       {
         "glyph": "◎",
+        "accent": "cyan",
         "title": "Your AI, your client",
         "body": "Speaks the Model Context Protocol, so it works with any MCP client, Claude included. Point it at a <code>.uproject</code> and go.",
         "tag": "mcp"
       },
       {
         "glyph": "◳",
+        "accent": "violet",
         "title": "Runs in the dark",
         "body": "Drives a headless editor or talks to a live one over a socket, auto-routing per call. No babysitting an editor window required.",
         "tag": "headless"

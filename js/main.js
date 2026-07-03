@@ -82,7 +82,7 @@
     const featuresGrid = document.getElementById('features-grid');
     if (featuresGrid && data.features?.cards) {
       featuresGrid.innerHTML = data.features.cards.map((c, i) =>
-        '<article class="card reveal-up" style="--i:' + i + '">' +
+        '<article class="card reveal-up ' + (c.accent ? 'acc-' + c.accent : '') + '" style="--i:' + i + '">' +
         '<div class="card-glyph">' + c.glyph + '</div>' +
         '<h3>' + c.title + '</h3>' +
         '<p>' + c.body + '</p>' +
