@@ -22,6 +22,10 @@
         "label": "Changelog"
       },
       {
+        "href": "/reweave/",
+        "label": "Reweave"
+      },
+      {
         "href": "#summon",
         "label": "Get it",
         "class": "nav-cta"
@@ -261,6 +265,10 @@
       {
         "href": "/changelog/",
         "label": "Changelog"
+      },
+      {
+        "href": "/reweave/",
+        "label": "Reweave"
       },
       {
         "href": "/security/",
