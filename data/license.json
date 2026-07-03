@@ -13,6 +13,8 @@
           { "href": "#attribution", "label": "Attribution" },
           { "href": "#share-alike", "label": "Share-Alike" },
           { "href": "#no-restrictions", "label": "No Additional Restrictions" },
+          { "href": "#brand", "label": "Brand & attribution" },
+          { "href": "#palette", "label": "Colour & type" },
           { "href": "#warranty", "label": "Warranty" }
         ]
       },
@@ -47,6 +49,16 @@
         "id": "no-restrictions",
         "heading": "3. No Additional Restrictions",
         "html": "<p>You may not impose terms on recipients that are more restrictive than these conditions.</p>"
+      },
+      {
+        "id": "brand",
+        "heading": "Brand & attribution",
+        "html": "<p>The Attribution clause requires a visible credit. To keep that credit recognisable, present Aethyr consistently wherever it appears.</p><h3>Required credit</h3><p>Reproduce this line verbatim in acknowledgements — an About screen, README, credits roll, or documentation:</p><pre><code>Aethyr MCP — created by Doug Fessler  https://aethyr.gg</code></pre><h3>Wordmark</h3><p>The name is set in <strong>Cinzel</strong>, uppercase, with wide letter-spacing: <span style='font-family:Cinzel,serif;letter-spacing:.16em;text-transform:uppercase;color:var(--ink)'>Aethyr</span>. Keep it one word with a capital A; do not translate, abbreviate, or rename it.</p><ul><li><strong>Do</strong> keep the credit legible and the link intact.</li><li><strong>Do</strong> place the wordmark on a dark ground for contrast.</li><li><strong>Don't</strong> recolour the wordmark into a gradient, add glow or effects, or re-letterspace it.</li><li><strong>Don't</strong> imply endorsement or partnership beyond the credit itself.</li></ul>"
+      },
+      {
+        "id": "palette",
+        "heading": "Colour & type",
+        "html": "<p>Aethyr is a void ground with four accents. Each accent carries a meaning in the product UI — reuse the coding if you extend it.</p><ul style='list-style:none;padding:0;display:grid;gap:.55rem;margin:1rem 0'><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#2fb9ff;vertical-align:middle;margin-right:.6em'></span><strong>Cerulean</strong> <code>#2fb9ff</code> — primary accent · read</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#ff2bd6;vertical-align:middle;margin-right:.6em'></span><strong>Magenta</strong> <code>#ff2bd6</code> — write</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#9b6bff;vertical-align:middle;margin-right:.6em'></span><strong>Violet</strong> <code>#9b6bff</code> — batch</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#ff8a4c;vertical-align:middle;margin-right:.6em'></span><strong>Ember</strong> <code>#ff8a4c</code> — safety &amp; caution</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#0b0c1a;border:1px solid var(--line);vertical-align:middle;margin-right:.6em'></span><strong>Void</strong> <code>#0b0c1a</code> — background</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#e8ecff;vertical-align:middle;margin-right:.6em'></span><strong>Ink</strong> <code>#e8ecff</code> — text</li></ul><h3>Typefaces</h3><ul><li><strong>Cinzel</strong> — display &amp; wordmark</li><li><strong>Chakra Petch</strong> — labels, UI, small caps</li><li><strong>Sora</strong> — body text</li><li><strong>JetBrains Mono</strong> — code &amp; data</li></ul>"
       },
       {
         "id": "warranty",
