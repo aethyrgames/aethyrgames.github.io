@@ -493,6 +493,9 @@ a{color:inherit;text-decoration:none}
 @media(max-width:860px){
   .nav-toggle { display: flex; }
   .nav{ position: relative; }
+  /* nav is in-flow now, so the hero no longer needs to clear a fixed bar;
+     drop the 120px top pad + full-viewport centering that left a big gap */
+  .hero{ min-height:auto; justify-content:flex-start; padding-top:2rem; }
   .nav-links {
     position: absolute;
     top: 100%;

@@ -389,6 +389,10 @@
       .rw-gallery-grid { grid-template-columns:repeat(2,1fr); }
       .rw-converts-grid { grid-template-columns:1fr; }
     }
+    @media(max-width:860px){
+      /* shared nav becomes position:relative here — drop the fixed-nav clearance */
+      .rw-hero { padding-top:2rem; }
+    }
     @media(max-width:580px){
       .rw-gallery-grid { grid-template-columns:1fr; }
     }
