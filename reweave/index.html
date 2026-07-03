@@ -96,10 +96,10 @@
       color:var(--ink-dim); text-transform:uppercase; margin-top:.35rem;
     }
     .rw-stat-primary b {
-      font-family:var(--f-arcane); font-size:clamp(2.4rem,4.4vw,3.6rem); color:var(--ink);
+      font-family:var(--f-display); font-size:clamp(1.6rem,2.3vw,2.05rem); color:var(--ink);
     }
     .rw-stat-sec b {
-      font-size:clamp(1.1rem,1.7vw,1.5rem); color:var(--ink-dim);
+      font-size:clamp(1.25rem,1.8vw,1.6rem); color:var(--ink-dim);
     }
     .rw-stat-sec span { opacity:.55; }
 
@@ -412,6 +412,7 @@
     <div class="nav-links">
       <a href="#how">How it works</a>
       <a href="#gallery">Gallery</a>
+      <a href="#slate">Slate</a>
       <a href="#converts">What converts</a>
       <a href="/" class="nav-cta">Aethyr MCP</a>
     </div>
@@ -686,20 +687,92 @@
 
         <div class="rw-bridge" aria-hidden="true">
           <span class="rw-bridge-arrow">⟺</span>
-          <span class="rw-bridge-label">planned</span>
+          <span class="rw-bridge-label">preview</span>
         </div>
 
         <div class="rw-node">
           <span class="rw-node-icon" aria-hidden="true">⟁</span>
           <span class="rw-node-label">Slate C++</span>
           <span class="rw-node-sub">native UI layer</span>
-          <span class="rw-node-status wip">planned</span>
+          <span class="rw-node-status wip">preview</span>
         </div>
 
       </div>
       <div class="rw-ir-node reveal-up">
         <div class="rw-ir-label">◉ WUIR — Web UI Intermediate Representation</div>
-        <p class="rw-ir-desc">All three formats share the same IR. Capture once, emit anywhere — UMG today, Slate or other engines later, without re-capturing the source.</p>
+        <p class="rw-ir-desc">All three formats share the same IR. Capture once, emit anywhere — UMG today, Slate in preview, other engines later, without re-capturing the source.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slate preview gallery ── -->
+  <section id="slate" class="rw-section">
+    <div class="rw-wrap">
+      <div class="rw-head reveal-up">
+        <span class="kicker">
+          <span class="kicker-g">◈</span>
+          <span class="kicker-rule"></span>
+          <span class="kicker-text">SLATE EMITTER · PREVIEW</span>
+        </span>
+        <h2>The same capture, now emitting <span class="rw-grad-ue">Slate C++</span>.</h2>
+        <p>Because every page lands in WUIR first, Unreal's native C++ UI layer is just another emitter. Here is early UMG → Slate output, side by side.</p>
+      </div>
+      <div class="rw-gallery-grid">
+
+        <div class="rw-gcard" style="--i:0">
+          <img src="compare/slate/settings-form_umg-vs-slate.png"
+               alt="Settings form: UMG widget on the left, generated Slate C++ on the right." loading="lazy">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Settings · Form controls</span>
+            <span class="rw-gcard-w">UMG → Slate</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:1">
+          <img src="compare/slate/card-grid_umg-vs-slate.png"
+               alt="Product card grid: UMG widget vs generated Slate C++." loading="lazy">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Product Card Grid</span>
+            <span class="rw-gcard-w">UMG → Slate</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:2">
+          <img src="compare/slate/card-list_umg-vs-slate.png"
+               alt="Inventory list: UMG widget vs generated Slate C++." loading="lazy">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Inventory List · Flex rows</span>
+            <span class="rw-gcard-w">UMG → Slate</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:3">
+          <img src="compare/slate/login-form_umg-vs-slate.png"
+               alt="Login form: UMG widget vs generated Slate C++." loading="lazy">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Login · Form + validation</span>
+            <span class="rw-gcard-w">UMG → Slate</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:4">
+          <img src="compare/slate/animated-hud_umg-vs-slate.png"
+               alt="Animated game HUD: UMG widget vs generated Slate C++." loading="lazy">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Animated HUD</span>
+            <span class="rw-gcard-w">UMG → Slate</span>
+          </div>
+        </div>
+
+        <div class="rw-gcard" style="--i:5">
+          <img src="compare/slate/aethyr-hud_umg-vs-slate.png"
+               alt="Sci-fi shooter HUD: UMG widget vs generated Slate C++." loading="lazy">
+          <div class="rw-gcard-foot">
+            <span class="rw-gcard-name">Aethyr HUD · Shooter</span>
+            <span class="rw-gcard-w">UMG → Slate</span>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
