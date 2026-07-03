@@ -6,16 +6,16 @@
    ========================================================================= */
 
 :root{
-  --void:#070710;
-  --void-2:#0b0b1a;
-  --panel:rgba(20,22,46,.46);
+  --void:#0b0c1a;
+  --void-2:#12142a;
+  --panel:rgba(28,31,58,.5);
   --cyan:#2fb9ff;
   --magenta:#ff2bd6;
   --violet:#9b6bff;
   --ember:#ff8a4c;
   --ink:#e8ecff;
   --ink-2:#c3c9ec;
-  --ink-dim:#8b93c4;
+  --ink-dim:#a3aad3;
   --line:rgba(130,150,230,.16);
   --glow-cyan:0 0 24px rgba(47,185,255,.55);
   --glow-mag:0 0 24px rgba(255,43,214,.5);
@@ -46,7 +46,7 @@ a{color:inherit;text-decoration:none}
 }
 #constellation{z-index:1}
 .scanlines{
-  z-index:7;opacity:.30;mix-blend-mode:overlay;
+  z-index:7;opacity:.16;mix-blend-mode:overlay;
   background:repeating-linear-gradient(0deg,rgba(0,0,0,.5) 0 1px,transparent 1px 3px);
   animation:scan 7s linear infinite;
 }
@@ -59,7 +59,7 @@ a{color:inherit;text-decoration:none}
   /* below content (z-index 5) so it darkens the backdrop edges only and never
      paints over the footer / summon text; softer stop so the bottom stays legible */
   z-index:3;
-  background:radial-gradient(120% 100% at 50% 0%,transparent 62%,rgba(3,3,8,.5) 100%);
+  background:radial-gradient(120% 100% at 50% 0%,transparent 66%,rgba(3,3,8,.32) 100%);
 }
 
 /* ---- nav ---- */
