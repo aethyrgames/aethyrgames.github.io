@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+# Static site — publish the repo root to GitHub Pages on every push to master.
+# Replaces the legacy "deploy from a branch" pipeline so we get on-demand
+# re-runs (workflow_dispatch), cancellable runs, and a pinned deploy action.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. Don't cancel an in-flight deploy (avoids a
+# half-published site); queued duplicates supersede each other.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
