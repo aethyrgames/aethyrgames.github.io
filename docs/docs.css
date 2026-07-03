@@ -1,7 +1,7 @@
 /* Aethyr docs: Arcane Terminal, tuned for reading */
 :root{
   --void:#070710; --void-2:#0b0b1a; --panel:rgba(20,22,46,.5);
-  --cyan:#1ce6ff; --magenta:#ff2bd6; --violet:#9b6bff; --ember:#ff8a4c;
+  --cyan:#2fb9ff; --magenta:#ff2bd6; --violet:#9b6bff; --ember:#ff8a4c;
   --ink:#e8ecff; --ink-2:#c3c9ec; --ink-dim:#8b93c4; --line:rgba(130,150,230,.16);
   --f-display:'Chakra Petch',sans-serif; --f-arcane:'Cinzel',serif;
   --f-body:'Sora',sans-serif; --f-mono:'JetBrains Mono',monospace;
@@ -16,7 +16,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 ::selection{background:var(--magenta);color:#0a0a14}
 .bg{position:fixed;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(80% 60% at 100% 0,rgba(155,107,255,.12),transparent 60%),
-   radial-gradient(70% 60% at 0 8%,rgba(28,230,255,.1),transparent 55%);}
+   radial-gradient(70% 60% at 0 8%,rgba(47,185,255,.1),transparent 55%);}
 .grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.05;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
@@ -28,7 +28,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .side .brand{display:flex;align-items:center;gap:.55rem;font-family:var(--f-arcane);
   font-weight:700;font-size:1.08rem;color:var(--ink);letter-spacing:.03em;margin-bottom:1.6rem}
 .side .brand .sig{width:18px;height:18px;vertical-align:-3px;
-  filter:drop-shadow(0 0 8px rgba(28,230,255,.6));animation:spin 9s linear infinite;display:inline-block}
+  filter:drop-shadow(0 0 8px rgba(47,185,255,.6));animation:spin 9s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .side .home{display:block;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.18em;
   text-transform:uppercase;color:var(--ink-dim);margin-bottom:1.6rem}
@@ -65,9 +65,9 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .doc li{margin:.4rem 0}
 .doc strong{color:var(--ink)}
 .doc code{font-family:var(--f-mono);font-size:.86em;color:var(--cyan);
-  background:rgba(28,230,255,.08);padding:.08em .4em;border-radius:3px;border:1px solid rgba(28,230,255,.14)}
+  background:rgba(47,185,255,.08);padding:.08em .4em;border-radius:3px;border:1px solid rgba(47,185,255,.14)}
 .doc pre{margin:1.1rem 0;background:rgba(6,6,14,.9);border:1px solid var(--line);border-radius:8px;
-  overflow:auto;box-shadow:inset 0 0 50px rgba(28,230,255,.03)}
+  overflow:auto;box-shadow:inset 0 0 50px rgba(47,185,255,.03)}
 .doc pre code{display:block;padding:18px 20px;color:var(--ink-2);background:none;border:none;
   font-size:.84rem;line-height:1.75}
 .doc pre .k{color:var(--magenta)}.doc pre .s{color:#9af0c0}.doc pre .c{color:var(--ink-dim)}
@@ -77,7 +77,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .note{margin:1.3rem 0;padding:16px 18px 16px 46px;border:1px solid var(--line);border-radius:8px;
   position:relative;background:rgba(20,22,46,.4)}
 .note::before{position:absolute;left:16px;top:15px;font-size:1.1rem}
-.note.tip{border-color:rgba(28,230,255,.35)}.note.tip::before{content:"✦";color:var(--cyan)}
+.note.tip{border-color:rgba(47,185,255,.35)}.note.tip::before{content:"✦";color:var(--cyan)}
 .note.warn{border-color:rgba(255,138,76,.4)}.note.warn::before{content:"⚠";color:var(--ember)}
 .note.arc{border-color:rgba(155,107,255,.4)}.note.arc::before{content:"◈";color:var(--violet)}
 .note p{margin:.3rem 0}.note strong{color:var(--ink)}
@@ -86,7 +86,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .aud{display:inline-flex;gap:.4rem;align-items:center;font-family:var(--f-mono);font-size:.66rem;
   letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);
   border:1px solid var(--line);border-radius:20px;padding:.2rem .7rem;margin:0 .35rem .35rem 0}
-.aud.new{color:var(--cyan);border-color:rgba(28,230,255,.3)}
+.aud.new{color:var(--cyan);border-color:rgba(47,185,255,.3)}
 .aud.vet{color:var(--violet);border-color:rgba(155,107,255,.3)}
 
 /* SKU badges */
@@ -130,7 +130,7 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .spellnav{display:flex;flex-wrap:wrap;gap:.5rem;margin:1.4rem 0 2.2rem}
 .spellnav a{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.05em;color:var(--ink-dim);
   border:1px solid var(--line);border-radius:20px;padding:.32rem .8rem;transition:color .2s,border-color .2s}
-.spellnav a:hover{color:var(--cyan);border-color:rgba(28,230,255,.3);text-decoration:none}
+.spellnav a:hover{color:var(--cyan);border-color:rgba(47,185,255,.3);text-decoration:none}
 .spell-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;margin:1.2rem 0 1rem}
 .spell{border:1px solid var(--line);border-radius:10px;padding:15px 17px;
   background:linear-gradient(160deg,rgba(20,22,46,.45),rgba(10,10,22,.3));
@@ -193,22 +193,22 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 
 /* download dock */
 .dl{position:relative;display:flex;align-items:center;gap:18px 22px;flex-wrap:wrap;
-  margin:1.6rem 0 1.4rem;padding:22px 24px;border:1px solid rgba(28,230,255,.28);border-radius:14px;
+  margin:1.6rem 0 1.4rem;padding:22px 24px;border:1px solid rgba(47,185,255,.28);border-radius:14px;
   background:linear-gradient(150deg,rgba(20,22,46,.66),rgba(10,10,22,.46));
   overflow:hidden;isolation:isolate;transition:border-color .3s var(--ease),transform .3s var(--ease)}
-.dl:hover{text-decoration:none;border-color:rgba(28,230,255,.55);transform:translateY(-3px)}
+.dl:hover{text-decoration:none;border-color:rgba(47,185,255,.55);transform:translateY(-3px)}
 .dl-aura{position:absolute;inset:-1px;z-index:0;pointer-events:none;
-  background:radial-gradient(60% 120% at 0 0,rgba(28,230,255,.16),transparent 58%),
+  background:radial-gradient(60% 120% at 0 0,rgba(47,185,255,.16),transparent 58%),
    radial-gradient(70% 130% at 100% 100%,rgba(155,107,255,.16),transparent 60%)}
 .dl::before{content:"";position:absolute;top:0;left:-65%;width:42%;height:100%;z-index:0;pointer-events:none;
-  background:linear-gradient(100deg,transparent,rgba(28,230,255,.14),transparent);
+  background:linear-gradient(100deg,transparent,rgba(47,185,255,.14),transparent);
   transform:skewX(-18deg);animation:dl-sheen 5.5s var(--ease) infinite}
 @keyframes dl-sheen{0%,55%{left:-65%}100%{left:135%}}
 .dl-mark,.dl-body,.dl-btn{position:relative;z-index:1}
 .dl-mark{display:grid;place-items:center;width:62px;height:62px;border-radius:14px;flex:0 0 auto;
-  background:radial-gradient(circle at 50% 32%,rgba(28,230,255,.2),rgba(8,8,18,.55));
-  border:1px solid rgba(28,230,255,.32)}
-.dl-mark img{filter:drop-shadow(0 0 10px rgba(28,230,255,.7));animation:spin 9s linear infinite}
+  background:radial-gradient(circle at 50% 32%,rgba(47,185,255,.2),rgba(8,8,18,.55));
+  border:1px solid rgba(47,185,255,.32)}
+.dl-mark img{filter:drop-shadow(0 0 10px rgba(47,185,255,.7));animation:spin 9s linear infinite}
 .dl-body{flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:.35rem}
 .dl-kicker{font-family:var(--f-mono);font-size:.64rem;letter-spacing:.22em;text-transform:uppercase;color:var(--violet)}
 .dl-title{font-family:var(--f-display);font-weight:600;font-size:1.22rem;color:var(--ink)}
@@ -219,8 +219,8 @@ a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
 .dl-btn{display:inline-flex;align-items:center;gap:.7rem;flex:0 0 auto;padding:.7rem 1.05rem;border-radius:10px;
   font-family:var(--f-display);font-weight:600;font-size:1rem;color:#06060f;
   background:linear-gradient(100deg,var(--cyan),var(--violet));
-  box-shadow:0 8px 28px rgba(28,230,255,.22);transition:box-shadow .25s var(--ease)}
-.dl:hover .dl-btn{box-shadow:0 12px 40px rgba(28,230,255,.42)}
+  box-shadow:0 8px 28px rgba(47,185,255,.22);transition:box-shadow .25s var(--ease)}
+.dl:hover .dl-btn{box-shadow:0 12px 40px rgba(47,185,255,.42)}
 .dl-ico{display:grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;
   background:rgba(6,6,16,.16);font-size:1.02rem;animation:dl-bob 1.8s var(--ease) infinite}
 @keyframes dl-bob{0%,100%{transform:translateY(-2px)}50%{transform:translateY(3px)}}

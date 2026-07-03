@@ -354,7 +354,7 @@
   const ctx = cv.getContext('2d');
   let W, H, DPR, nodes, mx = 0.5, my = 0.5, raf;
 
-  const palette = ['28,230,255', '255,43,214', '155,107,255'];
+  const palette = ['47,185,255', '255,43,214', '155,107,255'];
   const NODE_COUNT = () => Math.min(42, Math.floor((window.innerWidth * window.innerHeight) / 34000));
 
   function resize() {

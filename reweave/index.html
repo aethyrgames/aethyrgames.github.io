@@ -17,7 +17,7 @@
     /* ═══════════════════════════════════════════════════════
        Reweave identity layer
        Ember (#ff8a4c) = HTML / web side
-       Cyan  (#1ce6ff) = UMG / Unreal side
+       Cyan  (#2fb9ff) = UMG / Unreal side
        ═══════════════════════════════════════════════════════ */
 
     /* ── Nav brand ── */
@@ -120,7 +120,7 @@
     }
     .rw-frame-ssim {
       font-family:var(--f-mono); font-size:.7rem; letter-spacing:.05em;
-      color:var(--cyan); text-shadow:0 0 10px rgba(28,230,255,.55);
+      color:var(--cyan); text-shadow:0 0 10px rgba(47,185,255,.55);
     }
     .rw-frame-panels {
       display:flex; position:relative;
@@ -133,14 +133,14 @@
       padding:.3rem .8rem;
     }
     .rw-panel.html { color:var(--ember); background:rgba(255,138,76,.07); }
-    .rw-panel.umg  { color:var(--cyan);  background:rgba(28,230,255,.05); }
+    .rw-panel.umg  { color:var(--cyan);  background:rgba(47,185,255,.05); }
     .rw-panel-line {
       position:absolute; left:50%; top:0; bottom:0; width:1px;
       background:linear-gradient(to bottom,var(--ember),var(--cyan));
     }
     .rw-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
     .rw-dot.html { background:var(--ember); box-shadow:0 0 7px rgba(255,138,76,.9); }
-    .rw-dot.umg  { background:var(--cyan);  box-shadow:0 0 7px rgba(28,230,255,.9); }
+    .rw-dot.umg  { background:var(--cyan);  box-shadow:0 0 7px rgba(47,185,255,.9); }
     .rw-frame img { display:block; width:100%; height:auto; }
 
     /* ── Marquee ── */
@@ -190,8 +190,8 @@
       transition:transform .28s var(--ease);
     }
     .rw-step:hover {
-      border-color:rgba(28,230,255,.22);
-      background:rgba(28,230,255,.025);
+      border-color:rgba(47,185,255,.22);
+      background:rgba(47,185,255,.025);
     }
     .rw-step:hover::before { transform:scaleY(1); }
     .rw-step-num {
@@ -200,7 +200,7 @@
     }
     .rw-step-num.c-web { color:var(--ember); text-shadow:0 0 18px rgba(255,138,76,.4); }
     .rw-step-num.c-mid { color:var(--violet); }
-    .rw-step-num.c-ue { color:var(--cyan); text-shadow:0 0 18px rgba(28,230,255,.4); }
+    .rw-step-num.c-ue { color:var(--cyan); text-shadow:0 0 18px rgba(47,185,255,.4); }
     .rw-step-tag {
       font-family:var(--f-mono); font-size:.6rem; letter-spacing:.1em;
       text-transform:uppercase; color:var(--ink-dim); opacity:.65; margin-top:-.4rem;
@@ -213,8 +213,8 @@
     .rw-step p code { font-family:var(--f-mono); font-size:.8em; color:var(--cyan); }
     .rw-cmd {
       display:block; font-family:var(--f-mono); font-size:.72rem; line-height:1.6;
-      color:var(--cyan); background:rgba(28,230,255,.05);
-      border:1px solid rgba(28,230,255,.13); border-radius:4px;
+      color:var(--cyan); background:rgba(47,185,255,.05);
+      border:1px solid rgba(47,185,255,.13); border-radius:4px;
       padding:.55rem .85rem; margin-top:auto; word-break:break-all;
     }
 
@@ -236,8 +236,8 @@
     }
     .rw-gcard.in { opacity:1; transform:none; transition-delay:calc(var(--i,0)*70ms); }
     .rw-gcard:hover {
-      border-color:rgba(28,230,255,.22);
-      background:rgba(28,230,255,.025);
+      border-color:rgba(47,185,255,.22);
+      background:rgba(47,185,255,.025);
     }
     .rw-gcard:hover::before { transform:scaleY(1); }
     .rw-gcard img {
@@ -257,7 +257,7 @@
       font-family:var(--f-mono); font-size:.68rem; color:var(--ink-dim); white-space:nowrap;
     }
     .rw-gcard-ssim b {
-      color:var(--cyan); text-shadow:0 0 8px rgba(28,230,255,.5); font-size:.78rem;
+      color:var(--cyan); text-shadow:0 0 8px rgba(47,185,255,.5); font-size:.78rem;
     }
     .rw-gcard-w { font-family:var(--f-mono); font-size:.57rem; color:var(--ink-dim); opacity:.5; }
     .rw-gif-hint { font-family:var(--f-mono); font-size:.57rem; color:var(--ember); opacity:.7; }
@@ -335,7 +335,7 @@
       border:1px solid var(--line); border-radius:8px; background:var(--panel);
       position:relative;
     }
-    .rw-node.active { border-color:rgba(28,230,255,.35); background:rgba(28,230,255,.04); }
+    .rw-node.active { border-color:rgba(47,185,255,.35); background:rgba(47,185,255,.04); }
     .rw-node-icon {
       font-family:var(--f-mono); font-size:1.4rem; line-height:1;
     }
@@ -353,7 +353,7 @@
       text-transform:uppercase; padding:.22rem .55rem; border-radius:2px;
       margin-top:.2rem;
     }
-    .rw-node-status.done { color:var(--cyan); background:rgba(28,230,255,.1); border:1px solid rgba(28,230,255,.2); }
+    .rw-node-status.done { color:var(--cyan); background:rgba(47,185,255,.1); border:1px solid rgba(47,185,255,.2); }
     .rw-node-status.wip  { color:var(--ember); background:rgba(255,138,76,.08); border:1px solid rgba(255,138,76,.2); }
     .rw-bridge {
       display:flex; flex-direction:column; align-items:center; gap:.3rem; flex-shrink:0;
@@ -825,7 +825,7 @@
     if (!cv || reduce || lowPower) return;
     const ctx = cv.getContext('2d');
     let W, H, DPR, nodes, mx = 0.5, my = 0.5, raf;
-    const palette = ['28,230,255', '255,43,214', '155,107,255', '255,138,76'];
+    const palette = ['47,185,255', '255,43,214', '155,107,255', '255,138,76'];
     const count   = () => Math.min(42, Math.floor((innerWidth * innerHeight) / 34000));
     function resize() {
       DPR = Math.min(2, devicePixelRatio || 1);
