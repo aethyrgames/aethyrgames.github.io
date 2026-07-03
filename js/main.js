@@ -349,8 +349,8 @@
      Nodes drift; nearby nodes wire together; pins pulse; parallax to mouse.
      ==================================================================== */
   const cv = document.getElementById('constellation');
-  const lowPower = innerWidth < 760 || matchMedia('(pointer:coarse)').matches;
-  if (!cv || reduce || lowPower) return;
+  const coarse = matchMedia('(pointer:coarse)').matches;
+  if (!cv || reduce) return;
   const ctx = cv.getContext('2d');
   let W, H, DPR, nodes, mx = 0.5, my = 0.5, raf;
 
@@ -358,7 +358,7 @@
   const NODE_COUNT = () => Math.min(42, Math.floor((window.innerWidth * window.innerHeight) / 34000));
 
   function resize() {
-    DPR = Math.min(2, devicePixelRatio || 1);
+    DPR = Math.min(coarse ? 1.5 : 2, devicePixelRatio || 1);
     W = cv.width = innerWidth * DPR;
     H = cv.height = innerHeight * DPR;
     cv.style.width = innerWidth + 'px';
