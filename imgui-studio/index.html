@@ -732,12 +732,16 @@ function highlightCpp(src) {
     /\b(IM_[A-Z_]+)\b/,                                                 // 9 macro
     /((?<=::)[A-Za-z_]\w*(?=\())/,                                      // 10 support.function (call)
     /\b([A-Za-z_]\w*)(?=\()/,                                           // 11 entity.name.function
-    /\b([A-Z]\w*)\b/,                                                   // 12 entity.name.class
-    /((?<=&\s)[a-z]\w*(?=\)))/,                                         // 13 variable.parameter
-    /(::|&|=|-)/,                                                       // 14 keyword.operator
+    /((?<=\b(?:bool|float|char|int|double|unsigned)\s{1,4})[a-z]\w*)/,  // 12 field declaration
+    /((?<=\.)[a-z]\w*)/,                                                // 13 field access
+    /\b([a-z]\w*)(?=\.)/,                                               // 14 the variable it hangs off
+    /\b([A-Z]\w*)\b/,                                                   // 15 entity.name.class
+    /((?<=&\s)[a-z]\w*(?=\)))/,                                         // 16 variable.parameter
+    /(::|&|=|-)/,                                                       // 17 keyword.operator
   ].map(r => r.source).join('|'), 'g');
   const classes = ['c-com', 'c-str', 'c-kw', 'c-type', 'c-const', 'c-num',
-    'c-support', 'c-class', 'c-macro', 'c-supfn', 'c-fn', 'c-class', 'c-param', 'c-op'];
+    'c-support', 'c-class', 'c-macro', 'c-supfn', 'c-fn', 'c-field', 'c-field',
+    'c-param', 'c-class', 'c-param', 'c-op'];
   let out = '';
   let last = 0;
   let m;
@@ -754,77 +758,79 @@ function highlightCpp(src) {
 }
 
 // ---------- highlight themes ----------
-// Token slots: com str kw type const num support supfn macro fn cls param op.
-// "Doki" is ported from the user's ReSharper Dark .icls (Rider scheme).
+// Token slots: com str kw type const num support supfn macro fn cls param op field.
+// "Doki" is ported from the user's ReSharper Dark .icls (Rider scheme); its
+// values were confirmed against Rider screenshots by sampling pixels.
+// Themes with no distinct member color use their foreground for `field`.
 const THEMES = {
   'monokai-bright': {
     name: 'Monokai Bright', bg: '#272822', fg: '#F8F8F2',
     com: '#75715E', str: '#E6DB74', kw: '#F92672', type: '#66D9EF', const: '#AE81FF',
     num: '#AE81FF', support: '#66D9EF', supfn: '#66D9EF', macro: '#66D9EF',
-    fn: '#A6E22E', cls: '#A6E22E', param: '#FD971F', op: '#F92672',
+    fn: '#A6E22E', cls: '#A6E22E', param: '#FD971F', op: '#F92672', field: '#F8F8F2',
     italics: ['c-type', 'c-support', 'c-param'],
   },
   'doki': {
     name: 'Doki', bg: '#1E1E1E', fg: '#DCDCDC',
     com: '#57A64A', str: '#D69D85', kw: '#569CD6', type: '#569CD6', const: '#569CD6',
     num: '#B5CEA8', support: '#ADD8E6', supfn: '#FF8000', macro: '#BD63C5',
-    fn: '#FF8000', cls: '#00C0C0', param: '#9CDCFE', op: '#DCDCDC',
+    fn: '#FF8000', cls: '#00C0C0', param: '#9CDCFE', op: '#DCDCDC', field: '#DDA0DD',
     italics: [],
   },
   'dracula': {
     name: 'Dracula', bg: '#282A36', fg: '#F8F8F2',
     com: '#6272A4', str: '#F1FA8C', kw: '#FF79C6', type: '#8BE9FD', const: '#BD93F9',
     num: '#BD93F9', support: '#8BE9FD', supfn: '#8BE9FD', macro: '#BD93F9',
-    fn: '#50FA7B', cls: '#8BE9FD', param: '#FFB86C', op: '#FF79C6',
+    fn: '#50FA7B', cls: '#8BE9FD', param: '#FFB86C', op: '#FF79C6', field: '#F8F8F2',
     italics: ['c-type', 'c-support', 'c-param'],
   },
   'one-dark': {
     name: 'One Dark', bg: '#282C34', fg: '#ABB2BF',
     com: '#5C6370', str: '#98C379', kw: '#C678DD', type: '#E5C07B', const: '#D19A66',
     num: '#D19A66', support: '#56B6C2', supfn: '#56B6C2', macro: '#C678DD',
-    fn: '#61AFEF', cls: '#E5C07B', param: '#E06C75', op: '#ABB2BF',
+    fn: '#61AFEF', cls: '#E5C07B', param: '#E06C75', op: '#ABB2BF', field: '#E06C75',
     italics: ['c-com'],
   },
   'vs-dark': {
     name: 'VS Code Dark+', bg: '#1E1E1E', fg: '#D4D4D4',
     com: '#6A9955', str: '#CE9178', kw: '#C586C0', type: '#569CD6', const: '#569CD6',
     num: '#B5CEA8', support: '#4EC9B0', supfn: '#DCDCAA', macro: '#DCDCAA',
-    fn: '#DCDCAA', cls: '#4EC9B0', param: '#9CDCFE', op: '#D4D4D4',
+    fn: '#DCDCAA', cls: '#4EC9B0', param: '#9CDCFE', op: '#D4D4D4', field: '#9CDCFE',
     italics: [],
   },
   'gruvbox': {
     name: 'Gruvbox Dark', bg: '#282828', fg: '#EBDBB2',
     com: '#928374', str: '#B8BB26', kw: '#FB4934', type: '#FABD2F', const: '#D3869B',
     num: '#D3869B', support: '#FE8019', supfn: '#FE8019', macro: '#8EC07C',
-    fn: '#B8BB26', cls: '#FABD2F', param: '#83A598', op: '#EBDBB2',
+    fn: '#B8BB26', cls: '#FABD2F', param: '#83A598', op: '#EBDBB2', field: '#EBDBB2',
     italics: ['c-com'],
   },
   'nord': {
     name: 'Nord', bg: '#2E3440', fg: '#D8DEE9',
     com: '#616E88', str: '#A3BE8C', kw: '#81A1C1', type: '#81A1C1', const: '#81A1C1',
     num: '#B48EAD', support: '#8FBCBB', supfn: '#88C0D0', macro: '#5E81AC',
-    fn: '#88C0D0', cls: '#8FBCBB', param: '#D8DEE9', op: '#81A1C1',
+    fn: '#88C0D0', cls: '#8FBCBB', param: '#D8DEE9', op: '#81A1C1', field: '#D8DEE9',
     italics: ['c-param'],
   },
   'solarized-dark': {
     name: 'Solarized Dark', bg: '#002B36', fg: '#839496',
     com: '#586E75', str: '#2AA198', kw: '#859900', type: '#B58900', const: '#CB4B16',
     num: '#D33682', support: '#268BD2', supfn: '#268BD2', macro: '#CB4B16',
-    fn: '#268BD2', cls: '#B58900', param: '#839496', op: '#839496',
+    fn: '#268BD2', cls: '#B58900', param: '#839496', op: '#839496', field: '#839496',
     italics: ['c-com'],
   },
   'solarized-light': {
     name: 'Solarized Light', bg: '#FDF6E3', fg: '#657B83',
     com: '#93A1A1', str: '#2AA198', kw: '#859900', type: '#B58900', const: '#CB4B16',
     num: '#D33682', support: '#268BD2', supfn: '#268BD2', macro: '#CB4B16',
-    fn: '#268BD2', cls: '#B58900', param: '#657B83', op: '#657B83',
+    fn: '#268BD2', cls: '#B58900', param: '#657B83', op: '#657B83', field: '#657B83',
     italics: ['c-com'],
   },
   'github-light': {
     name: 'GitHub Light', bg: '#FFFFFF', fg: '#24292E',
     com: '#6A737D', str: '#032F62', kw: '#D73A49', type: '#D73A49', const: '#005CC5',
     num: '#005CC5', support: '#6F42C1', supfn: '#6F42C1', macro: '#D73A49',
-    fn: '#6F42C1', cls: '#E36209', param: '#24292E', op: '#D73A49',
+    fn: '#6F42C1', cls: '#E36209', param: '#24292E', op: '#D73A49', field: '#24292E',
     italics: [],
   },
 };
@@ -838,6 +844,7 @@ function applyTheme(key) {
     'c-com': t.com, 'c-str': t.str, 'c-kw': t.kw, 'c-type': t.type,
     'c-const': t.const, 'c-num': t.num, 'c-support': t.support, 'c-supfn': t.supfn,
     'c-macro': t.macro, 'c-fn': t.fn, 'c-class': t.cls, 'c-param': t.param, 'c-op': t.op,
+    'c-field': t.field || t.fg,
   };
   const rules = ['#code { background: ' + t.bg + '; color: ' + t.fg + '; }'];
   for (const [cls, col] of Object.entries(slots)) {
