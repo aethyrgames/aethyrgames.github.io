@@ -175,15 +175,23 @@
   #codehead button:hover { background: var(--mk-green); color: var(--mk-bg); }
   #codehead button:hover::before { color: var(--mk-bg); }
 
+  /* Monokai Bright editor surface: canonical #272822, tokens per the
+     original tmTheme scopes */
   #code {
     flex: 1; margin: 0; padding: 12px; overflow: auto; font: 12px/1.5 var(--font);
-    color: var(--mk-fg); white-space: pre; user-select: text; background: var(--mk-gutter);
+    color: var(--mk-fg); white-space: pre; user-select: text; background: #272822;
   }
-  .c-kw   { color: var(--mk-pink); }
-  .c-type { color: var(--mk-cyan); }
-  .c-str  { color: var(--mk-yellow); }
-  .c-num  { color: var(--mk-purple); }
-  .c-com  { color: var(--mk-comment); }
+  .c-com     { color: var(--mk-comment); }                     /* comment */
+  .c-str     { color: var(--mk-yellow); }                      /* string */
+  .c-kw      { color: var(--mk-pink); }                        /* keyword, storage, operators */
+  .c-type    { color: var(--mk-cyan); font-style: italic; }    /* storage.type */
+  .c-const   { color: var(--mk-purple); }                      /* constant.language */
+  .c-num     { color: var(--mk-purple); }                      /* constant.numeric */
+  .c-support { color: var(--mk-cyan); font-style: italic; }    /* support.class */
+  .c-supfn   { color: var(--mk-cyan); }                        /* support.function */
+  .c-fn      { color: var(--mk-green); }                       /* entity.name.function */
+  .c-class   { color: var(--mk-green); }                       /* entity.name.class */
+  .c-param   { color: var(--mk-orange); font-style: italic; }  /* variable.parameter */
 
   #status { padding: 4px 12px; font-size: 11px; color: var(--mk-comment); border-top: 1px solid var(--mk-border); }
   #status::before { content: '// '; }
@@ -710,16 +718,42 @@ function generateCode() {
   return out.join('\n');
 }
 
-// Small Monokai highlighter for the code pane. Escapes first, then wraps
-// tokens; good enough for the generator's own output shape.
+// Monokai Bright highlighter for the code pane: a single-pass tokenizer whose
+// scopes mirror the original tmTheme (chained replaces can't express the
+// call-site vs definition distinctions). Lookbehinds resolve against the raw
+// source, so already-emitted spans can't confuse later branches.
 function highlightCpp(src) {
-  return src
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/("(?:[^"\\]|\\.)*")/g, '<span class="c-str">$1</span>')
-    .replace(/(\/\*[\s\S]*?\*\/|\/\/[^\n]*)/g, '<span class="c-com">$1</span>')
-    .replace(/\b(struct|void|bool|float|char|int|if|const|true|false)\b/g, '<span class="c-kw">$1</span>')
-    .replace(/\b(ImGui|ImVec2|IM_ARRAYSIZE)\b/g, '<span class="c-type">$1</span>')
-    .replace(/\b(\d+(?:\.\d+)?f?)\b/g, '<span class="c-num">$1</span>');
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const master = new RegExp([
+    /(\/\*[\s\S]*?\*\/|\/\/[^\n]*)/,                                    // 1 comment
+    /("(?:[^"\\]|\\.)*")/,                                              // 2 string
+    /\b(if|else|return|for|while|switch|case|break|struct|const|static)\b/, // 3 keyword + storage
+    /\b(void|bool|float|char|int|double|unsigned)\b/,                   // 4 storage.type
+    /\b(true|false|nullptr|NULL)\b/,                                    // 5 constant.language
+    /\b(\d+(?:\.\d+)?f?)\b/,                                            // 6 constant.numeric
+    /\b(ImGui|ImVec2|ImVec4)\b/,                                        // 7 support.class
+    /\b(IM_[A-Z_]+)\b/,                                                 // 8 support.function (macro)
+    /((?<=::)[A-Za-z_]\w*(?=\())/,                                      // 9 support.function (call)
+    /\b([A-Za-z_]\w*)(?=\()/,                                           // 10 entity.name.function
+    /\b([A-Z]\w*)\b/,                                                   // 11 entity.name.class
+    /((?<=&\s)[a-z]\w*(?=\)))/,                                         // 12 variable.parameter
+    /(::|&|=|-)/,                                                       // 13 keyword.operator
+  ].map(r => r.source).join('|'), 'g');
+  const classes = ['c-com', 'c-str', 'c-kw', 'c-type', 'c-const', 'c-num',
+    'c-support', 'c-supfn', 'c-supfn', 'c-fn', 'c-class', 'c-param', 'c-kw'];
+  let out = '';
+  let last = 0;
+  let m;
+  while ((m = master.exec(src)) !== null) {
+    out += esc(src.slice(last, m.index));
+    let cls = '';
+    for (let g = 1; g < m.length; g++) {
+      if (m[g] !== undefined) { cls = classes[g - 1]; break; }
+    }
+    out += cls ? '<span class="' + cls + '">' + esc(m[0]) + '</span>' : esc(m[0]);
+    last = m.index + m[0].length;
+  }
+  return out + esc(src.slice(last));
 }
 
 // ---------- ui rendering ----------
