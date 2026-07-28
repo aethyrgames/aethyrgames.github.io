@@ -1,93 +1,208 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ImGuiStudio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* Monokai theme, ported from dougfessler.com */
+  :root {
+    --mk-bg:      #1e1e1e;
+    --mk-surface: #2d2d2d;
+    --mk-gutter:  #141414;
+    --mk-fg:      #F8F8F2;
+    --mk-comment: #75715E;
+    --mk-pink:    #F92672;
+    --mk-orange:  #FD971F;
+    --mk-yellow:  #E6DB74;
+    --mk-green:   #A6E22E;
+    --mk-cyan:    #66D9EF;
+    --mk-purple:  #AE81FF;
+    --mk-border:  #49483E;
+
+    --font:   'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --radius: 3px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.4);
+    --glow-chroma:
+      0.03em 0 0 rgba(249, 38, 114, 0.35),
+      -0.03em 0 0 rgba(102, 217, 239, 0.35);
+  }
+
   * { box-sizing: border-box; }
   body {
-    margin: 0; height: 100vh; overflow: hidden; display: flex;
-    font: 13px "Segoe UI", sans-serif; background: #1b1d21; color: #d6d6d6;
+    margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+    font: 12px/1.45 var(--font); background: var(--mk-bg); color: var(--mk-fg);
   }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(0,0,0,0.06) 3px,
+      rgba(0,0,0,0.06) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  #apphead {
+    height: 42px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+    padding: 0 14px; background: var(--mk-gutter); border-bottom: 1px solid var(--mk-border);
+  }
+  .brand {
+    color: var(--mk-green); font-weight: 700; font-size: 14px;
+    text-shadow: var(--glow-chroma); white-space: nowrap;
+  }
+  .brand::before { content: '> '; color: var(--mk-comment); }
+  .tagline { color: var(--mk-comment); font-size: 11px; }
+  #apphead .spacer { flex: 1; }
+  .sitelink {
+    color: var(--mk-comment); font-size: 11px; text-decoration: none;
+    padding: 3px 9px; border: 1px solid var(--mk-border); border-radius: var(--radius);
+    transition: color 0.1s, border-color 0.1s;
+  }
+  .sitelink:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+
+  #workspace { display: flex; flex: 1; min-height: 0; }
+
   h3 {
-    margin: 0; padding: 8px 10px; font-size: 12px; text-transform: uppercase;
-    letter-spacing: 0.06em; color: #8a8f98; background: #22252a;
+    margin: 0; padding: 9px 10px 6px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--mk-green);
+    border-bottom: 1px solid var(--mk-border);
   }
-  #left  { width: 260px; min-width: 260px; border-right: 1px solid #2e3238; display: flex; flex-direction: column; }
+  h3::before { content: '/* '; color: var(--mk-comment); text-transform: none; }
+  h3::after  { content: ' */'; color: var(--mk-comment); }
+
+  #left  { width: 270px; min-width: 270px; border-right: 1px solid var(--mk-border); display: flex; flex-direction: column; }
   #center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  #right { width: 460px; min-width: 320px; border-left: 1px solid #2e3238; display: flex; flex-direction: column; }
+  #right { width: 470px; min-width: 330px; border-left: 1px solid var(--mk-border); display: flex; flex-direction: column; }
 
   #palette { padding: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   #palette button {
-    background: #2a2e35; color: #d6d6d6; border: 1px solid #3a3f47; border-radius: 4px;
-    padding: 6px 4px; cursor: grab; font-size: 12px; user-select: none;
+    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 6px 4px; cursor: grab; font-size: 11px;
+    font-family: var(--font); user-select: none;
+    transition: color 0.1s, border-color 0.1s;
   }
-  #palette button:hover { background: #34506e; border-color: #4a7bb0; }
+  #palette button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
 
   #tree { flex: 1; overflow-y: auto; padding: 4px 0; }
-  .row { display: flex; align-items: center; padding: 3px 8px; cursor: pointer; gap: 6px; }
-  .row:hover { background: #23262b; }
-  .row.selected { background: #2d4a68; }
-  .row .wtype { color: #7d94ad; font-size: 11px; min-width: 68px; }
-  .row .wlabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row .join { color: #c8a24a; font-size: 11px; }
+  .row {
+    display: flex; align-items: center; padding: 3px 8px 3px 6px; cursor: pointer; gap: 6px;
+    border-left: 2px solid transparent;
+  }
+  .row:hover { background: rgba(255,255,255,0.04); }
+  .row.selected { background: var(--mk-surface); border-left-color: var(--mk-pink); }
+  .row.selected .wlabel { color: var(--mk-pink); }
+  .row .wtype { color: var(--mk-cyan); font-size: 10px; min-width: 70px; opacity: 0.8; }
+  .row .wlabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
+  .row .join { color: var(--mk-yellow); font-size: 11px; }
   .row button {
-    background: none; border: none; color: #8a8f98; cursor: pointer; padding: 0 2px; font-size: 12px;
+    background: none; border: none; color: var(--mk-comment); cursor: pointer;
+    padding: 0 2px; font-size: 12px; font-family: var(--font);
   }
-  .row button:hover { color: #fff; }
+  .row button:hover { color: var(--mk-fg); }
 
-  #props { border-top: 1px solid #2e3238; }
-  #propbody { padding: 8px 10px; display: grid; grid-template-columns: 70px 1fr; gap: 6px; align-items: center; }
-  #propbody label { color: #8a8f98; font-size: 12px; }
+  #props { border-top: 1px solid var(--mk-border); }
+  #propbody { padding: 8px 10px; display: grid; grid-template-columns: 74px 1fr; gap: 6px; align-items: center; }
+  #propbody label { color: var(--mk-comment); font-size: 11px; }
   #propbody input[type=text], #propbody input[type=number] {
-    background: #14161a; color: #d6d6d6; border: 1px solid #3a3f47; border-radius: 3px; padding: 4px 6px; width: 100%;
+    background: var(--mk-gutter); color: var(--mk-fg); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 4px 6px; width: 100%; font-family: var(--font); font-size: 11px;
   }
-  #propbody .empty { grid-column: 1 / 3; color: #666c75; padding: 6px 0; }
+  #propbody input:focus { outline: none; border-color: var(--mk-cyan); }
+  #propbody .empty { grid-column: 1 / 3; color: var(--mk-comment); padding: 6px 0; }
+  #propbody .empty::before { content: '// '; }
+
+  input[type=checkbox] { accent-color: var(--mk-green); }
 
   #toolbar {
-    padding: 8px 12px; background: #22252a; border-bottom: 1px solid #2e3238;
-    display: flex; gap: 16px; align-items: center;
+    padding: 8px 12px; background: var(--mk-gutter); border-bottom: 1px solid var(--mk-border);
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
   }
+  #toolbar strong { color: var(--mk-green); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  #toolbar label { color: var(--mk-comment); font-size: 11px; }
   #toolbar .spacer { flex: 1; }
   #toolbar button {
-    background: #2a2e35; color: #d6d6d6; border: 1px solid #3a3f47; border-radius: 4px;
-    padding: 4px 10px; cursor: pointer; font-size: 12px;
+    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 4px 10px; cursor: pointer; font-size: 11px;
+    font-family: var(--font);
+    transition: color 0.1s, border-color 0.1s;
   }
-  #toolbar button:hover { background: #34506e; border-color: #4a7bb0; }
+  #toolbar button::before { content: '$ '; color: var(--mk-comment); }
+  #toolbar button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+
   #canvashost { flex: 1; overflow: auto; display: flex; }
   /* margin auto centers when there's room and aligns start when overflowing,
      unlike justify-content center which clips the left edge */
   #canvaswrap { position: relative; margin: auto; }
-  canvas { background: #101215; outline: none; display: block; }
+  canvas { background: var(--mk-gutter); outline: none; display: block; }
 
   #selbox {
     position: absolute; display: none; pointer-events: none;
-    border: 1px solid #5aa2e0; box-shadow: 0 0 0 1px rgba(90, 162, 224, 0.35);
+    border: 1px solid var(--mk-cyan);
+    box-shadow: 0 0 0 1px rgba(102, 217, 239, 0.3), 0 0 12px rgba(102, 217, 239, 0.15);
   }
   #dropline {
     position: absolute; display: none; pointer-events: none;
-    background: #e0b45a;
+    background: var(--mk-yellow);
+    box-shadow: 0 0 6px rgba(230, 219, 116, 0.4);
   }
   #ghost {
     position: fixed; display: none; pointer-events: none; z-index: 10;
-    background: #34506e; border: 1px solid #4a7bb0; border-radius: 3px;
-    padding: 3px 8px; font-size: 12px; color: #e6edf3;
+    background: var(--mk-surface); border: 1px solid var(--mk-cyan); border-radius: var(--radius);
+    padding: 3px 8px; font-size: 11px; color: var(--mk-fg); box-shadow: var(--shadow);
   }
 
   #codehead { display: flex; align-items: center; }
-  #codehead h3 { flex: 1; }
+  #codehead h3 { flex: 1; border-bottom: none; }
+  #codehead { border-bottom: 1px solid var(--mk-border); }
   #codehead button {
-    margin: 4px 8px; background: #2a2e35; color: #d6d6d6; border: 1px solid #3a3f47;
-    border-radius: 4px; padding: 4px 12px; cursor: pointer;
+    margin: 4px 8px; background: transparent; color: var(--mk-green);
+    border: 1px solid var(--mk-green); border-radius: var(--radius);
+    padding: 4px 12px; cursor: pointer; font-size: 11px; font-family: var(--font);
+    transition: background 0.15s, color 0.15s;
   }
+  #codehead button::before { content: '$ '; color: var(--mk-comment); }
+  #codehead button:hover { background: var(--mk-green); color: var(--mk-bg); }
+  #codehead button:hover::before { color: var(--mk-bg); }
+
   #code {
-    flex: 1; margin: 0; padding: 12px; overflow: auto; font: 12px Consolas, monospace;
-    color: #c9d4e0; white-space: pre; user-select: text;
+    flex: 1; margin: 0; padding: 12px; overflow: auto; font: 12px/1.5 var(--font);
+    color: var(--mk-fg); white-space: pre; user-select: text; background: var(--mk-gutter);
   }
-  #status { padding: 4px 10px; font-size: 11px; color: #6d737c; border-top: 1px solid #2e3238; }
+  .c-kw   { color: var(--mk-pink); }
+  .c-type { color: var(--mk-cyan); }
+  .c-str  { color: var(--mk-yellow); }
+  .c-num  { color: var(--mk-purple); }
+  .c-com  { color: var(--mk-comment); }
+
+  #status { padding: 4px 12px; font-size: 11px; color: var(--mk-comment); border-top: 1px solid var(--mk-border); }
+  #status::before { content: '// '; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--mk-border); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--mk-comment); }
 </style>
 </head>
 <body>
+  <div id="apphead">
+    <span class="brand">ImGuiStudio</span>
+    <span class="tagline">// drag widgets, copy the C++</span>
+    <span class="spacer"></span>
+    <a class="sitelink" href="https://aethyr.gg" target="_blank" rel="noopener">aethyr.gg</a>
+  </div>
+
+  <div id="workspace">
   <div id="left">
     <h3>Palette</h3>
     <div id="palette"></div>
@@ -102,8 +217,8 @@
   <div id="center">
     <div id="toolbar">
       <strong>Preview</strong>
-      <label><input type="checkbox" id="liveToggle"> Live mode (widgets respond)</label>
-      <label><input type="checkbox" id="demoToggle" checked> Show ImGui demo (live mode only)</label>
+      <label title="Widgets respond to input"><input type="checkbox" id="liveToggle"> Live mode</label>
+      <label title="Shown in live mode only"><input type="checkbox" id="demoToggle" checked> ImGui demo</label>
       <span class="spacer"></span>
       <button id="resetBtn" title="Restore the sample layout">Reset</button>
       <button id="exportBtn">Export JSON</button>
@@ -126,6 +241,7 @@
       <button id="copyBtn">Copy</button>
     </div>
     <pre id="code"></pre>
+  </div>
   </div>
 
   <div id="ghost"></div>
@@ -594,6 +710,18 @@ function generateCode() {
   return out.join('\n');
 }
 
+// Small Monokai highlighter for the code pane. Escapes first, then wraps
+// tokens; good enough for the generator's own output shape.
+function highlightCpp(src) {
+  return src
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/("(?:[^"\\]|\\.)*")/g, '<span class="c-str">$1</span>')
+    .replace(/(\/\*[\s\S]*?\*\/|\/\/[^\n]*)/g, '<span class="c-com">$1</span>')
+    .replace(/\b(struct|void|bool|float|char|int|if|const|true|false)\b/g, '<span class="c-kw">$1</span>')
+    .replace(/\b(ImGui|ImVec2|IM_ARRAYSIZE)\b/g, '<span class="c-type">$1</span>')
+    .replace(/\b(\d+(?:\.\d+)?f?)\b/g, '<span class="c-num">$1</span>');
+}
+
 // ---------- ui rendering ----------
 
 function renderPalette() {
@@ -702,7 +830,7 @@ function renderProps() {
 }
 
 function renderCode() {
-  document.getElementById('code').textContent = generateCode();
+  document.getElementById('code').innerHTML = highlightCpp(generateCode());
 }
 
 // a sameline flag on the first child would join it to a line that doesn't exist
