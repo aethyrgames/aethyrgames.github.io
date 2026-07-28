@@ -73,49 +73,63 @@
   h3 {
     margin: 0; padding: 9px 10px 6px; font-size: 10px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.08em; color: var(--mk-green);
-    border-bottom: 1px solid var(--mk-border);
+    border-bottom: 1px solid var(--mk-border); flex-shrink: 0;
   }
   h3::before { content: '/* '; color: var(--mk-comment); text-transform: none; }
   h3::after  { content: ' */'; color: var(--mk-comment); }
 
-  #left  { width: 270px; min-width: 270px; border-right: 1px solid var(--mk-border); display: flex; flex-direction: column; }
+  #left  { width: 280px; min-width: 280px; border-right: 1px solid var(--mk-border); display: flex; flex-direction: column; }
   #center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   #right { width: 470px; min-width: 330px; border-left: 1px solid var(--mk-border); display: flex; flex-direction: column; }
 
-  #palette { padding: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  #palettewrap { flex: 1.2; min-height: 0; overflow-y: auto; }
+  #filter {
+    width: calc(100% - 16px); margin: 6px 8px; background: var(--mk-gutter); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: var(--radius);
+    padding: 4px 6px; font-family: var(--font); font-size: 11px;
+  }
+  #filter:focus { outline: none; border-color: var(--mk-cyan); }
+  .cat {
+    color: var(--mk-comment); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.07em; padding: 7px 8px 3px;
+  }
+  .cat::before { content: '// '; }
+  #palette { padding: 0 8px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   #palette button {
     background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 6px 4px; cursor: grab; font-size: 11px;
-    font-family: var(--font); user-select: none;
-    transition: color 0.1s, border-color 0.1s;
+    border-radius: var(--radius); padding: 5px 3px; cursor: grab; font-size: 10.5px;
+    font-family: var(--font); user-select: none; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; transition: color 0.1s, border-color 0.1s;
   }
   #palette button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
 
-  #tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+  #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
   .row {
-    display: flex; align-items: center; padding: 3px 8px 3px 6px; cursor: pointer; gap: 6px;
+    display: flex; align-items: center; padding: 2px 8px 2px 6px; cursor: pointer; gap: 5px;
     border-left: 2px solid transparent;
   }
   .row:hover { background: rgba(255,255,255,0.04); }
   .row.selected { background: var(--mk-surface); border-left-color: var(--mk-pink); }
   .row.selected .wlabel { color: var(--mk-pink); }
-  .row .wtype { color: var(--mk-cyan); font-size: 10px; min-width: 70px; opacity: 0.8; }
+  .row .wtype { color: var(--mk-cyan); font-size: 10px; opacity: 0.8; flex-shrink: 0; }
   .row .wlabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
   .row .join { color: var(--mk-yellow); font-size: 11px; }
+  .row .box { color: var(--mk-purple); font-size: 10px; }
   .row button {
     background: none; border: none; color: var(--mk-comment); cursor: pointer;
-    padding: 0 2px; font-size: 12px; font-family: var(--font);
+    padding: 0 2px; font-size: 11px; font-family: var(--font);
   }
   .row button:hover { color: var(--mk-fg); }
 
-  #props { border-top: 1px solid var(--mk-border); }
-  #propbody { padding: 8px 10px; display: grid; grid-template-columns: 74px 1fr; gap: 6px; align-items: center; }
+  #props { border-top: 1px solid var(--mk-border); max-height: 40%; display: flex; flex-direction: column; }
+  #propbody { padding: 8px 10px; display: grid; grid-template-columns: 78px 1fr; gap: 5px;
+    align-items: center; overflow-y: auto; }
   #propbody label { color: var(--mk-comment); font-size: 11px; }
-  #propbody input[type=text], #propbody input[type=number] {
+  #propbody input[type=text], #propbody input[type=number], #propbody select {
     background: var(--mk-gutter); color: var(--mk-fg); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 4px 6px; width: 100%; font-family: var(--font); font-size: 11px;
+    border-radius: var(--radius); padding: 3px 6px; width: 100%; font-family: var(--font); font-size: 11px;
   }
-  #propbody input:focus { outline: none; border-color: var(--mk-cyan); }
+  #propbody input:focus, #propbody select:focus { outline: none; border-color: var(--mk-cyan); }
   #propbody .empty { grid-column: 1 / 3; color: var(--mk-comment); padding: 6px 0; }
   #propbody .empty::before { content: '// '; }
 
@@ -131,8 +145,7 @@
   #toolbar button {
     background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
     border-radius: var(--radius); padding: 4px 10px; cursor: pointer; font-size: 11px;
-    font-family: var(--font);
-    transition: color 0.1s, border-color 0.1s;
+    font-family: var(--font); transition: color 0.1s, border-color 0.1s;
   }
   #toolbar button::before { content: '$ '; color: var(--mk-comment); }
   #toolbar button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
@@ -153,15 +166,24 @@
     background: var(--mk-yellow);
     box-shadow: 0 0 6px rgba(230, 219, 116, 0.4);
   }
+  #dropbox {
+    position: absolute; display: none; pointer-events: none;
+    border: 1px dashed var(--mk-yellow); background: rgba(230, 219, 116, 0.07);
+  }
   #ghost {
     position: fixed; display: none; pointer-events: none; z-index: 10;
     background: var(--mk-surface); border: 1px solid var(--mk-cyan); border-radius: var(--radius);
     padding: 3px 8px; font-size: 11px; color: var(--mk-fg); box-shadow: var(--shadow);
   }
 
-  #codehead { display: flex; align-items: center; }
+  #codehead { display: flex; align-items: center; border-bottom: 1px solid var(--mk-border); }
   #codehead h3 { flex: 1; border-bottom: none; }
-  #codehead { border-bottom: 1px solid var(--mk-border); }
+  #codehead select {
+    margin: 4px 0 4px 8px; background: var(--mk-gutter); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: var(--radius);
+    font-family: var(--font); font-size: 11px; padding: 3px 6px; cursor: pointer;
+  }
+  #codehead select:focus { outline: none; border-color: var(--mk-cyan); }
   #codehead button {
     margin: 4px 8px; background: transparent; color: var(--mk-green);
     border: 1px solid var(--mk-green); border-radius: var(--radius);
@@ -177,12 +199,6 @@
     flex: 1; margin: 0; padding: 12px; overflow: auto; font: 12px/1.5 var(--font);
     white-space: pre; user-select: text;
   }
-  #codehead select {
-    margin: 4px 0 4px 8px; background: var(--mk-gutter); color: var(--mk-fg);
-    border: 1px solid var(--mk-border); border-radius: var(--radius);
-    font-family: var(--font); font-size: 11px; padding: 3px 6px; cursor: pointer;
-  }
-  #codehead select:focus { outline: none; border-color: var(--mk-cyan); }
 
   #status { padding: 4px 12px; font-size: 11px; color: var(--mk-comment); border-top: 1px solid var(--mk-border); }
   #status::before { content: '// '; }
@@ -205,7 +221,10 @@
   <div id="workspace">
   <div id="left">
     <h3>Palette</h3>
-    <div id="palette"></div>
+    <div id="palettewrap">
+      <input type="text" id="filter" placeholder="filter widgets...">
+      <div id="palette"></div>
+    </div>
     <h3>Hierarchy</h3>
     <div id="tree"></div>
     <div id="props">
@@ -229,6 +248,7 @@
       <div id="canvaswrap">
         <canvas id="canvas" tabindex="-1"></canvas>
         <div id="selbox"></div>
+        <div id="dropbox"></div>
         <div id="dropline"></div>
       </div>
     </div>
@@ -247,82 +267,204 @@
 
   <div id="ghost"></div>
 
+<script src="widgets.js"></script>
 <script>
 // ---------- document model ----------
-
-const WIDGETS = {
-  text:        { name: 'Text',         defLabel: 'Some text' },
-  button:      { name: 'Button',       defLabel: 'Click me' },
-  checkbox:    { name: 'Checkbox',     defLabel: 'Enable thing' },
-  sliderfloat: { name: 'Slider',       defLabel: 'Value', extra: { min: 0, max: 1 } },
-  inputtext:   { name: 'Input text',   defLabel: 'Name' },
-  coloredit:   { name: 'Color edit',   defLabel: 'Color' },
-  separator:   { name: 'Separator',    defLabel: '' },
-  progressbar: { name: 'Progress bar', defLabel: 'Progress' },
-};
 
 let nextId = 100;
 let selectedId = null;
 
 const doc = {
-  type: 'window', id: 'root', label: 'My Panel',
+  type: 'window', id: 'root', label: 'My Panel', w: 380, h: 460,
   children: [
     { type: 'text',        id: 'n1', label: 'Engine settings' },
     { type: 'separator',   id: 'n2', label: '' },
     { type: 'checkbox',    id: 'n3', label: 'Enable turbo' },
     { type: 'button',      id: 'n4', label: 'Reset', sameline: true },
-    { type: 'sliderfloat', id: 'n5', label: 'Speed', min: 0, max: 10 },
+    { type: 'sliderfloat', id: 'n5', label: 'Speed', n: 1, min: 0, max: 10 },
     { type: 'inputtext',   id: 'n6', label: 'Preset name' },
-    { type: 'coloredit',   id: 'n7', label: 'Tint' },
-    { type: 'progressbar', id: 'n8', label: 'Progress' },
+    { type: 'coloredit',   id: 'n7', label: 'Tint', n: 3 },
+    { type: 'progressbar', id: 'n8', label: '', fraction: 0.4 },
   ],
 };
 
 const DEFAULT_DOC = JSON.parse(JSON.stringify(doc));
 const SAVE_KEY = 'imguistudio.doc.v1';
 
+const isContainer = node => !!(WIDGETS[node.type] && WIDGETS[node.type].container);
+
+// depth-first walk yielding {node, parent, index}
+function walk(node, fn, parent = null, index = 0, depth = 0) {
+  if (fn(node, parent, index, depth) === false) return false;
+  const kids = node.children || [];
+  for (let i = 0; i < kids.length; i++) {
+    if (walk(kids[i], fn, node, i, depth + 1) === false) return false;
+  }
+  return true;
+}
+
+function findNode(id) {
+  let found = null;
+  walk(doc, n => { if (n.id === id) { found = n; return false; } });
+  return found;
+}
+
+function findParent(id) {
+  let found = null;
+  walk(doc, (n, p) => { if (n.id === id) { found = p; return false; } });
+  return found;
+}
+
+function isAncestor(ancestorId, nodeId) {
+  const a = findNode(ancestorId);
+  if (!a) return false;
+  let hit = false;
+  walk(a, n => { if (n.id === nodeId && n.id !== ancestorId) { hit = true; return false; } });
+  return hit;
+}
+
+function makeNode(type) {
+  const spec = WIDGETS[type];
+  const node = { type, id: 'n' + (nextId++) };
+  for (const [k, , d] of spec.props || []) node[k] = d;
+  if (spec.container) node.children = [];
+  return node;
+}
+
+function detach(id) {
+  const parent = findParent(id);
+  if (!parent) return null;
+  const i = parent.children.indexOf(findNode(id));
+  if (i < 0) return null;
+  return parent.children.splice(i, 1)[0];
+}
+
+// drop = { parentId, index, sameline? }
+function insertAt(node, drop) {
+  const parent = findNode(drop.parentId) || doc;
+  if (!parent.children) parent.children = [];
+  const i = Math.max(0, Math.min(drop.index, parent.children.length));
+  if (drop.sameline) node.sameline = true; else delete node.sameline;
+  parent.children.splice(i, 0, node);
+}
+
+function addNode(type) {
+  const node = makeNode(type);
+  // append into the selected container, otherwise at the end of the window
+  const sel = selectedId ? findNode(selectedId) : null;
+  const host = sel && isContainer(sel) ? sel : doc;
+  if (!host.children) host.children = [];
+  host.children.push(node);
+  selectedId = node.id;
+  refresh();
+}
+
+function insertNodeAt(type, drop) {
+  const node = makeNode(type);
+  insertAt(node, drop);
+  selectedId = node.id;
+  refresh();
+}
+
+function moveNodeTo(id, drop) {
+  if (drop.parentId === id || isAncestor(id, drop.parentId)) return; // no cycles
+  const parent = findParent(id);
+  const oldIndex = parent ? parent.children.indexOf(findNode(id)) : -1;
+  const node = detach(id);
+  if (!node) return;
+  // removing from earlier in the same list shifts the target index down
+  const d = { ...drop };
+  if (parent && parent.id === drop.parentId && oldIndex >= 0 && oldIndex < drop.index) d.index -= 1;
+  insertAt(node, d);
+  selectedId = id;
+  refresh();
+}
+
+function removeNode(id) {
+  detach(id);
+  if (selectedId === id) selectedId = null;
+  refresh();
+}
+
+function moveNode(id, delta) {
+  const parent = findParent(id);
+  if (!parent) return;
+  const i = parent.children.indexOf(findNode(id));
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= parent.children.length) return;
+  [parent.children[i], parent.children[j]] = [parent.children[j], parent.children[i]];
+  refresh();
+}
+
 function saveLocal() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, nextId, doc })); } catch (e) {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, nextId, doc })); } catch (e) {}
 }
 
 function computeNextId() {
   let m = 100;
-  for (const n of doc.children) {
+  walk(doc, n => {
     const num = parseInt(String(n.id).replace(/^n/, ''), 10);
     if (!isNaN(num) && num >= m) m = num + 1;
-  }
+  });
   return m;
 }
 
-// Imported documents are untrusted: wrong types or duplicate ids would feed
-// the engine json it can't safely read (exceptions are disabled in the wasm).
-function sanitizeChildren(arr) {
-  if (!Array.isArray(arr)) return [];
+// Imported documents are untrusted. Beyond type-checking, an enum has to be
+// checked against its option list: a stray `dir` reaches IM_ASSERT(0) inside
+// ImGui and an out-of-range `n` would emit something like InputInt5.
+function coerce(t, raw, def, opts) {
+  if (t === 'text' || t === 'items') return typeof raw === 'string' ? raw.slice(0, 200) : def;
+  if (t === 'bool') return raw === true;
+  const num = Number(raw);
+  if (t === 'enum') {
+    const allowed = (opts || []).map(o => Number(Array.isArray(o) ? o[1] : o));
+    return allowed.includes(num) ? num : def;
+  }
+  if (!Number.isFinite(num)) return def;
+  return t === 'int' ? Math.trunc(num) : num;
+}
+
+function sanitize(list, ids) {
+  if (!Array.isArray(list)) return [];
   const out = [];
-  const ids = new Set();
-  for (const n of arr) {
+  for (const n of list) {
     if (!n || typeof n !== 'object' || typeof n.type !== 'string') continue;
-    const c = {
-      type: n.type,
-      id: typeof n.id === 'string' && n.id && !ids.has(n.id) ? n.id : 'n' + (nextId++),
-      label: typeof n.label === 'string' ? n.label.slice(0, 200) : '',
-    };
-    ids.add(c.id);
+    const spec = WIDGETS[n.type];
+    if (!spec || n.type === 'window') continue;
+    const c = { type: n.type };
+    // keep looking until the id really is free, or a document full of
+    // duplicates would just get more duplicates
+    let cid = typeof n.id === 'string' && n.id ? n.id : '';
+    if (!cid || ids.has(cid)) { do { cid = 'n' + (nextId++); } while (ids.has(cid)); }
+    c.id = cid;
+    ids.add(cid);
+    for (const [k, t, d, opts] of spec.props || []) c[k] = coerce(t, n[k], d, opts);
     if (n.sameline === true) c.sameline = true;
-    for (const k of ['min', 'max']) {
-      const v = Number(n[k]);
-      if (n[k] !== undefined && Number.isFinite(v)) c[k] = v;
-    }
+    if (spec.container) c.children = sanitize(n.children, ids);
     out.push(c);
   }
   return out;
 }
 
+// Highest id in the raw payload, so freshly minted ids can't collide with one
+// that appears later in the same document.
+function maxRawId(list, cur) {
+  if (!Array.isArray(list)) return cur;
+  for (const n of list) {
+    if (!n || typeof n !== 'object') continue;
+    const num = parseInt(String(n.id ?? '').replace(/^n/, ''), 10);
+    if (!isNaN(num) && num >= cur) cur = num + 1;
+    cur = maxRawId(n.children, cur);
+  }
+  return cur;
+}
+
 // Replaces the working document in place so existing references stay valid.
 function applyDocData(d, savedNextId) {
-  doc.label = typeof d.label === 'string' ? d.label.slice(0, 200) : 'My Panel';
-  doc.children = sanitizeChildren(d.children);
-  nextId = savedNextId || computeNextId();
+  nextId = Math.max(savedNextId || 0, 100, maxRawId(d.children, 100));
+  const ids = new Set(['root']);
+  doc.children = sanitize(d.children, ids);
+  for (const [k, t, def, opts] of WIDGETS.window.props) doc[k] = coerce(t, d[k], def, opts);
   selectedId = null;
 }
 
@@ -331,77 +473,10 @@ function loadLocal() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
-    if (!s || s.v !== 1 || !s.doc || s.doc.type !== 'window') return false;
+    if (!s || !s.doc || s.doc.type !== 'window') return false;
     applyDocData(s.doc, s.nextId);
     return true;
   } catch (e) { return false; }
-}
-
-function findNode(id) {
-  if (id === doc.id) return doc;
-  return doc.children.find(n => n.id === id) || null;
-}
-
-function makeNode(type) {
-  const def = WIDGETS[type];
-  return { type, id: 'n' + (nextId++), label: def.defLabel, ...(def.extra || {}) };
-}
-
-function addNode(type) {
-  const node = makeNode(type);
-  doc.children.push(node);
-  selectedId = node.id;
-  refresh();
-}
-
-// drop = { beforeId } | { afterId, sameline: true } | { beforeId: null } (append)
-function insertNodeAt(type, drop) {
-  const node = makeNode(type);
-  applyDrop(node, drop, doc.children.length);
-  selectedId = node.id;
-  refresh();
-}
-
-function moveNodeTo(id, drop) {
-  if (drop.beforeId === id || drop.afterId === id) return;
-  const i = doc.children.findIndex(n => n.id === id);
-  if (i < 0) return;
-  const [node] = doc.children.splice(i, 1);
-  applyDrop(node, drop, doc.children.length);
-  selectedId = id;
-  refresh();
-}
-
-// Inserts node into doc.children per the drop descriptor. Assumes the node is
-// not currently in the array.
-function applyDrop(node, drop, fallbackIndex) {
-  let index = fallbackIndex;
-  let sameline = false;
-  if (drop.sameline && drop.afterId) {
-    const i = doc.children.findIndex(n => n.id === drop.afterId);
-    index = i < 0 ? fallbackIndex : i + 1;
-    sameline = true;
-  } else if (drop.beforeId) {
-    const i = doc.children.findIndex(n => n.id === drop.beforeId);
-    index = i < 0 ? fallbackIndex : i;
-  }
-  if (sameline) node.sameline = true;
-  else delete node.sameline;
-  doc.children.splice(index, 0, node);
-}
-
-function removeNode(id) {
-  doc.children = doc.children.filter(n => n.id !== id);
-  if (selectedId === id) selectedId = null;
-  refresh();
-}
-
-function moveNode(id, delta) {
-  const i = doc.children.findIndex(n => n.id === id);
-  const j = i + delta;
-  if (i < 0 || j < 0 || j >= doc.children.length) return;
-  [doc.children[i], doc.children[j]] = [doc.children[j], doc.children[i]];
-  refresh();
 }
 
 // ---------- engine bridge ----------
@@ -421,7 +496,8 @@ var Module = {
   printErr: t => console.warn(t),
   onRuntimeInitialized: () => {
     engineReady = true;
-    document.getElementById('status').textContent = 'engine: running (real Dear ImGui via wasm)';
+    document.getElementById('status').textContent =
+      'engine: running (real Dear ImGui via wasm) — ' + paletteCount + ' widget types';
     Module.ccall('engine_show_demo', null, ['number'], [document.getElementById('demoToggle').checked ? 1 : 0]);
     Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
     pushDoc();
@@ -433,6 +509,7 @@ var Module = {
 const canvas = document.getElementById('canvas');
 const selbox = document.getElementById('selbox');
 const dropline = document.getElementById('dropline');
+const dropbox = document.getElementById('dropbox');
 const ghost = document.getElementById('ghost');
 
 function canvasPoint(e) {
@@ -448,13 +525,16 @@ function rectFor(id) {
   return latestRects.find(r => r.id === id);
 }
 
-// Later entries are drawn on top, so scan back to front.
+// Smallest containing rect wins. Container rects are emitted at different
+// points relative to their children, so area beats draw order here.
 function hitTest(p) {
-  for (let i = latestRects.length - 1; i >= 0; i--) {
-    const r = latestRects[i];
-    if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) return r;
+  let best = null;
+  for (const r of latestRects) {
+    if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
+      if (!best || r.w * r.h < best.w * best.h) best = r;
+    }
   }
-  return null;
+  return best;
 }
 
 function updateSelectionOverlay() {
@@ -490,52 +570,60 @@ let drag = null;
 
 function computeDropTarget(p) {
   if (!p.inside) return null;
-  // right-half zone joins onto that widget's line
-  for (const n of doc.children) {
-    if (drag.kind === 'move' && n.id === drag.nodeId) continue;
-    const r = rectFor(n.id);
-    if (!r) continue;
-    if (p.x >= r.x + r.w * 0.55 && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
-      return { afterId: n.id, sameline: true };
+  const hit = hitTest(p);
+  if (!hit) return null;
+  const node = findNode(hit.id);
+  if (!node) return null;
+  // Hovering the dragged node or its own subtree has no valid answer, so the
+  // drop is a no-op rather than a surprise move to the bottom of the panel.
+  if (drag && drag.kind === 'move' && (node.id === drag.nodeId || isAncestor(drag.nodeId, node.id))) {
+    return null;
+  }
+  if (node.id === doc.id) {
+    return { parentId: doc.id, index: (doc.children || []).length, anchorId: doc.id, pos: 'inside' };
+  }
+  const parent = findParent(node.id) || doc;
+  const idx = parent.children.indexOf(node);
+  if (isContainer(node)) {
+    // upper third inserts before the container, the rest drops inside it
+    if (p.y < hit.y + hit.h / 3) {
+      return { parentId: parent.id, index: idx, anchorId: node.id, pos: 'above' };
     }
+    return { parentId: node.id, index: (node.children || []).length, anchorId: node.id, pos: 'inside' };
   }
-  for (const n of doc.children) {
-    if (drag.kind === 'move' && n.id === drag.nodeId) continue;
-    const r = rectFor(n.id);
-    if (!r) continue;
-    if (p.y < r.y + r.h / 2) return { beforeId: n.id };
+  if (p.x >= hit.x + hit.w * 0.55) {
+    return { parentId: parent.id, index: idx + 1, sameline: true, anchorId: node.id, pos: 'right' };
   }
-  return { beforeId: null }; // append
+  const above = p.y < hit.y + hit.h / 2;
+  return { parentId: parent.id, index: above ? idx : idx + 1, anchorId: node.id, pos: above ? 'above' : 'below' };
 }
 
 function updateDropIndicator() {
   const drop = drag && drag.drop;
-  if (!drop) { dropline.style.display = 'none'; return; }
-  const wr = latestRects.find(r => r.window);
-  if (!wr) { dropline.style.display = 'none'; return; }
+  dropline.style.display = 'none';
+  dropbox.style.display = 'none';
+  if (!drop) return;
+  const r = rectFor(drop.anchorId);
+  if (!r) return;
+  if (drop.pos === 'inside') {
+    dropbox.style.display = 'block';
+    dropbox.style.left = (r.x + 1) + 'px';
+    dropbox.style.top = (r.y + 1) + 'px';
+    dropbox.style.width = Math.max(0, r.w - 2) + 'px';
+    dropbox.style.height = Math.max(0, r.h - 2) + 'px';
+    return;
+  }
   dropline.style.display = 'block';
-  if (drop.sameline) {
-    const r = rectFor(drop.afterId);
+  if (drop.pos === 'right') {
     dropline.style.left = (r.x + r.w + 2) + 'px';
     dropline.style.top = r.y + 'px';
     dropline.style.width = '2px';
     dropline.style.height = r.h + 'px';
     return;
   }
-  let y;
-  if (drop.beforeId) {
-    y = rectFor(drop.beforeId).y - 2;
-  } else {
-    let last = null;
-    for (const n of doc.children) {
-      if (drag.kind === 'move' && n.id === drag.nodeId) continue;
-      last = rectFor(n.id) || last;
-    }
-    y = last ? last.y + last.h + 2 : wr.y + 34;
-  }
-  dropline.style.left = (wr.x + 8) + 'px';
-  dropline.style.top = y + 'px';
-  dropline.style.width = (wr.w - 16) + 'px';
+  dropline.style.left = r.x + 'px';
+  dropline.style.top = (drop.pos === 'above' ? r.y - 2 : r.y + r.h) + 'px';
+  dropline.style.width = r.w + 'px';
   dropline.style.height = '2px';
 }
 
@@ -545,7 +633,7 @@ canvas.addEventListener('mousedown', e => {
   if (hit) {
     selectedId = hit.id;
     refresh();
-    if (!hit.window) {
+    if (hit.id !== doc.id) {
       drag = { kind: 'move', nodeId: hit.id, started: false, startX: e.clientX, startY: e.clientY, drop: null };
     }
   } else {
@@ -558,6 +646,7 @@ function cancelDrag() {
   drag = null;
   ghost.style.display = 'none';
   dropline.style.display = 'none';
+  dropbox.style.display = 'none';
 }
 
 document.addEventListener('mousemove', e => {
@@ -570,7 +659,9 @@ document.addEventListener('mousemove', e => {
   if (!drag.started) {
     if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 5) return;
     drag.started = true;
-    const label = drag.kind === 'palette' ? WIDGETS[drag.type].name : (findNode(drag.nodeId)?.label || drag.nodeId);
+    const label = drag.kind === 'palette'
+      ? WIDGETS[drag.type].name
+      : (findNode(drag.nodeId)?.label || drag.nodeId);
     ghost.textContent = label;
     ghost.style.display = 'block';
   }
@@ -615,15 +706,6 @@ function camel(s, fallback) {
   return p[0].toLowerCase() + p.slice(1);
 }
 
-function cstr(s) {
-  return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
-}
-
-function ffmt(x) {
-  const n = Number(x) || 0;
-  return Number.isInteger(n) ? n + '.0f' : n + 'f';
-}
-
 const CPP_KEYWORDS = new Set([
   'alignas', 'alignof', 'and', 'asm', 'auto', 'bool', 'break', 'case', 'catch', 'char',
   'class', 'const', 'constexpr', 'continue', 'decltype', 'default', 'delete', 'do',
@@ -635,86 +717,132 @@ const CPP_KEYWORDS = new Set([
   'union', 'unsigned', 'using', 'virtual', 'void', 'volatile', 'while', 'xor',
 ]);
 
+const WINDOW_FLAGS = [
+  ['noTitleBar', 'NoTitleBar'], ['noResize', 'NoResize'], ['noMove', 'NoMove'],
+  ['noScrollbar', 'NoScrollbar'], ['noCollapse', 'NoCollapse'], ['autoResize', 'AlwaysAutoResize'],
+];
+
 function generateCode() {
-  const used = new Map();
-  const uniq = base => {
-    const count = used.get(base) || 0;
-    used.set(base, count + 1);
-    return count === 0 ? base : base + count;
-  };
-
-  // Duplicate on-screen labels need distinct ImGui IDs. ## hides the suffix,
-  // matching the preview's ###id behavior.
-  const seenLabels = new Set();
-  const imguiId = (label, name) => {
-    if (seenLabels.has(label)) return label + '##' + name;
-    seenLabels.add(label);
-    return label;
-  };
-
+  const usedNames = new Set();
+  const labelCount = new Map();
   const fields = [];
-  const lines = [];
-  for (const [i, n] of doc.children.entries()) {
-    let base = camel(n.label, n.type);
+  const fieldSeen = new Set();
+
+  const groupNames = new Map();
+  // A counter alone isn't enough: "Value" then "Value 1" then "Value" would
+  // hand out `value`, `value1`, `value1`. Track what's actually taken.
+  const claim = base => {
     if (CPP_KEYWORDS.has(base)) base += 'Value';
-    const name = uniq(base);
-    const handler = name[0].toUpperCase() + name.slice(1);
-    if (n.sameline && i > 0) lines.push('ImGui::SameLine();');
-    switch (n.type) {
-      case 'text':
-        lines.push(`ImGui::TextUnformatted(${cstr(n.label)});`);
-        break;
-      case 'button':
-        lines.push(`if (ImGui::Button(${cstr(imguiId(n.label, name))})) { /* TODO: On${handler} */ }`);
-        break;
-      case 'checkbox':
-        fields.push(`bool ${name} = false;`);
-        lines.push(`ImGui::Checkbox(${cstr(imguiId(n.label, name))}, &state.${name});`);
-        break;
-      case 'sliderfloat':
-        fields.push(`float ${name} = ${ffmt(n.min)};`);
-        lines.push(`ImGui::SliderFloat(${cstr(imguiId(n.label, name))}, &state.${name}, ${ffmt(n.min)}, ${ffmt(n.max)});`);
-        break;
-      case 'inputtext':
-        fields.push(`char ${name}[128] = "";`);
-        lines.push(`ImGui::InputText(${cstr(imguiId(n.label, name))}, state.${name}, IM_ARRAYSIZE(state.${name}));`);
-        break;
-      case 'coloredit':
-        fields.push(`float ${name}[3] = { 1.0f, 1.0f, 1.0f };`);
-        lines.push(`ImGui::ColorEdit3(${cstr(imguiId(n.label, name))}, state.${name});`);
-        break;
-      case 'separator':
-        lines.push('ImGui::Separator();');
-        break;
-      case 'progressbar':
-        fields.push(`float ${name} = 0.0f;`);
-        lines.push(`ImGui::ProgressBar(state.${name}, ImVec2(-1.0f, 0.0f));`);
-        break;
+    let name = base;
+    let i = 1;
+    while (usedNames.has(name)) name = base + (i++);
+    usedNames.add(name);
+    return name;
+  };
+
+  const uniqName = (node, spec) => {
+    // Radio buttons in one group deliberately share a backing variable. The
+    // shared name still goes through the counter once, so an unrelated widget
+    // labelled the same can't end up declaring a second field of that name.
+    if (spec.fieldName) {
+      const g = spec.fieldName(node);
+      if (!groupNames.has(g)) groupNames.set(g, claim(camel(g, node.type)));
+      return groupNames.get(g);
     }
-  }
+    return claim(camel(node.label || node.type, node.type));
+  };
+
+  // Duplicate on-screen labels need distinct ImGui IDs, and the suffix has to
+  // come from the occurrence rather than the field name, since radio buttons
+  // in one group deliberately share a field.
+  const imguiId = label => {
+    const s = String(label ?? '');
+    const c = (labelCount.get(s) || 0) + 1;
+    labelCount.set(s, c);
+    return q(c === 1 ? s : s + '##' + c);
+  };
+
+  const addField = d => {
+    for (const line of Array.isArray(d) ? d : [d]) {
+      if (line && !fieldSeen.has(line)) { fieldSeen.add(line); fields.push(line); }
+    }
+  };
+
+  // Scopes that end a tab bar's reach, matching the engine's threading of the
+  // same flag. A tab item outside one is an assert in ImGui, not a no-op.
+  const ENDS_TABBAR = new Set(['child', 'popup', 'modal', 'tooltip', 'menu', 'menubar', 'table', 'tabitem']);
+
+  const out = [];
+  const emit = (node, depth, index, parentType, inTabbar) => {
+    const spec = WIDGETS[node.type];
+    if (!spec) return;
+    const ind = '    '.repeat(depth);
+    if (node.type === 'tabitem' && !inTabbar) {
+      out.push(ind + '// A Tab item needs a Tab bar around it; skipped.');
+      return;
+    }
+    // BeginMenuBar only works on a window carrying ImGuiWindowFlags_MenuBar,
+    // and asserts outright if one is already being appended.
+    if (node.type === 'menubar' && parentType !== 'window') {
+      out.push(ind + '// A Menu bar must sit directly on the window; skipped.');
+      return;
+    }
+    const v = uniqName(node, spec);
+    const hasLabel = (spec.props || []).some(p => p[0] === 'label');
+    const idStr = hasLabel ? imguiId(node.label) : q(node.type);
+
+    if (parentType === 'table') out.push(ind + 'ImGui::TableNextColumn();');
+    else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
+
+    if (spec.field) addField(spec.field(node, v));
+
+    const res = spec.code ? spec.code(node, v, idStr) : null;
+    if (!res) return;
+    if (Array.isArray(res)) { for (const l of res) out.push(ind + l); return; }
+
+    for (const l of res.open) out.push(ind + l);
+    const braced = res.braced !== false;
+    if (braced) out.push(ind + '{');
+    const cd = braced ? depth + 1 : depth;
+    const kids = node.children || [];
+    const childTab = node.type === 'tabbar' ? true : (ENDS_TABBAR.has(node.type) ? false : inTabbar);
+    for (let i = 0; i < kids.length; i++) emit(kids[i], cd, i, node.type, childTab);
+    if (res.extra) for (const l of res.extra) out.push('    '.repeat(cd) + l);
+    if (res.pop) out.push('    '.repeat(cd) + res.pop);
+    if (braced) out.push(ind + '}');
+    else if (res.close) out.push(ind + res.close);
+  };
+
+  const kids = doc.children || [];
+  for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, 'window', false);
 
   const base = pascal(doc.label, 'MyPanel');
-  const out = [];
-  out.push('// Generated by ImGuiStudio (prototype)');
-  out.push('');
-  out.push(`struct ${base}State`);
-  out.push('{');
-  for (const f of fields) out.push('    ' + f);
-  out.push('};');
-  out.push('');
-  out.push(`void Draw${base}(${base}State& state)`);
-  out.push('{');
-  out.push(`    ImGui::Begin(${cstr(doc.label || 'My Panel')});`);
-  for (const l of lines) out.push('    ' + l);
-  out.push('    ImGui::End();');
-  out.push('}');
-  return out.join('\n');
+  const flags = WINDOW_FLAGS.filter(([k]) => doc[k]).map(([, f]) => 'ImGuiWindowFlags_' + f);
+  if (kids.some(c => c.type === 'menubar')) flags.push('ImGuiWindowFlags_MenuBar');
+
+  const head = [];
+  head.push('// Generated by ImGuiStudio');
+  head.push('');
+  head.push(`struct ${base}State`);
+  head.push('{');
+  for (const f of fields) head.push('    ' + f);
+  head.push('};');
+  head.push('');
+  head.push(`void Draw${base}(${base}State& state)`);
+  head.push('{');
+  if (flags.length) head.push(`    ImGuiWindowFlags flags = ${flags.join(' | ')};`);
+  if (doc.w > 0 || doc.h > 0) {
+    head.push(`    ImGui::SetNextWindowSize(ImVec2(${f(doc.w)}, ${f(doc.h)}), ImGuiCond_FirstUseEver);`);
+  }
+  head.push(`    ImGui::Begin(${q(doc.label || 'My Panel')}${flags.length ? ', nullptr, flags' : ''});`);
+  const tail = ['    ImGui::End();', '}'];
+  return head.concat(out, tail).join('\n');
 }
 
-// Monokai Bright highlighter for the code pane: a single-pass tokenizer whose
-// scopes mirror the original tmTheme (chained replaces can't express the
-// call-site vs definition distinctions). Lookbehinds resolve against the raw
-// source, so already-emitted spans can't confuse later branches.
+// Monokai-family highlighter for the code pane: a single-pass tokenizer whose
+// scopes mirror editor themes (chained replaces can't express the call-site vs
+// definition distinctions). Lookbehinds resolve against the raw source, so
+// already-emitted spans can't confuse later branches.
 function highlightCpp(src) {
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const master = new RegExp([
@@ -869,37 +997,61 @@ themeSel.onchange = () => {
 
 // ---------- ui rendering ----------
 
+const paletteCount = Object.values(WIDGETS).filter(w => !w.hidden).length;
+
 function renderPalette() {
   const host = document.getElementById('palette');
-  for (const [type, def] of Object.entries(WIDGETS)) {
-    const b = document.createElement('button');
-    b.textContent = '+ ' + def.name;
-    b.title = 'Click to append, or drag onto the canvas';
-    b.addEventListener('mousedown', e => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
-    });
-    host.appendChild(b);
+  const term = document.getElementById('filter').value.trim().toLowerCase();
+  host.innerHTML = '';
+  for (const cat of CATEGORIES) {
+    const entries = Object.entries(WIDGETS).filter(([k, s]) =>
+      !s.hidden && s.cat === cat &&
+      (!term || s.name.toLowerCase().includes(term) || k.includes(term)));
+    if (!entries.length) continue;
+    const h = document.createElement('div');
+    h.className = 'cat';
+    h.textContent = cat;
+    h.style.gridColumn = '1 / 3';
+    host.appendChild(h);
+    for (const [type, spec] of entries) {
+      const b = document.createElement('button');
+      b.textContent = spec.name;
+      b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas';
+      b.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
+      });
+      host.appendChild(b);
+    }
   }
 }
 
 function renderTree() {
   const host = document.getElementById('tree');
   host.innerHTML = '';
-  const mkRow = (node, isRoot) => {
+  walk(doc, (node, parent, index, depth) => {
+    const spec = WIDGETS[node.type] || {};
     const row = document.createElement('div');
     row.className = 'row' + (node.id === selectedId ? ' selected' : '');
+    row.style.paddingLeft = (6 + depth * 12) + 'px';
     row.onclick = () => { selectedId = node.id; refresh(); };
+
+    if (spec.container) {
+      const c = document.createElement('span');
+      c.className = 'box';
+      c.textContent = '▾';
+      row.appendChild(c);
+    }
 
     const t = document.createElement('span');
     t.className = 'wtype';
-    t.textContent = isRoot ? 'window' : node.type;
+    t.textContent = node.type;
     row.appendChild(t);
 
     const l = document.createElement('span');
     l.className = 'wlabel';
-    l.textContent = node.label || '(no label)';
+    l.textContent = node.label || '';
     row.appendChild(l);
 
     if (node.sameline) {
@@ -910,7 +1062,7 @@ function renderTree() {
       row.appendChild(j);
     }
 
-    if (!isRoot) {
+    if (parent) {
       for (const [txt, fn] of [['↑', () => moveNode(node.id, -1)], ['↓', () => moveNode(node.id, 1)], ['✕', () => removeNode(node.id)]]) {
         const b = document.createElement('button');
         b.textContent = txt;
@@ -919,9 +1071,7 @@ function renderTree() {
       }
     }
     host.appendChild(row);
-  };
-  mkRow(doc, true);
-  for (const n of doc.children) mkRow(n, false);
+  });
 }
 
 function renderProps() {
@@ -935,6 +1085,7 @@ function renderProps() {
     host.appendChild(d);
     return;
   }
+  const spec = WIDGETS[node.type] || { props: [] };
 
   const addField = (labelText, input) => {
     const l = document.createElement('label');
@@ -943,34 +1094,54 @@ function renderProps() {
     host.appendChild(input);
   };
 
-  const label = document.createElement('input');
-  label.type = 'text';
-  label.maxLength = 200;
-  label.value = node.label || '';
-  label.oninput = () => { node.label = label.value; refresh(false); };
-  addField('Label', label);
+  for (const [key, type, , opts] of spec.props || []) {
+    let inp;
+    if (type === 'bool') {
+      inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.checked = !!node[key];
+      inp.onchange = () => { node[key] = inp.checked; refresh(false); };
+    } else if (type === 'enum') {
+      inp = document.createElement('select');
+      for (const o of opts || []) {
+        const [text, val] = Array.isArray(o) ? o : [String(o), o];
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = text;
+        inp.appendChild(opt);
+      }
+      inp.value = node[key];
+      inp.onchange = () => { node[key] = Number(inp.value); refresh(false); };
+    } else if (type === 'int' || type === 'float') {
+      inp = document.createElement('input');
+      inp.type = 'number';
+      inp.step = type === 'int' ? '1' : 'any';
+      inp.value = node[key];
+      inp.oninput = () => {
+        // int props truncate here too, so the preview and the emitted literal
+        // can't disagree about a fractional entry
+        const v = Number(inp.value);
+        node[key] = Number.isFinite(v) ? (type === 'int' ? Math.trunc(v) : v) : 0;
+        refresh(false);
+      };
+    } else {
+      inp = document.createElement('input');
+      inp.type = 'text';
+      inp.maxLength = 200;
+      inp.value = node[key] ?? '';
+      inp.oninput = () => { node[key] = inp.value; refresh(false); };
+    }
+    addField(key, inp);
+  }
 
   if (node !== doc) {
     const same = document.createElement('input');
     same.type = 'checkbox';
     same.checked = !!node.sameline;
-    same.onchange = () => { node.sameline = same.checked; refresh(false); };
-    addField('SameLine', same);
-  }
-
-  if (node.type === 'sliderfloat') {
-    for (const key of ['min', 'max']) {
-      const inp = document.createElement('input');
-      inp.type = 'number';
-      inp.step = 'any';
-      inp.value = node[key];
-      inp.oninput = () => {
-        const v = Number(inp.value);
-        node[key] = Number.isFinite(v) ? v : 0;
-        refresh(false);
-      };
-      addField(key, inp);
-    }
+    // full refresh: normalizeDoc may drop the flag on a first child, and the
+    // checkbox has to stop showing it as set
+    same.onchange = () => { node.sameline = same.checked; refresh(); };
+    addField('sameline', same);
   }
 }
 
@@ -978,9 +1149,12 @@ function renderCode() {
   document.getElementById('code').innerHTML = highlightCpp(generateCode());
 }
 
-// a sameline flag on the first child would join it to a line that doesn't exist
+// a sameline flag on a first child would join it to a line that doesn't exist
 function normalizeDoc() {
-  if (doc.children.length && doc.children[0].sameline) delete doc.children[0].sameline;
+  walk(doc, node => {
+    const kids = node.children || [];
+    if (kids.length && kids[0].sameline) delete kids[0].sameline;
+  });
 }
 
 // rebuildProps=false keeps focus in the inspector while typing
@@ -992,6 +1166,8 @@ function refresh(rebuildProps = true) {
   pushDoc();
   saveLocal();
 }
+
+document.getElementById('filter').oninput = renderPalette;
 
 document.getElementById('demoToggle').onchange = e => {
   if (engineReady) Module.ccall('engine_show_demo', null, ['number'], [e.target.checked ? 1 : 0]);
@@ -1013,7 +1189,7 @@ document.getElementById('resetBtn').onclick = () => {
 };
 
 document.getElementById('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify({ v: 1, doc }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ v: 2, doc }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'imguistudio-panel.json';
@@ -1024,11 +1200,11 @@ document.getElementById('exportBtn').onclick = () => {
 const importFile = document.getElementById('importFile');
 document.getElementById('importBtn').onclick = () => importFile.click();
 importFile.onchange = async e => {
-  const f = e.target.files[0];
-  if (!f) return;
+  const file = e.target.files[0];
+  if (!file) return;
   try {
-    const s = JSON.parse(await f.text());
-    const d = s && s.v === 1 && s.doc ? s.doc : s;
+    const s = JSON.parse(await file.text());
+    const d = s && s.doc ? s.doc : s;
     if (!d || d.type !== 'window') throw new Error('not a panel document');
     applyDocData(d, 0);
     refresh();
@@ -1043,6 +1219,35 @@ window.__test = {
   rects: () => latestRects,
   doc: () => doc,
   selected: () => selectedId,
+  widgetTypes: () => Object.keys(WIDGETS).filter(k => !WIDGETS[k].hidden),
+  generate: () => generateCode(),
+  addAll: () => {
+    // one of every widget type, containers nested so the tree is exercised
+    for (const [type, spec] of Object.entries(WIDGETS)) {
+      if (spec.hidden) continue;
+      const node = makeNode(type);
+      doc.children.push(node);
+      if (spec.container) node.children.push(makeNode('text'));
+    }
+    refresh();
+    return doc.children.length;
+  },
+  // Arrangements ImGui asserts on. The engine must survive all of these,
+  // because an assert aborts the wasm module and kills the preview outright.
+  stress: () => {
+    const nested = makeNode('menubar');
+    nested.children.push(makeNode('menubar'));      // BeginMenuBar inside BeginMenuBar
+    const grp = makeNode('group');
+    grp.children.push(makeNode('menubar'));         // menu bar off the window root
+    const ab = makeNode('arrowbutton'); ab.dir = 99;   // past ImGuiDir_COUNT
+    const ab2 = makeNode('arrowbutton'); ab2.dir = -5; // below ImGuiDir_None
+    const tbl = makeNode('table'); tbl.cols = 0;    // BeginTable asserts on < 1
+    const tbl2 = makeNode('table'); tbl2.cols = 9999;
+    const ti = makeNode('tabitem');                 // tab item with no tab bar
+    doc.children.push(nested, grp, ab, ab2, tbl, tbl2, ti);
+    refresh();
+    return doc.children.length;
+  },
   canvasOrigin: () => {
     const r = canvas.getBoundingClientRect();
     return { x: r.left, y: r.top };
