@@ -37,25 +37,21 @@
     font: 12px/1.45 var(--font); background: var(--mk-bg); color: var(--mk-fg);
   }
 
-  /* Scanline overlay */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 3px,
-      rgba(0,0,0,0.06) 3px,
-      rgba(0,0,0,0.06) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-  }
-
+  /* Scanlines live only on the header chrome, and as a background layer so
+     they paint behind the text rather than over it. The workspace and the
+     preview canvas stay completely clean. */
   #apphead {
     height: 42px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
-    padding: 0 14px; background: var(--mk-gutter); border-bottom: 1px solid var(--mk-border);
+    padding: 0 14px; border-bottom: 1px solid var(--mk-border);
+    background:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.30) 3px,
+        rgba(0,0,0,0.30) 4px
+      ),
+      var(--mk-gutter);
   }
   .brand {
     color: var(--mk-green); font-weight: 700; font-size: 14px;
@@ -71,7 +67,8 @@
   }
   .sitelink:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
 
-  #workspace { display: flex; flex: 1; min-height: 0; }
+  /* opaque, so nothing from behind can bleed into the panes */
+  #workspace { display: flex; flex: 1; min-height: 0; background: var(--mk-bg); }
 
   h3 {
     margin: 0; padding: 9px 10px 6px; font-size: 10px; font-weight: 600;
