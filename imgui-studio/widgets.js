@@ -433,7 +433,30 @@ const COLOR_SLOTS_BY_CAT = {
   Popups:     ['Text', 'PopupBg', 'Border', 'Button', 'ButtonHovered'],
 };
 
+// Per-type corrections where the category answer would offer a colour the
+// widget never reads. A swatch that does nothing costs more trust than a
+// missing one, because the preview-matches-code promise is the whole product.
+const COLOR_SLOTS_BY_TYPE = {
+  separator:     ['Separator'],
+  separatortext: ['Separator', 'Text'],
+  textdisabled:  ['TextDisabled'],
+  textcolored:   [],            // its colour is the r/g/b properties
+  progressbar:   ['PlotHistogram', 'FrameBg', 'Text'],
+  plotlines:     ['PlotLines', 'FrameBg', 'Text'],
+  plothistogram: ['PlotHistogram', 'FrameBg', 'Text'],
+  bullet:        ['Text'],
+  spacing:       [], newline: [], dummy: [], indent: [], unindent: [], aligntext: [],
+  rawcode:       [],
+  table:         ['Text', 'TableHeaderBg', 'TableBorderStrong', 'TableRowBg'],
+  tabbar:        ['Tab', 'TabHovered', 'TabSelected', 'Text'],
+  tabitem:       ['Tab', 'TabHovered', 'TabSelected', 'Text'],
+  group:         [],            // a group draws nothing of its own
+  child:         ['ChildBg', 'Border', 'Text'],
+  menubar:       ['MenuBarBg', 'Text'],
+};
+
 function colorSlots(type) {
+  if (COLOR_SLOTS_BY_TYPE[type]) return COLOR_SLOTS_BY_TYPE[type];
   const spec = WIDGETS[type];
   return (spec && COLOR_SLOTS_BY_CAT[spec.cat]) || ['Text'];
 }

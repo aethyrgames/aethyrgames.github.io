@@ -2,144 +2,29 @@
 //
 // Two design choices carry the whole thing:
 //
-// 1. The argument schema is DERIVED FROM THE EMITTER, not written by hand. For
-//    each widget type we generate a call with sentinel property values, then
-//    look at which argument each sentinel landed in. Add a property to a spec
-//    and the parser learns about it for free, which is the drift the research
-//    on round-trip tools warns about (57 widgets x 2 hand-written functions is
-//    114 places to forget).
+// 1. The argument schema is DERIVED FROM THE EMITTER by differential probing:
+//    generate a widget's call, then regenerate it with one property changed and
+//    see which argument moved. That attributes arguments to properties without
+//    anyone writing the mapping twice, and unlike matching sentinel values it
+//    survives clamping, conditional arguments and value formatting. Add a
+//    property to a spec and the parser learns it for free.
 //
 // 2. Anything not recognised is preserved verbatim as a `rawcode` node rather
-//    than dropped. Arbitrary C++ therefore survives a round trip; the parts we
-//    understand drive the preview, and the rest is kept byte-for-byte and shown
-//    as a placeholder. Nothing the user typed is ever silently lost.
+//    than dropped, so arbitrary C++ survives a round trip.
+//
+// The property that matters is stability: parse(generate(d)) must generate
+// byte-identical code, for every widget type, repeatedly. The self-test asserts
+// exactly that over several applies, because a single pass hides growth bugs.
 
-// Must be printable: the generator's string-escaper strips control characters,
-// which would silently erase a control-character sentinel and leave the
-// argument unmapped for every property emitted through it.
-const SENTINEL_TEXT = k => '@@' + k + '@@';
-const SENTINEL_NUM_BASE = -970000;
-
-// ---------- lexer ----------
-
-function lex(src) {
-  const t = [];
-  let i = 0;
-  const n = src.length;
-  while (i < n) {
-    const c = src[i];
-    if (c === '/' && src[i + 1] === '/') {
-      const j = src.indexOf('\n', i);
-      t.push({ k: 'com', v: src.slice(i, j < 0 ? n : j), i });
-      i = j < 0 ? n : j;
-    } else if (c === '/' && src[i + 1] === '*') {
-      const j = src.indexOf('*/', i + 2);
-      t.push({ k: 'com', v: src.slice(i, j < 0 ? n : j + 2), i });
-      i = j < 0 ? n : j + 2;
-    } else if (c === '"') {
-      let j = i + 1;
-      while (j < n && src[j] !== '"') j += src[j] === '\\' ? 2 : 1;
-      t.push({ k: 'str', v: src.slice(i, j + 1), i });
-      i = j + 1;
-    } else if (c === "'") {
-      let j = i + 1;
-      while (j < n && src[j] !== "'") j += src[j] === '\\' ? 2 : 1;
-      t.push({ k: 'chr', v: src.slice(i, j + 1), i });
-      i = j + 1;
-    } else if (/\s/.test(c)) {
-      i++;
-    } else if (/[A-Za-z_]/.test(c)) {
-      let j = i;
-      while (j < n && /[A-Za-z0-9_]/.test(src[j])) j++;
-      t.push({ k: 'id', v: src.slice(i, j), i });
-      i = j;
-    } else if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1] || ''))) {
-      let j = i;
-      while (j < n && /[0-9.eExXa-fA-F+\-]/.test(src[j])) {
-        // stop at an exponent-less sign, which belongs to the next token
-        if ((src[j] === '+' || src[j] === '-') && !/[eE]/.test(src[j - 1])) break;
-        j++;
-      }
-      while (j < n && /[fFuUlL]/.test(src[j])) j++;
-      t.push({ k: 'num', v: src.slice(i, j), i });
-      i = j;
-    } else {
-      t.push({ k: 'p', v: c, i });
-      i++;
-    }
-  }
-  t.push({ k: 'eof', v: '', i: n });
-  return t;
-}
+// ---------- lexing helpers ----------
 
 const litNum = v => {
   const x = parseFloat(String(v).replace(/[fFuUlL]+$/, ''));
   return Number.isFinite(x) ? x : 0;
 };
 
-const litStr = v => {
-  const body = String(v).slice(1, -1);
-  return body.replace(/\\(.)/g, (_, c) =>
-    ({ n: '\n', r: '\r', t: '\t', '\\': '\\', '"': '"' }[c] ?? c));
-};
-
-// ---------- schema derived from the emitter ----------
-
-// fn name (e.g. "SliderFloat2") -> { type, n, args: [{key}|null] }
-function buildSchema(WIDGETS, makeNode) {
-  const byFn = {};
-  for (const [type, spec] of Object.entries(WIDGETS)) {
-    if (spec.hidden || !spec.code) continue;
-    const variants = (spec.props || []).some(p => p[0] === 'n') ? [1, 2, 3, 4] : [null];
-    for (const nv of variants) {
-      const node = makeNode(type);
-      const marks = {};
-      let mi = 0;
-      for (const [k, t] of spec.props || []) {
-        if (k === 'n') { if (nv !== null) node[k] = nv; continue; }
-        if (t === 'text' || t === 'items') { node[k] = SENTINEL_TEXT(k); marks[SENTINEL_TEXT(k)] = k; }
-        else if (t === 'int' || t === 'float' || t === 'enum') {
-          const magic = SENTINEL_NUM_BASE - (mi++);
-          node[k] = magic;
-          marks[String(magic)] = k;
-        }
-      }
-      let res;
-      try { res = spec.code(node, 'STATE', '"' + SENTINEL_TEXT('label') + '"'); }
-      catch (e) { continue; }
-      marks['"' + SENTINEL_TEXT('label') + '"'] = 'label';
-      marks[SENTINEL_TEXT('label')] = 'label';
-
-      const lines = Array.isArray(res) ? res : (res.open || []);
-      const line = lines.find(l => /ImGui::\w+\s*\(/.test(l));
-      if (!line) continue;
-      const m = line.match(/ImGui::(\w+)\s*\(/);
-      const fn = m[1];
-      const argsText = balancedArgs(line.slice(line.indexOf(m[0]) + m[0].length - 1));
-      if (argsText === null) continue;
-      // An argument may be a nested call carrying several properties at once
-      // (ImVec2(w, h), ImVec4(r, g, b, a)), so descend into it rather than
-      // mapping the whole thing to whichever sentinel appears first.
-      const mapArg = a => {
-        a = a.trim();
-        const call = a.match(/^\w+\s*\(/);
-        if (call) {
-          const inner = balancedArgs(a.slice(call[0].length - 1));
-          if (inner !== null) {
-            const parts = splitTopLevel(inner).map(mapArg);
-            if (parts.some(Boolean)) return { parts };
-          }
-        }
-        for (const [sent, key] of Object.entries(marks)) if (a.includes(sent)) return { key };
-        return null;
-      };
-      const args = splitTopLevel(argsText).map(mapArg);
-      // first variant registered wins; later ones only add new fn names
-      if (!byFn[fn]) byFn[fn] = { type, n: nv, args, container: !!spec.container };
-    }
-  }
-  return byFn;
-}
+const litStr = v => String(v).slice(1, -1).replace(/\\(.)/g, (_, c) =>
+  ({ n: '\n', r: '\r', t: '\t', '\\': '\\', '"': '"' }[c] ?? c));
 
 // takes "(a, b, c) ..." and returns "a, b, c"
 function balancedArgs(s) {
@@ -171,179 +56,6 @@ function splitTopLevel(s) {
   return out;
 }
 
-// ---------- parser ----------
-
-function createParser(WIDGETS, makeNode, colorSlots) {
-  const schema = buildSchema(WIDGETS, makeNode);
-
-  parseCpp.schema = schema;   // exposed for diagnostics
-  return parseCpp;
-
-  function parseCpp(src, nextId) {
-    const errors = [];
-    let idc = nextId;
-    const newId = () => 'n' + (idc++);
-
-    const toks = lex(src);
-    // Work on the body of the Draw function when there is one, so the struct
-    // and the function signature aren't treated as widgets.
-    let start = 0;
-    const beginIdx = toks.findIndex((t, i) =>
-      t.v === 'ImGui' && toks[i + 1] && toks[i + 1].v === '::' || false);
-    let bodyStart = src.indexOf('ImGui::Begin(');
-    let bodyEnd = src.lastIndexOf('ImGui::End()');
-    let windowLabel = null;
-    if (bodyStart >= 0 && bodyEnd > bodyStart) {
-      const call = balancedArgs(src.slice(bodyStart + 'ImGui::Begin'.length));
-      if (call !== null) {
-        const first = splitTopLevel(call)[0];
-        if (first && first.trim().startsWith('"')) windowLabel = litStr(first.trim());
-      }
-      const afterBegin = src.indexOf(';', bodyStart) + 1;
-      src = src.slice(afterBegin, bodyEnd);
-    } else {
-      errors.push({ level: 'warn', msg: 'No ImGui::Begin(...) / ImGui::End() pair found; parsing the whole text as a body.' });
-    }
-    void start; void beginIdx;
-
-    const children = parseBlock(src, 0, src.length, errors, newId, schema, colorSlots, WIDGETS, makeNode);
-    return { children, windowLabel, errors, nextId: idc };
-  };
-}
-
-// Splits a body into statements and blocks. Anything the schema doesn't
-// recognise becomes a rawcode node holding its exact source text.
-function parseBlock(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNode) {
-  const out = [];
-  let i = from;
-  let pendingSameLine = false;
-  let pendingColors = null;
-
-  const flushRaw = text => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    out.push({ type: 'rawcode', id: newId(), label: '', code: trimmed });
-  };
-
-  while (i < to) {
-    // skip whitespace
-    while (i < to && /\s/.test(src[i])) i++;
-    if (i >= to) break;
-
-    const stmtStart = i;
-    const rest = src.slice(i, to);
-
-    // comment: keep it as raw so it survives, unless it's our TODO stub
-    const comMatch = rest.match(/^\/\/[^\n]*|^\/\*[\s\S]*?\*\//);
-    if (comMatch) {
-      const text = comMatch[0];
-      if (!/TODO:/.test(text)) flushRaw(text);
-      i += text.length;
-      continue;
-    }
-
-    // ImGui::SameLine();
-    const slMatch = rest.match(/^ImGui::SameLine\s*\(\s*\)\s*;/);
-    if (slMatch) { pendingSameLine = true; i += slMatch[0].length; continue; }
-
-    // ImGui::PushStyleColor(ImGuiCol_X, ImVec4(r,g,b,a));
-    const pushMatch = rest.match(/^ImGui::PushStyleColor\s*\(/);
-    if (pushMatch) {
-      const argsText = balancedArgs(rest.slice(pushMatch[0].length - 1));
-      const end = i + pushMatch[0].length - 1 + (argsText === null ? 0 : argsText.length + 2);
-      if (argsText !== null) {
-        const parts = splitTopLevel(argsText);
-        const slot = (parts[0] || '').trim().replace(/^ImGuiCol_/, '');
-        const vec = balancedArgs((parts[1] || '').slice((parts[1] || '').indexOf('(')));
-        if (slot && vec !== null) {
-          const nums = splitTopLevel(vec).map(litNum);
-          pendingColors = pendingColors || {};
-          pendingColors[slot] = [nums[0] || 0, nums[1] || 0, nums[2] || 0,
-            nums[3] === undefined ? 1 : nums[3]];
-        }
-        i = src.indexOf(';', end) + 1 || end;
-        continue;
-      }
-    }
-    if (/^ImGui::PopStyleColor\s*\(/.test(rest)) {
-      i = src.indexOf(';', i) + 1 || to;
-      continue;
-    }
-
-    // if (ImGui::Xxx(...)) { ... }
-    const ifMatch = rest.match(/^if\s*\(\s*ImGui::(\w+)\s*\(/);
-    if (ifMatch) {
-      const fn = ifMatch[1];
-      const callStart = i + rest.indexOf('ImGui::' + fn) + ('ImGui::' + fn).length;
-      const argsText = balancedArgs(src.slice(callStart, to));
-      const braceOpen = src.indexOf('{', callStart + (argsText || '').length + 2);
-      const braceEnd = braceOpen >= 0 ? matchBrace(src, braceOpen, to) : -1;
-      const entry = schema[fn];
-      if (entry && argsText !== null && braceOpen >= 0 && braceEnd > 0) {
-        const body = src.slice(braceOpen + 1, braceEnd);
-        if (entry.container) {
-          const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode);
-          node.children = parseBlock(stripPops(body), 0, stripPops(body).length,
-            errors, newId, schema, colorSlots, WIDGETS, makeNode);
-          attach(node);
-          i = braceEnd + 1;
-          continue;
-        }
-        // a button-ish `if`: only fold it into a widget when the body is just
-        // the generated stub, otherwise the user's code has to survive
-        if (/^[\s]*(\/\/[^\n]*|\/\*[\s\S]*?\*\/)?[\s]*$/.test(body)) {
-          const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode);
-          attach(node);
-          i = braceEnd + 1;
-          continue;
-        }
-      }
-      if (braceEnd > 0) { flushRaw(src.slice(stmtStart, braceEnd + 1)); i = braceEnd + 1; continue; }
-    }
-
-    // ImGui::Xxx(...);
-    const callMatch = rest.match(/^ImGui::(\w+)\s*\(/);
-    if (callMatch) {
-      const fn = callMatch[1];
-      const argsText = balancedArgs(rest.slice(callMatch[0].length - 1));
-      if (argsText !== null && schema[fn]) {
-        const semi = src.indexOf(';', i + callMatch[0].length + argsText.length);
-        const node = nodeFromCall(schema[fn], argsText, newId, WIDGETS, makeNode);
-        attach(node);
-        i = semi >= 0 ? semi + 1 : to;
-        continue;
-      }
-    }
-
-    // anything else: take one statement or one brace-balanced block, verbatim
-    const end = statementEnd(src, i, to);
-    flushRaw(src.slice(i, end));
-    i = end;
-  }
-
-  return out;
-
-  function attach(node) {
-    if (pendingSameLine) { node.sameline = true; pendingSameLine = false; }
-    if (pendingColors) {
-      const keep = {};
-      for (const [k, v] of Object.entries(pendingColors)) {
-        if (colorSlots(node.type).includes(k)) keep[k] = v;
-      }
-      if (Object.keys(keep).length) node.colors = keep;
-      pendingColors = null;
-    }
-    out.push(node);
-  }
-}
-
-// drop a trailing TreePop/EndTabBar/etc from a container body: it belongs to
-// the container, not to its children
-function stripPops(body) {
-  return body.replace(/ImGui::(TreePop|EndTabBar|EndTabItem|EndTable|EndMenu|EndMenuBar|EndPopup|EndTooltip|EndChild|EndGroup)\s*\(\s*\)\s*;?/g, '')
-    .replace(/if\s*\(\s*ImGui::Button\s*\(\s*"Close"\s*\)\s*\)\s*\n?\s*ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?/g, '');
-}
-
 function matchBrace(src, open, to) {
   let d = 0, inStr = false;
   for (let i = open; i < to; i++) {
@@ -369,36 +81,430 @@ function statementEnd(src, i, to) {
   return to;
 }
 
-function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode) {
+// Non-braced containers are emitted as a bare Begin/End statement pair rather
+// than an if-block, so their extent has to be found by counting nested pairs.
+const PAIRED = { group: ['BeginGroup', 'EndGroup'], child: ['BeginChild', 'EndChild'] };
+
+function findPairEnd(src, from, to, beginFn, endFn) {
+  const re = new RegExp('ImGui::(' + beginFn + '|' + endFn + ')\\s*\\(', 'g');
+  re.lastIndex = from;
+  let depth = 0, m;
+  while ((m = re.exec(src)) && m.index < to) {
+    if (m[1] === beginFn) depth++;
+    else if (--depth === 0) return { callStart: m.index, end: statementEnd(src, m.index, to) };
+  }
+  return null;
+}
+
+// ---------- schema, derived from the emitter ----------
+
+const LBL = '@@label@@';
+
+function emitLine(spec, node, idStr, preferBegin) {
+  let res;
+  try { res = spec.code(node, 'STATE', idStr); } catch (e) { return null; }
+  const lines = Array.isArray(res) ? res : (res.open || []);
+  // A popup emits its trigger Button before BeginPopup; keying the schema on
+  // the first ImGui:: call would collide with the real Button widget and the
+  // whole popup would degrade to raw code.
+  if (preferBegin) {
+    const b = lines.find(l => /ImGui::(Begin\w+|TreeNode|CollapsingHeader)\s*\(/.test(l));
+    if (b) return b;
+  }
+  return lines.find(l => /ImGui::\w+\s*\(/.test(l)) || null;
+}
+
+function callOf(line) {
+  const m = line && line.match(/ImGui::(\w+)\s*\(/);
+  if (!m) return null;
+  const args = balancedArgs(line.slice(line.indexOf(m[0]) + m[0].length - 1));
+  return args === null ? null : { fn: m[1], args: splitTopLevel(args) };
+}
+
+// A value guaranteed to render differently from the current one.
+function perturb(t, cur, opts) {
+  if (t === 'text' || t === 'items' || t === 'longtext') return '@@probe@@';
+  if (t === 'enum') {
+    const vals = (opts || []).map(o => Number(Array.isArray(o) ? o[1] : o));
+    return vals.find(v => v !== Number(cur)) ?? Number(cur) + 1;
+  }
+  if (t === 'bool') return !cur;
+  return (Number(cur) || 0) + 37;
+}
+
+function buildSchema(WIDGETS, makeNode) {
+  const byFn = {};
+  for (const [type, spec] of Object.entries(WIDGETS)) {
+    if (spec.hidden || !spec.code) continue;
+    const hasN = (spec.props || []).some(p => p[0] === 'n');
+    for (const nv of hasN ? [1, 2, 3, 4] : [null]) {
+      const base = makeNode(type);
+      if (nv !== null) base.n = nv;
+      // Some arguments are only emitted when a property is non-default (a
+      // Button's ImVec2 size, for one). Seed the baseline with distinct
+      // in-range numbers so those arguments exist to be attributed, and so two
+      // properties sharing one nested argument stay distinguishable.
+      const SEEDS = [3, 5, 7, 11, 13, 17, 19, 23];
+      let si = 0;
+      for (const [k, t] of spec.props || []) {
+        if (k !== 'n' && (t === 'int' || t === 'float')) base[k] = SEEDS[si++ % SEEDS.length];
+      }
+      const baseId = '"' + LBL + '"';
+      const baseLine = emitLine(spec, base, baseId, !!spec.container);
+      const baseCall = callOf(baseLine);
+      if (!baseCall) continue;
+
+      const args = baseCall.args.map(() => null);
+      for (const [k, t, , opts] of spec.props || []) {
+        if (k === 'n') continue;
+        const alt = { ...base, [k]: perturb(t, base[k], opts) };
+        // Most widgets receive their label through the pre-quoted id argument
+        // rather than from the node, so probing the label has to move both or
+        // the label argument never differs and stays unmapped.
+        const altId = k === 'label' ? '"@@probe@@"' : baseId;
+        const altCall = callOf(emitLine(spec, alt, altId, !!spec.container));
+        if (!altCall || altCall.fn !== baseCall.fn) continue;
+        for (let i = 0; i < args.length; i++) {
+          if (i >= altCall.args.length || altCall.args[i] === baseCall.args[i]) continue;
+          // the whole argument changed; if it's a nested call, find which part
+          args[i] = refine(args[i], baseCall.args[i], altCall.args[i], k);
+        }
+      }
+      // Some properties never reach the call at all and live only in the state
+      // struct's initializer (a progress bar's fraction, for one). Find that
+      // property the same differential way, ignoring any already mapped to an
+      // argument so a slider's min stays attributed to the call.
+      let fieldProp = null;
+      if (spec.field) {
+        const fieldOf = node => {
+          const d = spec.field(node, 'STATE');
+          return Array.isArray(d) ? d.join('|') : String(d);
+        };
+        const baseField = fieldOf(base);
+        const mapped = new Set(args.flatMap(a =>
+          !a ? [] : a.parts ? a.parts.filter(Boolean).map(p => p.key) : [a.key]));
+        for (const [k, t, , opts] of spec.props || []) {
+          if (k === 'n' || mapped.has(k)) continue;
+          if (fieldOf({ ...base, [k]: perturb(t, base[k], opts) }) !== baseField) {
+            fieldProp = k;
+            break;
+          }
+        }
+      }
+      if (!byFn[baseCall.fn]) {
+        byFn[baseCall.fn] = { type, n: nv, args, container: !!spec.container, fieldProp };
+      }
+    }
+  }
+  return byFn;
+}
+
+// Attribute a property to a whole argument, or to one component of a nested
+// call like ImVec2(w, h) that carries two properties at once.
+function refine(existing, a, b, key) {
+  const ca = a.match(/^\w+\s*\(/);
+  if (ca) {
+    const ia = balancedArgs(a.slice(ca[0].length - 1));
+    const ib = b.startsWith(a.slice(0, ca[0].length))
+      ? balancedArgs(b.slice(ca[0].length - 1)) : null;
+    if (ia !== null && ib !== null) {
+      const pa = splitTopLevel(ia), pb = splitTopLevel(ib);
+      const parts = (existing && existing.parts) || pa.map(() => null);
+      for (let j = 0; j < pa.length; j++) if (pa[j] !== pb[j]) parts[j] = { key };
+      return { parts };
+    }
+  }
+  return { key };
+}
+
+// ---------- parser ----------
+
+function createParser(WIDGETS, makeNode, colorSlots) {
+  const schema = buildSchema(WIDGETS, makeNode);
+  parseCpp.schema = schema;
+  return parseCpp;
+
+  function parseCpp(src, nextId) {
+    const errors = [];
+    let idc = nextId;
+    const newId = () => 'n' + (idc++);
+
+    // The state struct carries values that never appear in a call, so read its
+    // initializers first and key them by member name.
+    const fields = {};
+    const structStart = src.indexOf('struct ');
+    const structEnd = structStart >= 0 ? src.indexOf('};', structStart) : -1;
+    if (structEnd > 0) {
+      const body = src.slice(structStart, structEnd);
+      const re = /^\s*\w[\w:]*\s+(\w+)\s*(?:\[[^\]]*\])?\s*=\s*([^;]+);/gm;
+      let m;
+      while ((m = re.exec(body))) fields[m[1]] = m[2].trim();
+    }
+
+    let windowLabel = null;
+    const bodyStart = src.indexOf('ImGui::Begin(');
+    const bodyEnd = src.lastIndexOf('ImGui::End()');
+    if (bodyStart >= 0 && bodyEnd > bodyStart) {
+      const call = balancedArgs(src.slice(bodyStart + 'ImGui::Begin'.length));
+      const first = call === null ? null : splitTopLevel(call)[0];
+      if (first && first.trim().startsWith('"')) windowLabel = litStr(first.trim());
+      src = src.slice(src.indexOf(';', bodyStart) + 1, bodyEnd);
+    } else {
+      errors.push({ level: 'warn', msg: 'No ImGui::Begin/End pair found; parsing the whole text as a body.' });
+    }
+
+    const children = parse(src, 0, src.length, errors, newId, schema, colorSlots, WIDGETS, makeNode, fields);
+    return { children, windowLabel, errors, nextId: idc };
+  }
+}
+
+function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNode, fields) {
+  const out = [];
+  let i = from;
+  let pendingSameLine = false;
+  let pendingColors = null;
+  let pendingItems = null;
+
+  const raw = text => {
+    const t = text.trim();
+    if (t) out.push({ type: 'rawcode', id: newId(), label: '', code: t });
+  };
+
+  const attach = node => {
+    if (pendingSameLine) { node.sameline = true; pendingSameLine = false; }
+    if (pendingItems && (node.type === 'combo' || node.type === 'listbox')) {
+      node.items = pendingItems;
+    }
+    pendingItems = null;
+    if (pendingColors) {
+      const keep = {};
+      for (const [k, v] of Object.entries(pendingColors)) {
+        if (colorSlots(node.type).includes(k)) keep[k] = v;
+      }
+      if (Object.keys(keep).length) node.colors = keep;
+      pendingColors = null;
+    }
+    out.push(node);
+  };
+
+  while (i < to) {
+    while (i < to && /\s/.test(src[i])) i++;
+    if (i >= to) break;
+    const start = i;
+    const rest = src.slice(i, to);
+
+    const com = rest.match(/^\/\/[^\n]*|^\/\*[\s\S]*?\*\//);
+    if (com) {
+      if (!/TODO:/.test(com[0])) raw(com[0]);
+      i += com[0].length;
+      continue;
+    }
+
+    if (/^ImGui::SameLine\s*\(\s*\)\s*;/.test(rest)) {
+      pendingSameLine = true;
+      i = src.indexOf(';', i) + 1;
+      continue;
+    }
+
+    // Structural calls the generator re-emits from the tree; keeping them would
+    // duplicate on every apply.
+    if (/^ImGui::(TableNextColumn|TableNextRow)\s*\(\s*\)\s*;/.test(rest)) {
+      i = src.indexOf(';', i) + 1;
+      continue;
+    }
+
+    // The item array a Combo/ListBox is generated with, carried to the next one.
+    const itemsDecl = rest.match(/^static\s+const\s+char\*\s*\w+\s*\[\s*\]\s*=\s*\{/);
+    if (itemsDecl) {
+      const close = src.indexOf('}', i);
+      const semi = src.indexOf(';', close < 0 ? i : close);
+      if (close > 0) {
+        pendingItems = splitTopLevel(src.slice(i + itemsDecl[0].length, close))
+          .filter(s => s.startsWith('"')).map(litStr).join(', ');
+      }
+      i = semi >= 0 ? semi + 1 : to;
+      continue;
+    }
+
+    const push = rest.match(/^ImGui::PushStyleColor\s*\(/);
+    if (push) {
+      const a = balancedArgs(rest.slice(push[0].length - 1));
+      if (a !== null) {
+        const p = splitTopLevel(a);
+        const slot = (p[0] || '').trim().replace(/^ImGuiCol_/, '');
+        const vecIn = (p[1] || '');
+        const vec = balancedArgs(vecIn.slice(vecIn.indexOf('(')));
+        if (slot && vec !== null) {
+          const nums = splitTopLevel(vec).map(litNum);
+          pendingColors = pendingColors || {};
+          pendingColors[slot] = [nums[0] || 0, nums[1] || 0, nums[2] || 0,
+            nums[3] === undefined ? 1 : nums[3]];
+        }
+      }
+      i = src.indexOf(';', i) + 1 || to;
+      continue;
+    }
+    if (/^ImGui::PopStyleColor\s*\(/.test(rest)) { i = src.indexOf(';', i) + 1 || to; continue; }
+
+    // A popup's trigger button; the popup container that follows owns it.
+    const trigger = rest.match(/^if\s*\(\s*ImGui::Button\s*\(\s*"Open [^"]*"\s*\)\s*\)\s*\n?\s*ImGui::OpenPopup\s*\([^;]*\)\s*;/);
+    if (trigger) { i += trigger[0].length; continue; }
+
+    // Bare Begin/End pair: Group and Child region.
+    const bare = rest.match(/^ImGui::(BeginGroup|BeginChild)\s*\(/);
+    if (bare) {
+      const type = bare[1] === 'BeginGroup' ? 'group' : 'child';
+      const [bFn, eFn] = PAIRED[type];
+      const pair = findPairEnd(src, i, to, bFn, eFn);
+      const argsText = balancedArgs(rest.slice(bare[0].length - 1));
+      if (pair && argsText !== null) {
+        const entry = schema[bare[1]];
+        const node = entry
+          ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields)
+          : Object.assign(makeNode(type), { id: newId() });
+        const bodyFrom = src.indexOf(';', i + bare[0].length + argsText.length) + 1;
+        node.children = parse(src, bodyFrom, pair.callStart, errors, newId, schema,
+          colorSlots, WIDGETS, makeNode, fields);
+        attach(node);
+        i = pair.end;
+        continue;
+      }
+    }
+
+    // if (ImGui::Xxx(...)) { ... }
+    const ifm = rest.match(/^if\s*\(\s*ImGui::(\w+)\s*\(/);
+    if (ifm) {
+      const fn = ifm[1];
+      const callStart = i + rest.indexOf('ImGui::' + fn) + ('ImGui::' + fn).length;
+      const argsText = balancedArgs(src.slice(callStart, to));
+      const afterCall = argsText === null ? -1 : callStart + argsText.length + 2;
+      // the brace must belong to THIS if: only whitespace may sit between them,
+      // otherwise a braceless if would swallow the next block wholesale
+      const gap = afterCall < 0 ? '' : src.slice(afterCall, src.indexOf('{', afterCall) + 1);
+      const ownsBrace = afterCall >= 0 && /^\s*\)?\s*\{$/.test(gap);
+      const braceOpen = ownsBrace ? src.indexOf('{', afterCall) : -1;
+      const braceEnd = braceOpen >= 0 ? matchBrace(src, braceOpen, to) : -1;
+      const entry = schema[fn];
+      if (entry && braceEnd > 0) {
+        const body = src.slice(braceOpen + 1, braceEnd);
+        if (entry.container) {
+          const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields);
+          const inner = stripTrailingPop(body, fn);
+          node.children = parse(inner, 0, inner.length, errors, newId, schema,
+            colorSlots, WIDGETS, makeNode, fields);
+          attach(node);
+          i = braceEnd + 1;
+          continue;
+        }
+        if (/^\s*(\/\/[^\n]*|\/\*[\s\S]*?\*\/)?\s*$/.test(body)) {
+          attach(nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields));
+          i = braceEnd + 1;
+          continue;
+        }
+      }
+      if (braceEnd > 0) { raw(src.slice(start, braceEnd + 1)); i = braceEnd + 1; continue; }
+    }
+
+    const call = rest.match(/^ImGui::(\w+)\s*\(/);
+    if (call) {
+      const fn = call[1];
+      const argsText = balancedArgs(rest.slice(call[0].length - 1));
+      if (argsText !== null && schema[fn] && !schema[fn].container) {
+        attach(nodeFromCall(schema[fn], argsText, newId, WIDGETS, makeNode, fields));
+        const semi = src.indexOf(';', i + call[0].length + argsText.length);
+        i = semi >= 0 ? semi + 1 : to;
+        continue;
+      }
+    }
+
+    const end = statementEnd(src, i, to);
+    raw(src.slice(i, end));
+    i = end;
+  }
+  return out;
+}
+
+// Remove only the container's OWN closing call, at the end of its body. A
+// global strip would delete matching calls out of hand-written code too.
+const POP_OF = {
+  TreeNode: 'TreePop', BeginTabBar: 'EndTabBar', BeginTabItem: 'EndTabItem',
+  BeginTable: 'EndTable', BeginMenu: 'EndMenu', BeginMenuBar: 'EndMenuBar',
+  BeginPopup: 'EndPopup', BeginPopupModal: 'EndPopup', BeginItemTooltip: 'EndTooltip',
+};
+
+function stripTrailingPop(body, fn) {
+  const pop = POP_OF[fn];
+  let out = body;
+  // The pop comes last, so it has to go first: removing the modal's Close
+  // block while EndPopup still trails it would never match, and the block
+  // would be re-parsed as a widget and duplicated on every apply.
+  if (pop) out = out.replace(new RegExp('ImGui::' + pop + '\\s*\\(\\s*\\)\\s*;?\\s*$'), '');
+  if (fn === 'BeginPopupModal') {
+    out = out.replace(/if\s*\(\s*ImGui::Button\s*\(\s*"Close"\s*\)\s*\)\s*\n?\s*ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?\s*$/, '');
+  }
+  return out;
+}
+
+// Undo only the suffixes the generator itself appends for uniqueness: "##<n>"
+// from duplicate-label dedup, and "###popup.."/"###btn.." from popup ids. A
+// user's own "##" stays, since it is legitimate ImGui label syntax.
+function stripGeneratedSuffix(s) {
+  return s.replace(/###(popup|btn)\w*$/, '').replace(/##\d+$/, '');
+}
+
+function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
   const node = makeNode(entry.type);
   node.id = newId();
   if (entry.n !== null && entry.n !== undefined) node.n = entry.n;
   const spec = WIDGETS[entry.type];
-  const props = Object.fromEntries((spec.props || []).map(p => [p[0], p[1]]));
+  const propDefs = Object.fromEntries((spec.props || []).map(p => [p[0], p]));
   const given = splitTopLevel(argsText);
 
-  const applySlot = (slot, raw) => {
-    if (!slot || raw === undefined) return;
-    raw = String(raw).trim();
+  const apply = (slot, rawArg) => {
+    if (!slot || rawArg === undefined) return;
+    const v = String(rawArg).trim();
     if (slot.parts) {
-      const call = raw.match(/^\w+\s*\(/);
-      if (!call) return;
-      const inner = balancedArgs(raw.slice(call[0].length - 1));
+      const c = v.match(/^\w+\s*\(/);
+      if (!c) return;
+      const inner = balancedArgs(v.slice(c[0].length - 1));
       if (inner === null) return;
       const sub = splitTopLevel(inner);
-      slot.parts.forEach((s, j) => applySlot(s, sub[j]));
+      slot.parts.forEach((s, j) => apply(s, sub[j]));
       return;
     }
-    const t = slot.key === 'label' ? 'text' : props[slot.key];
-    if (!t) return;
+    const def = slot.key === 'label' ? ['label', 'text'] : propDefs[slot.key];
+    if (!def) return;
+    const t = def[1];
     if (t === 'text' || t === 'items' || t === 'longtext') {
-      // strip the ## / ### id suffix the generator adds for uniqueness
-      if (raw.startsWith('"')) node[slot.key] = litStr(raw).replace(/#{2,}.*$/, '');
-    } else if (/^[-+0-9.]/.test(raw)) {
-      node[slot.key] = litNum(raw);
+      if (v.startsWith('"')) {
+        node[slot.key] = slot.key === 'label' ? stripGeneratedSuffix(litStr(v)) : litStr(v);
+      }
+    } else if (t === 'enum' && !/^[-+0-9.]/.test(v)) {
+      // e.g. ImGuiDir_Right -> the option whose name matches
+      const name = v.replace(/^\w+_/, '');
+      const hit = (def[3] || []).find(o => Array.isArray(o) && o[0] === name);
+      if (hit) node[slot.key] = hit[1];
+    } else if (/^[-+0-9.]/.test(v)) {
+      node[slot.key] = litNum(v);
     }
   };
 
-  entry.args.forEach((slot, idx) => applySlot(slot, given[idx]));
+  entry.args.forEach((slot, idx) => apply(slot, given[idx]));
+
+  // A property that only exists in the struct initializer, recovered via the
+  // state member the call references.
+  if (entry.fieldProp && fields) {
+    const ref = given.find(a => /state\.\w+/.test(a));
+    const m = ref && ref.match(/state\.(\w+)/);
+    const init = m && fields[m[1]];
+    if (init !== undefined && /^[-+0-9.]/.test(init)) node[entry.fieldProp] = litNum(init);
+  }
+
+  // Radio groups live only in the backing variable name, never in an argument.
+  if (entry.type === 'radiobutton') {
+    const ref = given.find(a => /&state\./.test(a));
+    const m = ref && ref.match(/&state\.(\w+)/);
+    if (m) node.group = m[1];
+  }
   return node;
 }

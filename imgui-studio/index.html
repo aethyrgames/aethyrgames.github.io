@@ -512,8 +512,8 @@
     </div>
   </div>
 
-<script src="widgets.js?v=11984c63a5"></script>
-<script src="cpp.js?v=150d2352ff"></script>
+<script src="widgets.js?v=3118603c31"></script>
+<script src="cpp.js?v=4c03ed49a1"></script>
 <script>
 // ---------- document model ----------
 
@@ -3155,6 +3155,7 @@ function renderProps() {
   }
 
   // ---- colour overrides ----
+  if (!colorSlots(node.type).length) return;
   const hdr = document.createElement('div');
   hdr.className = 'empty';
   hdr.style.color = 'var(--mk-green)';
@@ -3508,6 +3509,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=650a45b4ab"></script>
+<script src="engine.js?v=c40bdd942f"></script>
 </body>
 </html>
