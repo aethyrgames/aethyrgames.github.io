@@ -29,6 +29,7 @@
     /* neutrals, kept separate because they flip on a light theme: a white
        hover wash is invisible on white */
     /* mixed from the foreground so the grid inverts with the theme */
+    --mk-canvas: #101010;
     --mk-grid-minor: color-mix(in srgb, var(--mk-fg) 6%, transparent);
     --mk-grid-major: color-mix(in srgb, var(--mk-fg) 13%, transparent);
 
@@ -55,8 +56,8 @@
      they paint behind the text rather than over it. The workspace and the
      preview canvas stay completely clean. */
   #apphead {
-    height: 42px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
-    padding: 0 14px; border-bottom: 1px solid var(--mk-border);
+    height: 32px; flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+    padding: 0 12px; border-bottom: 1px solid var(--mk-border);
     background:
       repeating-linear-gradient(
         0deg,
@@ -129,8 +130,8 @@
     display: flex; flex-direction: column; min-height: 0; flex: 1 1 0;
     border-bottom: 1px solid var(--mk-border);
   }
-  .panel[data-panel="palette"] { flex-grow: 2.2; }
-  .panel[data-panel="hierarchy"] { flex-grow: 1.4; }
+  /* every panel in a dock gets the same share, which is what the drop preview
+     promises while you are dragging one in */
   .panel.collapsed { flex: 0 0 auto; }
   .panel.collapsed .panel-body { display: none; }
   .panel-head {
@@ -245,6 +246,35 @@
   .set-row .k:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
   .set-row .k.capturing { color: var(--mk-green); border-color: var(--mk-green); }
   .set-row .k.custom { color: var(--mk-green); }
+  /* Listening for a key: the row itself lights up, so it reads at a glance
+     instead of relying on one small label changing. */
+  .set-row.listening { background: color-mix(in srgb, var(--mk-green) 12%, transparent); }
+  .set-row .k.capturing {
+    color: var(--mk-bg); background: var(--mk-green); border-color: var(--mk-green);
+    font-weight: 600; letter-spacing: 0.04em;
+  }
+  .ov-cat.listening { color: var(--mk-green); }
+  .revert {
+    background: transparent; border: none; color: var(--mk-comment); cursor: pointer;
+    font-family: var(--font); font-size: 13px; line-height: 1; padding: 0 4px;
+  }
+  .revert:hover { color: var(--mk-cyan); }
+  /* Selects get the theme rather than the platform: native ones ignore the
+     colour scheme entirely and look pasted on. */
+  #settingsBody select, .paltools select, #codehead select, #propbody select {
+    -webkit-appearance: none; appearance: none;
+    background-color: var(--mk-gutter); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: var(--radius);
+    font-family: var(--font); font-size: 12px; padding: 4px 26px 4px 9px; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 12px top 52%, right 7px top 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+  #settingsBody select:hover, #codehead select:hover, #propbody select:hover { border-color: var(--mk-cyan); }
+  #settingsBody select:focus, #codehead select:focus, #propbody select:focus { outline: none; border-color: var(--mk-cyan); }
+  #settingsBody select option, #propbody select option { background: var(--mk-surface); color: var(--mk-fg); }
   .themerow { cursor: pointer; border-radius: var(--radius); }
   .themerow:hover { background: var(--mk-hover); }
   .themerow.on { color: var(--mk-green); }
@@ -264,7 +294,9 @@
   .dzslot.me {
     color: var(--mk-bg); background: var(--mk-cyan);
     border: 1px solid var(--mk-cyan); font-weight: 700;
+    flex-direction: column; gap: 2px;
   }
+  .dzfrac { font-size: 13px; font-weight: 700; opacity: 0.75; letter-spacing: 0; }
 
   /* panels the user hid are relaunchable from here */
   #apphead .panelbtn {
@@ -299,13 +331,27 @@
     border-radius: var(--radius); padding: 4px 7px; cursor: pointer;
     font-family: var(--font); font-size: 11px; white-space: nowrap;
   }
-  .paltools button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  .paltools button:hover:not(:disabled) { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  /* shown but dead rather than hidden, so the pair doesn't jump around */
+  .paltools button:disabled { opacity: 0.38; cursor: default; }
+  .paltools.tight { margin-top: 0; }
+  .paltools.tight button { flex: 1; text-align: center; }
+  .filterwrap { position: relative; display: flex; flex: 1; min-width: 0; }
+  .clearfilter {
+    position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+    display: none; background: transparent; border: none; color: var(--mk-comment);
+    cursor: pointer; font-family: var(--font); font-size: 10px; padding: 2px 4px; line-height: 1;
+  }
+  .clearfilter:hover { color: var(--mk-pink); }
+  /* only worth offering once there is something to clear */
+  .filterwrap.filled:hover .clearfilter, .filterwrap.filled:focus-within .clearfilter { display: block; }
+  .filterwrap.filled input { padding-right: 22px; }
   /* The ellipsis lives on an inner span, not the button: Chrome collapses a
      <button>'s content box to zero height when overflow:hidden is set on the
      button itself, which silently squashes the whole palette. */
   #palette button {
     background: var(--mk-surface); color: var(--mk-fg); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 6px 4px; cursor: grab; font-size: 12px;
+    border-radius: var(--radius); padding: 6px 12px; cursor: grab; font-size: 12px;
     line-height: 1.4; font-family: var(--font); user-select: none; text-align: center;
     transition: background 0.1s, color 0.1s, border-color 0.1s;
   }
@@ -313,7 +359,8 @@
     display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   #palette button:hover {
-    background: #3a4a55; color: var(--mk-cyan); border-color: var(--mk-cyan);
+    background: color-mix(in srgb, var(--mk-cyan) 16%, var(--mk-surface));
+    color: var(--mk-cyan); border-color: var(--mk-cyan);
   }
   #palette button:active { background: var(--mk-gutter); }
 
@@ -376,11 +423,31 @@
   .toggle.on .track { border-color: var(--mk-green); background: color-mix(in srgb, var(--mk-green) 18%, transparent); }
   .toggle.on .track::after { left: 15px; background: var(--mk-green); }
   .toggle.on { color: var(--mk-green); }
-  .colorrow { display: flex; align-items: center; gap: 6px; }
-  .colorrow input[type=color] {
-    width: 26px; height: 20px; padding: 0; border: 1px solid var(--mk-border);
-    border-radius: var(--radius); background: var(--mk-gutter); cursor: pointer;
+  /* a vector reads as one value, so w/h and min/max share a row */
+  .vecrow { display: flex; gap: 6px; width: 100%; }
+  .veccell { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .vectag { color: var(--mk-comment); font-size: 10px; min-width: 12px; flex-shrink: 0; white-space: nowrap; }
+  .numwrap { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+  .numwrap input { width: 100%; }
+  /* the unit sits inside the field rather than stealing a column */
+  .numwrap .unit {
+    position: absolute; right: 6px; color: var(--mk-comment); font-size: 10px;
+    pointer-events: none;
   }
+  .numwrap:has(.unit) input { padding-right: 26px; }
+
+  .colorrow { display: flex; align-items: center; gap: 6px; }
+  /* the swatch is the control, so the colour fills it edge to edge and the
+     border is the only chrome */
+  .colorrow input[type=color] {
+    width: 28px; height: 20px; padding: 0; border: 1px solid var(--mk-border);
+    border-radius: var(--radius); background: transparent; cursor: pointer;
+    -webkit-appearance: none; appearance: none; overflow: hidden;
+  }
+  .colorrow input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+  .colorrow input[type=color]::-webkit-color-swatch { border: none; border-radius: 1px; }
+  .colorrow input[type=color]::-moz-color-swatch { border: none; border-radius: 1px; }
+  .colorrow input[type=color]:hover { border-color: var(--mk-cyan); }
   .colorrow .hex { color: var(--mk-comment); font-size: 10px; letter-spacing: 0.02em; }
   .colorrow .unset {
     margin-left: auto; background: none; border: 1px solid var(--mk-border);
@@ -404,15 +471,16 @@
     flex: 1; min-height: 0; min-width: 0; display: grid;
     grid-template-columns: 20px minmax(0, 1fr) 20px;
     grid-template-rows: 20px minmax(0, 1fr) 20px;
-    background: var(--mk-gutter);
+    background: var(--mk-canvas);
+    border: 1px solid var(--mk-border);
   }
   #canvasarea.norulers {
     grid-template-columns: 0 minmax(0, 1fr) 0;
     grid-template-rows: 0 minmax(0, 1fr) 0;
   }
   #canvasarea.norulers .ruler, #canvasarea.norulers .rulercorner { display: none; }
-  .rulercorner { background: var(--mk-gutter); }
-  .ruler { display: block; background: var(--mk-gutter); }
+  .rulercorner { background: var(--mk-canvas); }
+  .ruler { display: block; background: var(--mk-canvas); }
   #rulerCorner { border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
   #rulerTop { border-bottom: 1px solid var(--mk-border); cursor: ns-resize; }
   #rulerLeft { border-right: 1px solid var(--mk-border); cursor: ew-resize; }
@@ -425,7 +493,7 @@
      ground, dark lines on a light one. */
   #canvashost {
     position: relative; overflow: hidden; min-width: 0; min-height: 0;
-    background-color: var(--mk-gutter);
+    background-color: var(--mk-canvas);
     background-image:
       linear-gradient(to right, var(--mk-grid-major) 1px, transparent 1px),
       linear-gradient(to bottom, var(--mk-grid-major) 1px, transparent 1px),
@@ -644,6 +712,12 @@
     padding: 5px 8px 3px; color: var(--mk-comment); font-size: 10px;
     text-transform: uppercase; letter-spacing: 0.07em;
   }
+  .headbtn {
+    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 3px 10px; cursor: pointer;
+    font-family: var(--font); font-size: 11px; white-space: nowrap;
+  }
+  .headbtn:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
   #apphead #modeHint { color: var(--mk-comment); font-size: 11px; }
   #apphead #modeHint b { color: var(--mk-green); }
   #apphead #modeHint.livehint { color: var(--mk-pink); }
@@ -690,6 +764,8 @@
     </nav>
     <span class="spacer"></span>
     <span id="modeHint">hold <b>Space</b> to test interaction</span>
+    <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
+    <button class="headbtn" id="resetViewBtn" title="Recentre the canvas (Shift+F)">Reset view</button>
     <a class="sitelink" href="https://aethyr.gg" target="_blank" rel="noopener">aethyr.gg</a>
   </div>
   <div id="menupop"></div>
@@ -704,15 +780,27 @@
     <div class="dock" id="dockLeft">
       <section class="panel" data-panel="palette" data-title="Palette">
         <div class="paltools">
-          <input type="text" id="filter" placeholder="filter widgets...">
-          <button id="palToggleAll" title="Collapse or expand every section">collapse all</button>
+          <span class="filterwrap">
+            <input type="text" id="filter" placeholder="filter widgets...">
+            <button class="clearfilter" data-for="filter" title="Clear the filter">✕</button>
+          </span>
+        </div>
+        <div class="paltools tight">
+          <button id="palCollapseAll" title="Collapse every section">Collapse All</button>
+          <button id="palExpandAll" title="Expand every section">Expand All</button>
         </div>
         <div id="palette"></div>
       </section>
       <section class="panel" data-panel="hierarchy" data-title="Hierarchy">
         <div class="paltools">
-          <input type="text" id="treeFilter" placeholder="filter hierarchy...">
-          <button id="treeExpandAll" title="Expand or collapse every container">expand all</button>
+          <span class="filterwrap">
+            <input type="text" id="treeFilter" placeholder="filter hierarchy...">
+            <button class="clearfilter" data-for="treeFilter" title="Clear the filter">✕</button>
+          </span>
+        </div>
+        <div class="paltools tight">
+          <button id="treeCollapseAll" title="Collapse every container">Collapse All</button>
+          <button id="treeExpandAll" title="Expand every container">Expand All</button>
         </div>
         <div id="tree"></div>
       </section>
@@ -852,9 +940,9 @@
     </div>
   </div>
 
-<script src="widgets.js?v=3118603c31"></script>
+<script src="widgets.js?v=fc11d90b2c"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
-<script src="cpp.js?v=9ff178f43d"></script>
+<script src="cpp.js?v=b1a741dd5b"></script>
 <script>
 // ---------- document model ----------
 
@@ -1372,6 +1460,8 @@ function coerce(t, raw, def, opts) {
   // preserved source, never truncated
   if (t === 'longtext') return typeof raw === 'string' ? raw.slice(0, 20000) : def;
   if (t === 'text' || t === 'items') return typeof raw === 'string' ? raw.slice(0, 200) : def;
+  // a unit is a short label like cm or ms, not free text
+  if (t === 'unit') return typeof raw === 'string' ? raw.slice(0, 12) : def;
   if (t === 'bool') return raw === true;
   const num = Number(raw);
   if (t === 'enum') {
@@ -2363,9 +2453,15 @@ function bind(ctx, show, spec, help, cat, run) {
   KEYMAP.push(entry);
 }
 
+// DOM key names are not what anyone calls these keys.
+const KEY_GLYPHS = {
+  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+  ' ': 'Space', Escape: 'Esc', Delete: 'Del', Backspace: '⌫', Enter: '⏎',
+};
+
 function comboLabel(b) {
   return (b.ctrl ? 'Ctrl+' : '') + (b.alt ? 'Alt+' : '')
-    + (b.shift ? 'Shift+' : '') + (b.key === ' ' ? 'Space' : b.key);
+    + (b.shift ? 'Shift+' : '') + (KEY_GLYPHS[b.key] || b.key);
 }
 
 function sameCombo(a, b) {
@@ -2533,6 +2629,16 @@ bind('global', '?', { key: '?' }, 'Keyboard shortcuts', 'Global', () => toggleHe
 
 window.addEventListener('keydown', e => {
   const t = e.target;
+  // Space is the hold-to-test quasimode, and it was being eaten by whatever
+  // text field was last clicked: filter some widgets, hold Space over the
+  // canvas, and you typed a space instead of poking the preview. If the
+  // pointer is over the canvas the user plainly means the preview, so take
+  // the key and step out of the field.
+  if (e.key === ' ' && cursorInside && !e.ctrlKey && !e.altKey && isTextEntry(t)) {
+    t.blur();
+    handleSpaceDown(e);
+    return;
+  }
   if (isTextEntry(t) || (t && t.tagName === 'SELECT')) {
     if (e.key === 'Escape') {
       // Escape from a field is a full back-out, including a drag that was
@@ -3257,9 +3363,51 @@ function applyUiTheme(key) {
   drawRulers();
 }
 
+const hexToRgbBytes = h => {
+  const n = parseInt(String(h).replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const bytesToHex = c => '#' + c.map(v =>
+  Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+
+function relLum(hex) {
+  return hexToRgbBytes(hex).map(v => v / 255).map(x =>
+    x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4))
+    .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+}
+
+function contrastRatio(a, b) {
+  const l1 = Math.max(relLum(a), relLum(b)), l2 = Math.min(relLum(a), relLum(b));
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+
+// The workspace has to read as a different surface from the panels around it.
+// Several themes' gutters sit within a couple of percent of their panel
+// background, which left the canvas looking like a hole in the UI rather than a
+// thing on it. Push it away from the panel until the separation is obvious,
+// deterministically, so a new theme can't quietly reintroduce the problem.
+const CANVAS_MIN_CONTRAST = 1.20;
+
+function deriveCanvasColor(bg, gutter, isDark) {
+  let best = gutter;
+  if (contrastRatio(bg, best) >= CANVAS_MIN_CONTRAST) return best;
+  const dir = isDark ? -1 : -1;   // both directions recess: darker than the panels
+  for (let step = 1; step <= 60; step++) {
+    const c = hexToRgbBytes(gutter).map(v => v + dir * step * (isDark ? 1.6 : 3.2));
+    best = bytesToHex(c);
+    if (contrastRatio(bg, best) >= CANVAS_MIN_CONTRAST) return best;
+  }
+  // A near-black theme simply cannot get darker than it already is. Rather
+  // than flip the canvas lighter than its panels, which inverts the look the
+  // theme was going for, take the darkest available and let the border below
+  // carry the separation.
+  return best;
+}
+
 function setThemeVars(key) {
   const t = UI_THEMES[key] || UI_THEMES.doki;
   const root = document.documentElement.style;
+  root.setProperty('--mk-canvas', deriveCanvasColor(t.bg, t.gutter, t.dark !== false));
   for (const slot of ['bg', 'surface', 'gutter', 'fg', 'comment', 'border',
     'pink', 'orange', 'yellow', 'green', 'cyan', 'purple']) {
     root.setProperty('--mk-' + slot, t[slot]);
@@ -3507,7 +3655,17 @@ function showDropPreview(side, key) {
   for (const k of sharing) {
     const slot = document.createElement('div');
     slot.className = 'dzslot' + (k === key ? ' me' : '');
-    slot.textContent = panelEls[k] ? panelEls[k].dataset.title : k;
+    const name = document.createElement('span');
+    name.textContent = panelEls[k] ? panelEls[k].dataset.title : k;
+    slot.appendChild(name);
+    // spell out the share the dragged panel is about to get: "an edge" tells
+    // you far less than "a third of this one"
+    if (k === key) {
+      const frac = document.createElement('span');
+      frac.className = 'dzfrac';
+      frac.textContent = '1/' + sharing.length;
+      slot.appendChild(frac);
+    }
     dropzone.appendChild(slot);
   }
 }
@@ -3636,7 +3794,15 @@ window.addEventListener('resize', () => {
   clampDockSizes();
   if (JSON.stringify(layout.size) !== before) applyLayout();
   syncCanvasSize();
+  // a shorter window scrolls the hierarchy, and losing sight of what you had
+  // selected is disorienting
+  revealSelectedRow();
 });
+
+function revealSelectedRow() {
+  const sel = document.querySelector('#tree .row.selected');
+  if (sel && sel.offsetParent) sel.scrollIntoView({ block: 'nearest' });
+}
 
 function drawRulers() {
   if (!showRulers) return;
@@ -3649,7 +3815,7 @@ function drawRulers() {
     // read from the theme rather than baking Monokai into the canvas
     const css = getComputedStyle(document.documentElement);
     const v = n => css.getPropertyValue('--mk-' + n).trim();
-    g.fillStyle = v('gutter');
+    g.fillStyle = v('canvas');
     g.fillRect(0, 0, cv.width, cv.height);
     g.strokeStyle = v('border');
     g.fillStyle = v('comment');
@@ -3859,7 +4025,7 @@ function paletteButton(type, spec) {
   const b = document.createElement('button');
   const lbl = document.createElement('span');
   lbl.className = 'lbl';
-  lbl.textContent = spec.name;
+  lbl.textContent = titleCase(spec.name);
   b.appendChild(lbl);
   b.dataset.type = type;
   const fam = FAMILY_OF[type];
@@ -3928,19 +4094,44 @@ function renderPalette() {
     if (!open) continue;
     for (const [type, spec] of entries) host.appendChild(paletteButton(type, spec));
   }
-  // the button offers whichever action is further from where you are now
-  const anyOpen = CATEGORIES.some(c => catOpen[c]) || catOpen['★ Pinned'] !== false;
-  palToggleAll.textContent = anyOpen ? 'collapse all' : 'expand all';
+  // both buttons stay put; each is dead when it has nothing left to do
+  const sections = CATEGORIES.concat(['★ Pinned']);
+  palCollapseAll.disabled = !sections.some(c => paletteSectionOpen(c));
+  palExpandAll.disabled = sections.every(c => paletteSectionOpen(c));
+  syncFilterClear('filter');
 }
 
-const palToggleAll = document.getElementById('palToggleAll');
-palToggleAll.onclick = () => {
-  const anyOpen = CATEGORIES.some(c => catOpen[c]) || catOpen['★ Pinned'] !== false;
-  for (const c of CATEGORIES) catOpen[c] = !anyOpen;
-  catOpen['★ Pinned'] = !anyOpen;
+function paletteSectionOpen(cat) {
+  return cat === '★ Pinned' ? catOpen[cat] !== false : !!catOpen[cat];
+}
+
+function setAllPaletteSections(open) {
+  for (const c of CATEGORIES) catOpen[c] = open;
+  catOpen['★ Pinned'] = open;
   saveCats();
   renderPalette();
-};
+}
+
+const palCollapseAll = document.getElementById('palCollapseAll');
+const palExpandAll = document.getElementById('palExpandAll');
+palCollapseAll.onclick = () => setAllPaletteSections(false);
+palExpandAll.onclick = () => setAllPaletteSections(true);
+
+// The × only exists while there is something to clear, and only on hover, so
+// it never sits there as decoration.
+function syncFilterClear(id) {
+  const input = document.getElementById(id);
+  if (input) input.closest('.filterwrap').classList.toggle('filled', !!input.value);
+}
+
+for (const btn of document.querySelectorAll('.clearfilter')) {
+  btn.onclick = () => {
+    const input = document.getElementById(btn.dataset.for);
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+  };
+}
 
 // ---------- menu bar ----------
 // Items reuse the same shape as the context menus (group, order, key, run),
@@ -3992,8 +4183,6 @@ function MENUS() {
     help: [
       { group: '1', label: 'Keyboard shortcuts', key: '?', run: () => toggleHelp() },
       { group: '1', label: 'Command palette', key: 'Ctrl+K', run: () => openCmdk('all') },
-      { group: '2', label: 'Controls reference', run: () => window.open(
-        'https://github.com/defessler/ImGuiStudio/blob/main/docs/CONTROLS.md', '_blank', 'noopener') },
       { group: '2', label: 'Dear ImGui manual', run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener') },
     ],
   };
@@ -4379,20 +4568,48 @@ function renderTree() {
   emit(doc, null, 0, 0);
   const sel = host.querySelector('.row.selected');
   if (sel) sel.scrollIntoView({ block: 'nearest' });
-  treeExpandAll.textContent = treeCollapsed.size ? 'expand all' : 'collapse all';
+  // a container with no children has nothing to fold, so it doesn't count
+  let foldable = 0;
+  walk(doc, n => { if ((n.children || []).length) foldable++; });
+  treeCollapseAll.disabled = foldable === 0 || treeCollapsed.size >= foldable;
+  treeExpandAll.disabled = treeCollapsed.size === 0;
+  syncFilterClear('treeFilter');
 }
 
+const treeCollapseAll = document.getElementById('treeCollapseAll');
 const treeExpandAll = document.getElementById('treeExpandAll');
-treeExpandAll.onclick = () => {
-  if (treeCollapsed.size) treeCollapsed.clear();
-  else walk(doc, n => { if ((n.children || []).length) treeCollapsed.add(n.id); });
+treeCollapseAll.onclick = () => {
+  walk(doc, n => { if ((n.children || []).length) treeCollapsed.add(n.id); });
   renderTree();
 };
+treeExpandAll.onclick = () => { treeCollapsed.clear(); renderTree(); };
 treeFilterEl.addEventListener('input', renderTree);
 treeFilterEl.addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderTree(); e.target.blur(); }
   e.stopPropagation();
 });
+
+// "Text colored" -> "Text Colored". Small words stay lowercase the way a title
+// normally would, except when they lead.
+const TITLE_MINOR = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'in',
+  'of', 'on', 'or', 'the', 'to', 'with']);
+
+function titleCase(s) {
+  return String(s).split(/\s+/).map((w, i) => {
+    if (!w) return w;
+    const low = w.toLowerCase();
+    if (i > 0 && TITLE_MINOR.has(low)) return low;
+    // leave things that are already shouting alone: V-Slider, C++, RGB
+    if (w.length > 1 && w === w.toUpperCase()) return w;
+    return w[0].toUpperCase() + w.slice(1);
+  }).join(' ');
+}
+
+// Property keys are camelCase identifiers; the panel shows them as words.
+function labelFor(key) {
+  if (key.length <= 2) return key.toUpperCase();       // w, h, n
+  return titleCase(String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2'));
+}
 
 function renderProps() {
   const host = document.getElementById('propbody');
@@ -4434,44 +4651,101 @@ function renderProps() {
   host.appendChild(ident);
   addHead(node === doc ? 'window' : 'properties');
 
-  for (const [key, type, , opts] of spec.props || []) {
-    let inp;
+  const propDefs = spec.props || [];
+  const byKey = Object.fromEntries(propDefs.map(p => [p[0], p]));
+
+  // One editor for one property. Numeric ones honour the range and unit their
+  // spec declares, so a width can't go negative and a duration says "s".
+  const editorFor = ([key, type, , opts]) => {
     if (type === 'bool') {
-      inp = document.createElement('input');
+      const inp = document.createElement('input');
       inp.type = 'checkbox';
       inp.checked = !!node[key];
       inp.onchange = () => { node[key] = inp.checked; refresh(false); };
-    } else if (type === 'enum') {
-      inp = document.createElement('select');
+      return inp;
+    }
+    if (type === 'enum') {
+      const inp = document.createElement('select');
       for (const o of opts || []) {
         const [text, val] = Array.isArray(o) ? o : [String(o), o];
         const opt = document.createElement('option');
         opt.value = val;
-        opt.textContent = text;
+        opt.textContent = titleCase(text);
         inp.appendChild(opt);
       }
       inp.value = node[key];
       inp.onchange = () => { node[key] = Number(inp.value); refresh(false); };
-    } else if (type === 'int' || type === 'float') {
-      inp = document.createElement('input');
+      return inp;
+    }
+    if (type === 'int' || type === 'float') {
+      const meta = (opts && typeof opts === 'object' && !Array.isArray(opts)) ? opts : {};
+      const wrap = document.createElement('span');
+      wrap.className = 'numwrap';
+      const inp = document.createElement('input');
       inp.type = 'number';
-      inp.step = type === 'int' ? '1' : 'any';
+      inp.step = meta.step !== undefined ? meta.step : (type === 'int' ? '1' : 'any');
+      if (meta.min !== undefined) inp.min = meta.min;
+      if (meta.max !== undefined) inp.max = meta.max;
       inp.value = node[key];
       inp.oninput = () => {
         // int props truncate here too, so the preview and the emitted literal
         // can't disagree about a fractional entry
-        const v = Number(inp.value);
-        node[key] = Number.isFinite(v) ? (type === 'int' ? Math.trunc(v) : v) : 0;
+        let v = Number(inp.value);
+        if (!Number.isFinite(v)) v = 0;
+        if (type === 'int') v = Math.trunc(v);
+        // clamp on the way into the model, not on the way out, so what the
+        // preview draws and what the C++ says are the same number
+        if (meta.min !== undefined) v = Math.max(meta.min, v);
+        if (meta.max !== undefined) v = Math.min(meta.max, v);
+        node[key] = v;
         refresh(false);
       };
-    } else {
-      inp = document.createElement('input');
-      inp.type = 'text';
-      inp.maxLength = 200;
-      inp.value = node[key] ?? '';
-      inp.oninput = () => { node[key] = inp.value; refresh(false); };
+      inp.onblur = () => { if (String(node[key]) !== inp.value) inp.value = node[key]; };
+      wrap.appendChild(inp);
+      if (meta.unit) {
+        const u = document.createElement('span');
+        u.className = 'unit';
+        u.textContent = meta.unit;
+        wrap.appendChild(u);
+      }
+      return wrap;
     }
-    addField(key, inp);
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.maxLength = 200;
+    inp.value = node[key] ?? '';
+    inp.placeholder = (opts && opts.placeholder) || '';
+    inp.oninput = () => { node[key] = inp.value; refresh(false); };
+    return inp;
+  };
+
+  // Properties that describe one thing sit on one row, the way a vector reads.
+  const PAIRS = [['w', 'h'], ['min', 'max']];
+  const paired = new Set();
+  for (const [a, b] of PAIRS) {
+    if (byKey[a] && byKey[b]) { paired.add(a); paired.add(b); }
+  }
+
+  for (const def of propDefs) {
+    const key = def[0];
+    if (paired.has(key)) continue;
+    addField(labelFor(key), editorFor(def));
+  }
+  for (const [a, b] of PAIRS) {
+    if (!byKey[a] || !byKey[b]) continue;
+    const row = document.createElement('div');
+    row.className = 'vecrow';
+    for (const k of [a, b]) {
+      const cell = document.createElement('span');
+      cell.className = 'veccell';
+      const tag = document.createElement('span');
+      tag.className = 'vectag';
+      tag.textContent = labelFor(k);
+      cell.appendChild(tag);
+      cell.appendChild(editorFor(byKey[k]));
+      row.appendChild(cell);
+    }
+    addField(a === 'w' ? 'Size' : 'Range', row);
   }
 
   if (node !== doc) {
@@ -5137,6 +5411,7 @@ const settingsOv = document.getElementById('settingsov');
 const settingsBody = document.getElementById('settingsBody');
 let settingsTab = 'theme';
 let settingsCapture = null;
+let captureWas = null;   // the combo in force before listening started
 
 function openSettings(tab) {
   settingsTab = tab || settingsTab;
@@ -5146,8 +5421,12 @@ function openSettings(tab) {
 
 function closeSettings() {
   if (settingsOv.hidden) return;
+  // closing mid-capture counts as cancelling it, or the next key pressed
+  // anywhere would land on whatever row was armed
+  if (settingsCapture) { if (captureWas) Object.assign(settingsCapture, captureWas); }
   settingsOv.hidden = true;
   settingsCapture = null;
+  captureWas = null;
 }
 
 function setRow(label, controlEl) {
@@ -5239,13 +5518,22 @@ function renderThemeSettings() {
   settingsBody.appendChild(note);
 }
 
+// A revert control, shown only where the value has actually been changed.
+function revertButton(title, run) {
+  const b = document.createElement('button');
+  b.className = 'revert';
+  b.textContent = '⟲';
+  b.title = title;
+  b.onclick = e => { e.stopPropagation(); run(); renderSettings(); };
+  return b;
+}
+
 function renderKeySettings() {
   const hint = document.createElement('div');
-  hint.className = 'ov-cat';
+  hint.className = 'ov-cat' + (settingsCapture ? ' listening' : '');
   hint.textContent = settingsCapture
-    ? 'press a key for: ' + settingsCapture.help + '   (Esc cancels)'
+    ? 'listening for a key — ' + settingsCapture.help + '  ·  Esc cancels'
     : 'click a shortcut to rebind it';
-  hint.style.color = settingsCapture ? 'var(--mk-green)' : 'var(--mk-comment)';
   settingsBody.appendChild(hint);
 
   let lastCat = '';
@@ -5257,27 +5545,61 @@ function renderKeySettings() {
       c.textContent = b.cat;
       settingsBody.appendChild(c);
     }
-    const k = settingsButton(settingsCapture === b ? '…press a key' : comboLabel(b), () => {
-      settingsCapture = b;
-      renderSettings();
+    const capturing = settingsCapture === b;
+    const k = settingsButton(capturing ? 'press a key' : comboLabel(b), () => {
+      startCapture(b);
     });
     if (bindOverrides[b.id]) k.classList.add('custom');
-    if (settingsCapture === b) k.classList.add('capturing');
-    settingsBody.appendChild(setRow(b.help, k));
+    if (capturing) k.classList.add('capturing');
+    const row = setRow(b.help, k);
+    if (capturing) row.classList.add('listening');
+    // only where it differs from the shipped default
+    if (bindOverrides[b.id]) {
+      row.insertBefore(revertButton('Restore ' + comboLabel({ ...b, ...b.def }), () => {
+        delete bindOverrides[b.id];
+        Object.assign(b, { ctrl: false, alt: false, shift: undefined }, b.def);
+        try { localStorage.setItem(BINDS_KEY, JSON.stringify(bindOverrides)); } catch (e) {}
+      }), k);
+    }
+    settingsBody.appendChild(row);
   }
   settingsBody.appendChild(setRow('Restore every default',
     settingsButton('reset all', () => { resetBinds(); renderSettings(); })));
 }
 
+// Remember what the key was before listening started, so cancelling puts it
+// back rather than leaving whatever the row happened to show.
+function startCapture(entry) {
+  settingsCapture = entry;
+  captureWas = { key: entry.key, ctrl: entry.ctrl, alt: entry.alt, shift: entry.shift };
+  renderSettings();
+}
+
+function cancelCapture() {
+  if (!settingsCapture) return;
+  if (captureWas) Object.assign(settingsCapture, captureWas);
+  settingsCapture = null;
+  captureWas = null;
+  renderSettings();
+}
+
 function renderViewSettings() {
-  settingsBody.appendChild(setRow('Background grid',
-    settingsButton(showGrid ? 'on' : 'off', () => { setGrid(!showGrid); renderSettings(); })));
-  settingsBody.appendChild(setRow('Rulers and guides',
-    settingsButton(showRulers ? 'on' : 'off', () => { setRulers(!showRulers); renderSettings(); })));
+  // each row carries a revert only when it is off its default
+  const row = (label, control, changed, restore) => {
+    const r = setRow(label, control);
+    if (changed) r.insertBefore(revertButton('Restore the default', restore), control);
+    settingsBody.appendChild(r);
+  };
+  row('Background grid',
+    settingsButton(showGrid ? 'On' : 'Off', () => { setGrid(!showGrid); renderSettings(); }),
+    !showGrid, () => setGrid(true));
+  row('Rulers and guides',
+    settingsButton(showRulers ? 'On' : 'Off', () => { setRulers(!showRulers); renderSettings(); }),
+    !showRulers, () => setRulers(true));
   settingsBody.appendChild(setRow('Panel layout',
-    settingsButton('reset', () => { resetPanelLayout(); renderSettings(); })));
+    settingsButton('Reset', () => { resetPanelLayout(); renderSettings(); })));
   settingsBody.appendChild(setRow('View position',
-    settingsButton('recentre', () => { resetPan(); })));
+    settingsButton('Recentre', () => { resetPan(); })));
   const sel = document.createElement('select');
   sel.className = 'k';
   for (const [key, t] of Object.entries(THEMES)) {
@@ -5308,7 +5630,12 @@ document.getElementById('settingsClose').onclick = closeSettings;
 for (const b of settingsOv.querySelectorAll('.settings-tabs button')) {
   b.onclick = () => { settingsTab = b.dataset.tab; renderSettings(); };
 }
-settingsOv.addEventListener('mousedown', e => { if (e.target === settingsOv) closeSettings(); });
+settingsOv.addEventListener('mousedown', e => {
+  if (e.target === settingsOv) { closeSettings(); return; }
+  // clicking off a row while listening abandons the capture rather than
+  // leaving it armed for the next keystroke
+  if (settingsCapture && !e.target.closest('.set-row.listening')) cancelCapture();
+});
 
 // While a shortcut row is armed the next key becomes the binding. This listener
 // is capture-phase and ahead of the dispatcher so the key can't also fire.
@@ -5317,13 +5644,14 @@ window.addEventListener('keydown', e => {
   if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
   e.preventDefault();
   e.stopPropagation();
-  if (e.key === 'Escape') { settingsCapture = null; renderSettings(); return; }
+  if (e.key === 'Escape') { cancelCapture(); return; }
   const cand = {
     key: e.key.length === 1 ? e.key.toUpperCase() : e.key,
     ctrl: e.ctrlKey || e.metaKey, alt: e.altKey, shift: e.shiftKey,
   };
   const clash = rebind(settingsCapture, cand);
   settingsCapture = null;
+  captureWas = null;
   renderSettings();
   if (clash) {
     const hint = settingsBody.firstChild;
@@ -5368,6 +5696,8 @@ document.getElementById('resetBtn').onclick = () => {
     + `${n > 1 ? 's' : ''} will be discarded. Ctrl+Z undoes it.`, resetDocument);
 };
 
+document.getElementById('shareTopBtn').onclick = () => copyShareLink();
+document.getElementById('resetViewBtn').onclick = () => resetPan();
 document.getElementById('exportBtn').onclick = () => exportProject();
 document.getElementById('shareBtn').onclick = () => copyShareLink();
 document.getElementById('settingsBtn').onclick = () => openSettings('keys');
@@ -5460,6 +5790,10 @@ window.__test = {
     const m = /[#&]d=([A-Za-z0-9_-]+)/.exec(url);
     return m ? (await decodeShare(m[1])) : null;
   },
+  // reads the live value out of the engine, so live-mode interaction can be
+  // asserted rather than eyeballed
+  widgetBool: id => (engineReady
+    ? Module.ccall('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
   gridOn: () => showGrid,
   rulersOn: () => showRulers,
   menu: name => renderMenu(name),
@@ -5472,6 +5806,7 @@ window.__test = {
   openSettings: tab => openSettings(tab),
   treeRows: () => document.querySelectorAll('#tree .row').length,
   setTreeFilter: v => { treeFilterEl.value = v; renderTree(); },
+  setFilter: v => { const f = document.getElementById('filter'); f.value = v; renderPalette(); },
   pan: () => ({ ...pan }),
   focusSel: () => focusSelection(),
   hoverText: () => hoverInfoEl.textContent,
@@ -5600,6 +5935,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=1210187bd0"></script>
+<script src="engine.js?v=4b9cfc64c8"></script>
 </body>
 </html>

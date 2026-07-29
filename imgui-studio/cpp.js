@@ -123,7 +123,7 @@ function callOf(line) {
 
 // A value guaranteed to render differently from the current one.
 function perturb(t, cur, opts) {
-  if (t === 'text' || t === 'items' || t === 'longtext') return '@@probe@@';
+  if (t === 'text' || t === 'items' || t === 'longtext' || t === 'unit') return '@@probe@@';
   if (t === 'enum') {
     const vals = (opts || []).map(o => Number(Array.isArray(o) ? o[1] : o));
     return vals.find(v => v !== Number(cur)) ?? Number(cur) + 1;
@@ -690,6 +690,14 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
     const def = slot.key === 'label' ? ['label', 'text'] : propDefs[slot.key];
     if (!def) return;
     const t = def[1];
+    if (t === 'unit') {
+      // the argument is a printf format the unit was appended to, so the unit
+      // is whatever follows the conversion spec
+      if (!v.startsWith('"')) return;
+      const m = /^%[-+ #0-9.]*[a-zA-Z]\s*(.*)$/.exec(litStr(v));
+      node[slot.key] = m ? m[1].trim() : '';
+      return;
+    }
     if (t === 'text' || t === 'items' || t === 'longtext') {
       if (v.startsWith('"')) {
         node[slot.key] = slot.key === 'label' ? stripGeneratedSuffix(litStr(v)) : litStr(v);

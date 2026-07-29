@@ -36,6 +36,17 @@ const sfx = n => (n > 1 ? String(n) : '');
 const ref = (v, n) => (n > 1 ? `state.${v}` : `&state.${v}`);
 const decl = (t, v, n, init) =>
   n > 1 ? `${t} ${v}[${n}] = { ${Array(n).fill(init).join(', ')} };` : `${t} ${v} = ${init};`;
+// Metadata for numeric props: the inspector clamps to the range and prints the
+// unit inside the field. 0 width means "size to content" in ImGui, so the floor
+// is 0 rather than 1.
+const PX = { min: 0, unit: 'px' };
+// A user-facing unit for value widgets. ImGui takes it as the display format,
+// so "cm" becomes "%.3f cm" and shows up on the slider itself. Always emitted,
+// even when empty, so the parser's probe has a stable argument to attribute.
+const UNIT = ['unit', 'unit', '', { placeholder: 'cm, ms, %…' }];
+const fmt = (n, base) => q(n.unit ? base + ' ' + n.unit : base);
+const SEC = { min: 0, unit: 's' };
+
 const vecN = [['n', 'enum', 1, [1, 2, 3, 4]]];
 const DIRS = [['Left', 0], ['Right', 1], ['Up', 2], ['Down', 3]];
 
@@ -44,7 +55,7 @@ const WIDGETS = {
   window: {
     name: 'Window', cat: 'Window', hidden: true, container: true,
     props: [
-      ['label', 'text', 'My Panel'], ['w', 'float', 380], ['h', 'float', 460],
+      ['label', 'text', 'My Panel'], ['w', 'float', 380, PX], ['h', 'float', 460, PX],
       ['noTitleBar', 'bool', false], ['noResize', 'bool', false], ['noMove', 'bool', false],
       ['noScrollbar', 'bool', false], ['noCollapse', 'bool', false], ['autoResize', 'bool', false],
     ],
@@ -85,7 +96,7 @@ const WIDGETS = {
   // --------------------------------------------------------------- Buttons
   button: {
     name: 'Button', cat: 'Buttons',
-    props: [['label', 'text', 'Click me'], ['w', 'float', 0], ['h', 'float', 0]],
+    props: [['label', 'text', 'Click me'], ['w', 'float', 0, PX], ['h', 'float', 0, PX]],
     code: (n, v, id) => [
       `if (ImGui::Button(${id}${n.w || n.h ? `, ImVec2(${f(n.w)}, ${f(n.h)})` : ''}))`,
       `{`, `    // TODO: ${v}`, `}`,
@@ -118,7 +129,7 @@ const WIDGETS = {
   progressbar: {
     // An empty label keeps ImGui's default "40%" overlay; setting one replaces it.
     name: 'Progress bar', cat: 'Buttons',
-    props: [['label', 'text', ''], ['fraction', 'float', 0.4], ['w', 'float', 0]],
+    props: [['label', 'text', ''], ['fraction', 'float', 0.4], ['w', 'float', 0, PX]],
     field: (n, v) => `float ${v} = ${f(n.fraction)};`,
     code: (n, v) => [
       `ImGui::ProgressBar(state.${v}, ImVec2(${n.w > 0 ? f(n.w) : '-1.0f'}, 0.0f)` +
@@ -134,7 +145,7 @@ const WIDGETS = {
   },
   inputtextmultiline: {
     name: 'Input multiline', cat: 'Input',
-    props: [['label', 'text', 'Notes'], ['w', 'float', 0], ['h', 'float', 80]],
+    props: [['label', 'text', 'Notes'], ['w', 'float', 0, PX], ['h', 'float', 80, PX]],
     field: (n, v) => `char ${v}[1024] = "";`,
     code: (n, v, id) => [
       `ImGui::InputTextMultiline(${id}, state.${v}, IM_ARRAYSIZE(state.${v}), ImVec2(${f(n.w)}, ${f(n.h)}));`,
@@ -165,15 +176,15 @@ const WIDGETS = {
   // --------------------------------------------------------------- Sliders
   sliderfloat: {
     name: 'Slider float', cat: 'Sliders',
-    props: [['label', 'text', 'Value'], ...vecN, ['min', 'float', 0], ['max', 'float', 1]],
+    props: [['label', 'text', 'Value'], ...vecN, ['min', 'float', 0], ['max', 'float', 1], UNIT],
     field: (n, v) => decl('float', v, comps(n.n), f(n.min)),
-    code: (n, v, id) => [`ImGui::SliderFloat${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.min)}, ${f(n.max)});`],
+    code: (n, v, id) => [`ImGui::SliderFloat${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.min)}, ${f(n.max)}, ${fmt(n, '%.3f')});`],
   },
   sliderint: {
     name: 'Slider int', cat: 'Sliders',
-    props: [['label', 'text', 'Count'], ...vecN, ['min', 'int', 0], ['max', 'int', 100]],
+    props: [['label', 'text', 'Count'], ...vecN, ['min', 'int', 0], ['max', 'int', 100], UNIT],
     field: (n, v) => decl('int', v, comps(n.n), iv(n.min)),
-    code: (n, v, id) => [`ImGui::SliderInt${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${iv(n.min)}, ${iv(n.max)});`],
+    code: (n, v, id) => [`ImGui::SliderInt${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${iv(n.min)}, ${iv(n.max)}, ${fmt(n, '%d')});`],
   },
   sliderangle: {
     name: 'Slider angle', cat: 'Sliders',
@@ -183,13 +194,13 @@ const WIDGETS = {
   },
   vsliderfloat: {
     name: 'V-slider float', cat: 'Sliders',
-    props: [['label', 'text', 'Vol'], ['w', 'float', 24], ['h', 'float', 120], ['min', 'float', 0], ['max', 'float', 1]],
+    props: [['label', 'text', 'Vol'], ['w', 'float', 24, PX], ['h', 'float', 120, PX], ['min', 'float', 0], ['max', 'float', 1]],
     field: (n, v) => `float ${v} = ${f(n.min)};`,
     code: (n, v, id) => [`ImGui::VSliderFloat(${id}, ImVec2(${f(n.w)}, ${f(n.h)}), &state.${v}, ${f(n.min)}, ${f(n.max)});`],
   },
   vsliderint: {
     name: 'V-slider int', cat: 'Sliders',
-    props: [['label', 'text', 'Level'], ['w', 'float', 24], ['h', 'float', 120], ['min', 'int', 0], ['max', 'int', 100]],
+    props: [['label', 'text', 'Level'], ['w', 'float', 24, PX], ['h', 'float', 120, PX], ['min', 'int', 0], ['max', 'int', 100]],
     field: (n, v) => `int ${v} = ${iv(n.min)};`,
     code: (n, v, id) => [`ImGui::VSliderInt(${id}, ImVec2(${f(n.w)}, ${f(n.h)}), &state.${v}, ${iv(n.min)}, ${iv(n.max)});`],
   },
@@ -197,15 +208,15 @@ const WIDGETS = {
   // ----------------------------------------------------------------- Drags
   dragfloat: {
     name: 'Drag float', cat: 'Drags',
-    props: [['label', 'text', 'Value'], ...vecN, ['speed', 'float', 0.01], ['min', 'float', 0], ['max', 'float', 1]],
+    props: [['label', 'text', 'Value'], ...vecN, ['speed', 'float', 0.01], ['min', 'float', 0], ['max', 'float', 1], UNIT],
     field: (n, v) => decl('float', v, comps(n.n), f(n.min)),
-    code: (n, v, id) => [`ImGui::DragFloat${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.speed)}, ${f(n.min)}, ${f(n.max)});`],
+    code: (n, v, id) => [`ImGui::DragFloat${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.speed)}, ${f(n.min)}, ${f(n.max)}, ${fmt(n, '%.3f')});`],
   },
   dragint: {
     name: 'Drag int', cat: 'Drags',
-    props: [['label', 'text', 'Count'], ...vecN, ['speed', 'float', 1], ['min', 'int', 0], ['max', 'int', 100]],
+    props: [['label', 'text', 'Count'], ...vecN, ['speed', 'float', 1], ['min', 'int', 0], ['max', 'int', 100], UNIT],
     field: (n, v) => decl('int', v, comps(n.n), iv(n.min)),
-    code: (n, v, id) => [`ImGui::DragInt${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.speed)}, ${iv(n.min)}, ${iv(n.max)});`],
+    code: (n, v, id) => [`ImGui::DragInt${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.speed)}, ${iv(n.min)}, ${iv(n.max)}, ${fmt(n, '%d')});`],
   },
   dragfloatrange2: {
     name: 'Drag float range', cat: 'Drags',
@@ -235,7 +246,7 @@ const WIDGETS = {
   },
   colorbutton: {
     name: 'Color button', cat: 'Color',
-    props: [['label', 'text', 'swatch'], ['w', 'float', 0], ['h', 'float', 0]],
+    props: [['label', 'text', 'swatch'], ['w', 'float', 0, PX], ['h', 'float', 0, PX]],
     field: (n, v) => `float ${v}[4] = { 1.0f, 1.0f, 1.0f, 1.0f };`,
     code: (n, v, id) => [
       `ImGui::ColorButton(${id}, ImVec4(state.${v}[0], state.${v}[1], state.${v}[2], state.${v}[3]), 0, ImVec2(${f(n.w)}, ${f(n.h)}));`,
@@ -270,7 +281,7 @@ const WIDGETS = {
   // ----------------------------------------------------------------- Plots
   plotlines: {
     name: 'Plot lines', cat: 'Plots',
-    props: [['label', 'text', 'Signal'], ['w', 'float', 0], ['h', 'float', 60]],
+    props: [['label', 'text', 'Signal'], ['w', 'float', 0, PX], ['h', 'float', 60, PX]],
     field: (n, v) => `float ${v}[64] = {};   // fill with your samples`,
     code: (n, v, id) => [
       `ImGui::PlotLines(${id}, state.${v}, IM_ARRAYSIZE(state.${v}), 0, nullptr, -1.0f, 1.0f, ImVec2(${f(n.w)}, ${f(n.h)}));`,
@@ -278,7 +289,7 @@ const WIDGETS = {
   },
   plothistogram: {
     name: 'Plot histogram', cat: 'Plots',
-    props: [['label', 'text', 'Buckets'], ['w', 'float', 0], ['h', 'float', 60]],
+    props: [['label', 'text', 'Buckets'], ['w', 'float', 0, PX], ['h', 'float', 60, PX]],
     field: (n, v) => `float ${v}[64] = {};   // fill with your samples`,
     code: (n, v, id) => [
       `ImGui::PlotHistogram(${id}, state.${v}, IM_ARRAYSIZE(state.${v}), 0, nullptr, -1.0f, 1.0f, ImVec2(${f(n.w)}, ${f(n.h)}));`,
@@ -290,15 +301,15 @@ const WIDGETS = {
   spacing: { name: 'Spacing', cat: 'Layout', props: [], code: () => ['ImGui::Spacing();'] },
   newline: { name: 'New line', cat: 'Layout', props: [], code: () => ['ImGui::NewLine();'] },
   dummy: {
-    name: 'Dummy', cat: 'Layout', props: [['w', 'float', 40], ['h', 'float', 20]],
+    name: 'Dummy', cat: 'Layout', props: [['w', 'float', 40, PX], ['h', 'float', 20, PX]],
     code: n => [`ImGui::Dummy(ImVec2(${f(n.w)}, ${f(n.h)}));`],
   },
   indent: {
-    name: 'Indent', cat: 'Layout', props: [['w', 'float', 0]],
+    name: 'Indent', cat: 'Layout', props: [['w', 'float', 0, PX]],
     code: n => [`ImGui::Indent(${f(n.w)});`],
   },
   unindent: {
-    name: 'Unindent', cat: 'Layout', props: [['w', 'float', 0]],
+    name: 'Unindent', cat: 'Layout', props: [['w', 'float', 0, PX]],
     code: n => [`ImGui::Unindent(${f(n.w)});`],
   },
   aligntext: {
@@ -313,7 +324,7 @@ const WIDGETS = {
   },
   child: {
     name: 'Child region', cat: 'Containers', container: true,
-    props: [['label', 'text', 'child'], ['w', 'float', 0], ['h', 'float', 120]],
+    props: [['label', 'text', 'child'], ['w', 'float', 0, PX], ['h', 'float', 120, PX]],
     code: (n, v, id) => ({
       // BeginChild must always be paired with EndChild, whatever it returns
       open: [`ImGui::BeginChild(${id}, ImVec2(${f(n.w)}, ${f(n.h)}), ImGuiChildFlags_Borders);`],
