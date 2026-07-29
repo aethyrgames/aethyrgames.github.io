@@ -78,30 +78,95 @@
   h3::before { content: '/* '; color: var(--mk-comment); text-transform: none; }
   h3::after  { content: ' */'; color: var(--mk-comment); }
 
-  #left  { width: 280px; min-width: 280px; border-right: 1px solid var(--mk-border); display: flex; flex-direction: column; }
-  #center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  #right { width: 470px; min-width: 330px; border-left: 1px solid var(--mk-border); display: flex; flex-direction: column; }
+  /* ---- dockable panels ---- */
+  .dock { display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex-shrink: 0; }
+  #dockLeft { width: 280px; border-right: 1px solid var(--mk-border); }
+  #dockRight { width: 470px; border-left: 1px solid var(--mk-border); }
+  .dock:empty { display: none; }
+  .dock:empty + .dockresize, .dockresize:has(+ .dock:empty) { display: none; }
+  .dockresize {
+    width: 5px; flex-shrink: 0; cursor: col-resize; background: transparent;
+  }
+  .dockresize:hover, .dockresize.dragging { background: var(--mk-cyan); opacity: 0.5; }
 
-  #palettewrap { flex: 1.2; min-height: 0; overflow-y: auto; }
+  /* share the dock's height by weight rather than by content size, or the
+     palette's long list starves the panels under it */
+  .panel {
+    display: flex; flex-direction: column; min-height: 0; flex: 1 1 0;
+    border-bottom: 1px solid var(--mk-border);
+  }
+  .panel[data-panel="palette"] { flex-grow: 2.2; }
+  .panel[data-panel="hierarchy"] { flex-grow: 1.4; }
+  .panel.collapsed { flex: 0 0 auto; }
+  .panel.collapsed .panel-body { display: none; }
+  .panel-head {
+    display: flex; align-items: center; gap: 6px; padding: 7px 8px 6px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--mk-green);
+    border-bottom: 1px solid var(--mk-border); cursor: grab; user-select: none;
+    flex-shrink: 0; background: var(--mk-gutter);
+  }
+  .panel-head:active { cursor: grabbing; }
+  .panel-head .tw { color: var(--mk-comment); font-size: 9px; width: 8px; }
+  .panel-head .ttl { flex: 1; }
+  .panel-head .ttl::before { content: '/* '; color: var(--mk-comment); text-transform: none; }
+  .panel-head .ttl::after { content: ' */'; color: var(--mk-comment); }
+  .panel-head button {
+    background: none; border: none; color: var(--mk-comment); cursor: pointer;
+    font-family: var(--font); font-size: 12px; padding: 0 3px; line-height: 1;
+  }
+  .panel-head button:hover { color: var(--mk-fg); }
+  .panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .panel.dragging { opacity: 0.4; }
+
+  #dropzone {
+    position: fixed; display: none; pointer-events: none; z-index: 30;
+    background: rgba(102, 217, 239, 0.16); border: 2px solid var(--mk-cyan);
+  }
+
+  /* panels the user hid are relaunchable from here */
+  #apphead .panelbtn {
+    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); font-family: var(--font); font-size: 10px;
+    padding: 2px 7px; cursor: pointer;
+  }
+  #apphead .panelbtn:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  #apphead .panelbtn.on { color: var(--mk-green); border-color: var(--mk-green); }
+
+  #center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  #palette {
+    padding: 0 8px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+    overflow-y: auto; flex: 1; min-height: 0; align-content: start;
+  }
+  #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
+  #propbody {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px;
+    display: grid; grid-template-columns: 78px 1fr; gap: 5px; align-content: start;
+    align-items: center;
+  }
   #filter {
     width: calc(100% - 16px); margin: 6px 8px; background: var(--mk-gutter); color: var(--mk-fg);
     border: 1px solid var(--mk-border); border-radius: var(--radius);
     padding: 4px 6px; font-family: var(--font); font-size: 11px;
   }
   #filter:focus { outline: none; border-color: var(--mk-cyan); }
-  .cat {
-    color: var(--mk-comment); font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.07em; padding: 7px 8px 3px;
-  }
-  .cat::before { content: '// '; }
-  #palette { padding: 0 8px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  /* The ellipsis lives on an inner span, not the button: Chrome collapses a
+     <button>'s content box to zero height when overflow:hidden is set on the
+     button itself, which silently squashes the whole palette. */
   #palette button {
-    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 5px 3px; cursor: grab; font-size: 10.5px;
-    font-family: var(--font); user-select: none; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; transition: color 0.1s, border-color 0.1s;
+    background: var(--mk-surface); color: var(--mk-fg); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 6px 4px; cursor: grab; font-size: 11px;
+    line-height: 1.4; font-family: var(--font); user-select: none; text-align: center;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
   }
-  #palette button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  #palette button .lbl {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #palette button:hover {
+    background: #3a4a55; color: var(--mk-cyan); border-color: var(--mk-cyan);
+  }
+  #palette button:active { background: var(--mk-gutter); }
 
   #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
   .row {
@@ -121,9 +186,6 @@
   }
   .row button:hover { color: var(--mk-fg); }
 
-  #props { border-top: 1px solid var(--mk-border); max-height: 40%; display: flex; flex-direction: column; }
-  #propbody { padding: 8px 10px; display: grid; grid-template-columns: 78px 1fr; gap: 5px;
-    align-items: center; overflow-y: auto; }
   #propbody label { color: var(--mk-comment); font-size: 11px; }
   #propbody input[type=text], #propbody input[type=number], #propbody select {
     background: var(--mk-gutter); color: var(--mk-fg); border: 1px solid var(--mk-border);
@@ -141,6 +203,10 @@
   }
   #toolbar strong { color: var(--mk-green); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
   #toolbar label { color: var(--mk-comment); font-size: 11px; }
+  #modeHint { color: var(--mk-comment); font-size: 11px; }
+  #modeHint b { color: var(--mk-fg); font-weight: 600; }
+  #modeHint.livehint { color: var(--mk-green); }
+  #modeHint.livehint b { color: var(--mk-green); }
   #toolbar .spacer { flex: 1; }
   #toolbar button {
     background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
@@ -150,16 +216,111 @@
   #toolbar button::before { content: '$ '; color: var(--mk-comment); }
   #toolbar button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
 
-  #canvashost { flex: 1; overflow: auto; display: flex; }
-  /* margin auto centers when there's room and aligns start when overflowing,
-     unlike justify-content center which clips the left edge */
-  #canvaswrap { position: relative; margin: auto; }
-  canvas { background: var(--mk-gutter); outline: none; display: block; }
+  /* Rulers frame the canvas; the canvas itself fills whatever is left, and the
+     wasm surface is resized to match rather than being a fixed box. */
+  #canvasarea {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: 20px 1fr; grid-template-rows: 20px 1fr;
+    background: var(--mk-gutter);
+  }
+  #canvasarea.norulers { grid-template-columns: 0 1fr; grid-template-rows: 0 1fr; }
+  #canvasarea.norulers #rulerTop, #canvasarea.norulers #rulerLeft,
+  #canvasarea.norulers #rulerCorner { display: none; }
+  #rulerCorner { background: var(--mk-gutter); border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
+  #rulerTop { border-bottom: 1px solid var(--mk-border); cursor: ns-resize; display: block; }
+  #rulerLeft { border-right: 1px solid var(--mk-border); cursor: ew-resize; display: block; }
+  #canvashost { position: relative; overflow: hidden; min-width: 0; min-height: 0; }
+  #canvas { background: var(--mk-gutter); outline: none; display: block; }
+
+  #guides { position: absolute; inset: 0; pointer-events: none; }
+  .guide { position: absolute; background: var(--mk-cyan); pointer-events: auto; }
+  .guide.gx { top: 0; bottom: 0; width: 1px; cursor: ew-resize; }
+  .guide.gy { left: 0; right: 0; height: 1px; cursor: ns-resize; }
+  .guide::after {
+    content: ''; position: absolute; inset: -3px;
+  }
+  #marquee {
+    position: absolute; display: none; pointer-events: none;
+    border: 1px solid var(--mk-cyan); background: rgba(102, 217, 239, 0.10);
+  }
+
+  /* ---- hotbar ---- */
+  #hotbar {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px;
+    border-bottom: 1px solid var(--mk-border); flex-shrink: 0;
+  }
+  #hotbar:empty { display: none; }
+  #hotbar .slot {
+    position: relative; display: flex; align-items: center; gap: 4px;
+    background: var(--mk-surface); border: 1px solid var(--mk-purple);
+    border-radius: var(--radius); padding: 4px 7px 4px 5px; cursor: grab;
+    font-size: 10.5px; color: var(--mk-fg); user-select: none; max-width: 100%;
+  }
+  #hotbar .slot:hover { border-color: var(--mk-cyan); color: var(--mk-cyan); }
+  #hotbar .slot.armedbtn { border-color: var(--mk-green); color: var(--mk-green); }
+  #hotbar .slot .n {
+    color: var(--mk-purple); font-weight: 700; font-size: 10px; min-width: 7px;
+  }
+  #hotbar .slot .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---- collapsible palette sections ---- */
+  .cat {
+    color: var(--mk-comment); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.07em; padding: 7px 4px 3px; cursor: pointer;
+    grid-column: 1 / 3; display: flex; align-items: center; gap: 5px;
+    user-select: none;
+  }
+  .cat:hover { color: var(--mk-fg); }
+  .cat .tw { font-size: 9px; }
+  .cat::before { content: none; }
+
+  /* ---- context menu ---- */
+  #ctxmenu {
+    position: fixed; display: none; z-index: 40; min-width: 190px; padding: 4px;
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); box-shadow: var(--shadow); font-size: 11.5px;
+  }
+  #ctxmenu .mi {
+    display: flex; align-items: center; gap: 10px; padding: 5px 8px;
+    border-radius: var(--radius); cursor: pointer; color: var(--mk-fg);
+  }
+  #ctxmenu .mi:hover { background: rgba(255,255,255,0.07); }
+  #ctxmenu .mi.danger { color: var(--mk-pink); }
+  #ctxmenu .mi .k { margin-left: auto; color: var(--mk-comment); font-size: 10px; }
+  #ctxmenu .sep { height: 1px; background: var(--mk-border); margin: 4px 2px; }
+  #ctxmenu .hdr {
+    padding: 4px 8px 5px; color: var(--mk-comment); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.07em;
+  }
 
   #selbox {
     position: absolute; display: none; pointer-events: none;
     border: 1px solid var(--mk-cyan);
     box-shadow: 0 0 0 1px rgba(102, 217, 239, 0.3), 0 0 12px rgba(102, 217, 239, 0.15);
+  }
+  /* secondary members of a multi-selection: same hue, quieter */
+  #selboxes { position: absolute; inset: 0; pointer-events: none; }
+  #selboxes .sb {
+    position: absolute; border: 1px dashed var(--mk-cyan); opacity: 0.75;
+  }
+  /* Right / bottom / corner only: the flow cursor pins the left and top edges,
+     so a left or top handle would be a control that resists the drag. */
+  .rh {
+    position: absolute; width: 8px; height: 8px; background: var(--mk-cyan);
+    border: 1px solid var(--mk-bg); pointer-events: auto; display: none;
+  }
+  #selbox.resizable .rh { display: block; }
+  #selbox.resizable .rh-r { right: -5px; top: 50%; margin-top: -4px; cursor: ew-resize; }
+  #selbox.resizable .rh-b { bottom: -5px; left: 50%; margin-left: -4px; cursor: ns-resize; }
+  #selbox.resizable .rh-c { right: -5px; bottom: -5px; cursor: nwse-resize; }
+  #selbox.noh .rh, #selbox.now .rh-r, #selbox.now .rh-c { display: none; }
+  #selbox.noh .rh-r { display: block; }
+
+  #inlineEdit {
+    position: absolute; display: none; z-index: 12; padding: 1px 3px;
+    background: var(--mk-gutter); color: var(--mk-fg);
+    border: 1px solid var(--mk-cyan); border-radius: 2px;
+    font-family: var(--font); font-size: 12px; outline: none;
   }
   #dropline {
     position: absolute; display: none; pointer-events: none;
@@ -176,8 +337,7 @@
     padding: 3px 8px; font-size: 11px; color: var(--mk-fg); box-shadow: var(--shadow);
   }
 
-  #codehead { display: flex; align-items: center; border-bottom: 1px solid var(--mk-border); }
-  #codehead h3 { flex: 1; border-bottom: none; }
+  #codehead { display: flex; align-items: center; border-bottom: 1px solid var(--mk-border); flex-shrink: 0; }
   #codehead select {
     margin: 4px 0 4px 8px; background: var(--mk-gutter); color: var(--mk-fg);
     border: 1px solid var(--mk-border); border-radius: var(--radius);
@@ -254,51 +414,71 @@
   </div>
 
   <div id="workspace">
-  <div id="left">
-    <h3>Palette</h3>
-    <div id="palettewrap">
-      <input type="text" id="filter" placeholder="filter widgets...">
-      <div id="palette"></div>
+    <!-- Panels start in the DOM (not a template) so element lookups elsewhere
+         in the script work regardless of init order; buildPanels() wraps each
+         one with a header in place and applyLayout() moves them per saved state. -->
+    <div class="dock" id="dockLeft">
+      <section class="panel" data-panel="palette" data-title="Palette">
+        <input type="text" id="filter" placeholder="filter widgets...">
+        <div id="hotbar"></div>
+        <div id="palette"></div>
+      </section>
+      <section class="panel" data-panel="hierarchy" data-title="Hierarchy">
+        <div id="tree"></div>
+      </section>
+      <section class="panel" data-panel="properties" data-title="Properties">
+        <div id="propbody"></div>
+      </section>
     </div>
-    <h3>Hierarchy</h3>
-    <div id="tree"></div>
-    <div id="props">
-      <h3>Properties</h3>
-      <div id="propbody"></div>
-    </div>
-  </div>
+    <div class="dockresize" id="resizeLeft"></div>
 
-  <div id="center">
-    <div id="toolbar">
-      <strong>Preview</strong>
-      <label title="Widgets respond to input"><input type="checkbox" id="liveToggle"> Live mode</label>
-      <label title="Shown in live mode only"><input type="checkbox" id="demoToggle" checked> ImGui demo</label>
-      <span class="spacer"></span>
-      <button id="resetBtn" title="Restore the sample layout">Reset</button>
-      <button id="exportBtn">Export JSON</button>
-      <button id="importBtn">Import JSON</button>
-      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
-    </div>
-    <div id="canvashost">
-      <div id="canvaswrap">
-        <canvas id="canvas" tabindex="-1"></canvas>
-        <div id="selbox"></div>
-        <div id="dropbox"></div>
-        <div id="dropline"></div>
+    <div id="center">
+      <div id="toolbar">
+        <span id="modeHint">hold <b>Space</b> to test interaction</span>
+        <span class="spacer"></span>
+        <button id="gridBtn" title="Toggle background grid">Grid</button>
+        <button id="rulerBtn" title="Toggle rulers and guides">Rulers</button>
+        <button id="resetBtn" title="Restore the sample layout">Reset</button>
+        <button id="exportBtn">Export JSON</button>
+        <button id="importBtn">Import JSON</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none">
       </div>
+      <div id="canvasarea">
+        <div id="rulerCorner"></div>
+        <canvas id="rulerTop"></canvas>
+        <canvas id="rulerLeft"></canvas>
+        <div id="canvashost">
+          <canvas id="canvas" tabindex="0"></canvas>
+          <div id="selboxes"></div>
+          <div id="selbox">
+            <i class="rh rh-r" data-axis="w"></i>
+            <i class="rh rh-b" data-axis="h"></i>
+            <i class="rh rh-c" data-axis="wh"></i>
+          </div>
+          <div id="dropbox"></div>
+          <div id="dropline"></div>
+          <div id="marquee"></div>
+          <div id="guides"></div>
+          <input id="inlineEdit" type="text" spellcheck="false">
+        </div>
+      </div>
+      <div id="status">engine: loading...</div>
     </div>
-    <div id="status">engine: loading...</div>
+
+    <div class="dockresize" id="resizeRight"></div>
+    <div class="dock" id="dockRight">
+      <section class="panel" data-panel="code" data-title="Generated C++">
+        <div id="codehead">
+          <select id="themeSel" title="Syntax highlighting theme"></select>
+          <button id="copyBtn">Copy</button>
+        </div>
+        <pre id="code"></pre>
+      </section>
+    </div>
   </div>
 
-  <div id="right">
-    <div id="codehead">
-      <h3>Generated C++</h3>
-      <select id="themeSel" title="Syntax highlighting theme"></select>
-      <button id="copyBtn">Copy</button>
-    </div>
-    <pre id="code"></pre>
-  </div>
-  </div>
+  <div id="dropzone"></div>
+  <div id="ctxmenu"></div>
 
   <div id="ghost"></div>
 
@@ -321,6 +501,12 @@
 
 let nextId = 100;
 let selectedId = null;
+
+// Declared up here because the keymap binds these keys well before the hotbar's
+// rendering code appears further down the file.
+const HOTBAR_KEYS = '0123456789-='.split('');
+const HOTBAR_KEY = 'imguistudio.hotbar';
+const hotbar = new Array(HOTBAR_KEYS.length).fill(null);
 
 const doc = {
   type: 'window', id: 'root', label: 'My Panel', w: 380, h: 460,
@@ -496,7 +682,61 @@ function redo() { if (histIndex < history.length - 1) { histIndex++; restoreSnap
 
 // ---------- selection navigation and structure verbs ----------
 
-function selectId(id) { selectedId = id; refresh(); }
+// ---------- selection set ----------
+// Invariant: no node is in the set if an ancestor is also in it. Normalizing on
+// every mutation is what makes delete/copy/codegen order-independent instead of
+// needing defensive checks at each call site.
+const selection = new Set();
+
+function normalizeSelection() {
+  for (const id of [...selection]) {
+    for (const other of selection) {
+      if (other !== id && isAncestor(other, id)) { selection.delete(id); break; }
+    }
+  }
+  if (selectedId && !selection.has(selectedId)) {
+    selectedId = selection.size ? [...selection][selection.size - 1] : null;
+  }
+}
+
+function selectId(id) {
+  selection.clear();
+  if (id) selection.add(id);
+  selectedId = id;
+  refresh();
+}
+
+function selectMany(ids) {
+  selection.clear();
+  for (const id of ids) if (id) selection.add(id);
+  normalizeSelection();
+  selectedId = selection.size ? [...selection][selection.size - 1] : null;
+  refresh();
+}
+
+function toggleSelected(id) {
+  if (selection.has(id)) {
+    selection.delete(id);
+    if (selectedId === id) selectedId = selection.size ? [...selection][selection.size - 1] : null;
+  } else {
+    selection.add(id);
+    selectedId = id;
+  }
+  normalizeSelection();
+  refresh();
+}
+
+function clearSelection() {
+  selection.clear();
+  selectedId = null;
+}
+
+// selection in document order, ancestors already removed
+function selectedNodes() {
+  const out = [];
+  walk(doc, n => { if (selection.has(n.id)) out.push(n); });
+  return out;
+}
 
 function selectSibling(delta) {
   if (!selectedId || selectedId === 'root') {
@@ -594,16 +834,20 @@ function toggleJoin() {
 }
 
 function duplicateSelection() {
-  const node = selectedId && findNode(selectedId);
-  if (!node || node === doc) return;
-  const parent = findParent(node.id);
-  const copy = cloneWithNewIds(node);
-  insertAt(copy, {
-    parentId: parent.id,
-    index: parent.children.indexOf(node) + 1,
-    sameline: !!node.sameline,
-  });
-  selectId(copy.id);
+  const nodes = selectedNodes().filter(n => n !== doc);
+  if (!nodes.length) return;
+  const added = [];
+  for (const node of nodes) {
+    const parent = findParent(node.id);
+    const copy = cloneWithNewIds(node);
+    insertAt(copy, {
+      parentId: parent.id,
+      index: parent.children.indexOf(node) + 1,
+      sameline: !!node.sameline,
+    });
+    added.push(copy.id);
+  }
+  selectMany(added);
 }
 
 function duplicateTo(id, drop) {
@@ -615,13 +859,15 @@ function duplicateTo(id, drop) {
 }
 
 function deleteSelection() {
-  const node = selectedId && findNode(selectedId);
-  if (!node || node === doc) return;
-  const parent = findParent(node.id);
-  const i = parent.children.indexOf(node);
-  detach(node.id);
-  const next = parent.children[i] || parent.children[i - 1];
-  selectId(next ? next.id : (parent === doc ? null : parent.id));
+  const nodes = selectedNodes().filter(n => n !== doc);
+  if (!nodes.length) return;
+  const first = nodes[0];
+  const parent = findParent(first.id);
+  const i = parent ? parent.children.indexOf(first) : 0;
+  for (const n of nodes) detach(n.id);
+  clearSelection();
+  const next = parent && (parent.children[i] || parent.children[i - 1]);
+  selectId(next ? next.id : (parent && parent !== doc ? parent.id : null));
 }
 
 // ---------- clipboard and repeat ----------
@@ -630,9 +876,9 @@ let clipboardNode = null;
 let lastInsertType = null;
 
 function copySelection() {
-  const node = selectedId && selectedId !== 'root' && findNode(selectedId);
-  if (!node) return false;
-  clipboardNode = JSON.stringify(node);
+  const nodes = selectedNodes().filter(n => n !== doc);
+  if (!nodes.length) return false;
+  clipboardNode = JSON.stringify(nodes);
   return true;
 }
 
@@ -642,12 +888,19 @@ function cutSelection() {
 
 function pasteClipboard() {
   if (!clipboardNode) return;
-  const node = cloneWithNewIds(JSON.parse(clipboardNode));
+  let payload = JSON.parse(clipboardNode);
+  if (!Array.isArray(payload)) payload = [payload];   // pre-multiselect clipboards
   const drop = dropAfterSelection();
-  // a joined widget stays joined through cut/copy+paste, matching Ctrl+D
-  if (node.sameline) drop.sameline = true;
-  insertAt(node, drop);
-  selectId(node.id);
+  const added = [];
+  payload.forEach((raw, i) => {
+    const node = cloneWithNewIds(raw);
+    const d = { ...drop, index: drop.index + i };
+    // a joined widget stays joined through cut/copy+paste, matching Ctrl+D
+    if (node.sameline) d.sameline = true;
+    insertAt(node, d);
+    added.push(node.id);
+  });
+  selectMany(added);
 }
 
 // Stamping repeats want siblings: with dropAfterSelection, inserting a
@@ -766,7 +1019,8 @@ var Module = {
     engineReady = true;
     statusBase = 'engine: running (real Dear ImGui via wasm) — ' + paletteCount + ' widget types';
     updateArmedUI(); // writes statusBase without clobbering an active armed line
-    Module.ccall('engine_show_demo', null, ['number'], [document.getElementById('demoToggle').checked ? 1 : 0]);
+    syncCanvasSize();
+    Module.ccall('engine_set_grid', null, ['number', 'number'], [showGrid ? 1 : 0, 20]);
     Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
     pushDoc();
   },
@@ -805,18 +1059,51 @@ function hitTest(p) {
   return best;
 }
 
+const selboxes = document.getElementById('selboxes');
+
 function updateSelectionOverlay() {
-  const r = editMode && selectedId ? rectFor(selectedId) : null;
-  if (!r) { selbox.style.display = 'none'; return; }
-  selbox.style.display = 'block';
-  selbox.style.left = (r.x - 2) + 'px';
-  selbox.style.top = (r.y - 2) + 'px';
-  selbox.style.width = (r.w + 4) + 'px';
-  selbox.style.height = (r.h + 4) + 'px';
+  const primary = editMode && selectedId ? rectFor(selectedId) : null;
+  if (!primary) {
+    selbox.style.display = 'none';
+  } else {
+    selbox.style.display = 'block';
+    selbox.style.left = (primary.x - 2) + 'px';
+    selbox.style.top = (primary.y - 2) + 'px';
+    selbox.style.width = (primary.w + 4) + 'px';
+    selbox.style.height = (primary.h + 4) + 'px';
+    // handles only on the axes this widget's spec actually declares, and only
+    // for a single selection (a sizing drag has no meaning across a set)
+    const node = findNode(selectedId);
+    const props = (node && WIDGETS[node.type] && WIDGETS[node.type].props) || [];
+    const hasW = props.some(p => p[0] === 'w');
+    const hasH = props.some(p => p[0] === 'h');
+    selbox.classList.toggle('resizable', (hasW || hasH) && selection.size <= 1 && !resizing);
+    selbox.classList.toggle('now', !hasW);
+    selbox.classList.toggle('noh', !hasH);
+  }
+  // secondary members of the selection
+  const others = [...selection].filter(id => id !== selectedId);
+  if (!editMode || !others.length) { selboxes.innerHTML = ''; return; }
+  selboxes.innerHTML = '';
+  for (const id of others) {
+    const r = rectFor(id);
+    if (!r) continue;
+    const d = document.createElement('div');
+    d.className = 'sb';
+    d.style.left = (r.x - 2) + 'px';
+    d.style.top = (r.y - 2) + 'px';
+    d.style.width = (r.w + 4) + 'px';
+    d.style.height = (r.h + 4) + 'px';
+    selboxes.appendChild(d);
+  }
 }
 
 function pollEngine() {
   if (!engineReady) return;
+  // emscripten runs main() after onRuntimeInitialized, so glfwCreateWindow
+  // stomps whatever size we set during init. Re-assert it here so the canvas
+  // converges on its container no matter how the ordering falls out.
+  if (canvas.width !== canvasHost.clientWidth && canvasHost.clientWidth > 0) syncCanvasSize();
   try {
     // the ccall itself throws after a wasm abort, so it must sit inside the
     // try or one abort would kill the rAF chain and spam the interval backstop
@@ -824,11 +1111,6 @@ function pollEngine() {
     const payload = JSON.parse(raw);
     latestRects = payload.rects || [];
     engineWantsText = !!payload.wantText;
-    // mirror engine state: the demo can be closed via its own titlebar X
-    const demoToggle = document.getElementById('demoToggle');
-    if (typeof payload.showDemo === 'boolean' && demoToggle.checked !== payload.showDemo) {
-      demoToggle.checked = payload.showDemo;
-    }
   } catch (e) {
     if (!pollEngine.reported) { pollEngine.reported = true; console.warn('[tick] ' + (e && e.stack || e)); }
     latestRects = [];
@@ -908,28 +1190,129 @@ function updateDropIndicator(drop) {
   dropline.style.height = '2px';
 }
 
+const marqueeEl = document.getElementById('marquee');
+let marquee = null;
+let resizing = null;
+
+// A flow layout has almost no empty canvas to rubber-band from (widgets tile
+// edge to edge), so Ctrl+drag starts a marquee from anywhere.
+function startMarquee(e, p, additive) {
+  marquee = {
+    x0: p.x, y0: p.y, x1: p.x, y1: p.y,
+    base: additive ? new Set(selection) : new Set(),
+  };
+  marqueeEl.style.display = 'block';
+  updateMarquee();
+}
+
+function updateMarquee() {
+  const m = marquee;
+  const x = Math.min(m.x0, m.x1), y = Math.min(m.y0, m.y1);
+  const w = Math.abs(m.x1 - m.x0), h = Math.abs(m.y1 - m.y0);
+  marqueeEl.style.left = x + 'px';
+  marqueeEl.style.top = y + 'px';
+  marqueeEl.style.width = w + 'px';
+  marqueeEl.style.height = h + 'px';
+
+  const box = { x, y, w, h };
+  const encloses = r => r.x >= box.x && r.y >= box.y
+    && r.x + r.w <= box.x + box.w && r.y + r.h <= box.y + box.h;
+  const overlaps = r => r.x < box.x + box.w && r.x + r.w > box.x
+    && r.y < box.y + box.h && r.y + r.h > box.y;
+
+  const hits = new Set(m.base);
+  walk(doc, n => {
+    if (n === doc) return;
+    const r = rectFor(n.id);
+    if (!r) return;
+    // Containers only when fully enclosed; a marquee that merely clips one
+    // descends into it and takes the children instead.
+    if (isContainer(n)) { if (encloses(r)) hits.add(n.id); }
+    else if (overlaps(r)) hits.add(n.id);
+  });
+  selection.clear();
+  for (const id of hits) selection.add(id);
+  normalizeSelection();
+  selectedId = selection.size ? [...selection][selection.size - 1] : null;
+  renderTree();
+  renderProps();
+}
+
+// Resize is anchored to the size captured at drag start: reading the live rect
+// mid-drag reflows the row and the rect moves under the cursor a frame later.
+for (const h of selbox.querySelectorAll('.rh')) {
+  h.addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const node = selectedId && findNode(selectedId);
+    if (!node) return;
+    const r = rectFor(node.id);
+    resizing = {
+      id: node.id, axis: h.dataset.axis,
+      startX: e.clientX, startY: e.clientY,
+      w0: Number(node.w) || (r ? Math.round(r.w) : 0),
+      h0: Number(node.h) || (r ? Math.round(r.h) : 0),
+    };
+  });
+}
+
 canvas.addEventListener('mousedown', e => {
   if (!editMode || e.button !== 0) return;
+  canvas.focus({ preventScroll: true });
   const p = canvasPoint(e);
   if (armed) {
     const drop = computeDropTarget(p, null, e.shiftKey);
     if (drop) stampArmed(drop);
     return;
   }
+  if (e.ctrlKey || e.metaKey) { startMarquee(e, p, e.shiftKey); return; }
+
   const hit = hitTest(p);
-  if (hit) {
-    selectedId = hit.id;
-    refresh();
-    if (hit.id !== doc.id) {
-      // Alt at drag start means duplicate instead of move, the universal Alt-drag
-      drag = {
-        kind: 'move', nodeId: hit.id, dup: e.altKey, started: false,
-        startX: e.clientX, startY: e.clientY, drop: null,
-      };
-    }
+  if (hit && hit.id !== doc.id) {
+    if (e.shiftKey) { toggleSelected(hit.id); return; }
+    if (!selection.has(hit.id)) selectId(hit.id);
+    else { selectedId = hit.id; refresh(); }
+    drag = {
+      kind: 'move', nodeId: hit.id, dup: e.altKey, started: false,
+      startX: e.clientX, startY: e.clientY, drop: null,
+    };
+  } else if (hit) {
+    selectId(hit.id);
   } else {
-    selectedId = null;
+    // empty space: a plain drag here is also a marquee
+    clearSelection();
     refresh();
+    startMarquee(e, p, false);
+  }
+});
+
+canvas.addEventListener('dblclick', e => {
+  if (!editMode) return;
+  const hit = hitTest(canvasPoint(e));
+  if (!hit || hit.id === doc.id) return;
+  const node = findNode(hit.id);
+  if (!node) return;
+  if ((WIDGETS[node.type].props || []).some(p => p[0] === 'label')) {
+    selectId(node.id);
+    beginInlineEdit(node.id);
+  } else if (isContainer(node)) {
+    selectId(node.id);
+    descend();
+  }
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (!editMode) return;
+  const hit = hitTest(canvasPoint(e));
+  const node = hit && hit.id !== doc.id ? findNode(hit.id) : null;
+  if (node) {
+    // right-clicking outside the selection selects first, or the menu would
+    // act on something other than what the user pointed at
+    if (!selection.has(node.id)) selectId(node.id);
+    openContextMenu(e, widgetMenu(node, false));
+  } else {
+    openContextMenu(e, backgroundMenu());
   }
 });
 
@@ -938,9 +1321,75 @@ function cancelDrag() {
   ghost.style.display = 'none';
   dropline.style.display = 'none';
   dropbox.style.display = 'none';
+  if (marquee) { marquee = null; marqueeEl.style.display = 'none'; }
+  resizing = null;
 }
 
+// ---------- inline label editing ----------
+// Double-click, Enter or F2 to enter; Enter or click-away commits; Esc reverts.
+// Labels are single-line, so Enter can commit without ambiguity.
+const inlineEl = document.getElementById('inlineEdit');
+let inlineId = null;
+let inlineOriginal = '';
+
+function beginInlineEdit(id) {
+  const node = findNode(id);
+  const r = rectFor(id);
+  if (!node || !r || !(WIDGETS[node.type].props || []).some(p => p[0] === 'label')) return;
+  inlineId = id;
+  inlineOriginal = node.label || '';
+  inlineEl.value = inlineOriginal;
+  inlineEl.style.display = 'block';
+  inlineEl.style.left = r.x + 'px';
+  inlineEl.style.top = r.y + 'px';
+  inlineEl.style.width = Math.max(80, r.w) + 'px';
+  inlineEl.style.height = Math.max(18, r.h) + 'px';
+  inlineEl.focus();
+  inlineEl.select();
+}
+
+function endInlineEdit(commit) {
+  if (inlineId === null) return;
+  const node = findNode(inlineId);
+  if (node) node.label = commit ? inlineEl.value : inlineOriginal;
+  inlineId = null;
+  inlineEl.style.display = 'none';
+  inlineEl.blur();
+  canvas.focus({ preventScroll: true });
+  refresh();
+}
+
+inlineEl.addEventListener('input', () => {
+  const node = findNode(inlineId);
+  if (node) { node.label = inlineEl.value; refresh(false); }
+});
+inlineEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { endInlineEdit(true); e.preventDefault(); }
+  else if (e.key === 'Escape') { endInlineEdit(false); e.preventDefault(); }
+  e.stopPropagation();
+});
+inlineEl.addEventListener('blur', () => endInlineEdit(true));
+
 document.addEventListener('mousemove', e => {
+  if (resizing) {
+    const node = findNode(resizing.id);
+    if (!node) { resizing = null; return; }
+    if (resizing.axis.includes('w')) {
+      node.w = Math.max(0, Math.round(resizing.w0 + (e.clientX - resizing.startX)));
+    }
+    if (resizing.axis.includes('h')) {
+      node.h = Math.max(0, Math.round(resizing.h0 + (e.clientY - resizing.startY)));
+    }
+    refresh(false);   // coalesces into one undo entry for the whole drag
+    return;
+  }
+  if (marquee) {
+    const p = canvasPoint(e);
+    marquee.x1 = p.x;
+    marquee.y1 = p.y;
+    updateMarquee();
+    return;
+  }
   if (drag) {
     // A mouseup lost to focus stealing would leave a started drag armed forever.
     // Synthetic click sequences (test drivers, extensions) can emit buttons=0
@@ -983,6 +1432,13 @@ document.addEventListener('mousemove', e => {
 });
 
 document.addEventListener('mouseup', e => {
+  if (resizing) { resizing = null; refresh(); return; }
+  if (marquee) {
+    marquee = null;
+    marqueeEl.style.display = 'none';
+    refresh();
+    return;
+  }
   if (!drag) return;
   if (e.button !== 0) { cancelDrag(); return; }
   const d = drag;
@@ -1057,7 +1513,11 @@ function stampArmed(drop) {
 
 function setLiveMode(live) {
   editMode = !live;
-  document.getElementById('liveToggle').checked = live;
+  const hint = document.getElementById('modeHint');
+  hint.classList.toggle('livehint', live);
+  hint.innerHTML = live
+    ? '<b>LIVE</b> — widgets respond'
+    : 'hold <b>Space</b> to test interaction';
   if (live) disarm();
   if (engineReady) Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
   updateSelectionOverlay();
@@ -1098,6 +1558,28 @@ function resetTabSpring() {
   if (tabTimer) { clearTimeout(tabTimer); tabTimer = null; }
   tabHeld = false;
   if (tabPeek) { tabPeek = false; setLiveMode(false); }
+  releaseSpace();
+}
+
+// Hold Space to poke the real widgets. A pure quasimode: no threshold and no
+// tap meaning, so it can't get stuck in the wrong mode (releasing always
+// exits). It restores whatever mode you were in, so holding Space while
+// already in sustained Live mode doesn't kick you back to Edit.
+let spaceHeld = false;
+let spaceWasLive = false;
+
+function handleSpaceDown(e) {
+  e.preventDefault();
+  if (e.repeat || spaceHeld) return;
+  spaceHeld = true;
+  spaceWasLive = !editMode;
+  if (editMode) setLiveMode(true);
+}
+
+function releaseSpace() {
+  if (!spaceHeld) return;
+  spaceHeld = false;
+  setLiveMode(spaceWasLive);
 }
 
 // ---------- keymap and dispatcher ----------
@@ -1152,10 +1634,13 @@ bind('edit', 'Esc', { key: 'Escape' }, 'Disarm, else ascend to parent, else dese
   if (armed) { disarm(); return; }
   ascend();
 });
-bind('edit', 'F2', { key: 'F2' }, 'Edit the label in the inspector', 'Navigate', () => {
-  renderProps();
-  const inp = document.querySelector('#propbody input[type=text]');
-  if (inp) { inp.focus(); inp.select(); }
+bind('edit', 'F2', { key: 'F2' }, 'Rename inline on the canvas', 'Navigate', () => {
+  if (selectedId) beginInlineEdit(selectedId);
+});
+bind('edit', 'Ctrl+A', { key: 'A', ctrl: true }, 'Select all siblings of the selection', 'Navigate', () => {
+  const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
+  const parent = node ? findParent(node.id) : doc;
+  selectMany((parent || doc).children.map(c => c.id));
 });
 
 bind('edit', 'Ctrl+Up / Ctrl+Down', { key: 'ArrowUp', ctrl: true, shift: false }, 'Move up among siblings', 'Structure', () => reorderSelection(-1, false));
@@ -1189,6 +1674,27 @@ for (const letter of Object.keys(FAMILIES)) {
     'Cycle ' + letter + ' family backward', 'Insert', () => arm(letter, true));
 }
 bind('edit', '/', { key: '/' }, 'Insert menu (filter all widgets)', 'Insert', () => openCmdk('insert'));
+// Hotbar: bare key arms the pinned widget, Ctrl+key pins the current selection
+// (or the armed widget) into that slot. Reordering is how you rebind.
+HOTBAR_KEYS.forEach((k, i) => {
+  bind('edit', i === 0 ? '0…9 - =' : '', { key: k, ctrl: false }, i === 0
+    ? 'Arm the widget pinned to that hotbar slot' : '', 'Insert', () => {
+    const type = hotbar[i];
+    if (!type) return false;         // empty slot declines, key falls through
+    const fam = FAMILY_OF[type];
+    armed = fam ? { letter: fam, index: FAMILIES[fam].indexOf(type) } : null;
+    if (!armed) return false;
+    updateArmedUI();
+    renderHotbar();
+  });
+  bind('edit', i === 0 ? 'Ctrl+0…9' : '', { key: k, ctrl: true }, i === 0
+    ? 'Pin the selected or armed widget to that hotbar slot' : '', 'Insert', () => {
+    const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
+    const type = armed ? armedType() : (node && node.type);
+    if (!type) return false;
+    pinToHotbar(type, i);
+  });
+});
 
 bind('global', 'Ctrl+K', { key: 'K', ctrl: true }, 'Command palette', 'Global', () => openCmdk('all'));
 bind('global', '?', { key: '?' }, 'Keyboard shortcuts', 'Global', () => toggleHelp());
@@ -1209,6 +1715,7 @@ window.addEventListener('keydown', e => {
   }
   // a focused checkbox keeps Space for its own toggle; everything else dispatches
   if (t && t.tagName === 'INPUT' && e.key === ' ') return;
+  if (e.key === ' ' && !e.ctrlKey && !e.altKey) { handleSpaceDown(e); return; }
   if (e.key === 'Tab' && !e.ctrlKey && !e.altKey) { handleTabDown(e); return; }
   if (e.key === 'Escape' && (!cmdkEl.hidden || !helpEl.hidden)) {
     closeOverlays();
@@ -1233,6 +1740,7 @@ window.addEventListener('keydown', e => {
 
 window.addEventListener('keyup', e => {
   if (e.key === 'Tab') handleTabUp();
+  else if (e.key === ' ') releaseSpace();
 });
 
 // ---------- command palette and insert menu ----------
@@ -1334,7 +1842,10 @@ cmdkInput.addEventListener('keydown', e => {
 function renderHelp() {
   const term = helpInput.value.trim().toLowerCase();
   const activeCtx = new Set(['global', editMode ? 'edit' : 'live', drag ? 'drag' : null]);
-  const rows = [{ show: 'Tab', help: 'Toggle Edit / Live. Hold to peek Live, release to snap back.', cat: 'Global' }];
+  const rows = [
+    { show: 'Space', help: 'Hold to test interaction, release to return to editing', cat: 'Global' },
+    { show: 'Tab', help: 'Toggle Edit / Live. Hold to peek Live, release to snap back.', cat: 'Global' },
+  ];
   for (const b of KEYMAP) {
     if (!b.show || !activeCtx.has(b.ctx)) continue;
     rows.push(b);
@@ -1696,45 +2207,661 @@ themeSel.onchange = () => {
   applyTheme(currentTheme);
 };
 
+// ---------- panels, docks, rulers ----------
+// A fixed tiled layout with splitters, not a free-form docking system. For four
+// panels the research is unanimous that drag-to-tab/floating is over-built, so
+// panels move between the two docks and that is the whole story.
+
+const LAYOUT_KEY = 'imguistudio.layout.v1';
+const PANEL_DEFAULTS = {
+  palette:    { dock: 'left',  order: 0, collapsed: false, hidden: false },
+  hierarchy:  { dock: 'left',  order: 1, collapsed: false, hidden: false },
+  properties: { dock: 'left',  order: 2, collapsed: false, hidden: false },
+  code:       { dock: 'right', order: 0, collapsed: false, hidden: false },
+};
+let layout = { panels: JSON.parse(JSON.stringify(PANEL_DEFAULTS)), width: { left: 280, right: 470 } };
+
+function saveLayout() {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
+}
+
+function loadLayout() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
+    if (!s || !s.panels) return;
+    for (const k of Object.keys(PANEL_DEFAULTS)) {
+      if (s.panels[k]) layout.panels[k] = { ...PANEL_DEFAULTS[k], ...s.panels[k] };
+    }
+    if (s.width) layout.width = { ...layout.width, ...s.width };
+  } catch (e) {}
+}
+
+const panelEls = {};
+
+function buildPanels() {
+  for (const el of document.querySelectorAll('.panel')) {
+    const key = el.dataset.panel;
+    const body = document.createElement('div');
+    body.className = 'panel-body';
+    while (el.firstChild) body.appendChild(el.firstChild);
+
+    const head = document.createElement('div');
+    head.className = 'panel-head';
+    head.innerHTML = '<span class="tw">▾</span><span class="ttl"></span>';
+    head.querySelector('.ttl').textContent = el.dataset.title;
+    const close = document.createElement('button');
+    close.textContent = '✕';
+    close.title = 'Hide this panel';
+    close.onclick = e => { e.stopPropagation(); layout.panels[key].hidden = true; applyLayout(); };
+    head.appendChild(close);
+    head.onclick = () => {
+      layout.panels[key].collapsed = !layout.panels[key].collapsed;
+      applyLayout();
+    };
+    head.addEventListener('mousedown', e => startPanelDrag(e, key));
+
+    el.appendChild(head);
+    el.appendChild(body);
+    panelEls[key] = el;
+  }
+  applyLayout();
+}
+
+function applyLayout() {
+  const docks = { left: document.getElementById('dockLeft'), right: document.getElementById('dockRight') };
+  docks.left.innerHTML = '';
+  docks.right.innerHTML = '';
+  const entries = Object.entries(layout.panels)
+    .filter(([, p]) => !p.hidden)
+    .sort((a, b) => a[1].order - b[1].order);
+  for (const [key, p] of entries) {
+    const el = panelEls[key];
+    el.classList.toggle('collapsed', p.collapsed);
+    el.querySelector('.tw').textContent = p.collapsed ? '▸' : '▾';
+    docks[p.dock] ? docks[p.dock].appendChild(el) : docks.left.appendChild(el);
+  }
+  docks.left.style.width = layout.width.left + 'px';
+  docks.right.style.width = layout.width.right + 'px';
+  renderPanelButtons();
+  saveLayout();
+  requestAnimationFrame(syncCanvasSize);
+}
+
+function renderPanelButtons() {
+  let host = document.getElementById('panelbtns');
+  if (!host) {
+    host = document.createElement('span');
+    host.id = 'panelbtns';
+    host.style.display = 'flex';
+    host.style.gap = '4px';
+    document.querySelector('#apphead .spacer').after(host);
+  }
+  host.innerHTML = '';
+  for (const [key, p] of Object.entries(layout.panels)) {
+    const b = document.createElement('button');
+    b.className = 'panelbtn' + (p.hidden ? '' : ' on');
+    b.textContent = panelEls[key].dataset.title;
+    b.title = (p.hidden ? 'Show ' : 'Hide ') + panelEls[key].dataset.title;
+    b.onclick = () => { p.hidden = !p.hidden; applyLayout(); };
+    host.appendChild(b);
+  }
+}
+
+// drag a panel header into the other dock (Photoshop's two-zone language,
+// simplified: the whole dock is one zone)
+let panelDrag = null;
+const dropzone = document.getElementById('dropzone');
+
+function startPanelDrag(e, key) {
+  if (e.button !== 0 || e.target.tagName === 'BUTTON') return;
+  panelDrag = { key, startX: e.clientX, startY: e.clientY, moved: false };
+}
+
+document.addEventListener('mousemove', e => {
+  if (!panelDrag) return;
+  if (!panelDrag.moved) {
+    if (Math.abs(e.clientX - panelDrag.startX) + Math.abs(e.clientY - panelDrag.startY) < 6) return;
+    panelDrag.moved = true;
+    panelEls[panelDrag.key].classList.add('dragging');
+  }
+  const mid = window.innerWidth / 2;
+  const side = e.clientX < mid ? 'left' : 'right';
+  panelDrag.side = side;
+  const dock = document.getElementById(side === 'left' ? 'dockLeft' : 'dockRight');
+  const r = dock.getBoundingClientRect();
+  dropzone.style.display = 'block';
+  dropzone.style.left = (r.width ? r.left : (side === 'left' ? 0 : window.innerWidth - 280)) + 'px';
+  dropzone.style.top = r.top + 'px';
+  dropzone.style.width = (r.width || 280) + 'px';
+  dropzone.style.height = (r.height || window.innerHeight - r.top) + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  if (!panelDrag) return;
+  const d = panelDrag;
+  panelDrag = null;
+  dropzone.style.display = 'none';
+  panelEls[d.key].classList.remove('dragging');
+  if (!d.moved || !d.side) return;
+  const p = layout.panels[d.key];
+  if (p.dock !== d.side) {
+    p.dock = d.side;
+    p.hidden = false;
+    p.order = Math.max(0, ...Object.values(layout.panels)
+      .filter(x => x.dock === d.side).map(x => x.order + 1));
+  }
+  applyLayout();
+});
+
+// dock splitters
+for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right']]) {
+  const el = document.getElementById(id);
+  el.addEventListener('mousedown', e => {
+    e.preventDefault();
+    el.classList.add('dragging');
+    const startX = e.clientX;
+    const startW = layout.width[side];
+    const move = ev => {
+      const delta = side === 'left' ? ev.clientX - startX : startX - ev.clientX;
+      layout.width[side] = Math.max(160, Math.min(760, startW + delta));
+      document.getElementById(side === 'left' ? 'dockLeft' : 'dockRight')
+        .style.width = layout.width[side] + 'px';
+      syncCanvasSize();
+    };
+    const up = () => {
+      el.classList.remove('dragging');
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      saveLayout();
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+  // double-click a splitter to reset that dock
+  el.addEventListener('dblclick', () => {
+    layout.width[side] = side === 'left' ? 280 : 470;
+    applyLayout();
+  });
+}
+
+// ---------- canvas sizing, rulers, guides ----------
+
+const canvasHost = document.getElementById('canvashost');
+const rulerTop = document.getElementById('rulerTop');
+const rulerLeft = document.getElementById('rulerLeft');
+const guidesEl = document.getElementById('guides');
+let showRulers = true;
+let showGrid = true;
+let guides = [];        // { axis: 'x'|'y', pos }
+let cursorCanvas = { x: -1, y: -1 };
+
+// The wasm surface follows its container instead of being a fixed 1000x740 box,
+// so the preview uses whatever width the docks leave.
+function syncCanvasSize() {
+  const w = Math.max(64, Math.floor(canvasHost.clientWidth));
+  const h = Math.max(64, Math.floor(canvasHost.clientHeight));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    if (engineReady) Module.ccall('engine_resize', null, ['number', 'number'], [w, h]);
+  }
+  drawRulers();
+}
+
+new ResizeObserver(() => syncCanvasSize()).observe(canvasHost);
+window.addEventListener('resize', syncCanvasSize);
+
+function drawRulers() {
+  if (!showRulers) return;
+  const W = canvasHost.clientWidth, H = canvasHost.clientHeight;
+  for (const [cv, horiz] of [[rulerTop, true], [rulerLeft, false]]) {
+    const len = horiz ? W : H;
+    cv.width = horiz ? len : 20;
+    cv.height = horiz ? 20 : len;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#141414';
+    g.fillRect(0, 0, cv.width, cv.height);
+    g.strokeStyle = '#49483E';
+    g.fillStyle = '#75715E';
+    g.font = '9px JetBrains Mono, monospace';
+    g.beginPath();
+    for (let p = 0; p < len; p += 10) {
+      const major = p % 100 === 0, mid = p % 50 === 0;
+      const size = major ? 20 : (mid ? 8 : 4);
+      if (horiz) { g.moveTo(p + 0.5, 20 - size); g.lineTo(p + 0.5, 20); }
+      else { g.moveTo(20 - size, p + 0.5); g.lineTo(20, p + 0.5); }
+      if (major && p > 0) {
+        if (horiz) g.fillText(String(p), p + 2, 8);
+        else { g.save(); g.translate(8, p + 2); g.rotate(-Math.PI / 2); g.fillText(String(p), -String(p).length * 5, 0); g.restore(); }
+      }
+    }
+    g.stroke();
+    // cursor position marker, the measurement half of a ruler
+    const c = horiz ? cursorCanvas.x : cursorCanvas.y;
+    if (c >= 0) {
+      g.strokeStyle = '#66D9EF';
+      g.beginPath();
+      if (horiz) { g.moveTo(c + 0.5, 0); g.lineTo(c + 0.5, 20); }
+      else { g.moveTo(0, c + 0.5); g.lineTo(20, c + 0.5); }
+      g.stroke();
+    }
+  }
+}
+
+function renderGuides() {
+  guidesEl.innerHTML = '';
+  guides.forEach((gd, i) => {
+    const el = document.createElement('div');
+    el.className = 'guide ' + (gd.axis === 'x' ? 'gx' : 'gy');
+    if (gd.axis === 'x') el.style.left = gd.pos + 'px';
+    else el.style.top = gd.pos + 'px';
+    el.title = gd.axis + ' = ' + gd.pos + ' (drag to move, double-click to remove)';
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const move = ev => {
+        const r = canvas.getBoundingClientRect();
+        gd.pos = Math.round(gd.axis === 'x' ? ev.clientX - r.left : ev.clientY - r.top);
+        renderGuides();
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        saveGuides();
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+    el.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      guides.splice(i, 1);
+      renderGuides();
+      saveGuides();
+    });
+    guidesEl.appendChild(el);
+  });
+}
+
+function saveGuides() {
+  try { localStorage.setItem('imguistudio.guides', JSON.stringify(guides)); } catch (e) {}
+}
+
+// drag out of a ruler to create a guide
+for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x']]) {
+  cv.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const gd = { axis, pos: 0 };
+    guides.push(gd);
+    const move = ev => {
+      const r = canvas.getBoundingClientRect();
+      gd.pos = Math.round(axis === 'x' ? ev.clientX - r.left : ev.clientY - r.top);
+      renderGuides();
+    };
+    const up = ev => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      const r = canvas.getBoundingClientRect();
+      const inside = ev.clientX >= r.left && ev.clientX <= r.right
+        && ev.clientY >= r.top && ev.clientY <= r.bottom;
+      if (!inside) guides.pop();   // dropped back on the ruler: discard
+      renderGuides();
+      saveGuides();
+    };
+    move(e);
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+canvasHost.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  cursorCanvas = { x: Math.round(e.clientX - r.left), y: Math.round(e.clientY - r.top) };
+  drawRulers();
+});
+canvasHost.addEventListener('mouseleave', () => { cursorCanvas = { x: -1, y: -1 }; drawRulers(); });
+
+function setRulers(on) {
+  showRulers = on;
+  document.getElementById('canvasarea').classList.toggle('norulers', !on);
+  guidesEl.style.display = on ? '' : 'none';
+  document.getElementById('rulerBtn').classList.toggle('on', on);
+  requestAnimationFrame(syncCanvasSize);
+  try { localStorage.setItem('imguistudio.rulers', on ? '1' : '0'); } catch (e) {}
+}
+
+function setGrid(on) {
+  showGrid = on;
+  document.getElementById('gridBtn').classList.toggle('on', on);
+  if (engineReady) Module.ccall('engine_set_grid', null, ['number', 'number'], [on ? 1 : 0, 20]);
+  try { localStorage.setItem('imguistudio.grid', on ? '1' : '0'); } catch (e) {}
+}
+
+document.getElementById('gridBtn').onclick = () => setGrid(!showGrid);
+document.getElementById('rulerBtn').onclick = () => setRulers(!showRulers);
+
+// ---------- hotbar ----------
+// Positional slots, auto-assigned. Rebinding is reordering, which is what every
+// surveyed tool does instead of a per-slot key-remap UI.
+
+function saveHotbar() {
+  try { localStorage.setItem(HOTBAR_KEY, JSON.stringify(hotbar)); } catch (e) {}
+}
+
+function pinToHotbar(type, slot) {
+  if (slot === undefined) {
+    if (hotbar.includes(type)) return;
+    slot = hotbar.indexOf(null);
+    if (slot < 0) return;
+  }
+  hotbar[slot] = type;
+  saveHotbar();
+  renderHotbar();
+  renderPalette();
+}
+
+function unpin(type) {
+  const i = hotbar.indexOf(type);
+  if (i >= 0) { hotbar[i] = null; saveHotbar(); renderHotbar(); renderPalette(); }
+}
+
+function renderHotbar() {
+  const host = document.getElementById('hotbar');
+  host.innerHTML = '';
+  hotbar.forEach((type, i) => {
+    if (!type || !WIDGETS[type]) return;
+    const el = document.createElement('div');
+    el.className = 'slot' + (armed && armedType() === type ? ' armedbtn' : '');
+    el.dataset.type = type;
+    el.innerHTML = '<span class="n"></span><span class="nm"></span>';
+    el.querySelector('.n').textContent = HOTBAR_KEYS[i];
+    el.querySelector('.nm').textContent = WIDGETS[type].name;
+    el.title = WIDGETS[type].name + ' — press ' + HOTBAR_KEYS[i] + ' to arm, right-click to unpin';
+    el.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
+    });
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      openContextMenu(e, paletteMenu(type, true));
+    });
+    host.appendChild(el);
+  });
+}
+
 // ---------- ui rendering ----------
 
 const paletteCount = Object.values(WIDGETS).filter(w => !w.hidden).length;
+
+// Category collapse state persists. A filter force-opens sections that contain
+// a match and restores the pre-filter state when cleared, so searching is a
+// view and never a mutation.
+const CAT_KEY = 'imguistudio.cats';
+let catOpen = {};
+try { catOpen = JSON.parse(localStorage.getItem(CAT_KEY) || '{}'); } catch (e) {}
+for (const c of CATEGORIES) if (catOpen[c] === undefined) catOpen[c] = true;
+
+function saveCats() {
+  try { localStorage.setItem(CAT_KEY, JSON.stringify(catOpen)); } catch (e) {}
+}
+
+function paletteButton(type, spec) {
+  const b = document.createElement('button');
+  const lbl = document.createElement('span');
+  lbl.className = 'lbl';
+  lbl.textContent = spec.name;
+  b.appendChild(lbl);
+  b.dataset.type = type;
+  const fam = FAMILY_OF[type];
+  const slot = hotbar.indexOf(type);
+  b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas'
+    + (fam ? '. Key: ' + fam : '') + (slot >= 0 ? '. Hotbar: ' + HOTBAR_KEYS[slot] : '');
+  const badge = slot >= 0 ? HOTBAR_KEYS[slot] : fam;
+  if (badge) {
+    const k = document.createElement('span');
+    k.className = 'kbd';
+    if (slot >= 0) k.style.color = 'var(--mk-purple)';
+    k.textContent = badge;
+    b.appendChild(k);
+  }
+  b.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
+  });
+  b.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    openContextMenu(e, paletteMenu(type, slot >= 0));
+  });
+  return b;
+}
 
 function renderPalette() {
   const host = document.getElementById('palette');
   const term = document.getElementById('filter').value.trim().toLowerCase();
   host.innerHTML = '';
-  for (const cat of CATEGORIES) {
-    const entries = Object.entries(WIDGETS).filter(([k, s]) =>
-      !s.hidden && s.cat === cat &&
-      (!term || s.name.toLowerCase().includes(term) || k.includes(term)));
-    if (!entries.length) continue;
+
+  const matches = ([k, s]) => !s.hidden
+    && (!term || s.name.toLowerCase().includes(term) || k.includes(term));
+
+  // pinned first, so the things you use most never need scrolling to
+  const pinned = hotbar.filter(t => t && WIDGETS[t] && matches([t, WIDGETS[t]]));
+  if (pinned.length) {
     const h = document.createElement('div');
     h.className = 'cat';
-    h.textContent = cat;
-    h.style.gridColumn = '1 / 3';
+    h.innerHTML = '<span class="tw">▾</span><span>★ Pinned</span>';
+    h.style.color = 'var(--mk-purple)';
+    h.onclick = null;
     host.appendChild(h);
-    for (const [type, spec] of entries) {
-      const b = document.createElement('button');
-      b.textContent = spec.name;
-      b.dataset.type = type;
-      const fam = FAMILY_OF[type];
-      b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas'
-        + (fam ? '. Key: ' + fam : '');
-      if (fam) {
-        const k = document.createElement('span');
-        k.className = 'kbd';
-        k.textContent = fam;
-        b.appendChild(k);
-      }
-      b.addEventListener('mousedown', e => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
-      });
-      host.appendChild(b);
-    }
+    for (const t of pinned) host.appendChild(paletteButton(t, WIDGETS[t]));
   }
+
+  for (const cat of CATEGORIES) {
+    const entries = Object.entries(WIDGETS).filter(([k, s]) => s.cat === cat && matches([k, s]));
+    if (!entries.length) continue;
+    // a filter that matched inside a collapsed section force-opens it
+    const open = term ? true : catOpen[cat];
+    const h = document.createElement('div');
+    h.className = 'cat';
+    h.innerHTML = '<span class="tw"></span><span></span>';
+    h.querySelector('.tw').textContent = open ? '▾' : '▸';
+    h.lastChild.textContent = cat + '  (' + entries.length + ')';
+    h.onclick = () => { catOpen[cat] = !catOpen[cat]; saveCats(); renderPalette(); };
+    host.appendChild(h);
+    if (!open) continue;
+    for (const [type, spec] of entries) host.appendChild(paletteButton(type, spec));
+  }
+}
+
+// ---------- context menus ----------
+// Items carry a group id and an order; the renderer sorts by them and inserts a
+// separator wherever the group changes. That gives deterministic ordering,
+// automatic separators, and destructive-last for free.
+
+const ctxEl = document.getElementById('ctxmenu');
+const IMGUI_MANUAL = 'https://pthom.github.io/imgui_manual_online/manual/imgui_manual.html';
+
+function openContextMenu(e, items) {
+  ctxEl.innerHTML = '';
+  const live = items.filter(Boolean);
+  live.sort((a, b) => (a.group || '5').localeCompare(b.group || '5') || (a.order || 0) - (b.order || 0));
+  let lastGroup = null;
+  for (const it of live) {
+    if (it.header) {
+      const h = document.createElement('div');
+      h.className = 'hdr';
+      h.textContent = it.header;
+      ctxEl.appendChild(h);
+      lastGroup = it.group;
+      continue;
+    }
+    if (lastGroup !== null && it.group !== lastGroup) {
+      const s = document.createElement('div');
+      s.className = 'sep';
+      ctxEl.appendChild(s);
+    }
+    lastGroup = it.group;
+    const row = document.createElement('div');
+    row.className = 'mi' + (it.danger ? ' danger' : '');
+    if (it.disabled) row.style.opacity = '0.4';
+    const l = document.createElement('span');
+    l.textContent = it.label;
+    row.appendChild(l);
+    if (it.key) {
+      const k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = it.key;
+      row.appendChild(k);
+    }
+    if (!it.disabled) {
+      row.onclick = () => { closeContextMenu(); it.run(); };
+    }
+    ctxEl.appendChild(row);
+  }
+  ctxEl.style.display = 'block';
+  // keep it on screen
+  const w = ctxEl.offsetWidth, h = ctxEl.offsetHeight;
+  ctxEl.style.left = Math.min(e.clientX, window.innerWidth - w - 6) + 'px';
+  ctxEl.style.top = Math.min(e.clientY, window.innerHeight - h - 6) + 'px';
+}
+
+function closeContextMenu() { ctxEl.style.display = 'none'; }
+document.addEventListener('mousedown', e => {
+  if (ctxEl.style.display === 'block' && !ctxEl.contains(e.target)) closeContextMenu();
+}, true);
+window.addEventListener('blur', closeContextMenu);
+
+function docsItem(type) {
+  return {
+    group: '9_docs', order: 0,
+    label: 'ImGui reference for ' + WIDGETS[type].name,
+    run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener'),
+  };
+}
+
+function cppSnippet(node) {
+  const saved = JSON.stringify(doc.children);
+  const savedSel = selectedId;
+  doc.children = [JSON.parse(JSON.stringify(node))];
+  const code = generateCode();
+  doc.children = JSON.parse(saved);
+  selectedId = savedSel;
+  const body = code.split('\n');
+  const a = body.findIndex(l => l.includes('ImGui::Begin('));
+  const b = body.findIndex(l => l.includes('ImGui::End()'));
+  return body.slice(a + 1, b).map(l => l.replace(/^ {4}/, '')).join('\n');
+}
+
+function paletteMenu(type, isPinned) {
+  const spec = WIDGETS[type];
+  const sel = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
+  return [
+    { group: '1_insert', order: 0, label: 'Insert after selection', key: 'Enter',
+      run: () => insertNodeAt(type, dropSiblingAfterSelection()) },
+    { group: '1_insert', order: 1, label: 'Insert inside selection',
+      disabled: !(sel && isContainer(sel)),
+      run: () => insertNodeAt(type, { parentId: sel.id, index: (sel.children || []).length }) },
+    { group: '1_insert', order: 2, label: 'Insert at end',
+      run: () => insertNodeAt(type, { parentId: 'root', index: doc.children.length }) },
+    { group: '3_pin', order: 0,
+      label: isPinned ? 'Unpin from hotbar' : 'Pin to hotbar',
+      run: () => (isPinned ? unpin(type) : pinToHotbar(type)) },
+    { group: '4_copy', order: 0, label: 'Copy ImGui call',
+      run: () => navigator.clipboard.writeText(cppSnippet(makeNode(type))) },
+    docsItem(type),
+  ];
+}
+
+// The canvas and hierarchy menus share a spine and differ only in the head,
+// which is what every surveyed tool does.
+function widgetMenu(node, inTree) {
+  const spec = WIDGETS[node.type] || {};
+  const parent = findParent(node.id);
+  const container = isContainer(node);
+  const kids = (node.children || []).length;
+  return [
+    { group: '1_head', order: 0, label: 'Toggle SameLine join', key: 'J',
+      disabled: !parent || parent.children.indexOf(node) === 0,
+      run: () => { selectId(node.id); toggleJoin(); } },
+    { group: '1_head', order: 1, label: 'Rename', key: 'F2',
+      disabled: !(spec.props || []).some(p => p[0] === 'label'),
+      run: () => { selectId(node.id); beginInlineEdit(node.id); } },
+    { group: '2_structure', order: 0, label: 'Wrap in Group', key: 'Ctrl+G',
+      run: () => { selectId(node.id); wrapSelection(); } },
+    { group: '2_structure', order: 1, label: 'Unwrap container', key: 'Ctrl+Shift+G',
+      disabled: !container,
+      run: () => { selectId(node.id); unwrapSelection(); } },
+    { group: '3_order', order: 0, label: 'Move up', key: 'Ctrl+Up',
+      run: () => { selectId(node.id); reorderSelection(-1, false); } },
+    { group: '3_order', order: 1, label: 'Move down', key: 'Ctrl+Down',
+      run: () => { selectId(node.id); reorderSelection(1, false); } },
+    { group: '5_clip', order: 0, label: 'Cut', key: 'Ctrl+X',
+      run: () => { selectId(node.id); cutSelection(); } },
+    { group: '5_clip', order: 1, label: 'Copy', key: 'Ctrl+C',
+      run: () => { selectId(node.id); copySelection(); } },
+    { group: '5_clip', order: 2, label: 'Duplicate', key: 'Ctrl+D',
+      run: () => { selectId(node.id); duplicateSelection(); } },
+    { group: '6_code', order: 0, label: 'Copy C++ snippet',
+      run: () => navigator.clipboard.writeText(cppSnippet(node)) },
+    { group: '6_code', order: 1, label: 'Show in generated code',
+      run: () => { selectId(node.id); revealInCode(node.id); } },
+    inTree && container && kids
+      ? { group: '7_tree', order: 0, label: 'Select children',
+          run: () => selectMany((node.children || []).map(c => c.id)) }
+      : null,
+    docsItem(node.type),
+    { group: '9z_del', order: 0, label: container && kids ? 'Delete (keep children)' : 'Delete',
+      key: 'Del', danger: true,
+      run: () => { selectId(node.id); container && kids ? unwrapThenDelete(node.id) : deleteSelection(); } },
+    container && kids
+      ? { group: '9z_del', order: 1, label: 'Delete subtree', danger: true,
+          run: () => { selectId(node.id); deleteSelection(); } }
+      : null,
+  ];
+}
+
+function backgroundMenu() {
+  return [
+    { group: '1_paste', order: 0, label: 'Paste', key: 'Ctrl+V',
+      disabled: !clipboardNode, run: pasteClipboard },
+    { group: '2_select', order: 0, label: 'Select all', key: 'Ctrl+A',
+      run: () => selectMany(doc.children.map(c => c.id)) },
+    { group: '2_select', order: 1, label: 'Deselect', key: 'Esc',
+      run: () => { clearSelection(); refresh(); } },
+    { group: '4_view', order: 0, label: (showGrid ? 'Hide' : 'Show') + ' grid',
+      run: () => setGrid(!showGrid) },
+    { group: '4_view', order: 1, label: (showRulers ? 'Hide' : 'Show') + ' rulers',
+      run: () => setRulers(!showRulers) },
+    { group: '4_view', order: 2, label: 'Clear guides',
+      disabled: !guides.length, run: () => { guides = []; renderGuides(); saveGuides(); } },
+    { group: '6_code', order: 0, label: 'Copy all generated C++',
+      run: () => navigator.clipboard.writeText(generateCode()) },
+    { group: '8_more', order: 0, label: 'All commands…', key: 'Ctrl+K',
+      run: () => openCmdk('all') },
+  ];
+}
+
+// remove a container but keep its children, the "Delete (keep children)" case
+function unwrapThenDelete(id) {
+  const node = findNode(id);
+  if (!node) return;
+  const parent = findParent(id);
+  const idx = parent.children.indexOf(node);
+  const kids = node.children || [];
+  if (node.sameline && kids[0]) kids[0].sameline = true;
+  parent.children.splice(idx, 1, ...kids);
+  selectId(kids[0] ? kids[0].id : parent.id);
+}
+
+function revealInCode(id) {
+  const pre = document.getElementById('code');
+  const marks = pre.querySelectorAll('[data-node]');
+  for (const m of marks) {
+    if (m.dataset.node === id) { m.scrollIntoView({ block: 'center' }); return; }
+  }
+  pre.scrollIntoView({ block: 'nearest' });
 }
 
 function renderTree() {
@@ -1743,9 +2870,17 @@ function renderTree() {
   walk(doc, (node, parent, index, depth) => {
     const spec = WIDGETS[node.type] || {};
     const row = document.createElement('div');
-    row.className = 'row' + (node.id === selectedId ? ' selected' : '');
+    row.className = 'row' + (selection.has(node.id) || node.id === selectedId ? ' selected' : '');
     row.style.paddingLeft = (6 + depth * 12) + 'px';
-    row.onclick = () => { selectedId = node.id; refresh(); };
+    row.onclick = e => {
+      if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSelected(node.id);
+      else selectId(node.id);
+    };
+    row.oncontextmenu = e => {
+      e.preventDefault();
+      if (!selection.has(node.id)) selectId(node.id);
+      openContextMenu(e, node === doc ? backgroundMenu() : widgetMenu(node, true));
+    };
 
     if (spec.container) {
       const c = document.createElement('span');
@@ -1879,11 +3014,6 @@ function refresh(rebuildProps = true) {
 
 document.getElementById('filter').oninput = renderPalette;
 
-document.getElementById('demoToggle').onchange = e => {
-  if (engineReady) Module.ccall('engine_show_demo', null, ['number'], [e.target.checked ? 1 : 0]);
-};
-
-document.getElementById('liveToggle').onchange = e => setLiveMode(e.target.checked);
 
 document.getElementById('copyBtn').onclick = () => {
   navigator.clipboard.writeText(generateCode());
@@ -1925,7 +3055,28 @@ window.__test = {
   rects: () => latestRects,
   doc: () => doc,
   selected: () => selectedId,
-  select: id => { selectedId = id; refresh(); },
+  select: id => selectId(id),
+  selection: () => [...selection],
+  hotbar: () => hotbar.slice(),
+  layout: () => JSON.parse(JSON.stringify(layout)),
+  guides: () => guides.slice(),
+  canvasSize: () => ({ w: canvas.width, h: canvas.height }),
+  inlineEditing: () => inlineId !== null,
+  ctxOpen: () => document.getElementById('ctxmenu').style.display === 'block',
+  handlePos: axis => {
+    const h = document.querySelector('#selbox .rh-' + axis);
+    if (!h || !h.offsetParent) return null;
+    const r = h.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  },
+  hidePanel: k => { layout.panels[k].hidden = true; applyLayout(); },
+  showPanel: k => { layout.panels[k].hidden = false; applyLayout(); },
+  // hidden panels are detached from the dock, not just display:none
+  panelVisible: k => {
+    const el = document.querySelector('.panel[data-panel="' + k + '"]');
+    return !!(el && el.offsetParent);
+  },
+  ctxItems: () => [...document.querySelectorAll('#ctxmenu .mi')].map(x => x.firstChild.textContent),
   key: (k, mods = {}) => window.dispatchEvent(new KeyboardEvent('keydown', {
     key: k, ctrlKey: !!mods.ctrl, shiftKey: !!mods.shift, altKey: !!mods.alt, cancelable: true,
   })),
@@ -1979,12 +3130,40 @@ window.__test = {
   },
 };
 
+// ---------- init ----------
+
+loadLayout();
+buildPanels();
+try {
+  const hb = JSON.parse(localStorage.getItem(HOTBAR_KEY) || 'null');
+  if (Array.isArray(hb)) hb.forEach((t, i) => { if (i < hotbar.length) hotbar[i] = t; });
+} catch (e) {}
+// a bar that starts empty never gets discovered, so seed it with common widgets
+if (!hotbar.some(Boolean)) {
+  ['button', 'text', 'checkbox', 'sliderfloat', 'inputtext', 'separator', 'group']
+    .forEach((t, i) => { hotbar[i] = t; });
+  saveHotbar();
+}
+try {
+  const g = JSON.parse(localStorage.getItem('imguistudio.guides') || '[]');
+  if (Array.isArray(g)) guides = g;
+} catch (e) {}
+renderGuides();
+setRulers(localStorage.getItem('imguistudio.rulers') !== '0');
+setGrid(localStorage.getItem('imguistudio.grid') !== '0');
+
+renderHotbar();
 renderPalette();
 loadLocal();
 refresh();
 // the loaded document is the undo floor
 pushHistory();
+syncCanvasSize();
+
+document.getElementById('filter').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
+});
 </script>
-<script src="engine.js?v=df6dbfc746"></script>
+<script src="engine.js?v=0fac69c9d9"></script>
 </body>
 </html>
