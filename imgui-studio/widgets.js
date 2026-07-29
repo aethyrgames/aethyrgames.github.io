@@ -448,6 +448,41 @@ function itemList(s) {
     .join(', ');
 }
 
+// What each property is for, in a sentence, because a tooltip is prose rather
+// than a label. Keyed by property name; every widget that uses the name gets
+// the same explanation, which is the point of naming them consistently.
+const PROP_HELP = {
+  label: 'The text ImGui shows, and the id it hashes. Two widgets with the same label in one window need "##" to tell them apart.',
+  x: 'Where the window sits, in pixels from the top-left of your viewport. Emitted as SetNextWindowPos.',
+  y: 'Where the window sits, in pixels from the top-left of your viewport. Emitted as SetNextWindowPos.',
+  w: 'Width in pixels. 0 lets ImGui size it to its content.',
+  h: 'Height in pixels. 0 lets ImGui size it to its content.',
+  itemw: 'Width override for a widget that has no size argument of its own. Emitted as SetNextItemWidth.',
+  min: 'Lowest value the control will produce.',
+  max: 'Highest value the control will produce.',
+  speed: 'How far the value moves per pixel dragged.',
+  unit: 'Appended to the displayed number, so a slider can read "12 cm". Becomes part of the ImGui format string.',
+  n: 'How many components, for a vector. 3 gives you the Float3 form.',
+  value: 'The value this entry stands for. Radio buttons in a group each claim one.',
+  group: 'Radio buttons sharing a group name share one backing variable, so only one can be on.',
+  fraction: 'How full the bar is, from 0 to 1.',
+  items: 'The choices, separated by commas.',
+  cols: 'How many columns the table has.',
+  dir: 'Which way the arrow points.',
+  format: 'A printf format string. The arguments below fill in its placeholders.',
+  args: 'C++ expressions passed to the format string, separated by commas. Written through to the generated code as typed.',
+  code: 'C++ kept exactly as written. The preview shows a placeholder for it, since it is not executed here.',
+  noTitleBar: 'Hides the title bar, and with it the drag handle and close button.',
+  noResize: 'Stops the user resizing the window at runtime.',
+  noMove: 'Stops the user dragging the window at runtime.',
+  noScrollbar: 'Hides the scrollbar even when the content overflows.',
+  noCollapse: 'Removes the collapse arrow.',
+  autoResize: 'Sizes the window to its content every frame, ignoring width and height.',
+  r: 'Red, from 0 to 1.',
+  g: 'Green, from 0 to 1.',
+  b: 'Blue, from 0 to 1.',
+};
+
 const CATEGORIES = ['Window', 'Text', 'Buttons', 'Input', 'Sliders', 'Drags', 'Color',
   'Choice', 'Plots', 'Layout', 'Containers', 'Menus', 'Popups'];
 

@@ -131,9 +131,26 @@
   /* share the dock's height by weight rather than by content size, or the
      palette's long list starves the panels under it */
   .panel {
-    display: flex; flex-direction: column; min-height: 0; flex: 1 1 0;
+    display: flex; flex-direction: column; min-height: 0; min-width: 0; flex: 1 1 0;
     border-bottom: 1px solid var(--mk-border);
+    overflow: hidden;
   }
+  /* Narrowing a dock must not hand its panels a horizontal scrollbar: every
+     scrolling body has to be allowed to be narrower than its content. */
+  /* each panel body is a query container, so its contents can respond to the
+     dock's width rather than the window's */
+  .panel-body { min-width: 0; overflow-x: hidden; container-type: inline-size; }
+  /* below this the label no longer fits beside its field, so it goes above */
+  @container (max-width: 250px) {
+    #propbody { grid-template-columns: minmax(0, 1fr); }
+    #propbody label { padding-top: 3px; }
+    #propbody .propident, #propbody .prophead { grid-column: 1; }
+    .colorrow .hex { display: none; }
+    .vectag { width: auto; }
+  }
+  #tree, #palette, #propbody, #tpllist { min-width: 0; overflow-x: hidden; }
+  #tree .row { min-width: 0; }
+  #tree .wlabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   /* every panel in a dock gets the same share, which is what the drop preview
      promises while you are dragging one in */
   .panel.collapsed { flex: 0 0 auto; }
@@ -293,8 +310,13 @@
     border-radius: var(--radius); padding: 5px 12px; cursor: pointer;
     font-family: var(--font); font-size: 12px;
   }
-  .confirm-actions button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
-  .confirm-actions button.danger:hover { color: var(--mk-pink); border-color: var(--mk-pink); }
+  #confirmYes {
+    color: var(--mk-bg); background: var(--mk-cyan); border-color: var(--mk-cyan);
+    font-weight: 600;
+  }
+  #confirmYes:hover { background: color-mix(in srgb, var(--mk-cyan) 82%, white); }
+  #confirmNo { color: var(--mk-pink); border-color: var(--mk-pink); }
+  #confirmNo:hover { background: color-mix(in srgb, var(--mk-pink) 16%, transparent); }
   .dzslot.me {
     color: var(--mk-bg); background: var(--mk-cyan);
     border: 1px solid var(--mk-cyan); font-weight: 700;
@@ -313,17 +335,21 @@
 
   #center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
+  /* auto-fit rather than two fixed columns: narrowing the dock drops to one
+     column instead of overflowing and producing a horizontal scrollbar */
   #palette {
-    padding: 0 8px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
-    overflow-y: auto; flex: 1; min-height: 0; align-content: start;
+    padding: 0 8px 8px; display: grid; gap: 5px;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; align-content: start;
   }
+  #palette button { min-width: 0; }
   #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
   #propbody {
     flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px;
-    display: grid; grid-template-columns: 94px 1fr; gap: 5px 7px; align-content: start;
+    display: grid; grid-template-columns: minmax(0, 94px) minmax(0, 1fr); gap: 5px 7px; align-content: start;
     align-items: center;
   }
-  .paltools { display: flex; align-items: center; gap: 6px; margin: 6px 8px; flex-shrink: 0; }
+  .paltools { display: flex; align-items: center; gap: 6px; margin: 6px 8px; flex-shrink: 0; min-width: 0; }
   .paltools input {
     flex: 1; min-width: 0; background: var(--mk-gutter); color: var(--mk-fg);
     border: 1px solid var(--mk-border); border-radius: var(--radius);
@@ -338,8 +364,8 @@
   .paltools button:hover:not(:disabled) { color: var(--mk-cyan); border-color: var(--mk-cyan); }
   /* shown but dead rather than hidden, so the pair doesn't jump around */
   .paltools button:disabled { opacity: 0.38; cursor: default; }
-  .paltools.tight { margin-top: 0; }
-  .paltools.tight button { flex: 1; text-align: center; }
+  .paltools.tight { margin-top: 0; flex-wrap: wrap; }
+  .paltools.tight button { flex: 1 1 60px; min-width: 0; text-align: center; }
   .filterwrap { position: relative; display: flex; flex: 1; min-width: 0; }
   .clearfilter {
     position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
@@ -401,22 +427,26 @@
   }
   #propbody input[type=text], #propbody input[type=number], #propbody select {
     background: var(--mk-gutter); color: var(--mk-fg); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 3px 6px; width: 100%; font-family: var(--font); font-size: 12px;
+    border-radius: var(--radius); padding: 3px 6px; width: 100%; min-width: 0;
+    font-family: var(--font); font-size: 12px;
   }
+  /* a narrow dock must be able to squeeze these rather than overflow */
+  #propbody > * { min-width: 0; }
+  .veccell input, .numwrap input { min-width: 0; }
   #propbody input:focus, #propbody select:focus { outline: none; border-color: var(--mk-cyan); }
-  #propbody .empty { grid-column: 1 / 3; color: var(--mk-comment); padding: 6px 0; }
+  #propbody .empty { grid-column: 1 / -1; color: var(--mk-comment); padding: 6px 0; }
   #propbody .empty::before { content: '// '; }
 
   /* ---- properties: sections, a real toggle, readable colour rows ---- */
   .prophead {
-    grid-column: 1 / 3; display: flex; align-items: center; gap: 6px;
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 6px;
     margin: 10px 0 2px; color: var(--mk-green); font-size: 10px;
     text-transform: uppercase; letter-spacing: 0.08em;
   }
   .prophead:first-child { margin-top: 0; }
   .prophead::after { content: ''; flex: 1; height: 1px; background: var(--mk-border); }
   .propident {
-    grid-column: 1 / 3; display: flex; align-items: baseline; gap: 7px;
+    grid-column: 1 / -1; display: flex; align-items: baseline; gap: 7px;
     padding-bottom: 4px; border-bottom: 1px solid var(--mk-border); margin-bottom: 2px;
   }
   .propident b { color: var(--mk-cyan); font-size: 13px; font-weight: 600; }
@@ -518,9 +548,15 @@
     grid-template-rows: 0 minmax(0, 1fr) 0;
   }
   #canvasarea.norulers .ruler, #canvasarea.norulers .rulercorner { display: none; }
+  /* Each corner carries the borders of the two rules it sits between, so the
+     frame closes instead of showing four different joins. */
   .rulercorner { background: var(--mk-canvas); }
+  #canvasarea > .rulercorner:nth-of-type(1) { border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
   .ruler { display: block; background: var(--mk-canvas); }
   #rulerCorner { border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
+  #cornerTR { border-left: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
+  #cornerBL { border-right: 1px solid var(--mk-border); border-top: 1px solid var(--mk-border); }
+  #cornerBR { border-left: 1px solid var(--mk-border); border-top: 1px solid var(--mk-border); }
   #rulerTop { border-bottom: 1px solid var(--mk-border); cursor: ns-resize; }
   #rulerLeft { border-right: 1px solid var(--mk-border); cursor: ew-resize; }
   #rulerBottom { border-top: 1px solid var(--mk-border); cursor: ns-resize; }
@@ -816,7 +852,6 @@
     <span id="modeHint">hold <b>Space</b> to test interaction</span>
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
     <button class="headbtn" id="resetViewBtn" title="Recentre the canvas (Shift+F)">Reset view</button>
-    <a class="sitelink" href="https://aethyr.gg" target="_blank" rel="noopener">aethyr.gg</a>
   </div>
   <div id="menupop"></div>
 
@@ -831,7 +866,7 @@
       <section class="panel" data-panel="palette" data-title="Palette">
         <div class="paltools">
           <span class="filterwrap">
-            <input type="text" id="filter" placeholder="filter widgets...">
+            <input type="text" id="filter" placeholder="Filter widgets…">
             <button class="clearfilter" data-for="filter" title="Clear the filter">✕</button>
           </span>
         </div>
@@ -844,7 +879,7 @@
       <section class="panel" data-panel="hierarchy" data-title="Hierarchy">
         <div class="paltools">
           <span class="filterwrap">
-            <input type="text" id="treeFilter" placeholder="filter hierarchy...">
+            <input type="text" id="treeFilter" placeholder="Filter hierarchy…">
             <button class="clearfilter" data-for="treeFilter" title="Clear the filter">✕</button>
           </span>
         </div>
@@ -859,9 +894,9 @@
       </section>
       <section class="panel" data-panel="templates" data-title="Templates">
         <div class="paltools">
-          <button id="tplSaveBtn" title="Save the current document as a template">save current</button>
-          <button id="tplExportBtn" title="Export templates to a file">export</button>
-          <button id="tplImportBtn" title="Import templates from a file">import</button>
+          <button id="tplSaveBtn" title="Save the current document as a template">Save Current</button>
+          <button id="tplExportBtn" title="Export templates to a file">Export</button>
+          <button id="tplImportBtn" title="Import templates from a file">Import</button>
         </div>
         <div id="tpllist"></div>
       </section>
@@ -887,7 +922,7 @@
       <div id="canvasarea">
         <div class="rulercorner" id="rulerCorner"></div>
         <canvas class="ruler" id="rulerTop"></canvas>
-        <div class="rulercorner"></div>
+        <div class="rulercorner" id="cornerTR"></div>
         <canvas class="ruler" id="rulerLeft"></canvas>
         <div id="canvashost">
           <!-- everything in canvas space lives in #viewport, so panning is one
@@ -914,9 +949,9 @@
           <div id="coordtip"></div>
         </div>
         <canvas class="ruler" id="rulerRight"></canvas>
-        <div class="rulercorner"></div>
+        <div class="rulercorner" id="cornerBL"></div>
         <canvas class="ruler" id="rulerBottom"></canvas>
-        <div class="rulercorner"></div>
+        <div class="rulercorner" id="cornerBR"></div>
       </div>
       <div id="status">
         <span id="hoverInfo">—</span>
@@ -995,7 +1030,7 @@
     </div>
   </div>
 
-<script src="widgets.js?v=e1e5407ee8"></script>
+<script src="widgets.js?v=97aff04e6c"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
 <script src="cpp.js?v=bd36923f34"></script>
 <script>
@@ -2380,9 +2415,9 @@ document.addEventListener('mousemove', e => {
     if (!drag.started) {
       if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 5) return;
       drag.started = true;
-      const label = drag.kind === 'palette'
-        ? WIDGETS[drag.type].name
-        : (findNode(drag.nodeId)?.label || drag.nodeId);
+      const label = drag.kind === 'palette' ? titleCase(WIDGETS[drag.type].name)
+        : drag.kind === 'template' ? titleCase(drag.tpl.name)
+          : (findNode(drag.nodeId)?.label || drag.nodeId);
       ghost.textContent = (drag.dup ? '+ ' : '') + label;
       ghost.style.display = 'block';
     }
@@ -2425,11 +2460,13 @@ document.addEventListener('mouseup', e => {
   const d = drag;
   cancelDrag();
   if (!d.started) {
-    if (d.kind === 'palette') addNode(d.type);
+    if (d.kind === 'template') insertTemplate(d.tpl);
+    else if (d.kind === 'palette') addNode(d.type);
     return;
   }
   if (!d.drop) return;
-  if (d.kind === 'palette') insertNodeAt(d.type, d.drop);
+  if (d.kind === 'template') insertTemplateAt(d.tpl, d.drop);
+  else if (d.kind === 'palette') insertNodeAt(d.type, d.drop);
   else if (d.dup) duplicateTo(d.nodeId, d.drop);
   else moveSelectionTo(d.nodeId, d.drop);
 });
@@ -2688,6 +2725,17 @@ function isTextEntry(t) {
 // would make every text field uneditable. This capture listener registers
 // before engine.js loads, so it runs first and shields text-entry targets.
 // Default actions (the actual typing) still happen; only later listeners stop.
+// Registered ahead of everything else: while a shortcut row is listening,
+// Escape cancels that and nothing else. It used to race the overlay handlers
+// and sometimes closed the whole panel instead.
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && settingsCapture) {
+    cancelCapture();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+}, true);
+
 window.addEventListener('keydown', e => {
   // The C++ editor wants Tab for indenting, so it gets first refusal here.
   // Its handler can't sit on the textarea: this listener would have already
@@ -2871,15 +2919,15 @@ function commandEntries() {
     { label: 'Toggle Edit / Live mode', k: 'Tab', run: () => setLiveMode(editMode) },
     { label: 'Duplicate selection', k: 'Ctrl+D', run: duplicateSelection },
     { label: 'Delete selection', k: 'Del', run: deleteSelection },
-    { label: 'Wrap selection in Group', k: 'Ctrl+G', run: wrapSelection },
+    { label: 'Wrap in Group', k: 'Ctrl+G', run: wrapSelection },
     { label: 'Unwrap container', k: 'Ctrl+Shift+G', run: unwrapSelection },
-    { label: 'Toggle SameLine join', k: 'J', run: toggleJoin },
-    { label: 'Repeat last insert', k: 'R', run: repeatInsert },
+    { label: 'Toggle SameLine', k: 'J', run: toggleJoin },
+    { label: 'Repeat Insert', k: 'R', run: repeatInsert },
     { label: 'Keyboard shortcuts', k: '?', run: toggleHelp },
-    { label: 'Reset document to the sample', run: () => document.getElementById('resetBtn').onclick() },
+    { label: 'Reset to Sample', run: () => document.getElementById('resetBtn').onclick() },
     { label: 'Reset panel layout', run: () => resetPanelLayout() },
     { label: 'Export JSON', run: () => document.getElementById('exportBtn').onclick() },
-    { label: 'Copy generated C++', run: () => navigator.clipboard.writeText(generateCode()) },
+    { label: 'Copy C++', run: () => navigator.clipboard.writeText(generateCode()) },
   ];
 }
 
@@ -2916,7 +2964,7 @@ function renderCmdk() {
     const row = document.createElement('div');
     row.className = 'ov-item' + (i === cmdkSel ? ' sel' : '');
     const l = document.createElement('span');
-    l.textContent = item.label;
+    l.textContent = titleCase(item.label);
     row.appendChild(l);
     if (item.k) {
       const k = document.createElement('span');
@@ -4038,12 +4086,25 @@ function contentExtent() {
   return { w, h };
 }
 
+// Quantised, because the size is derived from the live rects: dragging a window
+// changes the extent every frame, and resizing the surface every frame makes the
+// preview strobe. Rounding up to a step means the surface only changes when the
+// content crosses a boundary, and it never shrinks while a gesture is running.
+const CANVAS_STEP = 256;
+const quantise = v => Math.ceil(v / CANVAS_STEP) * CANVAS_STEP;
+
 function syncCanvasSize() {
   const ext = contentExtent();
-  const w = Math.min(CANVAS_MAX, Math.max(64, Math.floor(canvasHost.clientWidth),
-    Math.ceil(ext.w) + CANVAS_MARGIN));
-  const h = Math.min(CANVAS_MAX, Math.max(64, Math.floor(canvasHost.clientHeight),
-    Math.ceil(ext.h) + CANVAS_MARGIN));
+  const wantW = Math.max(Math.floor(canvasHost.clientWidth), quantise(ext.w + CANVAS_MARGIN));
+  const wantH = Math.max(Math.floor(canvasHost.clientHeight), quantise(ext.h + CANVAS_MARGIN));
+  let w = Math.min(CANVAS_MAX, Math.max(64, wantW));
+  let h = Math.min(CANVAS_MAX, Math.max(64, wantH));
+  // hold the larger size while dragging or resizing, so a shrinking extent
+  // mid-gesture cannot cause a resize storm
+  if (drag || resizing || marquee) {
+    w = Math.max(w, canvas.width);
+    h = Math.max(h, canvas.height);
+  }
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
     canvas.height = h;
@@ -4445,7 +4506,7 @@ function MENUS() {
   return {
     file: [
       { group: '1_doc', label: 'New project', key: 'Ctrl+N', run: () => { addProject(); saveProjects(); } },
-      { group: '1_doc', label: 'Reset to the sample layout', run: () => click('resetBtn') },
+      { group: '1_doc', label: 'Reset to Sample', run: () => click('resetBtn') },
       { group: '2_io', label: 'Import JSON…', run: () => click('importBtn') },
       { group: '2_io', label: 'Export JSON', run: () => click('exportBtn') },
       { group: '2_io', label: 'Export everything', run: () => exportEverything() },
@@ -4453,7 +4514,7 @@ function MENUS() {
       { group: '3_tpl', label: 'Import templates…', run: () => document.getElementById('tplImportBtn').onclick() },
       { group: '3_tpl', label: 'Export templates', run: () => exportTemplates() },
       { group: '4_share', label: 'Copy share link', run: () => click('shareBtn') },
-      { group: '4_share', label: 'Copy generated C++', run: () => navigator.clipboard.writeText(generateCode()) },
+      { group: '4_share', label: 'Copy C++', run: () => navigator.clipboard.writeText(generateCode()) },
       { group: '5_set', label: 'Settings…', run: () => click('settingsBtn') },
     ],
     view: [
@@ -4461,9 +4522,9 @@ function MENUS() {
       { group: '1_show', label: 'Rulers and guides', checked: showRulers, run: () => click('rulerBtn') },
       { group: '2_guides', label: 'Clear guides', disabled: !guides.length,
         run: () => { guides = []; renderGuides(); saveGuides(); } },
-      { group: '3_view', label: 'Focus the selection', key: 'F', disabled: !selectedId,
+      { group: '3_view', label: 'Focus Selection', key: 'F', disabled: !selectedId,
         run: () => focusSelection() },
-      { group: '3_view', label: 'Reset the view', key: 'Shift+F', run: () => resetPan() },
+      { group: '3_view', label: 'Reset View', key: 'Shift+F', run: () => resetPan() },
       { group: '4_theme', label: 'Themes…', run: () => openSettings('theme') },
     ],
     windows: [
@@ -4513,7 +4574,7 @@ function renderMenu(name) {
     tick.textContent = it.checked ? '✓' : '';
     row.appendChild(tick);
     const l = document.createElement('span');
-    l.textContent = it.label;
+    l.textContent = titleCase(it.label);
     row.appendChild(l);
     if (it.key) {
       const k = document.createElement('span');
@@ -4597,7 +4658,7 @@ function openContextMenu(e, items) {
     row.className = 'mi' + (it.danger ? ' danger' : '');
     if (it.disabled) row.style.opacity = '0.4';
     const l = document.createElement('span');
-    l.textContent = it.label;
+    l.textContent = titleCase(it.label);
     row.appendChild(l);
     if (it.key) {
       const k = document.createElement('span');
@@ -4659,12 +4720,12 @@ function paletteMenu(type, isPinned) {
   const spec = WIDGETS[type];
   const sel = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
   return [
-    { group: '1_insert', order: 0, label: 'Insert after selection', key: 'Enter',
+    { group: '1_insert', order: 0, label: 'Insert After', key: 'Enter',
       run: () => insertNodeAt(type, dropSiblingAfterSelection()) },
-    { group: '1_insert', order: 1, label: 'Insert inside selection',
+    { group: '1_insert', order: 1, label: 'Insert Inside',
       disabled: !(sel && isContainer(sel)),
       run: () => insertNodeAt(type, { parentId: sel.id, index: (sel.children || []).length }) },
-    { group: '1_insert', order: 2, label: 'Insert at end',
+    { group: '1_insert', order: 2, label: 'Insert at End',
       run: () => insertNodeAt(type, { parentId: 'root', index: doc.children.length }) },
     { group: '3_pin', order: 0,
       label: isPinned ? 'Unpin from hotbar'
@@ -4685,7 +4746,7 @@ function widgetMenu(node, inTree) {
   const container = isContainer(node);
   const kids = (node.children || []).length;
   return [
-    { group: '1_head', order: 0, label: 'Toggle SameLine join', key: 'J',
+    { group: '1_head', order: 0, label: 'Toggle SameLine', key: 'J',
       disabled: !parent || parent.children.indexOf(node) === 0,
       run: () => { selectId(node.id); toggleJoin(); } },
     { group: '1_head', order: 1, label: 'Rename', key: 'F2',
@@ -4708,7 +4769,7 @@ function widgetMenu(node, inTree) {
       run: () => { selectId(node.id); duplicateSelection(); } },
     { group: '6_code', order: 0, label: 'Copy C++ snippet',
       run: () => navigator.clipboard.writeText(cppSnippet(node)) },
-    { group: '6_code', order: 1, label: 'Show in generated code',
+    { group: '6_code', order: 1, label: 'Show in Code',
       run: () => { selectId(node.id); revealInCode(node.id); } },
     { group: '1_head', order: 2, label: 'Go to', key: 'F',
       run: () => { selectId(node.id); focusSelection(); } },
@@ -4741,9 +4802,9 @@ function backgroundMenu() {
       run: () => setRulers(!showRulers) },
     { group: '4_view', order: 2, label: 'Clear guides',
       disabled: !guides.length, run: () => { guides = []; renderGuides(); saveGuides(); } },
-    { group: '6_code', order: 0, label: 'Copy all generated C++',
+    { group: '6_code', order: 0, label: 'Copy All C++',
       run: () => navigator.clipboard.writeText(generateCode()) },
-    { group: '8_more', order: 0, label: 'All commands…', key: 'Ctrl+K',
+    { group: '8_more', order: 0, label: 'All Commands…', key: 'Ctrl+K',
       run: () => openCmdk('all') },
   ];
 }
@@ -4834,12 +4895,14 @@ function renderTree() {
 
     const t = document.createElement('span');
     t.className = 'wtype';
-    t.textContent = node.type;
+    // PascalCase, so the tree reads like the ImGui calls it stands for
+    t.textContent = pascalType(node.type);
+    t.title = node.type;
     row.appendChild(t);
 
     const l = document.createElement('span');
     l.className = 'wlabel';
-    l.textContent = node.label || '';
+    l.textContent = titleCase(node.label || '');
     row.appendChild(l);
 
     if (node.sameline && index > 0) {
@@ -4909,6 +4972,14 @@ const LABEL_NAMES = {
   args: 'Arguments', fmt: 'Format', r: 'R', g: 'G', b: 'B',
 };
 
+// "sliderfloat" -> "SliderFloat", from the spec's own name so it matches the
+// ImGui function rather than guessing at word boundaries.
+function pascalType(type) {
+  const spec = WIDGETS[type];
+  if (!spec) return type;
+  return titleCase(spec.name).replace(/[\s-]+/g, '');
+}
+
 // Property keys are camelCase identifiers; the panel shows them as words.
 function labelFor(key) {
   if (LABEL_NAMES[key]) return LABEL_NAMES[key];
@@ -4933,9 +5004,10 @@ function renderProps() {
   // Unreal puts a small revert arrow beside anything that differs from its
   // default. It reads as "this one was touched" without needing a second
   // colour, and it undoes exactly that property rather than the last action.
-  const addField = (labelText, input, isSet, restore) => {
+  const addField = (labelText, input, isSet, restore, help) => {
     const l = document.createElement('label');
     l.textContent = labelText;
+    if (help) { l.title = help; if (input.title === undefined || !input.title) input.title = help; }
     if (isSet) l.className = 'set';
     host.appendChild(l);
     if (restore) {
@@ -5060,7 +5132,7 @@ function renderProps() {
     const key = def[0];
     if (paired.has(key)) continue;
     addField(labelFor(key), editorFor(def), changed(key),
-      changed(key) ? restoreFn(key) : null);
+      changed(key) ? restoreFn(key) : null, PROP_HELP[key]);
   }
   for (const [a, b] of PAIRS) {
     if (!byKey[a] || !byKey[b]) continue;
@@ -5078,7 +5150,8 @@ function renderProps() {
     }
     const pairChanged = changed(a) || changed(b);
     addField(a === 'w' ? 'Size' : 'Range', row, pairChanged,
-      pairChanged ? () => { node[a] = defaultOf(a); node[b] = defaultOf(b); } : null);
+      pairChanged ? () => { node[a] = defaultOf(a); node[b] = defaultOf(b); } : null,
+      a === 'w' ? PROP_HELP.w : 'The range the control is allowed to produce.');
   }
 
   if (node !== doc) {
@@ -5099,7 +5172,8 @@ function renderProps() {
     // control has to stop showing it as set
     else t.onclick = () => { node.sameline = !node.sameline; refresh(); };
     addField('SameLine', t, !!node.sameline && !first,
-      node.sameline && !first ? () => { delete node.sameline; } : null);
+      node.sameline && !first ? () => { delete node.sameline; } : null,
+      'Puts this widget on the same row as the one before it, via ImGui::SameLine().');
   }
 
   // ---- colour overrides ----
@@ -5144,7 +5218,8 @@ function renderProps() {
     }
 
     // an overridden value is marked, so "changed here" is visible at a glance
-    addField(slot, row, !!cur);
+    addField(slot, row, !!cur, cur ? () => { delete node.colors[slot]; } : null,
+      'Overrides ImGuiCol_' + slot + ' for this widget only, as a PushStyleColor/PopStyleColor pair.');
   }
 }
 
@@ -5524,6 +5599,35 @@ function applyTemplate(t, asNew) {
   } else run();
 }
 
+// A template is a bundle of widgets, so inserting one means inserting its
+// contents at the drop point rather than replacing the document. Applying it as
+// a whole document is still there, under the + button.
+function templateWidgets(t) {
+  const wins = (t.doc && t.doc.children) || [];
+  const src = wins.length && wins[0].type === 'window' ? wins[0].children : wins;
+  const ids = new Set();
+  return sanitize(JSON.parse(JSON.stringify(src || [])), ids, false);
+}
+
+function insertTemplateAt(t, drop) {
+  const kids = templateWidgets(t);
+  if (!kids.length) return;
+  let at = drop;
+  const added = [];
+  for (const kid of kids) {
+    if (!insertAt(kid, at)) return;
+    added.push(kid.id);
+    const parent = findParent(kid.id);
+    at = { parentId: parent.id, index: parent.children.indexOf(kid) + 1 };
+  }
+  selectMany(added);
+  refresh();
+}
+
+function insertTemplate(t) {
+  insertTemplateAt(t, dropSiblingAfterSelection());
+}
+
 function renderTemplates() {
   const host = document.getElementById('tpllist');
   host.innerHTML = '';
@@ -5532,9 +5636,18 @@ function renderTemplates() {
     row.className = 'tplrow';
     const n = document.createElement('span');
     n.className = 'tplname';
-    n.textContent = t.name;
-    n.title = (t.builtin ? 'Built in. ' : '') + 'Click to apply here, or use the ＋ to open it as a new project';
-    n.onclick = () => applyTemplate(t, false);
+    n.textContent = titleCase(t.name);
+    n.title = (t.builtin ? 'Built in. ' : '')
+      + 'Click to insert its widgets at the selection, or drag onto the canvas. '
+      + 'Use + to open it as its own project.';
+    n.onclick = () => insertTemplate(t);
+    // dragging works exactly as it does from the palette
+    n.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      drag = { kind: 'template', tpl: t, started: false,
+        startX: e.clientX, startY: e.clientY, drop: null };
+    });
     row.appendChild(n);
     const count = document.createElement('span');
     count.className = 'tplcount';
@@ -5562,9 +5675,9 @@ function renderTemplates() {
     row.oncontextmenu = e => {
       e.preventDefault();
       openContextMenu(e, [
-        { group: '1', order: 0, label: 'Apply to this document', run: () => applyTemplate(t, false) },
-        { group: '1', order: 1, label: 'Open as a new project', run: () => applyTemplate(t, true) },
-        { group: '2', order: 0, label: 'Export this template', run: () => exportTemplates([t]) },
+        { group: '1', order: 0, label: 'Apply Here', run: () => applyTemplate(t, false) },
+        { group: '1', order: 1, label: 'Open as Project', run: () => applyTemplate(t, true) },
+        { group: '2', order: 0, label: 'Export Template', run: () => exportTemplates([t]) },
         t.builtin ? null : { group: '9z', order: 0, label: 'Delete', danger: true,
           run: () => { templates = templates.filter(x => x !== t); saveTemplates(); renderTemplates(); } },
       ]);
@@ -5751,13 +5864,13 @@ function openSettings(tab) {
 }
 
 function closeSettings() {
-  if (settingsOv.hidden) return;
-  // closing mid-capture counts as cancelling it, or the next key pressed
-  // anywhere would land on whatever row was armed
-  if (settingsCapture) { if (captureWas) Object.assign(settingsCapture, captureWas); }
-  settingsOv.hidden = true;
+  // Clearing comes first and is unconditional: any path that hid the panel
+  // without going through here used to leave a row armed, and reopening showed
+  // it still waiting for a key.
+  if (settingsCapture && captureWas) Object.assign(settingsCapture, captureWas);
   settingsCapture = null;
   captureWas = null;
+  settingsOv.hidden = true;
 }
 
 function setRow(label, controlEl) {
@@ -6136,6 +6249,8 @@ window.__test = {
   templates: () => templates.map(t => ({ name: t.name, builtin: !!t.builtin, n: countNodes(t.doc.children) })),
   applyTemplate: name => applyTemplate(templates.find(t => t.name === name), false),
   saveTemplate: () => saveCurrentAsTemplate(),
+  insertTemplate: name => insertTemplate(
+    templates.find(t => t.name.toLowerCase() === String(name).toLowerCase())),
   shareLink: () => buildShareLink(),
   loadShare: async url => {
     const m = /[#&]d=([A-Za-z0-9_-]+)/.exec(url);
@@ -6303,6 +6418,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=d99bfd747f"></script>
+<script src="engine.js?v=80789fa25e"></script>
 </body>
 </html>
