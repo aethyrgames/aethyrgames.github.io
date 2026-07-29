@@ -84,6 +84,12 @@
   #dockRight { width: 470px; border-left: 1px solid var(--mk-border); }
   .dock:empty { display: none; }
   .dock:empty + .dockresize, .dockresize:has(+ .dock:empty) { display: none; }
+  /* hidden panels stay in the DOM so their render targets keep resolving, so a
+     dock counts as empty when every panel in it is hidden */
+  .panel.gone { display: none; }
+  .dock:not(:has(.panel:not(.gone))) { display: none; }
+  .dock:not(:has(.panel:not(.gone))) + .dockresize,
+  .dockresize:has(+ .dock:not(:has(.panel:not(.gone)))) { display: none; }
   .dockresize {
     width: 5px; flex-shrink: 0; cursor: col-resize; background: transparent;
   }
@@ -365,6 +371,7 @@
     background: var(--mk-gutter); color: var(--mk-fg);
   }
   #codeEdit:focus { box-shadow: inset 2px 0 0 var(--mk-green); }
+  .cline.hl { background: rgba(102, 217, 239, 0.18); border-radius: 2px; }
   #codeStatus {
     padding: 6px 10px; font-size: 11px; border-top: 1px solid var(--mk-border);
     color: var(--mk-comment); max-height: 32%; overflow-y: auto; white-space: pre-wrap;
@@ -484,6 +491,7 @@
           <select id="themeSel" title="Syntax highlighting theme"></select>
           <button id="editCodeBtn" title="Edit the C++ and apply it back to the document">Edit</button>
           <button id="applyCodeBtn" hidden>Apply</button>
+          <button id="reloadCodeBtn" title="Regenerate from the current document, discarding edits here" hidden>Reload</button>
           <button id="cancelCodeBtn" hidden>Cancel</button>
           <button id="copyBtn">Copy</button>
         </div>
@@ -514,7 +522,7 @@
 
 <script src="widgets.js?v=3118603c31"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
-<script src="cpp.js?v=4c03ed49a1"></script>
+<script src="cpp.js?v=f3eb11733a"></script>
 <script>
 // ---------- document model ----------
 
@@ -608,6 +616,10 @@ function addNode(type) {
   const host = sel && isContainer(sel) ? sel : doc;
   if (!host.children) host.children = [];
   host.children.push(node);
+  // the new node becomes the whole selection: leaving the previous one in the
+  // set would point Delete and Duplicate at widgets the user is done with
+  selection.clear();
+  selection.add(node.id);
   selectedId = node.id;
   lastInsertType = type;
   refresh();
@@ -616,6 +628,8 @@ function addNode(type) {
 function insertNodeAt(type, drop) {
   const node = makeNode(type);
   insertAt(node, drop);
+  selection.clear();
+  selection.add(node.id);
   selectedId = node.id;
   lastInsertType = type;
   refresh();
@@ -635,10 +649,39 @@ function moveNodeTo(id, drop) {
   refresh();
 }
 
+// Dragging any member of a multi-selection takes the whole selection with it.
+// Moving only the grabbed node made a marquee select look like it had worked
+// right up until you tried to use it.
+function moveSelectionTo(id, drop) {
+  const nodes = selectedNodes().filter(n => n !== doc);
+  if (nodes.length < 2 || !selection.has(id)) { moveNodeTo(id, drop); return; }
+  // dropping inside one of the nodes being moved would orphan the rest
+  if (nodes.some(n => n.id === drop.parentId || isAncestor(n.id, drop.parentId))) return;
+  const parent = findNode(drop.parentId) || doc;
+  if (!parent.children) parent.children = [];
+  // count how many of the moved nodes sit before the drop point in this list,
+  // since detaching them shifts the target index down by that much
+  const before = nodes.filter(n => {
+    const i = parent.children.indexOf(n);
+    return i >= 0 && i < drop.index;
+  }).length;
+  for (const n of nodes) detach(n.id);
+  let at = Math.max(0, Math.min(drop.index - before, parent.children.length));
+  for (const n of nodes) {
+    if (drop.sameline && n === nodes[0]) n.sameline = true;
+    parent.children.splice(at++, 0, n);
+  }
+  selectMany(nodes.map(n => n.id));
+  refresh();
+}
+
 function removeNode(id) {
   detach(id);
   // the selection may have been a descendant of the removed subtree
-  if (selectedId && selectedId !== 'root' && !findNode(selectedId)) selectedId = null;
+  for (const s of [...selection]) if (!findNode(s)) selection.delete(s);
+  if (selectedId && selectedId !== 'root' && !findNode(selectedId)) {
+    selectedId = selection.size ? [...selection][selection.size - 1] : null;
+  }
   refresh();
 }
 
@@ -806,42 +849,74 @@ function dropAfterSelection() {
   return { parentId: 'root', index: doc.children.length };
 }
 
+// The structure verbs are bound and labelled as selection verbs, so they act on
+// the whole selection. Grouping by parent first keeps each list's splices
+// independent, which is what lets a selection spanning containers work at all.
+function byParent(nodes) {
+  const groups = new Map();
+  for (const n of nodes) {
+    const p = findParent(n.id);
+    if (!p) continue;
+    if (!groups.has(p)) groups.set(p, []);
+    groups.get(p).push(n);
+  }
+  return groups;
+}
+
 function reorderSelection(delta, extreme) {
-  const node = selectedId && findNode(selectedId);
-  if (!node || node === doc) return;
-  const parent = findParent(node.id);
-  const i = parent.children.indexOf(node);
-  let j = extreme ? (delta < 0 ? 0 : parent.children.length - 1) : i + delta;
-  j = Math.max(0, Math.min(parent.children.length - 1, j));
-  if (i === j) return;
-  parent.children.splice(i, 1);
-  parent.children.splice(j, 0, node);
+  const nodes = selectedNodes().filter(n => n !== doc);
+  if (!nodes.length) return;
+  for (const [parent, group] of byParent(nodes)) {
+    const list = parent.children;
+    // pull the block out, then reinsert it as a unit, so a multi-selection
+    // keeps its internal order instead of shuffling against itself
+    const idx = group.map(n => list.indexOf(n)).sort((a, b) => a - b);
+    const block = idx.map(i => list[i]);
+    const anchor = delta < 0 ? idx[0] : idx[idx.length - 1];
+    for (let k = idx.length - 1; k >= 0; k--) list.splice(idx[k], 1);
+    const before = idx.filter(i => i < anchor).length;
+    let target = extreme
+      ? (delta < 0 ? 0 : list.length)
+      : Math.max(0, Math.min(list.length, anchor - before + delta));
+    list.splice(target, 0, ...block);
+  }
   refresh();
 }
 
 function wrapSelection() {
-  const node = selectedId && findNode(selectedId);
-  if (!node || node === doc) return;
-  const parent = findParent(node.id);
-  const idx = parent.children.indexOf(node);
-  const grp = makeNode('group');
-  if (node.sameline) { grp.sameline = true; delete node.sameline; }
-  parent.children.splice(idx, 1);
-  grp.children.push(node);
-  parent.children.splice(idx, 0, grp);
-  selectId(grp.id);
+  const nodes = selectedNodes().filter(n => n !== doc);
+  if (!nodes.length) return;
+  let last = null;
+  for (const [parent, group] of byParent(nodes)) {
+    const list = parent.children;
+    const idx = group.map(n => list.indexOf(n)).sort((a, b) => a - b);
+    const at = idx[0];
+    const grp = makeNode('group');
+    // the join belongs to whatever comes first, which is now the group
+    if (group[0].sameline) { grp.sameline = true; delete group[0].sameline; }
+    for (let k = idx.length - 1; k >= 0; k--) list.splice(idx[k], 1);
+    grp.children.push(...group);
+    list.splice(at, 0, grp);
+    last = grp;
+  }
+  if (last) selectId(last.id);
 }
 
 function unwrapSelection() {
-  const node = selectedId && findNode(selectedId);
-  if (!node || node === doc || !isContainer(node)) return;
-  const parent = findParent(node.id);
-  const idx = parent.children.indexOf(node);
-  const kids = node.children || [];
-  // the container may be carrying a join that wrapSelection moved onto it
-  if (node.sameline && kids[0]) kids[0].sameline = true;
-  parent.children.splice(idx, 1, ...kids);
-  selectId(kids[0] ? kids[0].id : parent.id);
+  const nodes = selectedNodes().filter(n => n !== doc && isContainer(n));
+  if (!nodes.length) return;
+  let first = null;
+  for (const node of nodes) {
+    const parent = findParent(node.id);
+    if (!parent) continue;
+    const idx = parent.children.indexOf(node);
+    const kids = node.children || [];
+    // the container may be carrying a join that wrapSelection moved onto it
+    if (node.sameline && kids[0]) kids[0].sameline = true;
+    parent.children.splice(idx, 1, ...kids);
+    if (!first) first = kids[0] || parent;
+  }
+  selectId(first ? first.id : null);
 }
 
 function toggleJoin() {
@@ -1028,6 +1103,13 @@ function applyDocData(d, savedNextId) {
   delete doc.colors;
   const winCols = sanitizeColors('window', d.colors);
   if (winCols) doc.colors = winCols;
+  // hand-written C++ around the window survives save/load like any other content
+  delete doc.pre; delete doc.post;
+  if (typeof d.pre === 'string' && d.pre.trim()) doc.pre = d.pre;
+  if (typeof d.post === 'string' && d.post.trim()) doc.post = d.post;
+  // a whole new document re-asserts its window size, even onto a window the
+  // user had dragged to some other size
+  if (engineReady) Module.ccall('engine_reset_window_size', null, [], []);
   clearSelection();
 }
 
@@ -1120,7 +1202,9 @@ function updateSelectionOverlay() {
     const props = (node && WIDGETS[node.type] && WIDGETS[node.type].props) || [];
     const hasW = props.some(p => p[0] === 'w');
     const hasH = props.some(p => p[0] === 'h');
-    selbox.classList.toggle('resizable', (hasW || hasH) && selection.size <= 1 && !resizing);
+    // stays resizable mid-drag: dropping the handle the moment it is grabbed
+    // takes the grip out from under the cursor
+    selbox.classList.toggle('resizable', (hasW || hasH) && selection.size <= 1);
     selbox.classList.toggle('now', !hasW);
     selbox.classList.toggle('noh', !hasH);
   }
@@ -1236,6 +1320,7 @@ function updateDropIndicator(drop) {
 const marqueeEl = document.getElementById('marquee');
 let marquee = null;
 let resizing = null;
+const MIN_DRAG_SIZE = 8;   // 0 means "auto" to ImGui, so a drag must not reach it
 
 // A flow layout has almost no empty canvas to rubber-band from (widgets tile
 // edge to edge), so Ctrl+drag starts a marquee from anywhere.
@@ -1277,8 +1362,21 @@ function updateMarquee() {
   for (const id of hits) selection.add(id);
   normalizeSelection();
   selectedId = selection.size ? [...selection][selection.size - 1] : null;
-  renderTree();
-  renderProps();
+  paintDuringGesture();
+}
+
+// A mousemove can fire many times per frame, and both marquee select and resize
+// used to rebuild the hierarchy, the properties and the whole C++ on each one.
+// Coalescing to a frame keeps the feedback without the churn.
+let gestureFrame = 0;
+function paintDuringGesture(withCode) {
+  if (gestureFrame) return;
+  gestureFrame = requestAnimationFrame(() => {
+    gestureFrame = 0;
+    renderTree();
+    renderProps();
+    if (withCode) renderCode();
+  });
 }
 
 // Resize is anchored to the size captured at drag start: reading the live rect
@@ -1391,12 +1489,19 @@ function beginInlineEdit(id) {
   inlineEl.select();
 }
 
-function endInlineEdit(commit) {
+function endInlineEdit(commit, fromBlur) {
   if (inlineId === null) return;
   const node = findNode(inlineId);
   if (node) node.label = commit ? inlineEl.value : inlineOriginal;
   inlineId = null;
   inlineEl.style.display = 'none';
+  if (fromBlur) {
+    // Blur fires on mousedown. Rebuilding the panels here would replace the
+    // element the click started on, so the click would never complete, and
+    // stealing focus back to the canvas would undo whatever it landed on.
+    requestAnimationFrame(() => refresh());
+    return;
+  }
   inlineEl.blur();
   canvas.focus({ preventScroll: true });
   refresh();
@@ -1411,19 +1516,26 @@ inlineEl.addEventListener('keydown', e => {
   else if (e.key === 'Escape') { endInlineEdit(false); e.preventDefault(); }
   e.stopPropagation();
 });
-inlineEl.addEventListener('blur', () => endInlineEdit(true));
+inlineEl.addEventListener('blur', () => endInlineEdit(true, true));
 
 document.addEventListener('mousemove', e => {
   if (resizing) {
     const node = findNode(resizing.id);
     if (!node) { resizing = null; return; }
+    // Stop short of 0: that is ImGui's auto-size sentinel, so dragging onto it
+    // makes the widget jump back to its natural size instead of getting small.
+    // Zero stays reachable from the inspector, where it is labelled.
     if (resizing.axis.includes('w')) {
-      node.w = Math.max(0, Math.round(resizing.w0 + (e.clientX - resizing.startX)));
+      node.w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + (e.clientX - resizing.startX)));
     }
     if (resizing.axis.includes('h')) {
-      node.h = Math.max(0, Math.round(resizing.h0 + (e.clientY - resizing.startY)));
+      node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + (e.clientY - resizing.startY)));
     }
-    refresh(false);   // coalesces into one undo entry for the whole drag
+    // The engine has to see every step so the preview tracks the cursor; the
+    // panels and the generated C++ can wait for the next frame, and the undo
+    // entry and the save wait for mouseup.
+    pushDoc();
+    paintDuringGesture(true);
     return;
   }
   if (marquee) {
@@ -1493,11 +1605,16 @@ document.addEventListener('mouseup', e => {
   if (!d.drop) return;
   if (d.kind === 'palette') insertNodeAt(d.type, d.drop);
   else if (d.dup) duplicateTo(d.nodeId, d.drop);
-  else moveNodeTo(d.nodeId, d.drop);
+  else moveSelectionTo(d.nodeId, d.drop);
 });
 
 window.addEventListener('blur', () => {
   if (drag) cancelDrag();
+  // A gesture interrupted by alt-tab never sees its mouseup, so it would come
+  // back still following the cursor with no button held.
+  if (resizing) { resizing = null; refresh(); }
+  if (marquee) { marquee = null; marqueeEl.style.display = 'none'; refresh(); }
+  if (panelDrag) cancelPanelDrag();
   resetTabSpring();
 });
 
@@ -1511,8 +1628,11 @@ for (const [letter, types] of Object.entries(FAMILIES)) {
 let armed = null; // { letter, index }
 let statusBase = 'engine: loading...';
 
+// Armed either by family letter (which cycles) or by a bare type, which is how
+// a hotbar slot arms a widget that belongs to no family.
 function armedType() {
-  return armed ? FAMILIES[armed.letter][armed.index] : null;
+  if (!armed) return null;
+  return armed.type || FAMILIES[armed.letter][armed.index];
 }
 
 function arm(letter, backward) {
@@ -1523,6 +1643,16 @@ function arm(letter, backward) {
     armed = { letter, index: 0 };
   }
   updateArmedUI();
+}
+
+// Arm a specific widget type rather than a family letter.
+function rearm(type) {
+  if (!WIDGETS[type]) return false;
+  const fam = FAMILY_OF[type];
+  armed = fam ? { letter: fam, index: FAMILIES[fam].indexOf(type) } : { type };
+  updateArmedUI();
+  renderHotbar();
+  return true;
 }
 
 function disarm() {
@@ -1537,10 +1667,17 @@ function disarm() {
 function updateArmedUI() {
   const status = document.getElementById('status');
   status.textContent = armed
-    ? 'armed: ' + WIDGETS[armedType()].name + ' (' + armed.letter + ' cycles, Enter inserts, Esc exits)'
+    ? 'armed: ' + WIDGETS[armedType()].name
+      + (armed.letter ? ' (' + armed.letter + ' cycles, Enter inserts, Esc exits)'
+        : ' (Enter inserts, Esc exits)')
     : statusBase;
   for (const b of document.querySelectorAll('#palette button')) {
     b.classList.toggle('armedbtn', !!armed && b.dataset.type === armedType());
+  }
+  // the hotbar shows the same state, and only renderHotbar used to repaint it,
+  // so disarming left the slot lit
+  for (const s of document.querySelectorAll('#hotbar .slot')) {
+    s.classList.toggle('armedbtn', !!armed && s.dataset.type === armedType());
   }
   // cycling the family while hovering must retag the ghost in place
   if (armed && !drag && ghost.style.display === 'block') {
@@ -1610,12 +1747,16 @@ function resetTabSpring() {
 // already in sustained Live mode doesn't kick you back to Edit.
 let spaceHeld = false;
 let spaceWasLive = false;
+let spaceWasArmed = null;
 
 function handleSpaceDown(e) {
   e.preventDefault();
   if (e.repeat || spaceHeld) return;
   spaceHeld = true;
   spaceWasLive = !editMode;
+  // Live mode disarms, but a peek is meant to be free: poking a widget and
+  // letting go should hand back the tool you were holding.
+  spaceWasArmed = armedType();
   if (editMode) setLiveMode(true);
 }
 
@@ -1623,6 +1764,8 @@ function releaseSpace() {
   if (!spaceHeld) return;
   spaceHeld = false;
   setLiveMode(spaceWasLive);
+  if (!spaceWasLive && spaceWasArmed) rearm(spaceWasArmed);
+  spaceWasArmed = null;
 }
 
 // ---------- keymap and dispatcher ----------
@@ -1652,18 +1795,33 @@ function sameCombo(a, b) {
     && !!a.alt === !!b.alt && !!a.shift === !!b.shift;
 }
 
-// Two bindings may share a key when they sit in the same context AND the same
-// category — then the key cycles between them. Sharing across categories is
-// refused: the same key meaning unrelated things is the confusing case.
+// Space and Tab are quasimodes handled ahead of the keymap, so a binding on
+// either can never fire. Accepting one would hand back a dead shortcut.
+const RESERVED_KEYS = new Set([' ', 'Tab']);
+
+// Only Edit and Live are mutually exclusive. 'global' is live in every context
+// and 'drag' runs alongside whichever of Edit/Live is current, so a key bound
+// in one of those really can shadow a key bound in the other.
+function ctxOverlaps(a, b) {
+  if (a === b) return true;
+  return !((a === 'edit' && b === 'live') || (a === 'live' && b === 'edit'));
+}
+
+// Two bindings may share a key when their contexts overlap AND they sit in the
+// same category — then the key cycles between them. Sharing across categories
+// is refused: the same key meaning unrelated things is the confusing case.
 function bindingConflict(entry, cand) {
   for (const b of KEYMAP) {
-    if (b === entry || b.ctx !== entry.ctx) continue;
+    if (b === entry || !ctxOverlaps(b.ctx, entry.ctx)) continue;
     if (sameCombo(b, cand) && b.cat !== entry.cat) return b;
   }
   return null;
 }
 
 function rebind(entry, cand) {
+  if (RESERVED_KEYS.has(cand.key)) {
+    return { help: 'the hold-to-peek quasimode', cat: 'reserved keys', reserved: true };
+  }
   const clash = bindingConflict(entry, cand);
   if (clash) return clash;
   Object.assign(entry, { key: cand.key, ctrl: !!cand.ctrl, alt: !!cand.alt, shift: !!cand.shift });
@@ -1764,18 +1922,14 @@ bind('edit', '/', { key: '/' }, 'Insert menu (filter all widgets)', 'Insert', ()
 // Hotbar: bare key arms the pinned widget, Ctrl+key pins the current selection
 // (or the armed widget) into that slot. Reordering is how you rebind.
 HOTBAR_KEYS.forEach((k, i) => {
-  bind('edit', i === 0 ? '0…9 - =' : '', { key: k, ctrl: false }, i === 0
-    ? 'Arm the widget pinned to that hotbar slot' : '', 'Insert', () => {
+  bind('edit', i === 0 ? '0…9 - =' : '', { key: k, ctrl: false },
+    'Arm the widget in hotbar slot ' + (i + 1), 'Insert', () => {
     const type = hotbar[i];
     if (!type) return false;         // empty slot declines, key falls through
-    const fam = FAMILY_OF[type];
-    armed = fam ? { letter: fam, index: FAMILIES[fam].indexOf(type) } : null;
-    if (!armed) return false;
-    updateArmedUI();
-    renderHotbar();
+    return rearm(type);              // so does a type with no arming family
   });
-  bind('edit', i === 0 ? 'Ctrl+0…9' : '', { key: k, ctrl: true }, i === 0
-    ? 'Pin the selected or armed widget to that hotbar slot' : '', 'Insert', () => {
+  bind('edit', i === 0 ? 'Ctrl+0…9' : '', { key: k, ctrl: true },
+    'Pin the selected or armed widget to hotbar slot ' + (i + 1), 'Insert', () => {
     const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
     const type = armed ? armedType() : (node && node.type);
     if (!type) return false;
@@ -1870,7 +2024,8 @@ function commandEntries() {
     { label: 'Toggle SameLine join', k: 'J', run: toggleJoin },
     { label: 'Repeat last insert', k: 'R', run: repeatInsert },
     { label: 'Keyboard shortcuts', k: '?', run: toggleHelp },
-    { label: 'Reset layout', run: () => document.getElementById('resetBtn').onclick() },
+    { label: 'Reset document to the sample', run: () => document.getElementById('resetBtn').onclick() },
+    { label: 'Reset panel layout', run: () => resetPanelLayout() },
     { label: 'Export JSON', run: () => document.getElementById('exportBtn').onclick() },
     { label: 'Copy generated C++', run: () => navigator.clipboard.writeText(generateCode()) },
   ];
@@ -1949,8 +2104,12 @@ function renderHelp() {
     { show: 'Space', help: 'Hold to test interaction, release to return to editing', cat: 'Global' },
     { show: 'Tab', help: 'Toggle Edit / Live. Hold to peek Live, release to snap back.', cat: 'Global' },
   ];
+  // Every binding gets its own row, labelled from its live combo. Hiding the
+  // second half of a pair behind a hand-written "Up / Down" left it unlistable
+  // and unrebindable, and the static label went stale the moment either half
+  // was rebound.
   for (const b of KEYMAP) {
-    if (!b.show || !activeCtx.has(b.ctx)) continue;
+    if (!activeCtx.has(b.ctx)) continue;
     rows.push(b);
   }
   helpList.innerHTML = '';
@@ -1965,7 +2124,8 @@ function renderHelp() {
 
   let lastCat = '';
   for (const r of rows) {
-    if (term && !((r.show || '') + ' ' + r.help).toLowerCase().includes(term)) continue;
+    const label = r.id ? comboLabel(r) : r.show;
+    if (term && !(label + ' ' + r.help).toLowerCase().includes(term)) continue;
     if (r.cat !== lastCat) {
       lastCat = r.cat;
       const c = document.createElement('div');
@@ -2090,6 +2250,8 @@ function generateCode() {
   const labelCount = new Map();
   const fields = [];
   const fieldSeen = new Set();
+  const owners = [];   // index into `out` -> node id that produced that line
+  const skipped = [];  // widgets with no valid C++ form, reported to the user
 
   const groupNames = new Map();
   // A counter alone isn't enough: "Value" then "Value 1" then "Value" would
@@ -2140,19 +2302,36 @@ function generateCode() {
     const spec = WIDGETS[node.type];
     if (!spec) return;
     const ind = '    '.repeat(depth);
+    // These arrangements assert inside ImGui, so there is no valid C++ to emit
+    // and the subtree has nowhere to go. Record what was dropped: the code pane
+    // warns before Apply reads the text back and makes the loss permanent.
+    const skip = reason => {
+      const lost = countNodes(node.children);
+      skipped.push({ type: spec.name, label: node.label || '', reason, lost });
+      out.push(ind + `// ${spec.name}${node.label ? ' "' + node.label + '"' : ''}: ${reason}`);
+      if (lost) out.push(ind + `// ${lost} widget${lost > 1 ? 's' : ''} inside it cannot be emitted either.`);
+    };
     if (node.type === 'tabitem' && !inTabbar) {
-      out.push(ind + '// A Tab item needs a Tab bar around it; skipped.');
+      skip('a Tab item needs a Tab bar around it, so it is skipped');
       return;
     }
     // BeginMenuBar only works on a window carrying ImGuiWindowFlags_MenuBar,
     // and asserts outright if one is already being appended.
     if (node.type === 'menubar' && parentType !== 'window') {
-      out.push(ind + '// A Menu bar must sit directly on the window; skipped.');
+      skip('a Menu bar must sit directly on the window, so it is skipped');
       return;
     }
     const v = uniqName(node, spec);
     const hasLabel = (spec.props || []).some(p => p[0] === 'label');
     const idStr = hasLabel ? imguiId(node.label) : q(node.type);
+    // Remember which output lines this node produced, so the code pane can
+    // scroll to a widget. Claimed on the way out and only where still unclaimed,
+    // which leaves each child owning its own lines and the parent owning the
+    // Begin/End scaffolding around them.
+    const ownFrom = out.length;
+    const claimLines = () => {
+      for (let k = ownFrom; k < out.length; k++) if (!owners[k]) owners[k] = node.id;
+    };
 
     if (parentType === 'table') out.push(ind + 'ImGui::TableNextColumn();');
     else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
@@ -2172,8 +2351,13 @@ function generateCode() {
     };
 
     const res = spec.code ? spec.code(node, v, idStr) : null;
-    if (!res) { popColors(); return; }
-    if (Array.isArray(res)) { for (const l of res) out.push(ind + l); popColors(); return; }
+    if (!res) { popColors(); claimLines(); return; }
+    if (Array.isArray(res)) {
+      for (const l of res) out.push(ind + l);
+      popColors();
+      claimLines();
+      return;
+    }
 
     for (const l of res.open) out.push(ind + l);
     const braced = res.braced !== false;
@@ -2187,6 +2371,7 @@ function generateCode() {
     if (braced) out.push(ind + '}');
     else if (res.close) out.push(ind + res.close);
     popColors();
+    claimLines();
   };
 
   const kids = doc.children || [];
@@ -2210,8 +2395,27 @@ function generateCode() {
   if (doc.w > 0 || doc.h > 0) {
     head.push(`    ImGui::SetNextWindowSize(ImVec2(${f(doc.w)}, ${f(doc.h)}), ImGuiCond_FirstUseEver);`);
   }
+  // Code the user wrote around the window in the C++ pane, replayed at the same
+  // spot so editing the document can't delete it.
+  if (doc.pre) for (const l of String(doc.pre).split('\n')) head.push(l ? '    ' + l : '');
+  // Window colours have to be pushed before Begin: WindowBg and the title-bar
+  // slots are read while the window is being opened, not while it is filled.
+  const winCols = Object.entries(doc.colors || {})
+    .filter(([slot]) => colorSlots('window').includes(slot));
+  for (const [slot, c] of winCols) {
+    head.push(`    ImGui::PushStyleColor(ImGuiCol_${slot}, `
+      + `ImVec4(${f(c[0])}, ${f(c[1])}, ${f(c[2])}, ${f(c[3] === undefined ? 1 : c[3])}));`);
+  }
   head.push(`    ImGui::Begin(${q(doc.label || 'My Panel')}${flags.length ? ', nullptr, flags' : ''});`);
-  const tail = ['    ImGui::End();', '}'];
+  const tail = ['    ImGui::End();'];
+  if (winCols.length) tail.push(`    ImGui::PopStyleColor(${winCols.length});`);
+  if (doc.post) for (const l of String(doc.post).split('\n')) tail.push(l ? '    ' + l : '');
+  tail.push('}');
+  generateCode.skipped = skipped;
+  // Shift the ownership map onto the final line numbering for revealInCode.
+  generateCode.owners = head.map(() => null)
+    .concat(Array.from({ length: out.length }, (_, i) => owners[i] || null),
+      tail.map(() => null));
   return head.concat(out, tail).join('\n');
 }
 
@@ -2389,6 +2593,31 @@ function saveLayout() {
   try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
 }
 
+// Widths are stored in absolute px, so a layout saved on a wide monitor would
+// otherwise squeeze the canvas to nothing when the window is narrower.
+const DOCK_MIN = 180;
+function clampDockWidths() {
+  const budget = Math.max(DOCK_MIN * 2, window.innerWidth - 360);   // leave the canvas room
+  // cap each side first: scaling alone can't help when one dock is wider than
+  // the whole budget, because the other one still holds its minimum
+  for (const side of ['left', 'right']) {
+    const w = Math.round(Number(layout.width[side]) || DOCK_MIN);
+    layout.width[side] = Math.max(DOCK_MIN, Math.min(w, budget - DOCK_MIN));
+  }
+  const total = layout.width.left + layout.width.right;
+  if (total > budget) {
+    const scale = budget / total;
+    layout.width.left = Math.max(DOCK_MIN, Math.round(layout.width.left * scale));
+    layout.width.right = Math.max(DOCK_MIN, Math.round(layout.width.right * scale));
+  }
+}
+
+function resetPanelLayout() {
+  layout = { panels: JSON.parse(JSON.stringify(PANEL_DEFAULTS)), width: { left: 280, right: 470 } };
+  saveLayout();
+  applyLayout();
+}
+
 function loadLayout() {
   try {
     const s = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
@@ -2435,15 +2664,19 @@ function applyLayout() {
   const docks = { left: document.getElementById('dockLeft'), right: document.getElementById('dockRight') };
   docks.left.innerHTML = '';
   docks.right.innerHTML = '';
+  // Hidden panels stay in the DOM as display:none rather than being detached.
+  // Detaching them took their render targets out of getElementById, so the next
+  // renderPalette/renderProps threw and every edit after that died with it.
   const entries = Object.entries(layout.panels)
-    .filter(([, p]) => !p.hidden)
     .sort((a, b) => a[1].order - b[1].order);
   for (const [key, p] of entries) {
     const el = panelEls[key];
     el.classList.toggle('collapsed', p.collapsed);
+    el.classList.toggle('gone', !!p.hidden);
     el.querySelector('.tw').textContent = p.collapsed ? '▸' : '▾';
     docks[p.dock] ? docks[p.dock].appendChild(el) : docks.left.appendChild(el);
   }
+  clampDockWidths();
   docks.left.style.width = layout.width.left + 'px';
   docks.right.style.width = layout.width.right + 'px';
   renderPanelButtons();
@@ -2480,6 +2713,19 @@ function startPanelDrag(e, key) {
   if (e.button !== 0 || e.target.tagName === 'BUTTON') return;
   panelDrag = { key, startX: e.clientX, startY: e.clientY, moved: false };
 }
+
+// Escape and losing focus both abandon the drag. Without this the dropzone
+// overlay stayed up and a later click committed a dock move nobody asked for.
+function cancelPanelDrag() {
+  if (!panelDrag) return;
+  panelEls[panelDrag.key].classList.remove('dragging');
+  panelDrag = null;
+  dropzone.style.display = 'none';
+}
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && panelDrag) { cancelPanelDrag(); e.preventDefault(); }
+}, true);
 
 document.addEventListener('mousemove', e => {
   if (!panelDrag) return;
@@ -2713,16 +2959,22 @@ function saveHotbar() {
   try { localStorage.setItem(HOTBAR_KEY, JSON.stringify(hotbar)); } catch (e) {}
 }
 
+// Returns false when a full bar has nowhere to put the tool, so the caller can
+// say so instead of the click looking like it did nothing.
 function pinToHotbar(type, slot) {
   if (slot === undefined) {
-    if (hotbar.includes(type)) return;
+    if (hotbar.includes(type)) return true;
     slot = hotbar.indexOf(null);
-    if (slot < 0) return;
+    if (slot < 0) return false;
   }
+  // one slot per tool: a second copy just costs a key for no extra reach
+  const dupe = hotbar.indexOf(type);
+  if (dupe >= 0 && dupe !== slot) hotbar[dupe] = null;
   hotbar[slot] = type;
   saveHotbar();
   renderHotbar();
   renderPalette();
+  return true;
 }
 
 function unpin(type) {
@@ -2941,7 +3193,9 @@ function paletteMenu(type, isPinned) {
     { group: '1_insert', order: 2, label: 'Insert at end',
       run: () => insertNodeAt(type, { parentId: 'root', index: doc.children.length }) },
     { group: '3_pin', order: 0,
-      label: isPinned ? 'Unpin from hotbar' : 'Pin to hotbar',
+      label: isPinned ? 'Unpin from hotbar'
+        : (hotbar.includes(null) ? 'Pin to hotbar' : 'Pin to hotbar (bar is full)'),
+      disabled: !isPinned && !hotbar.includes(null),
       run: () => (isPinned ? unpin(type) : pinToHotbar(type)) },
     { group: '4_copy', order: 0, label: 'Copy ImGui call',
       run: () => navigator.clipboard.writeText(cppSnippet(makeNode(type))) },
@@ -3030,13 +3284,23 @@ function unwrapThenDelete(id) {
   selectId(kids[0] ? kids[0].id : parent.id);
 }
 
+// Same highlighting, but each line is wrapped and tagged with the widget that
+// produced it. Highlighting runs per line so a tag can never split a span.
+function highlightOwned(src, owners) {
+  return src.split('\n').map((line, i) => {
+    const id = owners && owners[i];
+    const html = highlightCpp(line);
+    return id ? `<span class="cline" data-node="${id}">${html}</span>` : html;
+  }).join('\n');
+}
+
 function revealInCode(id) {
   const pre = document.getElementById('code');
-  const marks = pre.querySelectorAll('[data-node]');
-  for (const m of marks) {
-    if (m.dataset.node === id) { m.scrollIntoView({ block: 'center' }); return; }
-  }
-  pre.scrollIntoView({ block: 'nearest' });
+  for (const m of pre.querySelectorAll('.cline.hl')) m.classList.remove('hl');
+  const mine = [...pre.querySelectorAll('[data-node]')].filter(m => m.dataset.node === id);
+  if (!mine.length) { pre.scrollIntoView({ block: 'nearest' }); return; }
+  for (const m of mine) m.classList.add('hl');
+  mine[0].scrollIntoView({ block: 'center' });
 }
 
 function renderTree() {
@@ -3245,7 +3509,7 @@ function renderCode() {
   // while the code pane is being edited it owns the document; regenerating
   // under the user's cursor is the two-writer race the research warns about
   if (codeEditing) return;
-  document.getElementById('code').innerHTML = highlightCpp(generateCode());
+  document.getElementById('code').innerHTML = highlightOwned(generateCode(), generateCode.owners);
 }
 
 // ---------- editing the generated C++ ----------
@@ -3258,6 +3522,7 @@ const codeStatus = document.getElementById('codeStatus');
 const editBtn = document.getElementById('editCodeBtn');
 const applyBtn = document.getElementById('applyCodeBtn');
 const cancelBtn = document.getElementById('cancelCodeBtn');
+const reloadBtn = document.getElementById('reloadCodeBtn');
 
 function setCodeEditing(on) {
   codeEditing = on;
@@ -3267,19 +3532,39 @@ function setCodeEditing(on) {
   editBtn.hidden = on;
   applyBtn.hidden = !on;
   cancelBtn.hidden = !on;
+  reloadBtn.hidden = true;   // only offered once the document actually moves on
   if (on) {
     codeEdit.value = generateCode();
-    codeStatus.className = '';
+    const gone = generateCode.skipped || [];
+    const lost = gone.reduce((n, s) => n + 1 + s.lost, 0);
+    codeStatus.className = gone.length ? 'err' : '';
     codeStatus.textContent = 'Editing the C++. Apply parses it back into the document; '
       + 'anything not recognised as a widget is preserved verbatim and shown as a '
-      + 'placeholder. Formatting inside generated blocks is normalised on the way back.';
+      + 'placeholder. Formatting inside generated blocks is normalised on the way back.'
+      + (gone.length
+        ? `\nHeads up: ${lost} widget${lost > 1 ? 's' : ''} have no valid C++ form `
+          + `(${gone.map(s => s.type + ' — ' + s.reason).join('; ')}). `
+          + 'They are only comments here, so applying will remove them.'
+        : '');
     codeEdit.focus();
   } else {
     renderCode();
   }
 }
 
+// Shown when the canvas moved on while the pane was open. Reloading is offered
+// because the alternative — silently overwriting the text — loses C++ edits.
+function markCodeStale() {
+  if (!codeEditing || codeEdit.value === generateCode()) return;
+  codeStatus.className = 'err';
+  codeStatus.textContent = 'The document changed on the canvas after this C++ was '
+    + 'generated. Applying replaces those changes with the text below. '
+    + 'Press Reload to pull the newer document in instead.';
+  reloadBtn.hidden = false;
+}
+
 editBtn.onclick = () => setCodeEditing(true);
+reloadBtn.onclick = () => { setCodeEditing(false); setCodeEditing(true); };
 cancelBtn.onclick = () => setCodeEditing(false);
 
 applyBtn.onclick = () => {
@@ -3304,6 +3589,11 @@ applyBtn.onclick = () => {
   if (result.windowLabel !== null && result.windowLabel !== undefined) {
     doc.label = result.windowLabel;
   }
+  const winCols = sanitizeColors('window', result.windowColors);
+  if (winCols) doc.colors = winCols; else delete doc.colors;
+  // code the user wrote around the window, kept so Apply never eats it
+  if (result.pre) doc.pre = result.pre; else delete doc.pre;
+  if (result.post) doc.post = result.post; else delete doc.post;
   clearSelection();
   refresh();
 
@@ -3346,6 +3636,10 @@ function refresh(rebuildProps = true) {
   pushDoc();
   saveLocal();
   pushHistory(!rebuildProps);
+  // The pane holds a snapshot taken when editing started. If the document moves
+  // on underneath it, say so: Apply reads the text, so it would otherwise throw
+  // away the newer canvas edits without a word.
+  if (codeEditing) markCodeStale();
 }
 
 document.getElementById('filter').oninput = renderPalette;
@@ -3425,6 +3719,28 @@ window.__test = {
   widgetTypes: () => Object.keys(WIDGETS).filter(k => !WIDGETS[k].hidden),
   generate: () => generateCode(),
   refresh: () => refresh(),
+  selectMany: ids => selectMany(ids),
+  resizing: () => !!resizing,
+  panelDragging: () => !!panelDrag,
+  pin: (type, slot) => pinToHotbar(type, slot),
+  reorder: d => reorderSelection(d, false),
+  wrap: () => wrapSelection(),
+  insert: type => insertNodeAt(type, { parentId: 'root', index: doc.children.length }),
+  remove: id => removeNode(id),
+  helpRowCount: () => {
+    const wasOpen = !helpEl.hidden;
+    if (!wasOpen) toggleHelp();
+    const n = helpList.querySelectorAll('.ov-item').length;
+    if (!wasOpen) toggleHelp();
+    return n;
+  },
+  bindableCount: () => KEYMAP.filter(b => b.ctx === 'global' || b.ctx === 'edit').length,
+  codeEditorWarning: () => {
+    setCodeEditing(true);
+    const t = codeStatus.textContent;
+    setCodeEditing(false);
+    return t;
+  },
   rebindTest: (help, cand) => {
     const b = KEYMAP.find(x => x.help === help);
     if (!b) return 'missing';
@@ -3522,6 +3838,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=c40bdd942f"></script>
+<script src="engine.js?v=2d3895fd57"></script>
 </body>
 </html>
