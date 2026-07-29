@@ -123,6 +123,7 @@ function callOf(line) {
 
 // A value guaranteed to render differently from the current one.
 function perturb(t, cur, opts) {
+  if (t === 'expr') return 'probeExpr';
   if (t === 'text' || t === 'items' || t === 'longtext' || t === 'unit') return '@@probe@@';
   if (t === 'enum') {
     const vals = (opts || []).map(o => Number(Array.isArray(o) ? o[1] : o));
@@ -340,6 +341,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
   let pendingSameLine = false;
   let pendingColors = null;
   let pendingItems = null;
+  let pendingItemWidth = null;   // SetNextItemWidth applies to the next widget
   let popsDue = 0;        // colour pops the widget just attached will account for
 
   const colAt = pos => pos - (src.lastIndexOf('\n', pos - 1) + 1);
@@ -367,6 +369,14 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
 
   const attach = node => {
     if (pendingSameLine) { node.sameline = true; pendingSameLine = false; }
+    // SetNextItemWidth is a statement of its own, so it can't be probed as an
+    // argument; it attaches to whatever widget comes next, like SameLine does.
+    if (pendingItemWidth !== null) {
+      if ((WIDGETS[node.type].props || []).some(p => p[0] === 'itemw')) {
+        node.itemw = pendingItemWidth;
+      }
+      pendingItemWidth = null;
+    }
     if (pendingItems && (node.type === 'combo' || node.type === 'listbox')) {
       node.items = pendingItems;
     }
@@ -399,6 +409,16 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     if (com) {
       if (!/TODO:/.test(com[0])) { flushColors(); raw(com[0], colAt(i)); }
       i += com[0].length;
+      continue;
+    }
+
+    const siw = rest.match(/^ImGui::SetNextItemWidth\s*\(/);
+    if (siw) {
+      const a = balancedArgs(rest.slice(siw[0].length - 1));
+      const semiAt = src.indexOf(';', i) + 1 || to;
+      if (a !== null) pendingItemWidth = litNum(a.trim());
+      else { flushColors(); raw(src.slice(i, semiAt), colAt(i)); }
+      i = semiAt;
       continue;
     }
 
@@ -690,6 +710,8 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
     const def = slot.key === 'label' ? ['label', 'text'] : propDefs[slot.key];
     if (!def) return;
     const t = def[1];
+    // a raw C++ expression: whatever was written, kept as written
+    if (t === 'expr') { node[slot.key] = v; return; }
     if (t === 'unit') {
       // the argument is a printf format the unit was appended to, so the unit
       // is whatever follows the conversion spec

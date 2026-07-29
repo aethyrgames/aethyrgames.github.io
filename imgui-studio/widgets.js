@@ -47,6 +47,11 @@ const UNIT = ['unit', 'unit', '', { placeholder: 'cm, ms, %…' }];
 const fmt = (n, base) => q(n.unit ? base + ' ' + n.unit : base);
 const SEC = { min: 0, unit: 's' };
 
+// ImGui sizes most items for you, and SetNextItemWidth is how you override it.
+// Widgets that take an explicit size argument use that instead; this covers the
+// rest, so nearly everything can be resized on the canvas.
+const ITEMW = ['itemw', 'float', 0, { min: 0, unit: 'px' }];
+
 const vecN = [['n', 'enum', 1, [1, 2, 3, 4]]];
 const DIRS = [['Left', 0], ['Right', 1], ['Up', 2], ['Down', 3]];
 
@@ -78,6 +83,21 @@ const WIDGETS = {
   textwrapped: {
     name: 'Text wrapped', cat: 'Text', props: [['label', 'text', 'A longer line of text that wraps.']],
     code: n => [`ImGui::TextWrapped("%s", ${q(n.label)});`],
+  },
+  // ImGui::Text with real printf arguments. The content comes from variables at
+  // runtime, so the document holds the format and the argument expressions
+  // rather than a string, and the preview substitutes the expressions. Without
+  // this, any Text() carrying a variable fell through to a raw-code placeholder.
+  textfmt: {
+    name: 'Text formatted', cat: 'Text',
+    // the default has to be an expression that compiles on its own, since the
+    // generated file is built as-is by the verify step
+    props: [['format', 'text', '%s'], ['args', 'expr', '"text"', { placeholder: 'count, name' }]],
+    // no arguments means it is just text, so emit it as such rather than
+    // producing ImGui::Text("...", ) which would not compile
+    code: n => (String(n.args || '').trim()
+      ? [`ImGui::Text(${q(n.format)}, ${String(n.args).trim()});`]
+      : [`ImGui::TextUnformatted(${q(n.format)});`]),
   },
   labeltext: {
     name: 'Label text', cat: 'Text', props: [['label', 'text', 'Label'], ['value', 'text', 'value']],
@@ -139,7 +159,7 @@ const WIDGETS = {
 
   // ----------------------------------------------------------------- Input
   inputtext: {
-    name: 'Input text', cat: 'Input', props: [['label', 'text', 'Name']],
+    name: 'Input text', cat: 'Input', props: [ITEMW, ['label', 'text', 'Name']],
     field: (n, v) => `char ${v}[256] = "";`,
     code: (n, v, id) => [`ImGui::InputText(${id}, state.${v}, IM_ARRAYSIZE(state.${v}));`],
   },
@@ -153,22 +173,22 @@ const WIDGETS = {
   },
   inputtextwithhint: {
     name: 'Input with hint', cat: 'Input',
-    props: [['label', 'text', 'Search'], ['hint', 'text', 'type here...']],
+    props: [ITEMW, ['label', 'text', 'Search'], ['hint', 'text', 'type here...']],
     field: (n, v) => `char ${v}[256] = "";`,
     code: (n, v, id) => [`ImGui::InputTextWithHint(${id}, ${q(n.hint)}, state.${v}, IM_ARRAYSIZE(state.${v}));`],
   },
   inputint: {
-    name: 'Input int', cat: 'Input', props: [['label', 'text', 'Count'], ...vecN],
+    name: 'Input int', cat: 'Input', props: [ITEMW, ['label', 'text', 'Count'], ...vecN],
     field: (n, v) => decl('int', v, comps(n.n), '0'),
     code: (n, v, id) => [`ImGui::InputInt${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))});`],
   },
   inputfloat: {
-    name: 'Input float', cat: 'Input', props: [['label', 'text', 'Amount'], ...vecN],
+    name: 'Input float', cat: 'Input', props: [ITEMW, ['label', 'text', 'Amount'], ...vecN],
     field: (n, v) => decl('float', v, comps(n.n), '0.0f'),
     code: (n, v, id) => [`ImGui::InputFloat${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))});`],
   },
   inputdouble: {
-    name: 'Input double', cat: 'Input', props: [['label', 'text', 'Precise']],
+    name: 'Input double', cat: 'Input', props: [ITEMW, ['label', 'text', 'Precise']],
     field: (n, v) => `double ${v} = 0.0;`,
     code: (n, v, id) => [`ImGui::InputDouble(${id}, &state.${v});`],
   },
@@ -176,19 +196,19 @@ const WIDGETS = {
   // --------------------------------------------------------------- Sliders
   sliderfloat: {
     name: 'Slider float', cat: 'Sliders',
-    props: [['label', 'text', 'Value'], ...vecN, ['min', 'float', 0], ['max', 'float', 1], UNIT],
+    props: [ITEMW, ['label', 'text', 'Value'], ...vecN, ['min', 'float', 0], ['max', 'float', 1], UNIT],
     field: (n, v) => decl('float', v, comps(n.n), f(n.min)),
     code: (n, v, id) => [`ImGui::SliderFloat${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.min)}, ${f(n.max)}, ${fmt(n, '%.3f')});`],
   },
   sliderint: {
     name: 'Slider int', cat: 'Sliders',
-    props: [['label', 'text', 'Count'], ...vecN, ['min', 'int', 0], ['max', 'int', 100], UNIT],
+    props: [ITEMW, ['label', 'text', 'Count'], ...vecN, ['min', 'int', 0], ['max', 'int', 100], UNIT],
     field: (n, v) => decl('int', v, comps(n.n), iv(n.min)),
     code: (n, v, id) => [`ImGui::SliderInt${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${iv(n.min)}, ${iv(n.max)}, ${fmt(n, '%d')});`],
   },
   sliderangle: {
     name: 'Slider angle', cat: 'Sliders',
-    props: [['label', 'text', 'Angle'], ['min', 'float', -360], ['max', 'float', 360]],
+    props: [ITEMW, ['label', 'text', 'Angle'], ['min', 'float', -360], ['max', 'float', 360]],
     field: (n, v) => `float ${v} = 0.0f;`,
     code: (n, v, id) => [`ImGui::SliderAngle(${id}, &state.${v}, ${f(n.min)}, ${f(n.max)});`],
   },
@@ -208,25 +228,25 @@ const WIDGETS = {
   // ----------------------------------------------------------------- Drags
   dragfloat: {
     name: 'Drag float', cat: 'Drags',
-    props: [['label', 'text', 'Value'], ...vecN, ['speed', 'float', 0.01], ['min', 'float', 0], ['max', 'float', 1], UNIT],
+    props: [ITEMW, ['label', 'text', 'Value'], ...vecN, ['speed', 'float', 0.01], ['min', 'float', 0], ['max', 'float', 1], UNIT],
     field: (n, v) => decl('float', v, comps(n.n), f(n.min)),
     code: (n, v, id) => [`ImGui::DragFloat${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.speed)}, ${f(n.min)}, ${f(n.max)}, ${fmt(n, '%.3f')});`],
   },
   dragint: {
     name: 'Drag int', cat: 'Drags',
-    props: [['label', 'text', 'Count'], ...vecN, ['speed', 'float', 1], ['min', 'int', 0], ['max', 'int', 100], UNIT],
+    props: [ITEMW, ['label', 'text', 'Count'], ...vecN, ['speed', 'float', 1], ['min', 'int', 0], ['max', 'int', 100], UNIT],
     field: (n, v) => decl('int', v, comps(n.n), iv(n.min)),
     code: (n, v, id) => [`ImGui::DragInt${sfx(comps(n.n))}(${id}, ${ref(v, comps(n.n))}, ${f(n.speed)}, ${iv(n.min)}, ${iv(n.max)}, ${fmt(n, '%d')});`],
   },
   dragfloatrange2: {
     name: 'Drag float range', cat: 'Drags',
-    props: [['label', 'text', 'Range'], ['speed', 'float', 0.01], ['min', 'float', 0], ['max', 'float', 1]],
+    props: [ITEMW, ['label', 'text', 'Range'], ['speed', 'float', 0.01], ['min', 'float', 0], ['max', 'float', 1]],
     field: (n, v) => [`float ${v}Min = ${f(n.min)};`, `float ${v}Max = ${f(n.max)};`],
     code: (n, v, id) => [`ImGui::DragFloatRange2(${id}, &state.${v}Min, &state.${v}Max, ${f(n.speed)}, ${f(n.min)}, ${f(n.max)});`],
   },
   dragintrange2: {
     name: 'Drag int range', cat: 'Drags',
-    props: [['label', 'text', 'Range'], ['speed', 'float', 1], ['min', 'int', 0], ['max', 'int', 100]],
+    props: [ITEMW, ['label', 'text', 'Range'], ['speed', 'float', 1], ['min', 'int', 0], ['max', 'int', 100]],
     field: (n, v) => [`int ${v}Min = ${iv(n.min)};`, `int ${v}Max = ${iv(n.max)};`],
     code: (n, v, id) => [`ImGui::DragIntRange2(${id}, &state.${v}Min, &state.${v}Max, ${f(n.speed)}, ${iv(n.min)}, ${iv(n.max)});`],
   },
@@ -234,13 +254,13 @@ const WIDGETS = {
   // ----------------------------------------------------------------- Color
   coloredit: {
     name: 'Color edit', cat: 'Color',
-    props: [['label', 'text', 'Tint'], ['n', 'enum', 3, [3, 4]]],
+    props: [ITEMW, ['label', 'text', 'Tint'], ['n', 'enum', 3, [3, 4]]],
     field: (n, v) => decl('float', v, Number(n.n) === 4 ? 4 : 3, '1.0f'),
     code: (n, v, id) => [`ImGui::ColorEdit${Number(n.n) === 4 ? 4 : 3}(${id}, state.${v});`],
   },
   colorpicker: {
     name: 'Color picker', cat: 'Color',
-    props: [['label', 'text', 'Pick'], ['n', 'enum', 3, [3, 4]]],
+    props: [ITEMW, ['label', 'text', 'Pick'], ['n', 'enum', 3, [3, 4]]],
     field: (n, v) => decl('float', v, Number(n.n) === 4 ? 4 : 3, '1.0f'),
     code: (n, v, id) => [`ImGui::ColorPicker${Number(n.n) === 4 ? 4 : 3}(${id}, state.${v});`],
   },
@@ -256,7 +276,7 @@ const WIDGETS = {
   // ---------------------------------------------------------------- Choice
   combo: {
     name: 'Combo', cat: 'Choice',
-    props: [['label', 'text', 'Mode'], ['items', 'items', 'One, Two, Three']],
+    props: [ITEMW, ['label', 'text', 'Mode'], ['items', 'items', 'One, Two, Three']],
     field: (n, v) => `int ${v} = 0;`,
     code: (n, v, id) => [
       `static const char* ${v}Items[] = { ${itemList(n.items)} };`,
@@ -265,7 +285,7 @@ const WIDGETS = {
   },
   listbox: {
     name: 'List box', cat: 'Choice',
-    props: [['label', 'text', 'Items'], ['items', 'items', 'One, Two, Three']],
+    props: [ITEMW, ['label', 'text', 'Items'], ['items', 'items', 'One, Two, Three']],
     field: (n, v) => `int ${v} = 0;`,
     code: (n, v, id) => [
       `static const char* ${v}Items[] = { ${itemList(n.items)} };`,
@@ -273,7 +293,7 @@ const WIDGETS = {
     ],
   },
   selectable: {
-    name: 'Selectable', cat: 'Choice', props: [['label', 'text', 'Selectable']],
+    name: 'Selectable', cat: 'Choice', props: [ITEMW, ['label', 'text', 'Selectable']],
     field: (n, v) => `bool ${v} = false;`,
     code: (n, v, id) => [`ImGui::Selectable(${id}, &state.${v});`],
   },

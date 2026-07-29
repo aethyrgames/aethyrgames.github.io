@@ -122,6 +122,10 @@
     width: 5px; flex-shrink: 0; cursor: col-resize; background: transparent;
   }
   .dockresize.horiz { width: auto; height: 5px; cursor: row-resize; }
+  /* the seam between two stacked panels */
+  .panelsplit { height: 4px; flex: 0 0 auto; cursor: row-resize; background: transparent; }
+  .panelsplit.vert { height: auto; width: 4px; cursor: col-resize; }
+  .panelsplit:hover { background: var(--mk-cyan); opacity: 0.5; }
   .dockresize:hover, .dockresize.dragging { background: var(--mk-cyan); opacity: 0.5; }
 
   /* share the dock's height by weight rather than by content size, or the
@@ -316,7 +320,7 @@
   #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
   #propbody {
     flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px;
-    display: grid; grid-template-columns: 78px 1fr; gap: 5px; align-content: start;
+    display: grid; grid-template-columns: 94px 1fr; gap: 5px 7px; align-content: start;
     align-items: center;
   }
   .paltools { display: flex; align-items: center; gap: 6px; margin: 6px 8px; flex-shrink: 0; }
@@ -382,7 +386,12 @@
   }
   .row button:hover { color: var(--mk-fg); }
 
-  #propbody label { color: var(--mk-comment); font-size: 12px; }
+  /* Long names like TitleBgActive used to run under the field next to them, so
+     the label column is wider and wraps rather than overlapping. */
+  #propbody label {
+    color: var(--mk-comment); font-size: 12px; line-height: 1.25;
+    overflow-wrap: anywhere; hyphens: auto; min-width: 0;
+  }
   #propbody input[type=text], #propbody input[type=number], #propbody select {
     background: var(--mk-gutter); color: var(--mk-fg); border: 1px solid var(--mk-border);
     border-radius: var(--radius); padding: 3px 6px; width: 100%; font-family: var(--font); font-size: 12px;
@@ -457,8 +466,31 @@
   .colorrow .unset:hover { color: var(--mk-pink); border-color: var(--mk-pink); }
   #propbody label.set { color: var(--mk-fg); font-weight: 600; }
   #propbody label.set::after { content: ' •'; color: var(--mk-green); }
+  /* the field and its revert arrow share the value column */
+  .fieldwrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .fieldwrap > :first-child { flex: 1; min-width: 0; }
+  #propbody .revert {
+    background: transparent; border: none; color: var(--mk-comment); cursor: pointer;
+    font-family: var(--font); font-size: 13px; line-height: 1; padding: 0 2px; flex: 0 0 auto;
+  }
+  #propbody .revert:hover { color: var(--mk-cyan); }
 
-  input[type=checkbox] { accent-color: var(--mk-green); }
+  /* The native checkbox only honours accent-color, which leaves its box the
+     platform's grey on every theme. Drawn from scratch it can match. */
+  input[type=checkbox] {
+    -webkit-appearance: none; appearance: none; margin: 0;
+    width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;
+    background: var(--mk-gutter); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); position: relative;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  input[type=checkbox]:hover { border-color: var(--mk-cyan); }
+  input[type=checkbox]:checked { background: var(--mk-green); border-color: var(--mk-green); }
+  input[type=checkbox]:checked::after {
+    content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+    border: solid var(--mk-bg); border-width: 0 2px 2px 0; transform: rotate(42deg);
+  }
+  input[type=checkbox]:focus-visible { outline: 1px solid var(--mk-cyan); outline-offset: 1px; }
 
   /* the old toolbar row is gone; its actions live in the menu bar now */
 
@@ -853,9 +885,9 @@
             <div id="dropbox"></div>
             <div id="dropline"></div>
             <div id="marquee"></div>
-            <div id="guides"></div>
             <input id="inlineEdit" type="text" spellcheck="false">
           </div>
+          <div id="guides"></div>
           <div id="coordtip"></div>
         </div>
         <canvas class="ruler" id="rulerRight"></canvas>
@@ -940,9 +972,9 @@
     </div>
   </div>
 
-<script src="widgets.js?v=fc11d90b2c"></script>
+<script src="widgets.js?v=d31d65354b"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
-<script src="cpp.js?v=b1a741dd5b"></script>
+<script src="cpp.js?v=4ad1bd93e9"></script>
 <script>
 // ---------- document model ----------
 
@@ -1460,6 +1492,8 @@ function coerce(t, raw, def, opts) {
   // preserved source, never truncated
   if (t === 'longtext') return typeof raw === 'string' ? raw.slice(0, 20000) : def;
   if (t === 'text' || t === 'items') return typeof raw === 'string' ? raw.slice(0, 200) : def;
+  // a C++ expression, kept as typed
+  if (t === 'expr') return typeof raw === 'string' ? raw.slice(0, 200) : def;
   // a unit is a short label like cm or ms, not free text
   if (t === 'unit') return typeof raw === 'string' ? raw.slice(0, 12) : def;
   if (t === 'bool') return raw === true;
@@ -1758,6 +1792,7 @@ function applyPan() {
   canvasHost.style.backgroundPosition =
     `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`;
   drawRulers();
+  renderGuides();
 }
 
 function panBy(dx, dy) {
@@ -1849,7 +1884,7 @@ function updateSelectionOverlay() {
     // for a single selection (a sizing drag has no meaning across a set)
     const node = findNode(selectedId);
     const props = (node && WIDGETS[node.type] && WIDGETS[node.type].props) || [];
-    const hasW = props.some(p => p[0] === 'w');
+    const hasW = props.some(p => p[0] === 'w' || p[0] === 'itemw');
     const hasH = props.some(p => p[0] === 'h');
     // stays resizable mid-drag: dropping the handle the moment it is grabbed
     // takes the grip out from under the cursor
@@ -2040,11 +2075,43 @@ for (const h of selbox.querySelectorAll('.rh')) {
     resizing = {
       id: node.id, axis: h.dataset.axis,
       startX: e.clientX, startY: e.clientY,
-      w0: Number(node.w) || (r ? Math.round(r.w) : 0),
+      wkey: (WIDGETS[node.type].props || []).some(p => p[0] === 'w') ? 'w' : 'itemw',
+      w0: Number(node.w || node.itemw) || (r ? Math.round(r.w) : 0),
       h0: Number(node.h) || (r ? Math.round(r.h) : 0),
     };
   });
 }
+
+// emscripten's GLFW binds every mouse listener to the canvas element itself,
+// mousemove and mouseup included. So dragging an ImGui widget and leaving the
+// canvas stopped delivering moves, and releasing outside never arrived at all.
+// Capturing the pointer retargets both to the canvas, which is what makes a
+// drag survive leaving the box the way it does in any native app.
+canvas.addEventListener('pointerdown', e => {
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
+});
+canvas.addEventListener('pointerup', e => {
+  try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
+});
+
+// The other half of the same problem. GLFW's mouseup listener is on the canvas,
+// so a release that lands anywhere else — another element, outside the window,
+// or an alt-tab mid-drag — never reaches ImGui. It then believes the button is
+// still held, and every later click is ignored, because ImGui only activates a
+// widget when the press began on it. The preview goes quietly dead.
+// Mirroring the release onto the canvas costs nothing when it is already up.
+function releaseCanvasButton(e) {
+  canvas.dispatchEvent(new MouseEvent('mouseup', {
+    button: e && e.button !== undefined ? e.button : 0,
+    clientX: e ? e.clientX : 0,
+    clientY: e ? e.clientY : 0,
+  }));
+}
+
+document.addEventListener('mouseup', e => {
+  if (e.target !== canvas) releaseCanvasButton(e);
+}, true);
+window.addEventListener('blur', () => releaseCanvasButton(null));
 
 // Middle-drag pans. Left is taken by select/move and Ctrl+left by the marquee,
 // and Space is the live-preview quasimode, so the wheel button is what's left.
@@ -2197,7 +2264,9 @@ document.addEventListener('mousemove', e => {
     // makes the widget jump back to its natural size instead of getting small.
     // Zero stays reachable from the inspector, where it is labelled.
     if (resizing.axis.includes('w')) {
-      node.w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + (e.clientX - resizing.startX)));
+      // whichever key this widget spells its width with
+      node[resizing.wkey] = Math.max(MIN_DRAG_SIZE,
+        Math.round(resizing.w0 + (e.clientX - resizing.startX)));
     }
     if (resizing.axis.includes('h')) {
       node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + (e.clientY - resizing.startY)));
@@ -3036,6 +3105,8 @@ function generateCode() {
     else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
 
     if (spec.field) addField(spec.field(node, v));
+    // ImGui's own way to size an item that has no explicit size argument
+    if (Number(node.itemw) > 0) out.push(ind + `ImGui::SetNextItemWidth(${f(node.itemw)});`);
 
     // Colour pushes wrap the whole widget, and for a container they wrap its
     // Begin/End pair because values like ChildBg are read at Begin time.
@@ -3474,11 +3545,11 @@ themeSel.onchange = () => {
 
 const LAYOUT_KEY = 'imguistudio.layout.v1';
 const PANEL_DEFAULTS = {
-  palette:    { dock: 'left',  order: 0, collapsed: false, hidden: false },
-  hierarchy:  { dock: 'left',  order: 1, collapsed: false, hidden: false },
-  properties: { dock: 'left',  order: 2, collapsed: false, hidden: false },
-  templates:  { dock: 'left',  order: 3, collapsed: true,  hidden: false },
-  code:       { dock: 'right', order: 0, collapsed: false, hidden: false },
+  palette:    { dock: 'left',  order: 0, collapsed: false, hidden: false, grow: 1 },
+  hierarchy:  { dock: 'left',  order: 1, collapsed: false, hidden: false, grow: 1 },
+  properties: { dock: 'left',  order: 2, collapsed: false, hidden: false, grow: 1 },
+  templates:  { dock: 'left',  order: 3, collapsed: true,  hidden: false, grow: 1 },
+  code:       { dock: 'right', order: 0, collapsed: false, hidden: false, grow: 1 },
 };
 const DOCK_SIDES = ['left', 'right', 'top', 'bottom'];
 const SIZE_DEFAULTS = { left: 280, right: 470, top: 200, bottom: 200 };
@@ -3586,7 +3657,17 @@ function applyLayout() {
     el.classList.toggle('collapsed', p.collapsed);
     el.classList.toggle('gone', !!p.hidden);
     el.querySelector('.tw').textContent = p.collapsed ? '▸' : '▾';
-    (docks[p.dock] || docks.left).appendChild(el);
+    el.style.flexGrow = p.collapsed ? '' : String(p.grow || 1);
+    const dock = docks[p.dock] || docks.left;
+    // a splitter between neighbours, so a dock's panels can be resized rather
+    // than being stuck at their equal share
+    if (!p.hidden && dock.querySelector('.panel:not(.gone)')) {
+      const sp = document.createElement('div');
+      sp.className = 'panelsplit' + (p.dock === 'top' || p.dock === 'bottom' ? ' vert' : '');
+      sp.addEventListener('mousedown', ev => startPanelResize(ev, dock, el));
+      dock.appendChild(sp);
+    }
+    dock.appendChild(el);
   }
   clampDockSizes();
   docks.left.style.width = layout.size.left + 'px';
@@ -3602,6 +3683,41 @@ function applyLayout() {
 // menu now, so applyLayout only has to keep an open menu current.
 function renderPanelButtons() {
   if (openMenu === 'windows') renderMenu('windows');
+}
+
+// Drag the seam between two stacked panels to trade space between them. The
+// pair keeps its combined share, so resizing one never disturbs the rest.
+function startPanelResize(e, dock, belowEl) {
+  e.preventDefault();
+  e.stopPropagation();
+  const panels = [...dock.querySelectorAll('.panel:not(.gone):not(.collapsed)')];
+  const idx = panels.indexOf(belowEl);
+  const above = panels[idx - 1];
+  if (!above || idx < 0) return;
+  const vert = dock.id === 'dockTop' || dock.id === 'dockBottom';
+  const keyOf = el => el.dataset.panel;
+  const aKey = keyOf(above), bKey = keyOf(belowEl);
+  const aBox = above.getBoundingClientRect(), bBox = belowEl.getBoundingClientRect();
+  const total = vert ? aBox.width + bBox.width : aBox.height + bBox.height;
+  const totalGrow = (layout.panels[aKey].grow || 1) + (layout.panels[bKey].grow || 1);
+  const start = vert ? e.clientX : e.clientY;
+  const aStart = vert ? aBox.width : aBox.height;
+  const move = ev => {
+    const delta = (vert ? ev.clientX : ev.clientY) - start;
+    const aNext = Math.max(48, Math.min(total - 48, aStart + delta));
+    layout.panels[aKey].grow = totalGrow * (aNext / total);
+    layout.panels[bKey].grow = totalGrow - layout.panels[aKey].grow;
+    above.style.flexGrow = String(layout.panels[aKey].grow);
+    belowEl.style.flexGrow = String(layout.panels[bKey].grow);
+  };
+  const up = () => {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+    saveLayout();
+    requestAnimationFrame(syncCanvasSize);
+  };
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
 }
 
 // Drag a panel header to any edge. The zone is picked by which edge the cursor
@@ -3873,8 +3989,10 @@ function renderGuides() {
   guides.forEach((gd, i) => {
     const el = document.createElement('div');
     el.className = 'guide ' + (gd.axis === 'x' ? 'gx' : 'gy');
-    if (gd.axis === 'x') el.style.left = gd.pos + 'px';
-    else el.style.top = gd.pos + 'px';
+    // the position is a world coordinate; the layer is the host, which does not
+    // pan, so the offset is applied here and the line spans ruler to ruler
+    if (gd.axis === 'x') el.style.left = (gd.pos + pan.x) + 'px';
+    else el.style.top = (gd.pos + pan.y) + 'px';
     el.title = gd.axis + ' = ' + gd.pos + ' (drag to move, double-click to remove)';
     el.addEventListener('mousedown', e => {
       e.preventDefault();
@@ -4605,8 +4723,15 @@ function titleCase(s) {
   }).join(' ');
 }
 
+// A few keys are abbreviations that don't expand into anything readable.
+const LABEL_NAMES = {
+  itemw: 'Width', n: 'Components', w: 'W', h: 'H',
+  args: 'Arguments', fmt: 'Format', r: 'R', g: 'G', b: 'B',
+};
+
 // Property keys are camelCase identifiers; the panel shows them as words.
 function labelFor(key) {
+  if (LABEL_NAMES[key]) return LABEL_NAMES[key];
   if (key.length <= 2) return key.toUpperCase();       // w, h, n
   return titleCase(String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2'));
 }
@@ -4623,14 +4748,39 @@ function renderProps() {
     return;
   }
   const spec = WIDGETS[node.type] || { props: [] };
+  const propDefsAll = spec.props || [];
 
-  const addField = (labelText, input, isSet) => {
+  // Unreal puts a small revert arrow beside anything that differs from its
+  // default. It reads as "this one was touched" without needing a second
+  // colour, and it undoes exactly that property rather than the last action.
+  const addField = (labelText, input, isSet, restore) => {
     const l = document.createElement('label');
     l.textContent = labelText;
     if (isSet) l.className = 'set';
     host.appendChild(l);
+    if (restore) {
+      const wrap = document.createElement('span');
+      wrap.className = 'fieldwrap';
+      wrap.appendChild(input);
+      const rv = document.createElement('button');
+      rv.className = 'revert';
+      rv.textContent = '⟲';
+      rv.title = 'Reset to the default';
+      rv.onclick = () => { restore(); refresh(); };
+      wrap.appendChild(rv);
+      host.appendChild(wrap);
+      return;
+    }
     host.appendChild(input);
   };
+
+  // A property counts as changed when it differs from the spec's default.
+  const defaultOf = key => (propDefsAll.find(p => p[0] === key) || [])[2];
+  const changed = key => {
+    const d = defaultOf(key);
+    return d !== undefined && String(node[key]) !== String(d);
+  };
+  const restoreFn = key => () => { node[key] = defaultOf(key); };
 
   const addHead = text => {
     const h = document.createElement('div');
@@ -4729,7 +4879,8 @@ function renderProps() {
   for (const def of propDefs) {
     const key = def[0];
     if (paired.has(key)) continue;
-    addField(labelFor(key), editorFor(def));
+    addField(labelFor(key), editorFor(def), changed(key),
+      changed(key) ? restoreFn(key) : null);
   }
   for (const [a, b] of PAIRS) {
     if (!byKey[a] || !byKey[b]) continue;
@@ -4745,7 +4896,9 @@ function renderProps() {
       cell.appendChild(editorFor(byKey[k]));
       row.appendChild(cell);
     }
-    addField(a === 'w' ? 'Size' : 'Range', row);
+    const pairChanged = changed(a) || changed(b);
+    addField(a === 'w' ? 'Size' : 'Range', row, pairChanged,
+      pairChanged ? () => { node[a] = defaultOf(a); node[b] = defaultOf(b); } : null);
   }
 
   if (node !== doc) {
@@ -4765,7 +4918,8 @@ function renderProps() {
     // full refresh: normalizeDoc may drop the flag on a first child, and the
     // control has to stop showing it as set
     else t.onclick = () => { node.sameline = !node.sameline; refresh(); };
-    addField('SameLine', t, !!node.sameline && !first);
+    addField('SameLine', t, !!node.sameline && !first,
+      node.sameline && !first ? () => { delete node.sameline; } : null);
   }
 
   // ---- colour overrides ----
@@ -5508,7 +5662,7 @@ function renderThemeSettings() {
   }
   sel.value = currentTheme;
   sel.onchange = () => { themeSel.value = sel.value; themeSel.onchange(); };
-  settingsBody.appendChild(setRow('Syntax theme', sel));
+  settingsBody.appendChild(setRow(titleCase('Syntax theme'), sel));
   const note = document.createElement('div');
   note.className = 'ov-cat';
   note.style.textTransform = 'none';
@@ -5590,15 +5744,15 @@ function renderViewSettings() {
     if (changed) r.insertBefore(revertButton('Restore the default', restore), control);
     settingsBody.appendChild(r);
   };
-  row('Background grid',
+  row(titleCase('Background grid'),
     settingsButton(showGrid ? 'On' : 'Off', () => { setGrid(!showGrid); renderSettings(); }),
     !showGrid, () => setGrid(true));
-  row('Rulers and guides',
+  row(titleCase('Rulers and guides'),
     settingsButton(showRulers ? 'On' : 'Off', () => { setRulers(!showRulers); renderSettings(); }),
     !showRulers, () => setRulers(true));
-  settingsBody.appendChild(setRow('Panel layout',
+  settingsBody.appendChild(setRow(titleCase('Panel layout'),
     settingsButton('Reset', () => { resetPanelLayout(); renderSettings(); })));
-  settingsBody.appendChild(setRow('View position',
+  settingsBody.appendChild(setRow(titleCase('View position'),
     settingsButton('Recentre', () => { resetPan(); })));
   const sel = document.createElement('select');
   sel.className = 'k';
@@ -5610,19 +5764,19 @@ function renderViewSettings() {
   }
   sel.value = currentTheme;
   sel.onchange = () => { themeSel.value = sel.value; themeSel.onchange(); };
-  settingsBody.appendChild(setRow('Code syntax theme', sel));
-  settingsBody.appendChild(setRow('Editor theme',
+  settingsBody.appendChild(setRow(titleCase('Code syntax theme'), sel));
+  settingsBody.appendChild(setRow(titleCase('Editor theme'),
     settingsButton('see Themes', () => { settingsTab = 'theme'; renderSettings(); })));
 }
 
 function renderDataSettings() {
-  settingsBody.appendChild(setRow('This project as JSON',
+  settingsBody.appendChild(setRow(titleCase('This project as JSON'),
     settingsButton('export', () => exportProject())));
-  settingsBody.appendChild(setRow('Every project and template',
+  settingsBody.appendChild(setRow(titleCase('Every project and template'),
     settingsButton('export all', () => exportEverything())));
-  settingsBody.appendChild(setRow('Import a project file',
+  settingsBody.appendChild(setRow(titleCase('Import a project file'),
     settingsButton('import', () => document.getElementById('importFile').click())));
-  settingsBody.appendChild(setRow('Shareable link for this document',
+  settingsBody.appendChild(setRow(titleCase('Shareable link for this document'),
     settingsButton('copy link', () => copyShareLink())));
 }
 
@@ -5792,8 +5946,19 @@ window.__test = {
   },
   // reads the live value out of the engine, so live-mode interaction can be
   // asserted rather than eyeballed
+  imguiMouse: () => (engineReady ? {
+    x: Module.ccall('engine_mouse_x', 'number', [], []),
+    y: Module.ccall('engine_mouse_y', 'number', [], []),
+    w: Module.ccall('engine_display_w', 'number', [], []),
+    h: Module.ccall('engine_display_h', 'number', [], []),
+  } : null),
+  popupDepth: () => (engineReady ? Module.ccall('engine_popup_depth', 'number', [], []) : -1),
+  widgetFloat: id => (engineReady
+    ? Module.ccall('engine_get_float', 'number', ['string'], [id]) : null),
   widgetBool: id => (engineReady
     ? Module.ccall('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
+  addGuideAt: (axis, pos) => { guides.push({ axis, pos }); renderGuides(); },
+  clearGuides: () => { guides.length = 0; renderGuides(); saveGuides(); },
   gridOn: () => showGrid,
   rulersOn: () => showRulers,
   menu: name => renderMenu(name),
@@ -5811,6 +5976,7 @@ window.__test = {
   focusSel: () => focusSelection(),
   hoverText: () => hoverInfoEl.textContent,
   resizing: () => !!resizing,
+  dragActive: () => !!drag,
   panelDragging: () => !!panelDrag,
   pin: (type, slot) => pinToHotbar(type, slot),
   reorder: d => reorderSelection(d, false),
@@ -5935,6 +6101,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=4b9cfc64c8"></script>
+<script src="engine.js?v=9c573e79f8"></script>
 </body>
 </html>
