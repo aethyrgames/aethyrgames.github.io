@@ -362,6 +362,14 @@ const WIDGETS = {
     code: (n, v, id) => [`ImGui::MenuItem(${id}, ${q(n.shortcut)}, &state.${v});`],
   },
 
+  // Holds C++ the parser recognised as valid but doesn't model as a widget.
+  // Kept byte-for-byte and re-emitted verbatim so a round trip never loses it.
+  rawcode: {
+    name: 'Raw C++', cat: 'Layout', hidden: true,
+    props: [['code', 'longtext', '']],
+    code: n => String(n.code || '').split('\n'),
+  },
+
   // ---------------------------------------------------------------- Popups
   // The "###" suffixes keep two popups with the same label from sharing an
   // ImGui id, while the visible text stays exactly what the user typed.
@@ -404,6 +412,31 @@ function itemList(s) {
 
 const CATEGORIES = ['Text', 'Buttons', 'Input', 'Sliders', 'Drags', 'Color',
   'Choice', 'Plots', 'Layout', 'Containers', 'Menus', 'Popups'];
+
+// Colour slots offered per category. Offering an ImGuiCol_ a widget never reads
+// would let someone set a colour and see nothing change, which costs more trust
+// than the missing option would. Curated per category rather than exhaustive.
+const COLOR_SLOTS_BY_CAT = {
+  Window:     ['Text', 'WindowBg', 'TitleBg', 'TitleBgActive', 'Border'],
+  Text:       ['Text'],
+  Buttons:    ['Text', 'Button', 'ButtonHovered', 'ButtonActive', 'CheckMark', 'FrameBg'],
+  Input:      ['Text', 'FrameBg', 'FrameBgHovered', 'FrameBgActive'],
+  Sliders:    ['Text', 'FrameBg', 'SliderGrab', 'SliderGrabActive'],
+  Drags:      ['Text', 'FrameBg', 'SliderGrab', 'SliderGrabActive'],
+  Color:      ['Text', 'FrameBg', 'Border'],
+  Choice:     ['Text', 'FrameBg', 'FrameBgHovered', 'Header', 'HeaderHovered'],
+  Plots:      ['Text', 'FrameBg', 'PlotLines', 'PlotHistogram'],
+  Layout:     ['Text', 'Border'],
+  Containers: ['Text', 'ChildBg', 'Border', 'Header', 'HeaderHovered', 'HeaderActive',
+               'Tab', 'TabHovered', 'TableHeaderBg'],
+  Menus:      ['Text', 'PopupBg', 'Header', 'HeaderHovered'],
+  Popups:     ['Text', 'PopupBg', 'Border', 'Button', 'ButtonHovered'],
+};
+
+function colorSlots(type) {
+  const spec = WIDGETS[type];
+  return (spec && COLOR_SLOTS_BY_CAT[spec.cat]) || ['Text'];
+}
 
 // Arming families (docs/CONTROLS.md). A bare letter arms the family's first
 // widget, pressing it again cycles forward, Shift+letter cycles backward.

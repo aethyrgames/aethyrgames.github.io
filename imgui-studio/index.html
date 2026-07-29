@@ -359,6 +359,18 @@
     flex: 1; margin: 0; padding: 12px; overflow: auto; font: 12px/1.5 var(--font);
     white-space: pre; user-select: text;
   }
+  #codeEdit {
+    flex: 1; margin: 0; padding: 12px; border: none; resize: none;
+    font: 12px/1.5 var(--font); white-space: pre; outline: none;
+    background: var(--mk-gutter); color: var(--mk-fg);
+  }
+  #codeEdit:focus { box-shadow: inset 2px 0 0 var(--mk-green); }
+  #codeStatus {
+    padding: 6px 10px; font-size: 11px; border-top: 1px solid var(--mk-border);
+    color: var(--mk-comment); max-height: 32%; overflow-y: auto; white-space: pre-wrap;
+  }
+  #codeStatus.err { color: var(--mk-pink); }
+  #codeStatus.ok { color: var(--mk-green); }
 
   #status { padding: 4px 12px; font-size: 11px; color: var(--mk-comment); border-top: 1px solid var(--mk-border); }
   #status::before { content: '// '; }
@@ -470,9 +482,14 @@
       <section class="panel" data-panel="code" data-title="Generated C++">
         <div id="codehead">
           <select id="themeSel" title="Syntax highlighting theme"></select>
+          <button id="editCodeBtn" title="Edit the C++ and apply it back to the document">Edit</button>
+          <button id="applyCodeBtn" hidden>Apply</button>
+          <button id="cancelCodeBtn" hidden>Cancel</button>
           <button id="copyBtn">Copy</button>
         </div>
         <pre id="code"></pre>
+        <textarea id="codeEdit" spellcheck="false" hidden></textarea>
+        <div id="codeStatus" hidden></div>
       </section>
     </div>
   </div>
@@ -495,7 +512,8 @@
     </div>
   </div>
 
-<script src="widgets.js?v=3b2a5279df"></script>
+<script src="widgets.js?v=11984c63a5"></script>
+<script src="cpp.js?v=150d2352ff"></script>
 <script>
 // ---------- document model ----------
 
@@ -933,6 +951,8 @@ function computeNextId() {
 // checked against its option list: a stray `dir` reaches IM_ASSERT(0) inside
 // ImGui and an out-of-range `n` would emit something like InputInt5.
 function coerce(t, raw, def, opts) {
+  // preserved source, never truncated
+  if (t === 'longtext') return typeof raw === 'string' ? raw.slice(0, 20000) : def;
   if (t === 'text' || t === 'items') return typeof raw === 'string' ? raw.slice(0, 200) : def;
   if (t === 'bool') return raw === true;
   const num = Number(raw);
@@ -942,6 +962,22 @@ function coerce(t, raw, def, opts) {
   }
   if (!Number.isFinite(num)) return def;
   return t === 'int' ? Math.trunc(num) : num;
+}
+
+// Keep only the slots this widget type actually reads, as four finite 0..1
+// floats. Anything else would push a colour the engine can't map.
+function sanitizeColors(type, raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const allowed = colorSlots(type);
+  const out = {};
+  for (const [slot, v] of Object.entries(raw)) {
+    if (!allowed.includes(slot) || !Array.isArray(v)) continue;
+    out[slot] = [0, 1, 2, 3].map(i => {
+      const x = Number(v[i]);
+      return Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : (i === 3 ? 1 : 0);
+    });
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 function sanitize(list, ids) {
@@ -960,6 +996,8 @@ function sanitize(list, ids) {
     ids.add(cid);
     for (const [k, t, d, opts] of spec.props || []) c[k] = coerce(t, n[k], d, opts);
     if (n.sameline === true) c.sameline = true;
+    const cols = sanitizeColors(n.type, n.colors);
+    if (cols) c.colors = cols;
     if (spec.container) c.children = sanitize(n.children, ids);
     out.push(c);
   }
@@ -985,7 +1023,11 @@ function applyDocData(d, savedNextId) {
   const ids = new Set(['root']);
   doc.children = sanitize(d.children, ids);
   for (const [k, t, def, opts] of WIDGETS.window.props) doc[k] = coerce(t, d[k], def, opts);
-  selectedId = null;
+  // the window carries colour overrides too, through the same filter
+  delete doc.colors;
+  const winCols = sanitizeColors('window', d.colors);
+  if (winCols) doc.colors = winCols;
+  clearSelection();
 }
 
 function loadLocal() {
@@ -1587,8 +1629,52 @@ function releaseSpace() {
 // One table drives dispatch, the ? overlay, and the command palette, the same
 // single-source pattern widgets.js uses. `shift: undefined` means don't care.
 const KEYMAP = [];
+const BINDS_KEY = 'imguistudio.binds';
+let bindOverrides = {};
+try { bindOverrides = JSON.parse(localStorage.getItem(BINDS_KEY) || '{}'); } catch (e) {}
+
 function bind(ctx, show, spec, help, cat, run) {
-  KEYMAP.push({ ctx, show, help, cat, run, ...spec });
+  // id stays stable across rebinds so overrides survive a key change
+  const id = cat + '|' + (help || show || '?') + '|' + spec.key;
+  const entry = { id, ctx, show, help, cat, run, def: { ...spec } };
+  Object.assign(entry, spec, bindOverrides[id] || {});
+  KEYMAP.push(entry);
+}
+
+function comboLabel(b) {
+  return (b.ctrl ? 'Ctrl+' : '') + (b.alt ? 'Alt+' : '')
+    + (b.shift ? 'Shift+' : '') + (b.key === ' ' ? 'Space' : b.key);
+}
+
+function sameCombo(a, b) {
+  return a.key === b.key && !!a.ctrl === !!b.ctrl
+    && !!a.alt === !!b.alt && !!a.shift === !!b.shift;
+}
+
+// Two bindings may share a key when they sit in the same context AND the same
+// category — then the key cycles between them. Sharing across categories is
+// refused: the same key meaning unrelated things is the confusing case.
+function bindingConflict(entry, cand) {
+  for (const b of KEYMAP) {
+    if (b === entry || b.ctx !== entry.ctx) continue;
+    if (sameCombo(b, cand) && b.cat !== entry.cat) return b;
+  }
+  return null;
+}
+
+function rebind(entry, cand) {
+  const clash = bindingConflict(entry, cand);
+  if (clash) return clash;
+  Object.assign(entry, { key: cand.key, ctrl: !!cand.ctrl, alt: !!cand.alt, shift: !!cand.shift });
+  bindOverrides[entry.id] = { key: cand.key, ctrl: !!cand.ctrl, alt: !!cand.alt, shift: !!cand.shift };
+  try { localStorage.setItem(BINDS_KEY, JSON.stringify(bindOverrides)); } catch (e) {}
+  return null;
+}
+
+function resetBinds() {
+  bindOverrides = {};
+  try { localStorage.removeItem(BINDS_KEY); } catch (e) {}
+  for (const b of KEYMAP) Object.assign(b, { key: undefined, ctrl: undefined, alt: undefined, shift: undefined }, b.def);
 }
 
 function keyMatches(e, b) {
@@ -1729,14 +1815,30 @@ window.addEventListener('keydown', e => {
   contexts.push(editMode ? 'edit' : 'live');
   contexts.push('global');
   for (const ctx of contexts) {
-    for (const b of KEYMAP) {
-      if (b.ctx !== ctx || !keyMatches(e, b)) continue;
+    const matches = KEYMAP.filter(b => b.ctx === ctx && keyMatches(e, b));
+    if (!matches.length) continue;
+    // Several bindings may legitimately share a key within one category, so
+    // repeated presses cycle through them; a lone binding behaves as before.
+    if (matches.length > 1) {
+      const sig = ctx + '|' + comboLabel(matches[0]);
+      const now = Date.now();
+      cycleState.idx = (cycleState.sig === sig && now - cycleState.at < 900) ? cycleState.idx + 1 : 0;
+      cycleState.sig = sig;
+      cycleState.at = now;
+    } else {
+      cycleState.sig = '';
+    }
+    const start = matches.length > 1 ? cycleState.idx : 0;
+    for (let i = 0; i < matches.length; i++) {
+      const b = matches[(start + i) % matches.length];
       if (b.run(e) === false) continue; // declined, keep looking / keep default
       e.preventDefault();
       return;
     }
   }
 });
+
+const cycleState = { sig: '', idx: 0, at: 0 };
 
 window.addEventListener('keyup', e => {
   if (e.key === 'Tab') handleTabUp();
@@ -1851,9 +1953,18 @@ function renderHelp() {
     rows.push(b);
   }
   helpList.innerHTML = '';
+
+  const hint = document.createElement('div');
+  hint.className = 'ov-cat';
+  hint.textContent = capturing
+    ? 'press a key for: ' + capturing.help + '   (Esc cancels)'
+    : 'click any shortcut to rebind it';
+  hint.style.color = capturing ? 'var(--mk-green)' : 'var(--mk-comment)';
+  helpList.appendChild(hint);
+
   let lastCat = '';
   for (const r of rows) {
-    if (term && !(r.show + ' ' + r.help).toLowerCase().includes(term)) continue;
+    if (term && !((r.show || '') + ' ' + r.help).toLowerCase().includes(term)) continue;
     if (r.cat !== lastCat) {
       lastCat = r.cat;
       const c = document.createElement('div');
@@ -1861,6 +1972,7 @@ function renderHelp() {
       c.textContent = r.cat;
       helpList.appendChild(c);
     }
+    const fixed = !r.id;   // Space/Tab are hardwired quasimodes
     const row = document.createElement('div');
     row.className = 'ov-item';
     const l = document.createElement('span');
@@ -1868,14 +1980,52 @@ function renderHelp() {
     row.appendChild(l);
     const k = document.createElement('span');
     k.className = 'k';
-    k.textContent = r.show;
+    k.textContent = capturing === r ? '…press a key' : (fixed ? r.show : comboLabel(r));
+    if (!fixed && bindOverrides[r.id]) k.style.color = 'var(--mk-green)';
     row.appendChild(k);
+    if (!fixed) {
+      row.style.cursor = 'pointer';
+      row.onclick = () => { capturing = r; renderHelp(); };
+    }
     helpList.appendChild(row);
   }
+
+  const reset = document.createElement('div');
+  reset.className = 'ov-item';
+  reset.style.cursor = 'pointer';
+  reset.style.color = 'var(--mk-comment)';
+  reset.textContent = 'Reset all shortcuts to defaults';
+  reset.onclick = () => { resetBinds(); renderHelp(); };
+  helpList.appendChild(reset);
+}
+
+let capturing = null;   // binding awaiting a keypress
+
+// While capturing, the next keypress becomes the binding instead of firing.
+function captureKey(e) {
+  if (!capturing) return false;
+  if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return true;
+  e.preventDefault();
+  if (e.key === 'Escape') { capturing = null; renderHelp(); return true; }
+  const cand = {
+    key: e.key.length === 1 ? e.key.toUpperCase() : e.key,
+    ctrl: e.ctrlKey || e.metaKey, alt: e.altKey, shift: e.shiftKey,
+  };
+  const clash = rebind(capturing, cand);
+  capturing = null;
+  renderHelp();
+  if (clash) {
+    const hint = helpList.firstChild;
+    hint.textContent = comboLabel(cand) + ' is already "' + clash.help + '" under '
+      + clash.cat + '. Keys can only be shared inside one group.';
+    hint.style.color = 'var(--mk-pink)';
+  }
+  return true;
 }
 
 helpInput.addEventListener('input', renderHelp);
 helpInput.addEventListener('keydown', e => {
+  if (captureKey(e)) { e.stopPropagation(); return; }
   if (e.key === 'Escape') { closeOverlays(); e.preventDefault(); }
   e.stopPropagation();
 });
@@ -2008,9 +2158,21 @@ function generateCode() {
 
     if (spec.field) addField(spec.field(node, v));
 
+    // Colour pushes wrap the whole widget, and for a container they wrap its
+    // Begin/End pair because values like ChildBg are read at Begin time.
+    const cols = Object.entries(node.colors || {})
+      .filter(([slot]) => colorSlots(node.type).includes(slot));
+    for (const [slot, c] of cols) {
+      out.push(ind + `ImGui::PushStyleColor(ImGuiCol_${slot}, `
+        + `ImVec4(${f(c[0])}, ${f(c[1])}, ${f(c[2])}, ${f(c[3] === undefined ? 1 : c[3])}));`);
+    }
+    const popColors = () => {
+      if (cols.length) out.push(ind + `ImGui::PopStyleColor(${cols.length});`);
+    };
+
     const res = spec.code ? spec.code(node, v, idStr) : null;
-    if (!res) return;
-    if (Array.isArray(res)) { for (const l of res) out.push(ind + l); return; }
+    if (!res) { popColors(); return; }
+    if (Array.isArray(res)) { for (const l of res) out.push(ind + l); popColors(); return; }
 
     for (const l of res.open) out.push(ind + l);
     const braced = res.braced !== false;
@@ -2023,6 +2185,7 @@ function generateCode() {
     if (res.pop) out.push('    '.repeat(cd) + res.pop);
     if (braced) out.push(ind + '}');
     else if (res.close) out.push(ind + res.close);
+    popColors();
   };
 
   const kids = doc.children || [];
@@ -2990,11 +3153,171 @@ function renderProps() {
     same.onchange = () => { node.sameline = same.checked; refresh(); };
     addField('sameline', same);
   }
+
+  // ---- colour overrides ----
+  const hdr = document.createElement('div');
+  hdr.className = 'empty';
+  hdr.style.color = 'var(--mk-green)';
+  hdr.style.paddingTop = '8px';
+  hdr.textContent = 'colors';
+  host.appendChild(hdr);
+
+  for (const slot of colorSlots(node.type)) {
+    const cur = node.colors && node.colors[slot];
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '4px';
+    row.style.alignItems = 'center';
+
+    const inp = document.createElement('input');
+    inp.type = 'color';
+    inp.style.width = '30px';
+    inp.style.height = '20px';
+    inp.style.padding = '0';
+    inp.value = cur ? rgbToHex(cur) : defaultHexFor(slot);
+    inp.oninput = () => {
+      if (!node.colors) node.colors = {};
+      node.colors[slot] = hexToRgb(inp.value);
+      refresh(false);
+    };
+    row.appendChild(inp);
+
+    if (cur) {
+      const clr = document.createElement('button');
+      clr.textContent = 'unset';
+      clr.style.cssText = 'background:none;border:1px solid var(--mk-border);'
+        + 'color:var(--mk-comment);border-radius:3px;font-family:var(--font);'
+        + 'font-size:10px;cursor:pointer;padding:1px 5px';
+      clr.onclick = () => {
+        delete node.colors[slot];
+        if (!Object.keys(node.colors).length) delete node.colors;
+        refresh();
+      };
+      row.appendChild(clr);
+    }
+
+    const l = document.createElement('label');
+    l.textContent = slot;
+    // an overridden value reads bold, so "changed here" is visible at a glance
+    if (cur) { l.style.color = 'var(--mk-fg)'; l.style.fontWeight = '700'; }
+    host.appendChild(l);
+    host.appendChild(row);
+  }
 }
 
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, 1];
+}
+
+function rgbToHex(c) {
+  const h = x => Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, '0');
+  return '#' + h(c[0]) + h(c[1]) + h(c[2]);
+}
+
+// rough stand-ins for the dark theme so an untouched swatch isn't misleading
+const SLOT_DEFAULTS = {
+  Text: '#f2f2f2', TextDisabled: '#808080', WindowBg: '#0f0f0f', ChildBg: '#000000',
+  PopupBg: '#141414', Border: '#6e6e80', FrameBg: '#294a7a', FrameBgHovered: '#4296fa',
+  FrameBgActive: '#4296f0', TitleBg: '#0a0a0a', TitleBgActive: '#294a7a',
+  Button: '#4296f0', ButtonHovered: '#4296fa', ButtonActive: '#0f87fa',
+  Header: '#4296f0', HeaderHovered: '#4296fa', HeaderActive: '#4296f0',
+  CheckMark: '#4296fa', SliderGrab: '#3d85e0', SliderGrabActive: '#4296f0',
+  Tab: '#26599e', TabHovered: '#4296fa', PlotLines: '#9c9c9c', PlotHistogram: '#e6b200',
+  TableHeaderBg: '#303033',
+};
+const defaultHexFor = slot => SLOT_DEFAULTS[slot] || '#cccccc';
+
 function renderCode() {
+  // while the code pane is being edited it owns the document; regenerating
+  // under the user's cursor is the two-writer race the research warns about
+  if (codeEditing) return;
   document.getElementById('code').innerHTML = highlightCpp(generateCode());
 }
+
+// ---------- editing the generated C++ ----------
+
+let codeEditing = false;
+const parseCpp = createParser(WIDGETS, makeNode, colorSlots);
+const codeEl = document.getElementById('code');
+const codeEdit = document.getElementById('codeEdit');
+const codeStatus = document.getElementById('codeStatus');
+const editBtn = document.getElementById('editCodeBtn');
+const applyBtn = document.getElementById('applyCodeBtn');
+const cancelBtn = document.getElementById('cancelCodeBtn');
+
+function setCodeEditing(on) {
+  codeEditing = on;
+  codeEl.hidden = on;
+  codeEdit.hidden = !on;
+  codeStatus.hidden = !on;
+  editBtn.hidden = on;
+  applyBtn.hidden = !on;
+  cancelBtn.hidden = !on;
+  if (on) {
+    codeEdit.value = generateCode();
+    codeStatus.className = '';
+    codeStatus.textContent = 'Editing the C++. Apply parses it back into the document; '
+      + 'anything not recognised as a widget is preserved verbatim and shown as a '
+      + 'placeholder. Formatting inside generated blocks is normalised on the way back.';
+    codeEdit.focus();
+  } else {
+    renderCode();
+  }
+}
+
+editBtn.onclick = () => setCodeEditing(true);
+cancelBtn.onclick = () => setCodeEditing(false);
+
+applyBtn.onclick = () => {
+  let result;
+  try {
+    result = parseCpp(codeEdit.value, nextId);
+  } catch (err) {
+    // never blank the canvas on a parse failure: keep the last good document
+    codeStatus.className = 'err';
+    codeStatus.textContent = 'Could not parse: ' + err.message
+      + '\nThe document is unchanged.';
+    return;
+  }
+  const before = countNodes(doc.children);
+  const ids = new Set(['root']);
+  nextId = Math.max(nextId, result.nextId);
+  const cleaned = sanitize(result.children, ids);
+  const after = countNodes(cleaned);
+  const raws = countType(cleaned, 'rawcode');
+
+  doc.children = cleaned;
+  if (result.windowLabel !== null && result.windowLabel !== undefined) {
+    doc.label = result.windowLabel;
+  }
+  clearSelection();
+  refresh();
+
+  const notes = result.errors.map(e => '· ' + e.msg);
+  codeStatus.className = raws ? '' : 'ok';
+  codeStatus.textContent = `Applied. ${before} widgets before, ${after} after`
+    + (raws ? `, ${raws} block${raws > 1 ? 's' : ''} kept as raw C++ (preserved, not executed).` : '.')
+    + (notes.length ? '\n' + notes.join('\n') : '');
+  setCodeEditing(false);
+};
+
+function countNodes(list) {
+  let n = 0;
+  for (const c of list || []) n += 1 + countNodes(c.children);
+  return n;
+}
+
+function countType(list, type) {
+  let n = 0;
+  for (const c of list || []) n += (c.type === type ? 1 : 0) + countType(c.children, type);
+  return n;
+}
+
+codeEdit.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { setCodeEditing(false); e.preventDefault(); }
+  e.stopPropagation();
+});
 
 // A sameline flag on a first child is suppressed at render and emit time
 // rather than deleted from the model: deleting it meant a transient reorder
@@ -3087,6 +3410,27 @@ window.__test = {
   overlayOpen: () => !cmdkEl.hidden || !helpEl.hidden,
   widgetTypes: () => Object.keys(WIDGETS).filter(k => !WIDGETS[k].hidden),
   generate: () => generateCode(),
+  refresh: () => refresh(),
+  rebindTest: (help, cand) => {
+    const b = KEYMAP.find(x => x.help === help);
+    if (!b) return 'missing';
+    const clash = rebind(b, cand);
+    return clash ? 'conflict:' + clash.cat : comboLabel(b);
+  },
+  resetBinds: () => resetBinds(),
+  applyCpp: text => {
+    setCodeEditing(true);
+    codeEdit.value = text;
+    applyBtn.onclick();
+    return document.getElementById('codeStatus').textContent;
+  },
+  roundTrip: () => {
+    const before = generateCode();
+    setCodeEditing(true);
+    codeEdit.value = before;
+    applyBtn.onclick();
+    return { same: generateCode() === before, before, after: generateCode() };
+  },
   addAll: () => {
     // one of every widget type, containers nested so the tree is exercised
     for (const [type, spec] of Object.entries(WIDGETS)) {
@@ -3164,6 +3508,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=0fac69c9d9"></script>
+<script src="engine.js?v=650a45b4ab"></script>
 </body>
 </html>
