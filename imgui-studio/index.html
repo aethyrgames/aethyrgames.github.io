@@ -618,8 +618,19 @@
   #selbox.resizable .rh-r { right: -5px; top: 50%; margin-top: -4px; cursor: ew-resize; }
   #selbox.resizable .rh-b { bottom: -5px; left: 50%; margin-left: -4px; cursor: ns-resize; }
   #selbox.resizable .rh-c { right: -5px; bottom: -5px; cursor: nwse-resize; }
+  /* A widget sits in a flow, so its left and top edges are pinned and only the
+     far edges can move. A window is placed, so all eight grips apply. */
+  #selbox.resizable.win .rh-l { left: -5px; top: 50%; margin-top: -4px; cursor: ew-resize; }
+  #selbox.resizable.win .rh-t { top: -5px; left: 50%; margin-left: -4px; cursor: ns-resize; }
+  #selbox.resizable.win .rh-tl { left: -5px; top: -5px; cursor: nwse-resize; }
+  #selbox.resizable.win .rh-tr { right: -5px; top: -5px; cursor: nesw-resize; }
+  #selbox.resizable.win .rh-bl { left: -5px; bottom: -5px; cursor: nesw-resize; }
+  #selbox .winonly { display: none; }
   #selbox.noh .rh, #selbox.now .rh-r, #selbox.now .rh-c { display: none; }
   #selbox.noh .rh-r { display: block; }
+  /* a forgiving grab area around each grip, so aiming at an edge does not land
+     on the canvas and start a selection instead */
+  .rh::after { content: ''; position: absolute; inset: -5px; }
 
   #inlineEdit {
     position: absolute; display: none; z-index: 12; padding: 1px 3px;
@@ -888,6 +899,11 @@
               <i class="rh rh-r" data-axis="w"></i>
               <i class="rh rh-b" data-axis="h"></i>
               <i class="rh rh-c" data-axis="wh"></i>
+              <i class="rh rh-l winonly" data-axis="W"></i>
+              <i class="rh rh-t winonly" data-axis="H"></i>
+              <i class="rh rh-tl winonly" data-axis="WH"></i>
+              <i class="rh rh-tr winonly" data-axis="Hw"></i>
+              <i class="rh rh-bl winonly" data-axis="Wh"></i>
             </div>
             <div id="dropbox"></div>
             <div id="dropline"></div>
@@ -979,9 +995,9 @@
     </div>
   </div>
 
-<script src="widgets.js?v=fcdb3be5d6"></script>
+<script src="widgets.js?v=e1e5407ee8"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
-<script src="cpp.js?v=3d135265dd"></script>
+<script src="cpp.js?v=bd36923f34"></script>
 <script>
 // ---------- document model ----------
 
@@ -1944,6 +1960,7 @@ function updateSelectionOverlay() {
     // stays resizable mid-drag: dropping the handle the moment it is grabbed
     // takes the grip out from under the cursor
     selbox.classList.toggle('resizable', (hasW || hasH) && selection.size <= 1);
+    selbox.classList.toggle('win', !!node && node.type === 'window');
     selbox.classList.toggle('now', !hasW);
     selbox.classList.toggle('noh', !hasH);
   }
@@ -1969,7 +1986,7 @@ function pollEngine() {
   // emscripten runs main() after onRuntimeInitialized, so glfwCreateWindow
   // stomps whatever size we set during init. Re-assert it here so the canvas
   // converges on its container no matter how the ordering falls out.
-  if (canvas.width !== canvasHost.clientWidth && canvasHost.clientWidth > 0) syncCanvasSize();
+  if (canvasHost.clientWidth > 0) syncCanvasSize();
   try {
     // the ccall itself throws after a wasm abort, so it must sit inside the
     // try or one abort would kill the rAF chain and spam the interval backstop
@@ -2132,6 +2149,8 @@ for (const h of selbox.querySelectorAll('.rh')) {
       startX: e.clientX, startY: e.clientY,
       wkey: (WIDGETS[node.type].props || []).some(p => p[0] === 'w') ? 'w' : 'itemw',
       w0: Number(node.w || node.itemw) || (r ? Math.round(r.w) : 0),
+      x0: Number(node.x) || 0,
+      y0: Number(node.y) || 0,
       h0: Number(node.h) || (r ? Math.round(r.h) : 0),
     };
   });
@@ -2318,13 +2337,25 @@ document.addEventListener('mousemove', e => {
     // Stop short of 0: that is ImGui's auto-size sentinel, so dragging onto it
     // makes the widget jump back to its natural size instead of getting small.
     // Zero stays reachable from the inspector, where it is labelled.
+    const dx = e.clientX - resizing.startX;
+    const dy = e.clientY - resizing.startY;
     if (resizing.axis.includes('w')) {
       // whichever key this widget spells its width with
-      node[resizing.wkey] = Math.max(MIN_DRAG_SIZE,
-        Math.round(resizing.w0 + (e.clientX - resizing.startX)));
+      node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
     }
     if (resizing.axis.includes('h')) {
-      node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + (e.clientY - resizing.startY)));
+      node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
+    }
+    // a left or top edge grows the other way, so the node moves as it sizes
+    if (resizing.axis.includes('W')) {
+      const w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 - dx));
+      node.x = Math.round(resizing.x0 + (resizing.w0 - w));
+      node[resizing.wkey] = w;
+    }
+    if (resizing.axis.includes('H')) {
+      const h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 - dy));
+      node.y = Math.round(resizing.y0 + (resizing.h0 - h));
+      node.h = h;
     }
     // The engine has to see every step so the preview tracks the cursor; the
     // panels and the generated C++ can wait for the next frame, and the undo
@@ -3235,6 +3266,7 @@ function generateCode() {
     head.push(`void Draw${base}(${base}State& state)`);
     head.push('{');
     if (flags.length) head.push(`    ImGuiWindowFlags flags = ${flags.join(' | ')};`);
+    head.push(`    ImGui::SetNextWindowPos(ImVec2(${f(win.x)}, ${f(win.y)}), ImGuiCond_FirstUseEver);`);
     if (win.w > 0 || win.h > 0) {
       head.push(`    ImGui::SetNextWindowSize(ImVec2(${f(win.w)}, ${f(win.h)}), ImGuiCond_FirstUseEver);`);
     }
@@ -3983,9 +4015,35 @@ let cursorInside = false;
 
 // The wasm surface follows its container instead of being a fixed 1000x740 box,
 // so the preview uses whatever width the docks leave.
+// The drawing surface has to cover the content, not just the part of it you
+// happen to be looking at. Sizing it to the viewport meant a window wider than
+// the visible area was drawn only as far as the surface went and then stopped
+// dead, and panning had the same effect. It grows to fit whatever the document
+// occupies, with a margin so a resize drag has somewhere to go.
+const CANVAS_MARGIN = 240;
+const CANVAS_MAX = 4096;   // comfortably inside any WebGL texture limit
+
+function contentExtent() {
+  let w = 0, h = 0;
+  for (const r of latestRects) {
+    w = Math.max(w, r.x + r.w);
+    h = Math.max(h, r.y + r.h);
+  }
+  // the document may say the window is bigger than the last frame drew
+  for (const win of doc.children) {
+    if (win.type !== 'window') continue;
+    w = Math.max(w, 30 + (Number(win.w) || 0));
+    h = Math.max(h, 30 + (Number(win.h) || 0));
+  }
+  return { w, h };
+}
+
 function syncCanvasSize() {
-  const w = Math.max(64, Math.floor(canvasHost.clientWidth));
-  const h = Math.max(64, Math.floor(canvasHost.clientHeight));
+  const ext = contentExtent();
+  const w = Math.min(CANVAS_MAX, Math.max(64, Math.floor(canvasHost.clientWidth),
+    Math.ceil(ext.w) + CANVAS_MARGIN));
+  const h = Math.min(CANVAS_MAX, Math.max(64, Math.floor(canvasHost.clientHeight),
+    Math.ceil(ext.h) + CANVAS_MARGIN));
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
     canvas.height = h;
@@ -6116,6 +6174,7 @@ window.__test = {
   hoverText: () => hoverInfoEl.textContent,
   resizing: () => !!resizing,
   dragActive: () => !!drag,
+  marqueeActive: () => !!marquee,
   panelDragging: () => !!panelDrag,
   pin: (type, slot) => pinToHotbar(type, slot),
   reorder: d => reorderSelection(d, false),
@@ -6244,6 +6303,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=d1a36586b8"></script>
+<script src="engine.js?v=d99bfd747f"></script>
 </body>
 </html>

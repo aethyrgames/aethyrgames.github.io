@@ -296,6 +296,8 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       if (head.colors) win.colors = head.colors;
       const size = /ImGui::SetNextWindowSize\s*\(\s*ImVec2\s*\(([^,]+),([^)]+)\)/.exec(region);
       if (size) { win.w = litNum(size[1]); win.h = litNum(size[2]); }
+      const pos = /ImGui::SetNextWindowPos\s*\(\s*ImVec2\s*\(([^,]+),([^)]+)\)/.exec(region);
+      if (pos) { win.x = litNum(pos[1]); win.y = litNum(pos[2]); }
       windows.push(win);
 
       cursor = src.indexOf(';', bodyEnd) + 1 || src.length;
@@ -368,7 +370,8 @@ function splitHead(text, colorSlots) {
   }
   rest = rest
     .replace(/^[ \t]*ImGuiWindowFlags\s+flags\s*=[^;]*;[ \t]*\r?\n?/m, '')
-    .replace(/^[ \t]*ImGui::SetNextWindowSize\s*\([^;]*\)\s*;[ \t]*\r?\n?/m, '');
+    .replace(/^[ \t]*ImGui::SetNextWindowSize\s*\([^;]*\)\s*;[ \t]*\r?\n?/m, '')
+    .replace(/^[ \t]*ImGui::SetNextWindowPos\s*\([^;]*\)\s*;[ \t]*\r?\n?/m, '');
   rest = rest.replace(/^[ \t]*ImGui::PushStyleColor\s*\(\s*ImGuiCol_(\w+)\s*,\s*ImVec4\s*\(([^)]*)\)\s*\)\s*;[ \t]*\n?/gm,
     (whole, slot, nums) => {
       if (!colorSlots('window').includes(slot)) return whole;   // not ours; keep it
