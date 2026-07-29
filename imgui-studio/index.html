@@ -28,6 +28,10 @@
 
     /* neutrals, kept separate because they flip on a light theme: a white
        hover wash is invisible on white */
+    /* mixed from the foreground so the grid inverts with the theme */
+    --mk-grid-minor: color-mix(in srgb, var(--mk-fg) 6%, transparent);
+    --mk-grid-major: color-mix(in srgb, var(--mk-fg) 13%, transparent);
+
     --mk-hover:    rgba(255, 255, 255, 0.06);
     --mk-veil:     rgba(0, 0, 0, 0.35);
     --mk-backdrop: rgba(0, 0, 0, 0.55);
@@ -414,9 +418,25 @@
   #rulerLeft { border-right: 1px solid var(--mk-border); cursor: ew-resize; }
   #rulerBottom { border-top: 1px solid var(--mk-border); cursor: ns-resize; }
   #rulerRight { border-left: 1px solid var(--mk-border); cursor: ew-resize; }
-  #canvashost { position: relative; overflow: hidden; min-width: 0; min-height: 0; }
+  /* The ground and the grid are painted here rather than by the engine. A
+     repeating background has no edges, so the grid carries on for as far as you
+     can pan; the wasm surface only ever covered the visible box. Tinting from
+     --mk-fg means it inverts with the theme for free: light lines on a dark
+     ground, dark lines on a light one. */
+  #canvashost {
+    position: relative; overflow: hidden; min-width: 0; min-height: 0;
+    background-color: var(--mk-gutter);
+    background-image:
+      linear-gradient(to right, var(--mk-grid-major) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--mk-grid-major) 1px, transparent 1px),
+      linear-gradient(to right, var(--mk-grid-minor) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--mk-grid-minor) 1px, transparent 1px);
+    background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  }
+  #canvashost.nogrid { background-image: none; }
   #viewport { position: absolute; inset: 0; will-change: transform; }
-  #canvas { background: var(--mk-gutter); outline: none; display: block; }
+  /* transparent, so the ground above shows through everywhere the panel isn't */
+  #canvas { background: transparent; outline: none; display: block; }
   #canvashost.panning { cursor: grabbing; }
   /* live readout pinned near the cursor, the other half of a ruler */
   #coordtip {
@@ -1617,10 +1637,8 @@ var Module = {
   onRuntimeInitialized: () => {
     engineReady = true;
     statusBase = 'engine: running (real Dear ImGui via wasm) — ' + paletteCount + ' widget types';
-    pushGridColor();   // the theme was picked before the engine could hear it
     updateArmedUI(); // writes statusBase without clobbering an active armed line
     syncCanvasSize();
-    Module.ccall('engine_set_grid', null, ['number', 'number'], [showGrid ? 1 : 0, 20]);
     Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
     pushDoc();
   },
@@ -1645,6 +1663,11 @@ let pan = { x: 0, y: 0 };
 
 function applyPan() {
   viewportEl.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+  // the ground scrolls with the world, so the grid stays fixed to it rather
+  // than sliding under the panel
+  canvasHost.style.backgroundPosition =
+    `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`;
+  drawRulers();
 }
 
 function panBy(dx, dy) {
@@ -3230,7 +3253,7 @@ let currentUiTheme = 'doki';
 // not. applyUiTheme is what the UI calls once everything is up.
 function applyUiTheme(key) {
   setThemeVars(key);
-  pushGridColor();
+  // the grid tints itself from --mk-fg in CSS, so nothing else to push
   drawRulers();
 }
 
@@ -3251,23 +3274,6 @@ function setThemeVars(key) {
   try { localStorage.setItem(UI_THEME_KEY, currentUiTheme); } catch (e) {}
 }
 
-// The grid and the ground the panel floats on are both drawn by the engine, so
-// their colours cross the wasm boundary. The previewed panel itself keeps
-// ImGui's own style: it shows what you're building, not what you're building it
-// in.
-function pushGridColor() {
-  if (!engineReady) return;
-  const t = UI_THEMES[currentUiTheme] || UI_THEMES.doki;
-  const v = t.dark === false ? 0 : 255;
-  Module.ccall('engine_set_grid_color', null, ['number', 'number', 'number'], [v, v, v]);
-  const [r, g, b] = hexToBytes(t.gutter);
-  Module.ccall('engine_set_backdrop', null, ['number', 'number', 'number'], [r, g, b]);
-}
-
-function hexToBytes(hex) {
-  const n = parseInt(String(hex).replace('#', ''), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
 
 const THEME_KEY = 'imguistudio.theme';
 
@@ -3604,7 +3610,8 @@ const guidesEl = document.getElementById('guides');
 let showRulers = true;
 let showGrid = true;
 let guides = [];        // { axis: 'x'|'y', pos }
-let cursorCanvas = { x: -1, y: -1 };
+let cursorCanvas = { x: 0, y: 0 };
+let cursorInside = false;
 
 // The wasm surface follows its container instead of being a fixed 1000x740 box,
 // so the preview uses whatever width the docks leave.
@@ -3648,8 +3655,15 @@ function drawRulers() {
     g.fillStyle = v('comment');
     g.font = '10px JetBrains Mono, monospace';
     g.beginPath();
-    for (let p = 0; p < len; p += 10) {
-      const major = p % 100 === 0, mid = p % 50 === 0;
+    // Ticks count in world coordinates, not screen ones, so they keep meaning
+    // the same thing once the view has been panned. Negatives are real now:
+    // the grid carries on above and to the left of the origin.
+    const off = horiz ? pan.x : pan.y;
+    const first = Math.floor(-off / 10) * 10;
+    for (let wv = first; wv + off < len; wv += 10) {
+      const p = wv + off;
+      if (p < 0) continue;
+      const major = wv % 100 === 0, mid = wv % 50 === 0;
       const size = major ? 20 : (mid ? 8 : 4);
       // the bottom and right rules grow their ticks from the canvas edge, which
       // for them is the near side rather than the far one
@@ -3660,21 +3674,25 @@ function drawRulers() {
         const x0 = flip ? 0 : 20 - size, x1 = flip ? size : 20;
         g.moveTo(x0, p + 0.5); g.lineTo(x1, p + 0.5);
       }
-      if (major && p > 0) {
-        if (horiz) g.fillText(String(p), p + 2, flip ? 17 : 8);
+      // labels need room, so skip the one that would run off the near edge
+      if (major && p > 12) {
+        const txt = String(wv);
+        if (horiz) g.fillText(txt, p + 2, flip ? 17 : 8);
         else {
           g.save();
           g.translate(flip ? 17 : 8, p + 2);
           g.rotate(-Math.PI / 2);
-          g.fillText(String(p), -String(p).length * 5, 0);
+          g.fillText(txt, -txt.length * 5, 0);
           g.restore();
         }
       }
     }
     g.stroke();
-    // cursor position marker, the measurement half of a ruler
-    const c = horiz ? cursorCanvas.x : cursorCanvas.y;
-    if (c >= 0) {
+    // cursor position marker, the measurement half of a ruler. A world
+    // coordinate can be negative now, so "is the pointer here" is its own flag
+    // rather than a -1 sentinel.
+    const c = (horiz ? cursorCanvas.x : cursorCanvas.y) + off;
+    if (cursorInside) {
       g.strokeStyle = v('cyan');
       g.beginPath();
       if (horiz) { g.moveTo(c + 0.5, 0); g.lineTo(c + 0.5, 20); }
@@ -3753,6 +3771,7 @@ for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x'],
 canvasHost.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   cursorCanvas = { x: Math.round(e.clientX - r.left), y: Math.round(e.clientY - r.top) };
+  cursorInside = true;
   drawRulers();
   const host = canvasHost.getBoundingClientRect();
   coordTip.style.display = 'block';
@@ -3765,7 +3784,7 @@ canvasHost.addEventListener('mousemove', e => {
   updateHoverStatus(e);
 });
 canvasHost.addEventListener('mouseleave', () => {
-  cursorCanvas = { x: -1, y: -1 };
+  cursorInside = false;
   coordTip.style.display = 'none';
   drawRulers();
   updateHoverStatus(null);
@@ -3783,7 +3802,7 @@ function setRulers(on) {
 function setGrid(on) {
   showGrid = on;
   document.getElementById('gridBtn').classList.toggle('on', on);
-  if (engineReady) Module.ccall('engine_set_grid', null, ['number', 'number'], [on ? 1 : 0, 20]);
+  canvasHost.classList.toggle('nogrid', !on);
   try { localStorage.setItem('imguistudio.grid', on ? '1' : '0'); } catch (e) {}
 }
 
@@ -5581,6 +5600,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=c17955e5af"></script>
+<script src="engine.js?v=1210187bd0"></script>
 </body>
 </html>
