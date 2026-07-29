@@ -1383,6 +1383,12 @@ function toggleHelp() {
 function closeOverlays() {
   cmdkEl.hidden = true;
   helpEl.hidden = true;
+  // Focus would otherwise stay parked in the now-hidden input, and the
+  // dispatcher's text-entry guard would treat every later key as typing,
+  // leaving the whole keyboard dead until the user clicked something.
+  if (document.activeElement === cmdkInput || document.activeElement === helpInput) {
+    document.activeElement.blur();
+  }
 }
 
 cmdkEl.addEventListener('mousedown', e => { if (e.target === cmdkEl) closeOverlays(); });
