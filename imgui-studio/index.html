@@ -389,24 +389,7 @@
 
   input[type=checkbox] { accent-color: var(--mk-green); }
 
-  #toolbar {
-    padding: 8px 12px; background: var(--mk-gutter); border-bottom: 1px solid var(--mk-border);
-    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
-  }
-  #toolbar strong { color: var(--mk-green); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-  #toolbar label { color: var(--mk-comment); font-size: 12px; }
-  #modeHint { color: var(--mk-comment); font-size: 12px; }
-  #modeHint b { color: var(--mk-fg); font-weight: 600; }
-  #modeHint.livehint { color: var(--mk-green); }
-  #modeHint.livehint b { color: var(--mk-green); }
-  #toolbar .spacer { flex: 1; }
-  #toolbar button {
-    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 4px 10px; cursor: pointer; font-size: 12px;
-    font-family: var(--font); transition: color 0.1s, border-color 0.1s;
-  }
-  #toolbar button::before { content: '$ '; color: var(--mk-comment); }
-  #toolbar button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  /* the old toolbar row is gone; its actions live in the menu bar now */
 
   /* Rulers frame the canvas; the canvas itself fills whatever is left, and the
      wasm surface is resized to match rather than being a fixed box. */
@@ -609,6 +592,42 @@
   }
   #palette button.armedbtn { color: var(--mk-green); border-color: var(--mk-green); }
 
+  /* ---- menu bar ---- */
+  /* Desktop-menu behaviour: a click opens, and once something is open, hover
+     moves between menus without another click. That is what every OS menu bar
+     does and what people expect the moment a bar exists. */
+  #menubar { display: flex; align-items: stretch; gap: 1px; height: 100%; }
+  .menutop {
+    background: transparent; border: none; color: var(--mk-comment);
+    font-family: var(--font); font-size: 12px; padding: 0 11px; cursor: pointer;
+    border-radius: var(--radius);
+  }
+  .menutop:hover { color: var(--mk-fg); background: var(--mk-hover); }
+  .menutop.open { color: var(--mk-bg); background: var(--mk-green); }
+  #menupop {
+    position: fixed; display: none; z-index: 45; min-width: 216px; padding: 4px;
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); box-shadow: var(--shadow); font-size: 12px;
+  }
+  #menupop .mi {
+    display: flex; align-items: center; gap: 12px; padding: 5px 8px;
+    border-radius: var(--radius); cursor: pointer; color: var(--mk-fg);
+  }
+  #menupop .mi:hover { background: var(--mk-hover); }
+  #menupop .mi.disabled { opacity: 0.4; cursor: default; }
+  #menupop .mi.disabled:hover { background: transparent; }
+  #menupop .mi .k { margin-left: auto; color: var(--mk-comment); font-size: 11px; white-space: nowrap; }
+  /* the tick column keeps labels aligned whether or not a row is checkable */
+  #menupop .mi .tick { width: 10px; color: var(--mk-green); }
+  #menupop .sep { height: 1px; background: var(--mk-border); margin: 4px 2px; }
+  #menupop .hdr {
+    padding: 5px 8px 3px; color: var(--mk-comment); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.07em;
+  }
+  #apphead #modeHint { color: var(--mk-comment); font-size: 11px; }
+  #apphead #modeHint b { color: var(--mk-green); }
+  #apphead #modeHint.livehint { color: var(--mk-pink); }
+
   .overlay {
     position: fixed; inset: 0; background: var(--mk-backdrop);
     display: flex; align-items: flex-start; justify-content: center; z-index: 20;
@@ -643,10 +662,17 @@
 <body>
   <div id="apphead">
     <span class="brand">ImGuiStudio</span>
-    <span class="tagline">// drag widgets, copy the C++</span>
+    <nav id="menubar">
+      <button class="menutop" data-menu="file">File</button>
+      <button class="menutop" data-menu="view">View</button>
+      <button class="menutop" data-menu="windows">Windows</button>
+      <button class="menutop" data-menu="help">Help</button>
+    </nav>
     <span class="spacer"></span>
+    <span id="modeHint">hold <b>Space</b> to test interaction</span>
     <a class="sitelink" href="https://aethyr.gg" target="_blank" rel="noopener">aethyr.gg</a>
   </div>
+  <div id="menupop"></div>
 
   <div id="workspace">
     <!-- Panels start in the DOM (not a template) so element lookups elsewhere
@@ -686,18 +712,19 @@
 
     <div id="center">
       <div id="projtabs"></div>
-      <div id="toolbar">
-        <span id="modeHint">hold <b>Space</b> to test interaction</span>
-        <span class="spacer"></span>
-        <button id="gridBtn" title="Toggle background grid">Grid</button>
-        <button id="rulerBtn" title="Toggle rulers and guides">Rulers</button>
-        <button id="resetBtn" title="Restore the sample layout">Reset</button>
-        <button id="shareBtn" title="Copy a link that carries this document">Share</button>
-        <button id="settingsBtn" title="Settings and keyboard shortcuts">Settings</button>
-        <button id="exportBtn">Export JSON</button>
-        <button id="importBtn">Import JSON</button>
-        <input type="file" id="importFile" accept=".json,application/json" style="display:none">
-        <input type="file" id="importTplFile" accept=".json,application/json" style="display:none">
+      <!-- These moved into the menu bar. The elements stay as hidden anchors so
+           the menu items, the command palette and the self-test all keep one
+           place to click, rather than three copies of each action. -->
+      <div id="hiddenactions" hidden>
+        <button id="gridBtn"></button>
+        <button id="rulerBtn"></button>
+        <button id="resetBtn"></button>
+        <button id="shareBtn"></button>
+        <button id="settingsBtn"></button>
+        <button id="exportBtn"></button>
+        <button id="importBtn"></button>
+        <input type="file" id="importFile" accept=".json,application/json">
+        <input type="file" id="importTplFile" accept=".json,application/json">
       </div>
       <div id="canvasarea">
         <div class="rulercorner" id="rulerCorner"></div>
@@ -2476,6 +2503,8 @@ HOTBAR_KEYS.forEach((k, i) => {
   });
 });
 
+bind('global', 'Ctrl+N', { key: 'N', ctrl: true }, 'New project', 'Global',
+  () => { addProject(); saveProjects(); });
 bind('global', 'Ctrl+K', { key: 'K', ctrl: true }, 'Command palette', 'Global', () => openCmdk('all'));
 bind('global', '?', { key: '?' }, 'Keyboard shortcuts', 'Global', () => toggleHelp());
 
@@ -3415,24 +3444,10 @@ function applyLayout() {
   requestAnimationFrame(syncCanvasSize);
 }
 
+// The panel toggles used to be buttons in the header. They are the Windows
+// menu now, so applyLayout only has to keep an open menu current.
 function renderPanelButtons() {
-  let host = document.getElementById('panelbtns');
-  if (!host) {
-    host = document.createElement('span');
-    host.id = 'panelbtns';
-    host.style.display = 'flex';
-    host.style.gap = '4px';
-    document.querySelector('#apphead .spacer').after(host);
-  }
-  host.innerHTML = '';
-  for (const [key, p] of Object.entries(layout.panels)) {
-    const b = document.createElement('button');
-    b.className = 'panelbtn' + (p.hidden ? '' : ' on');
-    b.textContent = panelEls[key].dataset.title;
-    b.title = (p.hidden ? 'Show ' : 'Hide ') + panelEls[key].dataset.title;
-    b.onclick = () => { p.hidden = !p.hidden; applyLayout(); };
-    host.appendChild(b);
-  }
+  if (openMenu === 'windows') renderMenu('windows');
 }
 
 // Drag a panel header to any edge. The zone is picked by which edge the cursor
@@ -3907,6 +3922,142 @@ palToggleAll.onclick = () => {
   saveCats();
   renderPalette();
 };
+
+// ---------- menu bar ----------
+// Items reuse the same shape as the context menus (group, order, key, run),
+// and every action clicks the same hidden anchor button the command palette
+// does, so a File entry and a palette entry can't drift apart.
+
+const menuPop = document.getElementById('menupop');
+let openMenu = null;
+
+const click = id => document.getElementById(id).onclick();
+
+function MENUS() {
+  return {
+    file: [
+      { group: '1_doc', label: 'New project', key: 'Ctrl+N', run: () => { addProject(); saveProjects(); } },
+      { group: '1_doc', label: 'Reset to the sample layout', run: () => click('resetBtn') },
+      { group: '2_io', label: 'Import JSON…', run: () => click('importBtn') },
+      { group: '2_io', label: 'Export JSON', run: () => click('exportBtn') },
+      { group: '2_io', label: 'Export everything', run: () => exportEverything() },
+      { group: '3_tpl', label: 'Save as template', run: () => saveCurrentAsTemplate() },
+      { group: '3_tpl', label: 'Import templates…', run: () => document.getElementById('tplImportBtn').onclick() },
+      { group: '3_tpl', label: 'Export templates', run: () => exportTemplates() },
+      { group: '4_share', label: 'Copy share link', run: () => click('shareBtn') },
+      { group: '4_share', label: 'Copy generated C++', run: () => navigator.clipboard.writeText(generateCode()) },
+      { group: '5_set', label: 'Settings…', run: () => click('settingsBtn') },
+    ],
+    view: [
+      { group: '1_show', label: 'Background grid', checked: showGrid, run: () => click('gridBtn') },
+      { group: '1_show', label: 'Rulers and guides', checked: showRulers, run: () => click('rulerBtn') },
+      { group: '2_guides', label: 'Clear guides', disabled: !guides.length,
+        run: () => { guides = []; renderGuides(); saveGuides(); } },
+      { group: '3_view', label: 'Focus the selection', key: 'F', disabled: !selectedId,
+        run: () => focusSelection() },
+      { group: '3_view', label: 'Reset the view', key: 'Shift+F', run: () => resetPan() },
+      { group: '4_theme', label: 'Themes…', run: () => openSettings('theme') },
+    ],
+    windows: [
+      { group: '0_hdr', header: 'Panels' },
+      ...Object.entries(layout.panels).map(([key, p], i) => ({
+        group: '1_panels', order: i,
+        label: panelEls[key].dataset.title,
+        checked: !p.hidden,
+        run: () => { p.hidden = !p.hidden; applyLayout(); },
+      })),
+      { group: '2_layout', label: 'Reset panel layout', run: () => resetPanelLayout() },
+      { group: '3_over', label: 'Command palette', key: 'Ctrl+K', run: () => openCmdk('all') },
+      { group: '3_over', label: 'Keyboard shortcuts', key: '?', run: () => toggleHelp() },
+    ],
+    help: [
+      { group: '1', label: 'Keyboard shortcuts', key: '?', run: () => toggleHelp() },
+      { group: '1', label: 'Command palette', key: 'Ctrl+K', run: () => openCmdk('all') },
+      { group: '2', label: 'Controls reference', run: () => window.open(
+        'https://github.com/defessler/ImGuiStudio/blob/main/docs/CONTROLS.md', '_blank', 'noopener') },
+      { group: '2', label: 'Dear ImGui manual', run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener') },
+    ],
+  };
+}
+
+function renderMenu(name) {
+  const items = (MENUS()[name] || []).filter(Boolean);
+  items.sort((a, b) => (a.group || '5').localeCompare(b.group || '5') || (a.order || 0) - (b.order || 0));
+  menuPop.innerHTML = '';
+  let lastGroup = null;
+  for (const it of items) {
+    if (it.header) {
+      const h = document.createElement('div');
+      h.className = 'hdr';
+      h.textContent = it.header;
+      menuPop.appendChild(h);
+      lastGroup = it.group;
+      continue;
+    }
+    if (lastGroup !== null && it.group !== lastGroup) {
+      const s = document.createElement('div');
+      s.className = 'sep';
+      menuPop.appendChild(s);
+    }
+    lastGroup = it.group;
+    const row = document.createElement('div');
+    row.className = 'mi' + (it.disabled ? ' disabled' : '');
+    const tick = document.createElement('span');
+    tick.className = 'tick';
+    tick.textContent = it.checked ? '✓' : '';
+    row.appendChild(tick);
+    const l = document.createElement('span');
+    l.textContent = it.label;
+    row.appendChild(l);
+    if (it.key) {
+      const k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = it.key;
+      row.appendChild(k);
+    }
+    if (!it.disabled) {
+      row.onclick = () => {
+        // checkable rows stay open, so you can flip two without re-opening
+        if (it.checked === undefined) closeMenu();
+        it.run();
+        if (it.checked !== undefined && openMenu) renderMenu(openMenu);
+      };
+    }
+    menuPop.appendChild(row);
+  }
+  const top = document.querySelector(`.menutop[data-menu="${name}"]`);
+  const r = top.getBoundingClientRect();
+  menuPop.style.display = 'block';
+  menuPop.style.left = Math.min(r.left, window.innerWidth - menuPop.offsetWidth - 6) + 'px';
+  menuPop.style.top = r.bottom + 'px';
+  for (const b of document.querySelectorAll('.menutop')) {
+    b.classList.toggle('open', b.dataset.menu === name);
+  }
+  openMenu = name;
+}
+
+function closeMenu() {
+  menuPop.style.display = 'none';
+  openMenu = null;
+  for (const b of document.querySelectorAll('.menutop')) b.classList.remove('open');
+}
+
+for (const b of document.querySelectorAll('.menutop')) {
+  b.onclick = e => {
+    e.stopPropagation();
+    if (openMenu === b.dataset.menu) closeMenu();
+    else renderMenu(b.dataset.menu);
+  };
+  // once one is open, sliding across the bar moves between them
+  b.onmouseenter = () => { if (openMenu && openMenu !== b.dataset.menu) renderMenu(b.dataset.menu); };
+}
+document.addEventListener('mousedown', e => {
+  if (openMenu && !menuPop.contains(e.target) && !e.target.closest('.menutop')) closeMenu();
+}, true);
+window.addEventListener('blur', closeMenu);
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && openMenu) { closeMenu(); e.preventDefault(); }
+}, true);
 
 // ---------- context menus ----------
 // Items carry a group id and an order; the renderer sorts by them and inserts a
@@ -5290,6 +5441,10 @@ window.__test = {
     const m = /[#&]d=([A-Za-z0-9_-]+)/.exec(url);
     return m ? (await decodeShare(m[1])) : null;
   },
+  gridOn: () => showGrid,
+  rulersOn: () => showRulers,
+  menu: name => renderMenu(name),
+  closeMenu: () => closeMenu(),
   uiThemes: () => Object.keys(UI_THEMES),
   uiTheme: k => UI_THEMES[k],
   setUiTheme: k => applyUiTheme(k),
