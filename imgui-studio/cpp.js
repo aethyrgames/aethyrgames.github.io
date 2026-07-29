@@ -192,7 +192,13 @@ function buildSchema(WIDGETS, makeNode) {
         }
       }
       if (!byFn[baseCall.fn]) {
-        byFn[baseCall.fn] = { type, n: nv, args, container: !!spec.container, fieldProp };
+        // argc is how many arguments the generator itself writes. A call with a
+        // different count is hand-written in some other shape, and the alias
+        // table knows how to read those.
+        byFn[baseCall.fn] = {
+          type, n: nv, args, container: !!spec.container, fieldProp,
+          argc: baseCall.args.length,
+        };
       }
     }
   }
@@ -528,11 +534,31 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     if (call) {
       const fn = call[1];
       const argsText = balancedArgs(rest.slice(call[0].length - 1));
-      if (argsText !== null && schema[fn] && !schema[fn].container) {
-        attach(nodeFromCall(schema[fn], argsText, newId, WIDGETS, makeNode, fields));
+      const entry = argsText !== null ? schema[fn] : null;
+      // A call the generator knows, written the way the generator writes it.
+      if (entry && !entry.container && splitTopLevel(argsText).length === entry.argc) {
+        attach(nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields));
         const semi = src.indexOf(';', i + call[0].length + argsText.length);
         i = semi >= 0 ? semi + 1 : to;
         continue;
+      }
+      // Otherwise it's hand-written: a different arity, or a function the
+      // generator never emits at all. ImGui::Text("hi") lands here.
+      if (argsText !== null && (!entry || !entry.container)) {
+        const aliased = nodeFromAlias(fn, argsText, newId, WIDGETS, makeNode);
+        if (aliased) {
+          attach(aliased);
+          const semi = src.indexOf(';', i + call[0].length + argsText.length);
+          i = semi >= 0 ? semi + 1 : to;
+          continue;
+        }
+        // known function, unusual arity, no alias: still better as the widget
+        if (entry && !entry.container) {
+          attach(nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields));
+          const semi = src.indexOf(';', i + call[0].length + argsText.length);
+          i = semi >= 0 ? semi + 1 : to;
+          continue;
+        }
       }
     }
 
@@ -543,6 +569,74 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
   }
   flushColors();   // pushes with nothing after them are still the user's code
   return out;
+}
+
+// Hand-written ImGui differs from what the generator emits. The generator picks
+// one spelling per widget (TextUnformatted for text, and "%s" formatting for
+// the rest), so a perfectly ordinary ImGui::Text("hi") matched nothing and fell
+// through to a raw-code placeholder. These are the equivalents worth reading
+// back: `label` is which argument carries the visible string.
+const CALL_ALIASES = {
+  Text:          { type: 'text',           label: 0 },
+  TextV:         { type: 'text',           label: 0 },
+  TextWrapped:   { type: 'textwrapped',    label: 0 },
+  TextDisabled:  { type: 'textdisabled',   label: 0 },
+  TextColored:   { type: 'textcolored',    label: 1 },
+  BulletText:    { type: 'bullettext',     label: 0 },
+  LabelText:     { type: 'labeltext',      label: 0, second: 1 },
+  SeparatorText: { type: 'separatortext',  label: 0 },
+  Button:        { type: 'button',         label: 0 },
+  SmallButton:   { type: 'smallbutton',    label: 0 },
+  Checkbox:      { type: 'checkbox',       label: 0 },
+  RadioButton:   { type: 'radiobutton',    label: 0 },
+  Selectable:    { type: 'selectable',     label: 0 },
+  MenuItem:      { type: 'menuitem',       label: 0 },
+  InputText:     { type: 'inputtext',      label: 0 },
+  InputInt:      { type: 'inputint',       label: 0 },
+  InputFloat:    { type: 'inputfloat',     label: 0 },
+  InputDouble:   { type: 'inputdouble',    label: 0 },
+  SliderFloat:   { type: 'sliderfloat',    label: 0 },
+  SliderInt:     { type: 'sliderint',      label: 0 },
+  SliderAngle:   { type: 'sliderangle',    label: 0 },
+  DragFloat:     { type: 'dragfloat',      label: 0 },
+  DragInt:       { type: 'dragint',        label: 0 },
+  ColorEdit3:    { type: 'coloredit',      label: 0 },
+  ColorEdit4:    { type: 'coloredit',      label: 0 },
+  ColorPicker3:  { type: 'colorpicker',    label: 0 },
+  ColorPicker4:  { type: 'colorpicker',    label: 0 },
+  ProgressBar:   { type: 'progressbar',    label: null },
+  Bullet:        { type: 'bullet',         label: null },
+  Spacing:       { type: 'spacing',        label: null },
+  NewLine:       { type: 'newline',        label: null },
+  Separator:     { type: 'separator',      label: null },
+  Indent:        { type: 'indent',         label: null },
+  Unindent:      { type: 'unindent',       label: null },
+  AlignTextToFramePadding: { type: 'aligntext', label: null },
+};
+
+// Build a node from a hand-written call. Only a plain string literal is taken
+// as the label: a format string with real arguments in it isn't something the
+// document can represent, so that stays raw code.
+function nodeFromAlias(fn, argsText, newId, WIDGETS, makeNode) {
+  const alias = CALL_ALIASES[fn];
+  if (!alias || !WIDGETS[alias.type]) return null;
+  const node = makeNode(alias.type);
+  node.id = newId();
+  if (alias.label === null) return node;
+  const args = splitTopLevel(argsText);
+  const raw = (args[alias.label] || '').trim();
+  if (!raw.startsWith('"')) return null;
+  const text = litStr(raw);
+  // a format string with substitutions can't round-trip as a plain label
+  if (/%[-+ #0-9.]*[a-zA-Z]/.test(text) && args.length > alias.label + 1) return null;
+  const spec = WIDGETS[alias.type];
+  if ((spec.props || []).some(p => p[0] === 'label')) node.label = text;
+  if (alias.second !== undefined) {
+    const v = (args[alias.second] || '').trim();
+    const valueProp = (spec.props || []).find(p => p[0] === 'value' || p[0] === 'text');
+    if (valueProp && v.startsWith('"')) node[valueProp[0]] = litStr(v);
+  }
+  return node;
 }
 
 // Remove only the container's OWN closing call, at the end of its body. A

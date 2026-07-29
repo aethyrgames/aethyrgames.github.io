@@ -34,7 +34,7 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column;
-    font: 12px/1.45 var(--font); background: var(--mk-bg); color: var(--mk-fg);
+    font: 13px/1.5 var(--font); background: var(--mk-bg); color: var(--mk-fg);
   }
 
   /* Scanlines live only on the header chrome, and as a background layer so
@@ -58,20 +58,24 @@
     text-shadow: var(--glow-chroma); white-space: nowrap;
   }
   .brand::before { content: '> '; color: var(--mk-comment); }
-  .tagline { color: var(--mk-comment); font-size: 11px; }
+  .tagline { color: var(--mk-comment); font-size: 12px; }
   #apphead .spacer { flex: 1; }
   .sitelink {
-    color: var(--mk-comment); font-size: 11px; text-decoration: none;
+    color: var(--mk-comment); font-size: 12px; text-decoration: none;
     padding: 3px 9px; border: 1px solid var(--mk-border); border-radius: var(--radius);
     transition: color 0.1s, border-color 0.1s;
   }
   .sitelink:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
 
   /* opaque, so nothing from behind can bleed into the panes */
-  #workspace { display: flex; flex: 1; min-height: 0; background: var(--mk-bg); }
+  #workspace {
+    display: flex; flex-direction: column; flex: 1;
+    min-height: 0; min-width: 0; overflow: hidden; background: var(--mk-bg);
+  }
+  #midrow { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
 
   h3 {
-    margin: 0; padding: 9px 10px 6px; font-size: 10px; font-weight: 600;
+    margin: 0; padding: 9px 10px 6px; font-size: 11px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.08em; color: var(--mk-green);
     border-bottom: 1px solid var(--mk-border); flex-shrink: 0;
   }
@@ -79,9 +83,18 @@
   h3::after  { content: ' */'; color: var(--mk-comment); }
 
   /* ---- dockable panels ---- */
-  .dock { display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex-shrink: 0; }
+  .dock { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; flex-shrink: 0; }
   #dockLeft { width: 280px; border-right: 1px solid var(--mk-border); }
   #dockRight { width: 470px; border-left: 1px solid var(--mk-border); }
+  /* the top and bottom docks are wide and short, so their panels sit side by
+     side rather than stacking */
+  #dockTop, #dockBottom { flex-direction: row; height: 200px; }
+  #dockTop { border-bottom: 1px solid var(--mk-border); }
+  #dockBottom { border-top: 1px solid var(--mk-border); }
+  #dockTop > .panel, #dockBottom > .panel {
+    border-bottom: none; border-right: 1px solid var(--mk-border); min-width: 0;
+  }
+  #dockTop > .panel.collapsed, #dockBottom > .panel.collapsed { flex: 0 0 auto; }
   .dock:empty { display: none; }
   .dock:empty + .dockresize, .dockresize:has(+ .dock:empty) { display: none; }
   /* hidden panels stay in the DOM so their render targets keep resolving, so a
@@ -93,6 +106,7 @@
   .dockresize {
     width: 5px; flex-shrink: 0; cursor: col-resize; background: transparent;
   }
+  .dockresize.horiz { width: auto; height: 5px; cursor: row-resize; }
   .dockresize:hover, .dockresize.dragging { background: var(--mk-cyan); opacity: 0.5; }
 
   /* share the dock's height by weight rather than by content size, or the
@@ -107,19 +121,19 @@
   .panel.collapsed .panel-body { display: none; }
   .panel-head {
     display: flex; align-items: center; gap: 6px; padding: 7px 8px 6px;
-    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--mk-green);
     border-bottom: 1px solid var(--mk-border); cursor: grab; user-select: none;
     flex-shrink: 0; background: var(--mk-gutter);
   }
   .panel-head:active { cursor: grabbing; }
-  .panel-head .tw { color: var(--mk-comment); font-size: 9px; width: 8px; }
+  .panel-head .tw { color: var(--mk-comment); font-size: 14px; width: 12px; line-height: 1; }
   .panel-head .ttl { flex: 1; }
   .panel-head .ttl::before { content: '/* '; color: var(--mk-comment); text-transform: none; }
   .panel-head .ttl::after { content: ' */'; color: var(--mk-comment); }
   .panel-head button {
     background: none; border: none; color: var(--mk-comment); cursor: pointer;
-    font-family: var(--font); font-size: 12px; padding: 0 3px; line-height: 1;
+    font-family: var(--font); font-size: 13px; padding: 0 3px; line-height: 1;
   }
   .panel-head button:hover { color: var(--mk-fg); }
   .panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -127,13 +141,115 @@
 
   #dropzone {
     position: fixed; display: none; pointer-events: none; z-index: 30;
-    background: rgba(102, 217, 239, 0.16); border: 2px solid var(--mk-cyan);
+    background: rgba(102, 217, 239, 0.10); border: 2px solid var(--mk-cyan);
+    flex-direction: column; gap: 2px; padding: 2px;
+  }
+  /* one slot per panel that will share the dock, so the preview shows the size
+     each one ends up with instead of just naming an edge */
+  .dzslot {
+    flex: 1 1 0; min-width: 0; min-height: 0; display: flex;
+    align-items: center; justify-content: center; text-align: center;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--mk-comment); border: 1px dashed var(--mk-border);
+    background: rgba(0, 0, 0, 0.35); overflow: hidden;
+  }
+  /* ---- project tabs ---- */
+  #projtabs {
+    display: flex; align-items: stretch; gap: 2px; padding: 4px 6px 0;
+    background: var(--mk-gutter); border-bottom: 1px solid var(--mk-border);
+    flex-shrink: 0; overflow-x: auto; scrollbar-width: none;
+  }
+  #projtabs::-webkit-scrollbar { display: none; }
+  .ptab {
+    display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+    border: 1px solid var(--mk-border); border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    color: var(--mk-comment); font-size: 11px; cursor: pointer; white-space: nowrap;
+    background: transparent; max-width: 220px;
+  }
+  .ptab:hover { color: var(--mk-fg); }
+  .ptab.on { color: var(--mk-green); border-color: var(--mk-green); background: var(--mk-bg); }
+  .ptab .pname { overflow: hidden; text-overflow: ellipsis; }
+  .ptab button {
+    background: transparent; border: none; color: var(--mk-comment);
+    cursor: pointer; font-family: var(--font); font-size: 10px; padding: 0 2px;
+  }
+  .ptab button:hover { color: var(--mk-pink); }
+  .prename {
+    background: var(--mk-bg); color: var(--mk-fg); border: 1px solid var(--mk-cyan);
+    border-radius: var(--radius); font-family: var(--font); font-size: 11px;
+    padding: 1px 4px; width: 120px;
+  }
+  .prename:focus { outline: none; }
+  .padd {
+    background: transparent; border: 1px solid var(--mk-border); color: var(--mk-comment);
+    border-radius: var(--radius) var(--radius) 0 0; cursor: pointer;
+    font-family: var(--font); font-size: 12px; padding: 0 9px;
+  }
+  .padd:hover { color: var(--mk-green); border-color: var(--mk-green); }
+
+  /* ---- templates ---- */
+  #tpllist { overflow-y: auto; }
+  .tplrow {
+    display: flex; align-items: center; gap: 6px; padding: 5px 9px;
+    border-bottom: 1px solid rgba(73, 72, 62, 0.4); font-size: 12px;
+  }
+  .tplrow:hover { background: rgba(255, 255, 255, 0.04); }
+  .tplname { flex: 1; min-width: 0; color: var(--mk-fg); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tplname:hover { color: var(--mk-cyan); }
+  .tplcount { color: var(--mk-comment); font-size: 10px; }
+  .tplrow button {
+    background: transparent; border: none; color: var(--mk-comment);
+    cursor: pointer; font-family: var(--font); font-size: 11px; padding: 0 3px;
+  }
+  .tplrow button:hover { color: var(--mk-green); }
+
+  .settings-box { max-width: 620px; width: 92vw; }
+  .settings-head {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--mk-border); color: var(--mk-green);
+    text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
+  }
+  .settings-head .spacer { flex: 1; }
+  .settings-head button, .settings-tabs button {
+    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 3px 10px; cursor: pointer;
+    font-family: var(--font); font-size: 11px;
+  }
+  .settings-head button:hover, .settings-tabs button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  .settings-tabs { display: flex; gap: 6px; padding: 10px 14px; }
+  .settings-tabs button.on { color: var(--mk-green); border-color: var(--mk-green); }
+  .set-row {
+    display: flex; align-items: center; gap: 10px; padding: 6px 14px;
+    color: var(--mk-fg); font-size: 12px;
+  }
+  .set-row .spacer { flex: 1; }
+  .set-row .k {
+    color: var(--mk-comment); font-size: 11px; border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 1px 7px; cursor: pointer; white-space: nowrap;
+  }
+  .set-row .k:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  .set-row .k.capturing { color: var(--mk-green); border-color: var(--mk-green); }
+  .set-row .k.custom { color: var(--mk-green); }
+  .confirm-box { max-width: 420px; padding: 16px; }
+  #confirmMsg { color: var(--mk-fg); line-height: 1.5; }
+  .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .confirm-actions button {
+    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 5px 12px; cursor: pointer;
+    font-family: var(--font); font-size: 12px;
+  }
+  .confirm-actions button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  .confirm-actions button.danger:hover { color: var(--mk-pink); border-color: var(--mk-pink); }
+  .dzslot.me {
+    color: var(--mk-bg); background: var(--mk-cyan);
+    border: 1px solid var(--mk-cyan); font-weight: 700;
   }
 
   /* panels the user hid are relaunchable from here */
   #apphead .panelbtn {
     background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); font-family: var(--font); font-size: 10px;
+    border-radius: var(--radius); font-family: var(--font); font-size: 11px;
     padding: 2px 7px; cursor: pointer;
   }
   #apphead .panelbtn:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
@@ -151,18 +267,25 @@
     display: grid; grid-template-columns: 78px 1fr; gap: 5px; align-content: start;
     align-items: center;
   }
-  #filter {
-    width: calc(100% - 16px); margin: 6px 8px; background: var(--mk-gutter); color: var(--mk-fg);
+  .paltools { display: flex; align-items: center; gap: 6px; margin: 6px 8px; flex-shrink: 0; }
+  .paltools input {
+    flex: 1; min-width: 0; background: var(--mk-gutter); color: var(--mk-fg);
     border: 1px solid var(--mk-border); border-radius: var(--radius);
-    padding: 4px 6px; font-family: var(--font); font-size: 11px;
+    padding: 4px 6px; font-family: var(--font); font-size: 12px;
   }
-  #filter:focus { outline: none; border-color: var(--mk-cyan); }
+  .paltools input:focus { outline: none; border-color: var(--mk-cyan); }
+  .paltools button {
+    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); padding: 4px 7px; cursor: pointer;
+    font-family: var(--font); font-size: 11px; white-space: nowrap;
+  }
+  .paltools button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
   /* The ellipsis lives on an inner span, not the button: Chrome collapses a
      <button>'s content box to zero height when overflow:hidden is set on the
      button itself, which silently squashes the whole palette. */
   #palette button {
     background: var(--mk-surface); color: var(--mk-fg); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 6px 4px; cursor: grab; font-size: 11px;
+    border-radius: var(--radius); padding: 6px 4px; cursor: grab; font-size: 12px;
     line-height: 1.4; font-family: var(--font); user-select: none; text-align: center;
     transition: background 0.1s, color 0.1s, border-color 0.1s;
   }
@@ -182,24 +305,71 @@
   .row:hover { background: rgba(255,255,255,0.04); }
   .row.selected { background: var(--mk-surface); border-left-color: var(--mk-pink); }
   .row.selected .wlabel { color: var(--mk-pink); }
-  .row .wtype { color: var(--mk-cyan); font-size: 10px; opacity: 0.8; flex-shrink: 0; }
+  .row .wtype { color: var(--mk-cyan); font-size: 11px; opacity: 0.8; flex-shrink: 0; }
   .row .wlabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
-  .row .join { color: var(--mk-yellow); font-size: 11px; }
-  .row .box { color: var(--mk-purple); font-size: 10px; }
+  .row .join { color: var(--mk-yellow); font-size: 12px; }
+  .row .box { color: var(--mk-purple); font-size: 11px; }
   .row button {
     background: none; border: none; color: var(--mk-comment); cursor: pointer;
-    padding: 0 2px; font-size: 11px; font-family: var(--font);
+    padding: 0 2px; font-size: 12px; font-family: var(--font);
   }
   .row button:hover { color: var(--mk-fg); }
 
-  #propbody label { color: var(--mk-comment); font-size: 11px; }
+  #propbody label { color: var(--mk-comment); font-size: 12px; }
   #propbody input[type=text], #propbody input[type=number], #propbody select {
     background: var(--mk-gutter); color: var(--mk-fg); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 3px 6px; width: 100%; font-family: var(--font); font-size: 11px;
+    border-radius: var(--radius); padding: 3px 6px; width: 100%; font-family: var(--font); font-size: 12px;
   }
   #propbody input:focus, #propbody select:focus { outline: none; border-color: var(--mk-cyan); }
   #propbody .empty { grid-column: 1 / 3; color: var(--mk-comment); padding: 6px 0; }
   #propbody .empty::before { content: '// '; }
+
+  /* ---- properties: sections, a real toggle, readable colour rows ---- */
+  .prophead {
+    grid-column: 1 / 3; display: flex; align-items: center; gap: 6px;
+    margin: 10px 0 2px; color: var(--mk-green); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .prophead:first-child { margin-top: 0; }
+  .prophead::after { content: ''; flex: 1; height: 1px; background: var(--mk-border); }
+  .propident {
+    grid-column: 1 / 3; display: flex; align-items: baseline; gap: 7px;
+    padding-bottom: 4px; border-bottom: 1px solid var(--mk-border); margin-bottom: 2px;
+  }
+  .propident b { color: var(--mk-cyan); font-size: 13px; font-weight: 600; }
+  .propident span { color: var(--mk-comment); font-size: 11px; }
+  /* a switch rather than a bare checkbox: SameLine is the one flag people
+     reach for constantly, so it gets a control you can hit */
+  .toggle {
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+    color: var(--mk-comment); font-size: 11px; user-select: none;
+  }
+  .toggle .track {
+    width: 30px; height: 16px; border-radius: 9px; background: var(--mk-gutter);
+    border: 1px solid var(--mk-border); position: relative; transition: all 0.12s;
+    flex-shrink: 0;
+  }
+  .toggle .track::after {
+    content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--mk-comment); transition: all 0.12s;
+  }
+  .toggle.on .track { border-color: var(--mk-green); background: rgba(166, 226, 46, 0.18); }
+  .toggle.on .track::after { left: 15px; background: var(--mk-green); }
+  .toggle.on { color: var(--mk-green); }
+  .colorrow { display: flex; align-items: center; gap: 6px; }
+  .colorrow input[type=color] {
+    width: 26px; height: 20px; padding: 0; border: 1px solid var(--mk-border);
+    border-radius: var(--radius); background: var(--mk-gutter); cursor: pointer;
+  }
+  .colorrow .hex { color: var(--mk-comment); font-size: 10px; letter-spacing: 0.02em; }
+  .colorrow .unset {
+    margin-left: auto; background: none; border: 1px solid var(--mk-border);
+    color: var(--mk-comment); border-radius: var(--radius); font-family: var(--font);
+    font-size: 10px; cursor: pointer; padding: 1px 5px;
+  }
+  .colorrow .unset:hover { color: var(--mk-pink); border-color: var(--mk-pink); }
+  #propbody label.set { color: var(--mk-fg); font-weight: 600; }
+  #propbody label.set::after { content: ' •'; color: var(--mk-green); }
 
   input[type=checkbox] { accent-color: var(--mk-green); }
 
@@ -207,16 +377,16 @@
     padding: 8px 12px; background: var(--mk-gutter); border-bottom: 1px solid var(--mk-border);
     display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
   }
-  #toolbar strong { color: var(--mk-green); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
-  #toolbar label { color: var(--mk-comment); font-size: 11px; }
-  #modeHint { color: var(--mk-comment); font-size: 11px; }
+  #toolbar strong { color: var(--mk-green); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  #toolbar label { color: var(--mk-comment); font-size: 12px; }
+  #modeHint { color: var(--mk-comment); font-size: 12px; }
   #modeHint b { color: var(--mk-fg); font-weight: 600; }
   #modeHint.livehint { color: var(--mk-green); }
   #modeHint.livehint b { color: var(--mk-green); }
   #toolbar .spacer { flex: 1; }
   #toolbar button {
     background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 4px 10px; cursor: pointer; font-size: 11px;
+    border-radius: var(--radius); padding: 4px 10px; cursor: pointer; font-size: 12px;
     font-family: var(--font); transition: color 0.1s, border-color 0.1s;
   }
   #toolbar button::before { content: '$ '; color: var(--mk-comment); }
@@ -224,19 +394,37 @@
 
   /* Rulers frame the canvas; the canvas itself fills whatever is left, and the
      wasm surface is resized to match rather than being a fixed box. */
+  /* minmax(0, 1fr), not 1fr: a bare fr track floors at its content's min-content
+     width, which is the canvas's explicit pixel size, so shrinking the window
+     after growing it left the canvas sticking out over the right dock. */
   #canvasarea {
-    flex: 1; min-height: 0; display: grid;
-    grid-template-columns: 20px 1fr; grid-template-rows: 20px 1fr;
+    flex: 1; min-height: 0; min-width: 0; display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) 20px;
+    grid-template-rows: 20px minmax(0, 1fr) 20px;
     background: var(--mk-gutter);
   }
-  #canvasarea.norulers { grid-template-columns: 0 1fr; grid-template-rows: 0 1fr; }
-  #canvasarea.norulers #rulerTop, #canvasarea.norulers #rulerLeft,
-  #canvasarea.norulers #rulerCorner { display: none; }
-  #rulerCorner { background: var(--mk-gutter); border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
-  #rulerTop { border-bottom: 1px solid var(--mk-border); cursor: ns-resize; display: block; }
-  #rulerLeft { border-right: 1px solid var(--mk-border); cursor: ew-resize; display: block; }
+  #canvasarea.norulers {
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+    grid-template-rows: 0 minmax(0, 1fr) 0;
+  }
+  #canvasarea.norulers .ruler, #canvasarea.norulers .rulercorner { display: none; }
+  .rulercorner { background: var(--mk-gutter); }
+  .ruler { display: block; background: var(--mk-gutter); }
+  #rulerCorner { border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
+  #rulerTop { border-bottom: 1px solid var(--mk-border); cursor: ns-resize; }
+  #rulerLeft { border-right: 1px solid var(--mk-border); cursor: ew-resize; }
+  #rulerBottom { border-top: 1px solid var(--mk-border); cursor: ns-resize; }
+  #rulerRight { border-left: 1px solid var(--mk-border); cursor: ew-resize; }
   #canvashost { position: relative; overflow: hidden; min-width: 0; min-height: 0; }
+  #viewport { position: absolute; inset: 0; will-change: transform; }
   #canvas { background: var(--mk-gutter); outline: none; display: block; }
+  #canvashost.panning { cursor: grabbing; }
+  /* live readout pinned near the cursor, the other half of a ruler */
+  #coordtip {
+    position: absolute; display: none; pointer-events: none; z-index: 6;
+    background: var(--mk-bg); border: 1px solid var(--mk-border); border-radius: var(--radius);
+    color: var(--mk-cyan); font-size: 11px; padding: 1px 5px; white-space: nowrap;
+  }
 
   #guides { position: absolute; inset: 0; pointer-events: none; }
   .guide { position: absolute; background: var(--mk-cyan); pointer-events: auto; }
@@ -251,40 +439,25 @@
   }
 
   /* ---- hotbar ---- */
-  #hotbar {
-    display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px;
-    border-bottom: 1px solid var(--mk-border); flex-shrink: 0;
-  }
-  #hotbar:empty { display: none; }
-  #hotbar .slot {
-    position: relative; display: flex; align-items: center; gap: 4px;
-    background: var(--mk-surface); border: 1px solid var(--mk-purple);
-    border-radius: var(--radius); padding: 4px 7px 4px 5px; cursor: grab;
-    font-size: 10.5px; color: var(--mk-fg); user-select: none; max-width: 100%;
-  }
-  #hotbar .slot:hover { border-color: var(--mk-cyan); color: var(--mk-cyan); }
-  #hotbar .slot.armedbtn { border-color: var(--mk-green); color: var(--mk-green); }
-  #hotbar .slot .n {
-    color: var(--mk-purple); font-weight: 700; font-size: 10px; min-width: 7px;
-  }
-  #hotbar .slot .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- collapsible palette sections ---- */
   .cat {
-    color: var(--mk-comment); font-size: 10px; text-transform: uppercase;
+    color: var(--mk-comment); font-size: 11px; text-transform: uppercase;
     letter-spacing: 0.07em; padding: 7px 4px 3px; cursor: pointer;
     grid-column: 1 / 3; display: flex; align-items: center; gap: 5px;
     user-select: none;
   }
   .cat:hover { color: var(--mk-fg); }
-  .cat .tw { font-size: 9px; }
+  /* the twisty is the click target for the whole row, so it wants to read as
+     one rather than as punctuation */
+  .cat .tw { font-size: 14px; width: 12px; line-height: 1; color: var(--mk-purple); }
   .cat::before { content: none; }
 
   /* ---- context menu ---- */
   #ctxmenu {
     position: fixed; display: none; z-index: 40; min-width: 190px; padding: 4px;
     background: var(--mk-surface); border: 1px solid var(--mk-border);
-    border-radius: var(--radius); box-shadow: var(--shadow); font-size: 11.5px;
+    border-radius: var(--radius); box-shadow: var(--shadow); font-size: 12.5px;
   }
   #ctxmenu .mi {
     display: flex; align-items: center; gap: 10px; padding: 5px 8px;
@@ -292,10 +465,10 @@
   }
   #ctxmenu .mi:hover { background: rgba(255,255,255,0.07); }
   #ctxmenu .mi.danger { color: var(--mk-pink); }
-  #ctxmenu .mi .k { margin-left: auto; color: var(--mk-comment); font-size: 10px; }
+  #ctxmenu .mi .k { margin-left: auto; color: var(--mk-comment); font-size: 11px; }
   #ctxmenu .sep { height: 1px; background: var(--mk-border); margin: 4px 2px; }
   #ctxmenu .hdr {
-    padding: 4px 8px 5px; color: var(--mk-comment); font-size: 10px;
+    padding: 4px 8px 5px; color: var(--mk-comment); font-size: 11px;
     text-transform: uppercase; letter-spacing: 0.07em;
   }
 
@@ -326,7 +499,7 @@
     position: absolute; display: none; z-index: 12; padding: 1px 3px;
     background: var(--mk-gutter); color: var(--mk-fg);
     border: 1px solid var(--mk-cyan); border-radius: 2px;
-    font-family: var(--font); font-size: 12px; outline: none;
+    font-family: var(--font); font-size: 13px; outline: none;
   }
   #dropline {
     position: absolute; display: none; pointer-events: none;
@@ -340,20 +513,20 @@
   #ghost {
     position: fixed; display: none; pointer-events: none; z-index: 10;
     background: var(--mk-surface); border: 1px solid var(--mk-cyan); border-radius: var(--radius);
-    padding: 3px 8px; font-size: 11px; color: var(--mk-fg); box-shadow: var(--shadow);
+    padding: 3px 8px; font-size: 12px; color: var(--mk-fg); box-shadow: var(--shadow);
   }
 
   #codehead { display: flex; align-items: center; border-bottom: 1px solid var(--mk-border); flex-shrink: 0; }
   #codehead select {
     margin: 4px 0 4px 8px; background: var(--mk-gutter); color: var(--mk-fg);
     border: 1px solid var(--mk-border); border-radius: var(--radius);
-    font-family: var(--font); font-size: 11px; padding: 3px 6px; cursor: pointer;
+    font-family: var(--font); font-size: 12px; padding: 3px 6px; cursor: pointer;
   }
   #codehead select:focus { outline: none; border-color: var(--mk-cyan); }
   #codehead button {
     margin: 4px 8px; background: transparent; color: var(--mk-green);
     border: 1px solid var(--mk-green); border-radius: var(--radius);
-    padding: 4px 12px; cursor: pointer; font-size: 11px; font-family: var(--font);
+    padding: 4px 12px; cursor: pointer; font-size: 12px; font-family: var(--font);
     transition: background 0.15s, color 0.15s;
   }
   #codehead button::before { content: '$ '; color: var(--mk-comment); }
@@ -365,22 +538,49 @@
     flex: 1; margin: 0; padding: 12px; overflow: auto; font: 12px/1.5 var(--font);
     white-space: pre; user-select: text;
   }
-  #codeEdit {
-    flex: 1; margin: 0; padding: 12px; border: none; resize: none;
-    font: 12px/1.5 var(--font); white-space: pre; outline: none;
-    background: var(--mk-gutter); color: var(--mk-fg);
+  /* Highlighting while editing: a highlighted <pre> sits under a transparent
+     <textarea>. Both use identical metrics so the glyphs line up exactly, and
+     the textarea keeps real caret, selection, undo and IME behaviour. */
+  #codeEditWrap { flex: 1; position: relative; min-height: 0; overflow: hidden; }
+  #codeEditHl, #codeEdit {
+    position: absolute; inset: 0; margin: 0; padding: 12px;
+    font: 13px/1.5 var(--font); white-space: pre; overflow: auto;
+    border: none; tab-size: 4;
   }
-  #codeEdit:focus { box-shadow: inset 2px 0 0 var(--mk-green); }
+  #codeEditHl { pointer-events: none; z-index: 0; }
+  #codeEdit {
+    z-index: 1; resize: none; outline: none; background: transparent;
+    color: transparent; caret-color: var(--mk-fg);
+  }
+  #codeEdit::selection { background: rgba(102, 217, 239, 0.28); color: transparent; }
+  #codeEditWrap:focus-within { box-shadow: inset 2px 0 0 var(--mk-green); }
   .cline.hl { background: rgba(102, 217, 239, 0.18); border-radius: 2px; }
+  /* the selected widget's lines, marked in the code the same way the canvas and
+     the hierarchy mark it */
+  .cline.sel {
+    background: rgba(166, 226, 46, 0.13);
+    box-shadow: inset 2px 0 0 var(--mk-green);
+    border-radius: 0 2px 2px 0;
+  }
   #codeStatus {
-    padding: 6px 10px; font-size: 11px; border-top: 1px solid var(--mk-border);
+    padding: 6px 10px; font-size: 12px; border-top: 1px solid var(--mk-border);
     color: var(--mk-comment); max-height: 32%; overflow-y: auto; white-space: pre-wrap;
   }
   #codeStatus.err { color: var(--mk-pink); }
   #codeStatus.ok { color: var(--mk-green); }
 
-  #status { padding: 4px 12px; font-size: 11px; color: var(--mk-comment); border-top: 1px solid var(--mk-border); }
-  #status::before { content: '// '; }
+  #status {
+    display: flex; align-items: center; gap: 12px;
+    padding: 4px 12px; font-size: 12px; color: var(--mk-comment);
+    border-top: 1px solid var(--mk-border); flex-shrink: 0;
+  }
+  #status .spacer { flex: 1; }
+  #hoverInfo { color: var(--mk-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #hoverInfo::before { content: '// '; color: var(--mk-comment); }
+  #hoverInfo b { color: var(--mk-cyan); font-weight: 600; }
+  #hoverInfo i { color: var(--mk-comment); font-style: normal; }
+  #armInfo { color: var(--mk-green); white-space: nowrap; }
+  #engineInfo { white-space: nowrap; opacity: 0.75; }
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -389,7 +589,7 @@
 
   #palette button { position: relative; }
   #palette button .kbd {
-    position: absolute; top: 0; right: 4px; font-size: 9px; color: var(--mk-comment);
+    position: absolute; top: 0; right: 4px; font-size: 10px; color: var(--mk-comment);
   }
   #palette button.armedbtn { color: var(--mk-green); border-color: var(--mk-green); }
 
@@ -406,7 +606,7 @@
   .overlay-box input {
     margin: 8px; padding: 6px 8px; background: var(--mk-gutter); color: var(--mk-fg);
     border: 1px solid var(--mk-border); border-radius: var(--radius);
-    font-family: var(--font); font-size: 12px;
+    font-family: var(--font); font-size: 13px;
   }
   .overlay-box input:focus { outline: none; border-color: var(--mk-cyan); }
   .ov-list { overflow-y: auto; padding: 0 4px 6px; }
@@ -415,9 +615,9 @@
     border-radius: var(--radius); align-items: baseline;
   }
   .ov-item.sel, .ov-item:hover { background: rgba(255, 255, 255, 0.06); }
-  .ov-item .k { margin-left: auto; color: var(--mk-comment); font-size: 10px; white-space: nowrap; }
+  .ov-item .k { margin-left: auto; color: var(--mk-comment); font-size: 11px; white-space: nowrap; }
   .ov-cat {
-    color: var(--mk-comment); font-size: 10px; text-transform: uppercase;
+    color: var(--mk-comment); font-size: 11px; text-transform: uppercase;
     letter-spacing: 0.07em; padding: 7px 8px 2px;
   }
   .ov-cat::before { content: '// '; }
@@ -436,52 +636,88 @@
     <!-- Panels start in the DOM (not a template) so element lookups elsewhere
          in the script work regardless of init order; buildPanels() wraps each
          one with a header in place and applyLayout() moves them per saved state. -->
+    <div class="dock" id="dockTop"></div>
+    <div class="dockresize horiz" id="resizeTop"></div>
+    <div id="midrow">
     <div class="dock" id="dockLeft">
       <section class="panel" data-panel="palette" data-title="Palette">
-        <input type="text" id="filter" placeholder="filter widgets...">
-        <div id="hotbar"></div>
+        <div class="paltools">
+          <input type="text" id="filter" placeholder="filter widgets...">
+          <button id="palToggleAll" title="Collapse or expand every section">collapse all</button>
+        </div>
         <div id="palette"></div>
       </section>
       <section class="panel" data-panel="hierarchy" data-title="Hierarchy">
+        <div class="paltools">
+          <input type="text" id="treeFilter" placeholder="filter hierarchy...">
+          <button id="treeExpandAll" title="Expand or collapse every container">expand all</button>
+        </div>
         <div id="tree"></div>
       </section>
       <section class="panel" data-panel="properties" data-title="Properties">
         <div id="propbody"></div>
       </section>
+      <section class="panel" data-panel="templates" data-title="Templates">
+        <div class="paltools">
+          <button id="tplSaveBtn" title="Save the current document as a template">save current</button>
+          <button id="tplExportBtn" title="Export templates to a file">export</button>
+          <button id="tplImportBtn" title="Import templates from a file">import</button>
+        </div>
+        <div id="tpllist"></div>
+      </section>
     </div>
     <div class="dockresize" id="resizeLeft"></div>
 
     <div id="center">
+      <div id="projtabs"></div>
       <div id="toolbar">
         <span id="modeHint">hold <b>Space</b> to test interaction</span>
         <span class="spacer"></span>
         <button id="gridBtn" title="Toggle background grid">Grid</button>
         <button id="rulerBtn" title="Toggle rulers and guides">Rulers</button>
         <button id="resetBtn" title="Restore the sample layout">Reset</button>
+        <button id="shareBtn" title="Copy a link that carries this document">Share</button>
+        <button id="settingsBtn" title="Settings and keyboard shortcuts">Settings</button>
         <button id="exportBtn">Export JSON</button>
         <button id="importBtn">Import JSON</button>
         <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+        <input type="file" id="importTplFile" accept=".json,application/json" style="display:none">
       </div>
       <div id="canvasarea">
-        <div id="rulerCorner"></div>
-        <canvas id="rulerTop"></canvas>
-        <canvas id="rulerLeft"></canvas>
+        <div class="rulercorner" id="rulerCorner"></div>
+        <canvas class="ruler" id="rulerTop"></canvas>
+        <div class="rulercorner"></div>
+        <canvas class="ruler" id="rulerLeft"></canvas>
         <div id="canvashost">
-          <canvas id="canvas" tabindex="0"></canvas>
-          <div id="selboxes"></div>
-          <div id="selbox">
-            <i class="rh rh-r" data-axis="w"></i>
-            <i class="rh rh-b" data-axis="h"></i>
-            <i class="rh rh-c" data-axis="wh"></i>
+          <!-- everything in canvas space lives in #viewport, so panning is one
+               transform and the coordinate maths below never has to know -->
+          <div id="viewport">
+            <canvas id="canvas" tabindex="0"></canvas>
+            <div id="selboxes"></div>
+            <div id="selbox">
+              <i class="rh rh-r" data-axis="w"></i>
+              <i class="rh rh-b" data-axis="h"></i>
+              <i class="rh rh-c" data-axis="wh"></i>
+            </div>
+            <div id="dropbox"></div>
+            <div id="dropline"></div>
+            <div id="marquee"></div>
+            <div id="guides"></div>
+            <input id="inlineEdit" type="text" spellcheck="false">
           </div>
-          <div id="dropbox"></div>
-          <div id="dropline"></div>
-          <div id="marquee"></div>
-          <div id="guides"></div>
-          <input id="inlineEdit" type="text" spellcheck="false">
+          <div id="coordtip"></div>
         </div>
+        <canvas class="ruler" id="rulerRight"></canvas>
+        <div class="rulercorner"></div>
+        <canvas class="ruler" id="rulerBottom"></canvas>
+        <div class="rulercorner"></div>
       </div>
-      <div id="status">engine: loading...</div>
+      <div id="status">
+        <span id="hoverInfo">—</span>
+        <span class="spacer"></span>
+        <span id="armInfo"></span>
+        <span id="engineInfo">engine: loading...</span>
+      </div>
     </div>
 
     <div class="dockresize" id="resizeRight"></div>
@@ -496,9 +732,41 @@
           <button id="copyBtn">Copy</button>
         </div>
         <pre id="code"></pre>
-        <textarea id="codeEdit" spellcheck="false" hidden></textarea>
+        <div id="codeEditWrap" hidden>
+          <pre id="codeEditHl"></pre>
+          <textarea id="codeEdit" spellcheck="false"></textarea>
+        </div>
         <div id="codeStatus" hidden></div>
       </section>
+    </div>
+    </div>
+    <div class="dockresize horiz" id="resizeBottom"></div>
+    <div class="dock" id="dockBottom"></div>
+  </div>
+
+  <div id="settingsov" class="overlay" hidden>
+    <div class="overlay-box settings-box">
+      <div class="settings-head">
+        <strong>Settings</strong>
+        <span class="spacer"></span>
+        <button id="settingsClose">✕</button>
+      </div>
+      <div class="settings-tabs">
+        <button data-tab="keys" class="on">Keyboard</button>
+        <button data-tab="view">View</button>
+        <button data-tab="data">Data</button>
+      </div>
+      <div id="settingsBody" class="ov-list"></div>
+    </div>
+  </div>
+
+  <div id="confirmov" class="overlay" hidden>
+    <div class="overlay-box confirm-box">
+      <div id="confirmMsg"></div>
+      <div class="confirm-actions">
+        <button id="confirmNo">Cancel</button>
+        <button id="confirmYes" class="danger">Continue</button>
+      </div>
     </div>
   </div>
 
@@ -522,7 +790,7 @@
 
 <script src="widgets.js?v=3118603c31"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
-<script src="cpp.js?v=f3eb11733a"></script>
+<script src="cpp.js?v=9ff178f43d"></script>
 <script>
 // ---------- document model ----------
 
@@ -722,6 +990,14 @@ function pushHistory(coalesce) {
   }
   lastCoalescible = !!coalesce;
   lastHistAt = now;
+}
+
+// Each project carries its own undo stack, so switching starts a fresh one
+// rather than letting Ctrl+Z reach back into a document you left.
+function resetHistory() {
+  history.length = 0;
+  histIndex = -1;
+  lastCoalescible = false;
 }
 
 // bypasses refresh() so restoring can't push a new history entry
@@ -1012,6 +1288,8 @@ function repeatInsert() {
 
 function saveLocal() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, nextId, doc })); } catch (e) {}
+  // the active project holds the same document, so it has to move in step
+  if (typeof saveProjects === 'function' && activeProject) saveProjects();
 }
 
 function computeNextId() {
@@ -1124,6 +1402,158 @@ function loadLocal() {
   } catch (e) { return false; }
 }
 
+// ---------- projects ----------
+// Several documents, each with its own undo stack, switched by the tab strip.
+// The active one is still mirrored to SAVE_KEY so an older build (and the
+// self-test's reload check) keeps finding what it expects.
+
+const PROJECTS_KEY = 'imguistudio.projects.v1';
+let projects = [];       // { id, name, doc, nextId }
+let activeProject = null;
+let projectSeq = 1;
+
+function newProjectId() { return 'p' + (projectSeq++) + '-' + projects.length; }
+
+function snapshotActive() {
+  const p = projects.find(x => x.id === activeProject);
+  if (!p) return;
+  p.doc = JSON.parse(JSON.stringify(doc));
+  p.nextId = nextId;
+}
+
+function saveProjects() {
+  snapshotActive();
+  try {
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify({ v: 1, projects, activeProject, projectSeq }));
+  } catch (e) {}
+}
+
+function loadProjects() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(PROJECTS_KEY) || 'null'); } catch (e) {}
+  if (s && Array.isArray(s.projects) && s.projects.length) {
+    projects = s.projects.filter(p => p && p.doc && p.doc.type === 'window');
+    projectSeq = s.projectSeq || projects.length + 1;
+    activeProject = projects.some(p => p.id === s.activeProject) ? s.activeProject : projects[0].id;
+  }
+  if (!projects.length) {
+    // first run, or an upgrade from the single-document build: adopt whatever
+    // was saved rather than throwing the user's work away
+    const had = loadLocal();
+    projects = [{
+      id: newProjectId(),
+      name: had ? (doc.label || 'Untitled') : 'Untitled',
+      doc: JSON.parse(JSON.stringify(doc)),
+      nextId,
+    }];
+    activeProject = projects[0].id;
+  }
+  const active = projects.find(p => p.id === activeProject);
+  applyDocData(active.doc, active.nextId);
+}
+
+function switchProject(id) {
+  if (id === activeProject) return;
+  snapshotActive();
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  activeProject = id;
+  applyDocData(p.doc, p.nextId);
+  resetHistory();
+  resetPan();
+  refresh();
+  renderProjectTabs();
+}
+
+function addProject(name, docData) {
+  snapshotActive();
+  const p = {
+    id: newProjectId(),
+    name: name || 'Untitled ' + (projects.length + 1),
+    doc: docData ? JSON.parse(JSON.stringify(docData)) : JSON.parse(JSON.stringify(DEFAULT_DOC)),
+    nextId: 100,
+  };
+  projects.push(p);
+  activeProject = p.id;
+  applyDocData(p.doc, p.nextId);
+  resetHistory();
+  refresh();
+  renderProjectTabs();
+  return p;
+}
+
+function closeProject(id) {
+  const i = projects.findIndex(p => p.id === id);
+  if (i < 0) return;
+  const go = () => {
+    projects.splice(i, 1);
+    if (!projects.length) {
+      projects.push({ id: newProjectId(), name: 'Untitled', doc: JSON.parse(JSON.stringify(DEFAULT_DOC)), nextId: 100 });
+    }
+    if (activeProject === id) {
+      activeProject = projects[Math.min(i, projects.length - 1)].id;
+      const p = projects.find(x => x.id === activeProject);
+      applyDocData(p.doc, p.nextId);
+      resetHistory();
+      refresh();
+    }
+    saveProjects();
+    renderProjectTabs();
+  };
+  const p = projects[i];
+  const n = countNodes(p.doc.children);
+  if (n > 0) askConfirm(`Close "${p.name}"? Its ${n} widget${n > 1 ? 's' : ''} will be gone.`, go);
+  else go();
+}
+
+const projTabsEl = document.getElementById('projtabs');
+
+function renderProjectTabs() {
+  projTabsEl.innerHTML = '';
+  for (const p of projects) {
+    const t = document.createElement('div');
+    t.className = 'ptab' + (p.id === activeProject ? ' on' : '');
+    const n = document.createElement('span');
+    n.className = 'pname';
+    n.textContent = p.name;
+    n.title = 'Click to open, double-click to rename';
+    t.appendChild(n);
+    const x = document.createElement('button');
+    x.textContent = '✕';
+    x.title = 'Close this project';
+    x.onclick = e => { e.stopPropagation(); closeProject(p.id); };
+    t.appendChild(x);
+    t.onclick = () => switchProject(p.id);
+    n.ondblclick = e => {
+      e.stopPropagation();
+      const input = document.createElement('input');
+      input.className = 'prename';
+      input.value = p.name;
+      const commit = () => {
+        p.name = input.value.trim() || p.name;
+        saveProjects();
+        renderProjectTabs();
+      };
+      input.onblur = commit;
+      input.onkeydown = ev => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter') commit();
+        if (ev.key === 'Escape') renderProjectTabs();
+      };
+      t.replaceChild(input, n);
+      input.focus();
+      input.select();
+    };
+    projTabsEl.appendChild(t);
+  }
+  const add = document.createElement('button');
+  add.className = 'padd';
+  add.textContent = '+';
+  add.title = 'New project';
+  add.onclick = () => { addProject(); saveProjects(); };
+  projTabsEl.appendChild(add);
+}
+
 // ---------- engine bridge ----------
 
 let engineReady = false;
@@ -1154,10 +1584,71 @@ var Module = {
 // ---------- canvas editing ----------
 
 const canvas = document.getElementById('canvas');
+// declared up here because panning, focus and the hover readout all reach for
+// it well before the rulers section that used to own it
+const canvasHost = document.getElementById('canvashost');
 const selbox = document.getElementById('selbox');
 const dropline = document.getElementById('dropline');
 const dropbox = document.getElementById('dropbox');
 const ghost = document.getElementById('ghost');
+
+// Panning is a transform on #viewport, and every coordinate below is read from
+// the canvas's own client rect, so nothing else has to account for it.
+const viewportEl = document.getElementById('viewport');
+const coordTip = document.getElementById('coordtip');
+let pan = { x: 0, y: 0 };
+
+function applyPan() {
+  viewportEl.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+}
+
+function panBy(dx, dy) {
+  pan.x += dx;
+  pan.y += dy;
+  applyPan();
+}
+
+// Centre the selection in the visible area. Only useful once the document is
+// bigger than the canvas, which is exactly when you can't find things.
+function focusSelection() {
+  const r = selectedId && rectFor(selectedId);
+  if (!r) return false;
+  const host = canvasHost.getBoundingClientRect();
+  pan.x = Math.round(host.width / 2 - (r.x + r.w / 2));
+  pan.y = Math.round(host.height / 2 - (r.y + r.h / 2));
+  applyPan();
+  return true;
+}
+
+function resetPan() {
+  pan = { x: 0, y: 0 };
+  applyPan();
+}
+
+// The footer used to repeat the engine state, which never changes after load.
+// It now reads out whatever is under the cursor, which is the thing you
+// actually want while you are pointing at something.
+const hoverInfoEl = document.getElementById('hoverInfo');
+
+function updateHoverStatus(e) {
+  if (!e) {
+    hoverInfoEl.innerHTML = '—';
+    return;
+  }
+  const p = canvasPoint(e);
+  const hit = hitTest(p);
+  const node = hit && hit.id !== 'root' ? findNode(hit.id) : (hit ? doc : null);
+  const pos = `<i>${p.x}, ${p.y}</i>`;
+  if (!node) { hoverInfoEl.innerHTML = pos; return; }
+  const spec = WIDGETS[node.type] || {};
+  const label = node === doc ? (doc.label || 'Window') : (node.label || spec.name || node.type);
+  hoverInfoEl.innerHTML = `<b>${esc(label)}</b> <i>${esc(spec.name || node.type)}</i> · `
+    + `${Math.round(hit.w)}x${Math.round(hit.h)} at ${Math.round(hit.x)}, ${Math.round(hit.y)} · ${pos}`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 function canvasPoint(e) {
   const r = canvas.getBoundingClientRect();
@@ -1396,6 +1887,28 @@ for (const h of selbox.querySelectorAll('.rh')) {
     };
   });
 }
+
+// Middle-drag pans. Left is taken by select/move and Ctrl+left by the marquee,
+// and Space is the live-preview quasimode, so the wheel button is what's left.
+canvasHost.addEventListener('mousedown', e => {
+  if (e.button !== 1) return;
+  e.preventDefault();
+  canvasHost.classList.add('panning');
+  const from = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+  const move = ev => {
+    pan.x = from.px + (ev.clientX - from.x);
+    pan.y = from.py + (ev.clientY - from.y);
+    applyPan();
+  };
+  const up = () => {
+    canvasHost.classList.remove('panning');
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+  };
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+});
+canvasHost.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
 
 canvas.addEventListener('mousedown', e => {
   if (!editMode || e.button !== 0) return;
@@ -1651,7 +2164,6 @@ function rearm(type) {
   const fam = FAMILY_OF[type];
   armed = fam ? { letter: fam, index: FAMILIES[fam].indexOf(type) } : { type };
   updateArmedUI();
-  renderHotbar();
   return true;
 }
 
@@ -1665,19 +2177,14 @@ function disarm() {
 }
 
 function updateArmedUI() {
-  const status = document.getElementById('status');
-  status.textContent = armed
+  document.getElementById('engineInfo').textContent = statusBase;
+  document.getElementById('armInfo').textContent = armed
     ? 'armed: ' + WIDGETS[armedType()].name
       + (armed.letter ? ' (' + armed.letter + ' cycles, Enter inserts, Esc exits)'
         : ' (Enter inserts, Esc exits)')
-    : statusBase;
+    : '';
   for (const b of document.querySelectorAll('#palette button')) {
     b.classList.toggle('armedbtn', !!armed && b.dataset.type === armedType());
-  }
-  // the hotbar shows the same state, and only renderHotbar used to repaint it,
-  // so disarming left the slot lit
-  for (const s of document.querySelectorAll('#hotbar .slot')) {
-    s.classList.toggle('armedbtn', !!armed && s.dataset.type === armedType());
   }
   // cycling the family while hovering must retag the ghost in place
   if (armed && !drag && ghost.style.display === 'block') {
@@ -1757,12 +2264,15 @@ function handleSpaceDown(e) {
   // Live mode disarms, but a peek is meant to be free: poking a widget and
   // letting go should hand back the tool you were holding.
   spaceWasArmed = armedType();
+  // guides are editing chrome, and you're holding Space to see the real thing
+  guidesEl.style.display = 'none';
   if (editMode) setLiveMode(true);
 }
 
 function releaseSpace() {
   if (!spaceHeld) return;
   spaceHeld = false;
+  guidesEl.style.display = '';
   setLiveMode(spaceWasLive);
   if (!spaceWasLive && spaceWasArmed) rearm(spaceWasArmed);
   spaceWasArmed = null;
@@ -1860,6 +2370,13 @@ function isTextEntry(t) {
 // before engine.js loads, so it runs first and shields text-entry targets.
 // Default actions (the actual typing) still happen; only later listeners stop.
 window.addEventListener('keydown', e => {
+  // The C++ editor wants Tab for indenting, so it gets first refusal here.
+  // Its handler can't sit on the textarea: this listener would have already
+  // stopped the event before it got that far down.
+  if (e.target === codeEdit && handleCodeEditorKey(e)) {
+    e.stopImmediatePropagation();
+    return;
+  }
   if ((e.key === 'Backspace' || e.key === 'Tab') && isTextEntry(e.target)) {
     e.stopImmediatePropagation();
   }
@@ -1879,6 +2396,10 @@ bind('edit', 'Esc', { key: 'Escape' }, 'Disarm, else ascend to parent, else dese
   if (armed) { disarm(); return; }
   ascend();
 });
+bind('edit', 'F', { key: 'F', shift: false }, 'Focus the selection (centre it on screen)', 'Navigate',
+  () => focusSelection());
+bind('edit', 'Shift+F', { key: 'F', shift: true }, 'Reset the view to the origin', 'Navigate',
+  () => resetPan());
 bind('edit', 'F2', { key: 'F2' }, 'Rename inline on the canvas', 'Navigate', () => {
   if (selectedId) beginInlineEdit(selectedId);
 });
@@ -2205,6 +2726,8 @@ function toggleHelp() {
 function closeOverlays() {
   cmdkEl.hidden = true;
   helpEl.hidden = true;
+  if (typeof closeConfirm === 'function') closeConfirm();
+  if (typeof closeSettings === 'function') closeSettings();
   // Focus would otherwise stay parked in the now-hidden input, and the
   // dispatcher's text-entry guard would treat every later key as typing,
   // leaving the whole keyboard dead until the user clicked something.
@@ -2551,9 +3074,15 @@ function applyTheme(key) {
     'c-macro': t.macro, 'c-fn': t.fn, 'c-class': t.cls, 'c-param': t.param, 'c-op': t.op,
     'c-field': t.field || t.fg,
   };
-  const rules = ['#code { background: ' + t.bg + '; color: ' + t.fg + '; }'];
+  // the edit layer is the same highlighter, so it takes the same colours
+  const rules = [
+    '#code, #codeEditHl { background: ' + t.bg + '; color: ' + t.fg + '; }',
+    '#codeEditWrap { background: ' + t.bg + '; }',
+    '#codeEdit { caret-color: ' + t.fg + '; }',
+  ];
   for (const [cls, col] of Object.entries(slots)) {
-    rules.push('#code .' + cls + ' { color: ' + col + '; font-style: ' + (it.has(cls) ? 'italic' : 'normal') + '; }');
+    rules.push('#code .' + cls + ', #codeEditHl .' + cls
+      + ' { color: ' + col + '; font-style: ' + (it.has(cls) ? 'italic' : 'normal') + '; }');
   }
   document.getElementById('themeStyle').textContent = rules.join('\n');
 }
@@ -2585,35 +3114,49 @@ const PANEL_DEFAULTS = {
   palette:    { dock: 'left',  order: 0, collapsed: false, hidden: false },
   hierarchy:  { dock: 'left',  order: 1, collapsed: false, hidden: false },
   properties: { dock: 'left',  order: 2, collapsed: false, hidden: false },
+  templates:  { dock: 'left',  order: 3, collapsed: true,  hidden: false },
   code:       { dock: 'right', order: 0, collapsed: false, hidden: false },
 };
-let layout = { panels: JSON.parse(JSON.stringify(PANEL_DEFAULTS)), width: { left: 280, right: 470 } };
+const DOCK_SIDES = ['left', 'right', 'top', 'bottom'];
+const SIZE_DEFAULTS = { left: 280, right: 470, top: 200, bottom: 200 };
+let layout = {
+  panels: JSON.parse(JSON.stringify(PANEL_DEFAULTS)),
+  size: { ...SIZE_DEFAULTS },
+};
 
 function saveLayout() {
   try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
 }
 
-// Widths are stored in absolute px, so a layout saved on a wide monitor would
-// otherwise squeeze the canvas to nothing when the window is narrower.
-const DOCK_MIN = 180;
-function clampDockWidths() {
-  const budget = Math.max(DOCK_MIN * 2, window.innerWidth - 360);   // leave the canvas room
-  // cap each side first: scaling alone can't help when one dock is wider than
-  // the whole budget, because the other one still holds its minimum
-  for (const side of ['left', 'right']) {
-    const w = Math.round(Number(layout.width[side]) || DOCK_MIN);
-    layout.width[side] = Math.max(DOCK_MIN, Math.min(w, budget - DOCK_MIN));
-  }
-  const total = layout.width.left + layout.width.right;
-  if (total > budget) {
-    const scale = budget / total;
-    layout.width.left = Math.max(DOCK_MIN, Math.round(layout.width.left * scale));
-    layout.width.right = Math.max(DOCK_MIN, Math.round(layout.width.right * scale));
+// Sizes are stored in absolute px, so a layout saved on a big monitor would
+// otherwise squeeze the canvas to nothing on a smaller one.
+const DOCK_MIN = 150;
+function clampDockSizes() {
+  const pairs = [
+    ['left', 'right', Math.max(DOCK_MIN * 2, window.innerWidth - 320)],
+    ['top', 'bottom', Math.max(DOCK_MIN * 2, window.innerHeight - 320)],
+  ];
+  for (const [a, bSide, budget] of pairs) {
+    // cap each side first: scaling alone can't help when one dock is bigger
+    // than the whole budget, because the other still holds its minimum
+    for (const side of [a, bSide]) {
+      const v = Math.round(Number(layout.size[side]) || SIZE_DEFAULTS[side]);
+      layout.size[side] = Math.max(DOCK_MIN, Math.min(v, budget - DOCK_MIN));
+    }
+    const total = layout.size[a] + layout.size[bSide];
+    if (total > budget) {
+      const scale = budget / total;
+      layout.size[a] = Math.max(DOCK_MIN, Math.round(layout.size[a] * scale));
+      layout.size[bSide] = Math.max(DOCK_MIN, Math.round(layout.size[bSide] * scale));
+    }
   }
 }
 
 function resetPanelLayout() {
-  layout = { panels: JSON.parse(JSON.stringify(PANEL_DEFAULTS)), width: { left: 280, right: 470 } };
+  layout = {
+    panels: JSON.parse(JSON.stringify(PANEL_DEFAULTS)),
+    size: { ...SIZE_DEFAULTS },
+  };
   saveLayout();
   applyLayout();
 }
@@ -2624,8 +3167,11 @@ function loadLayout() {
     if (!s || !s.panels) return;
     for (const k of Object.keys(PANEL_DEFAULTS)) {
       if (s.panels[k]) layout.panels[k] = { ...PANEL_DEFAULTS[k], ...s.panels[k] };
+      if (!DOCK_SIDES.includes(layout.panels[k].dock)) layout.panels[k].dock = 'left';
     }
-    if (s.width) layout.width = { ...layout.width, ...s.width };
+    // `width` is the old two-dock shape, kept readable so saved layouts survive
+    if (s.size) layout.size = { ...layout.size, ...s.size };
+    else if (s.width) layout.size = { ...layout.size, ...s.width };
   } catch (e) {}
 }
 
@@ -2660,10 +3206,13 @@ function buildPanels() {
   applyLayout();
 }
 
+function dockEl(side) {
+  return document.getElementById('dock' + side[0].toUpperCase() + side.slice(1));
+}
+
 function applyLayout() {
-  const docks = { left: document.getElementById('dockLeft'), right: document.getElementById('dockRight') };
-  docks.left.innerHTML = '';
-  docks.right.innerHTML = '';
+  const docks = {};
+  for (const s of DOCK_SIDES) { docks[s] = dockEl(s); docks[s].innerHTML = ''; }
   // Hidden panels stay in the DOM as display:none rather than being detached.
   // Detaching them took their render targets out of getElementById, so the next
   // renderPalette/renderProps threw and every edit after that died with it.
@@ -2674,11 +3223,13 @@ function applyLayout() {
     el.classList.toggle('collapsed', p.collapsed);
     el.classList.toggle('gone', !!p.hidden);
     el.querySelector('.tw').textContent = p.collapsed ? '▸' : '▾';
-    docks[p.dock] ? docks[p.dock].appendChild(el) : docks.left.appendChild(el);
+    (docks[p.dock] || docks.left).appendChild(el);
   }
-  clampDockWidths();
-  docks.left.style.width = layout.width.left + 'px';
-  docks.right.style.width = layout.width.right + 'px';
+  clampDockSizes();
+  docks.left.style.width = layout.size.left + 'px';
+  docks.right.style.width = layout.size.right + 'px';
+  docks.top.style.height = layout.size.top + 'px';
+  docks.bottom.style.height = layout.size.bottom + 'px';
   renderPanelButtons();
   saveLayout();
   requestAnimationFrame(syncCanvasSize);
@@ -2704,10 +3255,61 @@ function renderPanelButtons() {
   }
 }
 
-// drag a panel header into the other dock (Photoshop's two-zone language,
-// simplified: the whole dock is one zone)
+// Drag a panel header to any edge. The zone is picked by which edge the cursor
+// is nearest, normalised so a short window's top and bottom compete fairly with
+// a wide window's left and right.
 let panelDrag = null;
 const dropzone = document.getElementById('dropzone');
+
+function edgeUnderCursor(x, y) {
+  const ws = document.getElementById('workspace').getBoundingClientRect();
+  const d = {
+    left: (x - ws.left) / ws.width,
+    right: (ws.right - x) / ws.width,
+    top: (y - ws.top) / ws.height,
+    bottom: (ws.bottom - y) / ws.height,
+  };
+  return DOCK_SIDES.reduce((best, s) => (d[s] < d[best] ? s : best), 'left');
+}
+
+// Where a dock would land if it isn't on screen yet, so the preview is the real
+// size the panel is about to get rather than a generic band.
+function dockPreviewRect(side) {
+  const ws = document.getElementById('workspace').getBoundingClientRect();
+  const live = dockEl(side).getBoundingClientRect();
+  if (live.width > 1 && live.height > 1) return live;
+  const size = layout.size[side] || SIZE_DEFAULTS[side];
+  if (side === 'left') return { left: ws.left, top: ws.top, width: size, height: ws.height };
+  if (side === 'right') return { left: ws.right - size, top: ws.top, width: size, height: ws.height };
+  if (side === 'top') return { left: ws.left, top: ws.top, width: ws.width, height: size };
+  return { left: ws.left, top: ws.bottom - size, width: ws.width, height: size };
+}
+
+// Draw the dock at its real size and split it into slots, one per panel that
+// will share it, with the dragged one marked. "Somewhere on the right" tells
+// you much less than "this tall, second of three".
+function showDropPreview(side, key) {
+  const r = dockPreviewRect(side);
+  const stacks = side === 'left' || side === 'right';
+  const sharing = Object.entries(layout.panels)
+    .filter(([k, p]) => !p.hidden && p.dock === side && k !== key)
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([k]) => k)
+    .concat([key]);
+  dropzone.style.display = 'block';
+  dropzone.style.left = r.left + 'px';
+  dropzone.style.top = r.top + 'px';
+  dropzone.style.width = r.width + 'px';
+  dropzone.style.height = r.height + 'px';
+  dropzone.style.flexDirection = stacks ? 'column' : 'row';
+  dropzone.innerHTML = '';
+  for (const k of sharing) {
+    const slot = document.createElement('div');
+    slot.className = 'dzslot' + (k === key ? ' me' : '');
+    slot.textContent = panelEls[k] ? panelEls[k].dataset.title : k;
+    dropzone.appendChild(slot);
+  }
+}
 
 function startPanelDrag(e, key) {
   if (e.button !== 0 || e.target.tagName === 'BUTTON') return;
@@ -2734,16 +3336,8 @@ document.addEventListener('mousemove', e => {
     panelDrag.moved = true;
     panelEls[panelDrag.key].classList.add('dragging');
   }
-  const mid = window.innerWidth / 2;
-  const side = e.clientX < mid ? 'left' : 'right';
-  panelDrag.side = side;
-  const dock = document.getElementById(side === 'left' ? 'dockLeft' : 'dockRight');
-  const r = dock.getBoundingClientRect();
-  dropzone.style.display = 'block';
-  dropzone.style.left = (r.width ? r.left : (side === 'left' ? 0 : window.innerWidth - 280)) + 'px';
-  dropzone.style.top = r.top + 'px';
-  dropzone.style.width = (r.width || 280) + 'px';
-  dropzone.style.height = (r.height || window.innerHeight - r.top) + 'px';
+  panelDrag.side = edgeUnderCursor(e.clientX, e.clientY);
+  showDropPreview(panelDrag.side, panelDrag.key);
 });
 
 document.addEventListener('mouseup', () => {
@@ -2764,18 +3358,22 @@ document.addEventListener('mouseup', () => {
 });
 
 // dock splitters
-for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right']]) {
+for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right'],
+  ['resizeTop', 'top'], ['resizeBottom', 'bottom']]) {
   const el = document.getElementById(id);
+  const vertical = side === 'top' || side === 'bottom';
   el.addEventListener('mousedown', e => {
     e.preventDefault();
     el.classList.add('dragging');
-    const startX = e.clientX;
-    const startW = layout.width[side];
+    const startX = vertical ? e.clientY : e.clientX;
+    const startW = layout.size[side];
     const move = ev => {
-      const delta = side === 'left' ? ev.clientX - startX : startX - ev.clientX;
-      layout.width[side] = Math.max(160, Math.min(760, startW + delta));
-      document.getElementById(side === 'left' ? 'dockLeft' : 'dockRight')
-        .style.width = layout.width[side] + 'px';
+      const at = vertical ? ev.clientY : ev.clientX;
+      // top and left grow as the cursor moves away from the origin; the far
+      // sides grow as it moves back toward it
+      const delta = (side === 'left' || side === 'top') ? at - startX : startX - at;
+      layout.size[side] = Math.max(DOCK_MIN, Math.min(760, startW + delta));
+      dockEl(side).style[vertical ? 'height' : 'width'] = layout.size[side] + 'px';
       syncCanvasSize();
     };
     const up = () => {
@@ -2789,16 +3387,24 @@ for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right']]) {
   });
   // double-click a splitter to reset that dock
   el.addEventListener('dblclick', () => {
-    layout.width[side] = side === 'left' ? 280 : 470;
+    layout.size[side] = SIZE_DEFAULTS[side];
     applyLayout();
   });
 }
 
 // ---------- canvas sizing, rulers, guides ----------
 
-const canvasHost = document.getElementById('canvashost');
 const rulerTop = document.getElementById('rulerTop');
 const rulerLeft = document.getElementById('rulerLeft');
+const rulerBottom = document.getElementById('rulerBottom');
+const rulerRight = document.getElementById('rulerRight');
+// side -> is it a horizontal rule, and which edge do its ticks grow from
+const RULERS = [
+  { cv: rulerTop, horiz: true, flip: false },
+  { cv: rulerLeft, horiz: false, flip: false },
+  { cv: rulerBottom, horiz: true, flip: true },
+  { cv: rulerRight, horiz: false, flip: true },
+];
 const guidesEl = document.getElementById('guides');
 let showRulers = true;
 let showGrid = true;
@@ -2821,12 +3427,19 @@ function syncCanvasSize() {
 }
 
 new ResizeObserver(() => syncCanvasSize()).observe(canvasHost);
-window.addEventListener('resize', syncCanvasSize);
+// A window that shrinks past what the docks were sized for has to re-clamp
+// them, or the canvas gets squeezed out from between them.
+window.addEventListener('resize', () => {
+  const before = JSON.stringify(layout.size);
+  clampDockSizes();
+  if (JSON.stringify(layout.size) !== before) applyLayout();
+  syncCanvasSize();
+});
 
 function drawRulers() {
   if (!showRulers) return;
   const W = canvasHost.clientWidth, H = canvasHost.clientHeight;
-  for (const [cv, horiz] of [[rulerTop, true], [rulerLeft, false]]) {
+  for (const { cv, horiz, flip } of RULERS) {
     const len = horiz ? W : H;
     cv.width = horiz ? len : 20;
     cv.height = horiz ? 20 : len;
@@ -2835,16 +3448,29 @@ function drawRulers() {
     g.fillRect(0, 0, cv.width, cv.height);
     g.strokeStyle = '#49483E';
     g.fillStyle = '#75715E';
-    g.font = '9px JetBrains Mono, monospace';
+    g.font = '10px JetBrains Mono, monospace';
     g.beginPath();
     for (let p = 0; p < len; p += 10) {
       const major = p % 100 === 0, mid = p % 50 === 0;
       const size = major ? 20 : (mid ? 8 : 4);
-      if (horiz) { g.moveTo(p + 0.5, 20 - size); g.lineTo(p + 0.5, 20); }
-      else { g.moveTo(20 - size, p + 0.5); g.lineTo(20, p + 0.5); }
+      // the bottom and right rules grow their ticks from the canvas edge, which
+      // for them is the near side rather than the far one
+      if (horiz) {
+        const y0 = flip ? 0 : 20 - size, y1 = flip ? size : 20;
+        g.moveTo(p + 0.5, y0); g.lineTo(p + 0.5, y1);
+      } else {
+        const x0 = flip ? 0 : 20 - size, x1 = flip ? size : 20;
+        g.moveTo(x0, p + 0.5); g.lineTo(x1, p + 0.5);
+      }
       if (major && p > 0) {
-        if (horiz) g.fillText(String(p), p + 2, 8);
-        else { g.save(); g.translate(8, p + 2); g.rotate(-Math.PI / 2); g.fillText(String(p), -String(p).length * 5, 0); g.restore(); }
+        if (horiz) g.fillText(String(p), p + 2, flip ? 17 : 8);
+        else {
+          g.save();
+          g.translate(flip ? 17 : 8, p + 2);
+          g.rotate(-Math.PI / 2);
+          g.fillText(String(p), -String(p).length * 5, 0);
+          g.restore();
+        }
       }
     }
     g.stroke();
@@ -2899,7 +3525,8 @@ function saveGuides() {
 }
 
 // drag out of a ruler to create a guide
-for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x']]) {
+for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x'],
+  [rulerBottom, 'y'], [rulerRight, 'x']]) {
   cv.addEventListener('mousedown', e => {
     e.preventDefault();
     const gd = { axis, pos: 0 };
@@ -2929,8 +3556,22 @@ canvasHost.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   cursorCanvas = { x: Math.round(e.clientX - r.left), y: Math.round(e.clientY - r.top) };
   drawRulers();
+  const host = canvasHost.getBoundingClientRect();
+  coordTip.style.display = 'block';
+  coordTip.textContent = cursorCanvas.x + ', ' + cursorCanvas.y;
+  // flip to the other side of the cursor near the edges so it stays readable
+  const lx = e.clientX - host.left + 14;
+  const ly = e.clientY - host.top + 16;
+  coordTip.style.left = Math.min(lx, host.width - coordTip.offsetWidth - 4) + 'px';
+  coordTip.style.top = Math.min(ly, host.height - coordTip.offsetHeight - 4) + 'px';
+  updateHoverStatus(e);
 });
-canvasHost.addEventListener('mouseleave', () => { cursorCanvas = { x: -1, y: -1 }; drawRulers(); });
+canvasHost.addEventListener('mouseleave', () => {
+  cursorCanvas = { x: -1, y: -1 };
+  coordTip.style.display = 'none';
+  drawRulers();
+  updateHoverStatus(null);
+});
 
 function setRulers(on) {
   showRulers = on;
@@ -2972,39 +3613,13 @@ function pinToHotbar(type, slot) {
   if (dupe >= 0 && dupe !== slot) hotbar[dupe] = null;
   hotbar[slot] = type;
   saveHotbar();
-  renderHotbar();
   renderPalette();
   return true;
 }
 
 function unpin(type) {
   const i = hotbar.indexOf(type);
-  if (i >= 0) { hotbar[i] = null; saveHotbar(); renderHotbar(); renderPalette(); }
-}
-
-function renderHotbar() {
-  const host = document.getElementById('hotbar');
-  host.innerHTML = '';
-  hotbar.forEach((type, i) => {
-    if (!type || !WIDGETS[type]) return;
-    const el = document.createElement('div');
-    el.className = 'slot' + (armed && armedType() === type ? ' armedbtn' : '');
-    el.dataset.type = type;
-    el.innerHTML = '<span class="n"></span><span class="nm"></span>';
-    el.querySelector('.n').textContent = HOTBAR_KEYS[i];
-    el.querySelector('.nm').textContent = WIDGETS[type].name;
-    el.title = WIDGETS[type].name + ' — press ' + HOTBAR_KEYS[i] + ' to arm, right-click to unpin';
-    el.addEventListener('mousedown', e => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
-    });
-    el.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      openContextMenu(e, paletteMenu(type, true));
-    });
-    host.appendChild(el);
-  });
+  if (i >= 0) { hotbar[i] = null; saveHotbar(); renderPalette(); }
 }
 
 // ---------- ui rendering ----------
@@ -3065,13 +3680,20 @@ function renderPalette() {
   // pinned first, so the things you use most never need scrolling to
   const pinned = hotbar.filter(t => t && WIDGETS[t] && matches([t, WIDGETS[t]]));
   if (pinned.length) {
+    const open = term ? true : catOpen['★ Pinned'] !== false;
     const h = document.createElement('div');
     h.className = 'cat';
-    h.innerHTML = '<span class="tw">▾</span><span>★ Pinned</span>';
+    h.innerHTML = '<span class="tw"></span><span></span>';
+    h.querySelector('.tw').textContent = open ? '▾' : '▸';
+    h.lastChild.textContent = '★ Pinned  (' + pinned.length + ')';
     h.style.color = 'var(--mk-purple)';
-    h.onclick = null;
+    h.onclick = () => {
+      catOpen['★ Pinned'] = !open;
+      saveCats();
+      renderPalette();
+    };
     host.appendChild(h);
-    for (const t of pinned) host.appendChild(paletteButton(t, WIDGETS[t]));
+    if (open) for (const t of pinned) host.appendChild(paletteButton(t, WIDGETS[t]));
   }
 
   for (const cat of CATEGORIES) {
@@ -3089,7 +3711,19 @@ function renderPalette() {
     if (!open) continue;
     for (const [type, spec] of entries) host.appendChild(paletteButton(type, spec));
   }
+  // the button offers whichever action is further from where you are now
+  const anyOpen = CATEGORIES.some(c => catOpen[c]) || catOpen['★ Pinned'] !== false;
+  palToggleAll.textContent = anyOpen ? 'collapse all' : 'expand all';
 }
+
+const palToggleAll = document.getElementById('palToggleAll');
+palToggleAll.onclick = () => {
+  const anyOpen = CATEGORIES.some(c => catOpen[c]) || catOpen['★ Pinned'] !== false;
+  for (const c of CATEGORIES) catOpen[c] = !anyOpen;
+  catOpen['★ Pinned'] = !anyOpen;
+  saveCats();
+  renderPalette();
+};
 
 // ---------- context menus ----------
 // Items carry a group id and an order; the renderer sorts by them and inserts a
@@ -3236,6 +3870,8 @@ function widgetMenu(node, inTree) {
       run: () => navigator.clipboard.writeText(cppSnippet(node)) },
     { group: '6_code', order: 1, label: 'Show in generated code',
       run: () => { selectId(node.id); revealInCode(node.id); } },
+    { group: '1_head', order: 2, label: 'Go to', key: 'F',
+      run: () => { selectId(node.id); focusSelection(); } },
     inTree && container && kids
       ? { group: '7_tree', order: 0, label: 'Select children',
           run: () => selectMany((node.children || []).map(c => c.id)) }
@@ -3303,11 +3939,32 @@ function revealInCode(id) {
   mine[0].scrollIntoView({ block: 'center' });
 }
 
+// Containers the user has folded shut. Absent means open, so a new document
+// starts fully expanded and nothing has to be seeded.
+const treeCollapsed = new Set();
+const treeFilterEl = document.getElementById('treeFilter');
+
+function treeRowMatches(node, term) {
+  return (node.type + ' ' + (node.label || '')).toLowerCase().includes(term);
+}
+
+// A row survives the filter if it matches or anything under it does, so the
+// path down to a match stays visible instead of the match appearing orphaned.
+function treeSubtreeMatches(node, term) {
+  return treeRowMatches(node, term)
+    || (node.children || []).some(c => treeSubtreeMatches(c, term));
+}
+
 function renderTree() {
   const host = document.getElementById('tree');
+  const term = treeFilterEl.value.trim().toLowerCase();
   host.innerHTML = '';
-  walk(doc, (node, parent, index, depth) => {
+  const emit = (node, parent, index, depth) => {
+    if (term && !treeSubtreeMatches(node, term)) return;
     const spec = WIDGETS[node.type] || {};
+    const isContainerRow = !!spec.container || node === doc;
+    // a filter force-opens containers, the same way it does in the palette
+    const open = term ? true : !treeCollapsed.has(node.id);
     const row = document.createElement('div');
     row.className = 'row' + (selection.has(node.id) || node.id === selectedId ? ' selected' : '');
     row.style.paddingLeft = (6 + depth * 12) + 'px';
@@ -3321,10 +3978,17 @@ function renderTree() {
       openContextMenu(e, node === doc ? backgroundMenu() : widgetMenu(node, true));
     };
 
-    if (spec.container) {
+    if (isContainerRow) {
       const c = document.createElement('span');
       c.className = 'box';
-      c.textContent = '▾';
+      c.textContent = (node.children || []).length ? (open ? '▾' : '▸') : '·';
+      c.title = 'Collapse or expand';
+      c.onclick = e => {
+        e.stopPropagation();
+        if (treeCollapsed.has(node.id)) treeCollapsed.delete(node.id);
+        else treeCollapsed.add(node.id);
+        renderTree();
+      };
       row.appendChild(c);
     }
 
@@ -3355,10 +4019,27 @@ function renderTree() {
       }
     }
     host.appendChild(row);
-  });
+    if (isContainerRow && open) {
+      (node.children || []).forEach((c, i) => emit(c, node, i, depth + 1));
+    }
+  };
+  emit(doc, null, 0, 0);
   const sel = host.querySelector('.row.selected');
   if (sel) sel.scrollIntoView({ block: 'nearest' });
+  treeExpandAll.textContent = treeCollapsed.size ? 'expand all' : 'collapse all';
 }
+
+const treeExpandAll = document.getElementById('treeExpandAll');
+treeExpandAll.onclick = () => {
+  if (treeCollapsed.size) treeCollapsed.clear();
+  else walk(doc, n => { if ((n.children || []).length) treeCollapsed.add(n.id); });
+  renderTree();
+};
+treeFilterEl.addEventListener('input', renderTree);
+treeFilterEl.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.target.value = ''; renderTree(); e.target.blur(); }
+  e.stopPropagation();
+});
 
 function renderProps() {
   const host = document.getElementById('propbody');
@@ -3373,12 +4054,32 @@ function renderProps() {
   }
   const spec = WIDGETS[node.type] || { props: [] };
 
-  const addField = (labelText, input) => {
+  const addField = (labelText, input, isSet) => {
     const l = document.createElement('label');
     l.textContent = labelText;
+    if (isSet) l.className = 'set';
     host.appendChild(l);
     host.appendChild(input);
   };
+
+  const addHead = text => {
+    const h = document.createElement('div');
+    h.className = 'prophead';
+    h.textContent = text;
+    host.appendChild(h);
+  };
+
+  // what is selected, said plainly, so the panel is self-explanatory
+  const ident = document.createElement('div');
+  ident.className = 'propident';
+  const nb = document.createElement('b');
+  nb.textContent = node === doc ? (doc.label || 'Window') : (node.label || spec.name || node.type);
+  ident.appendChild(nb);
+  const ns = document.createElement('span');
+  ns.textContent = spec.name || node.type;
+  ident.appendChild(ns);
+  host.appendChild(ident);
+  addHead(node === doc ? 'window' : 'properties');
 
   for (const [key, type, , opts] of spec.props || []) {
     let inp;
@@ -3421,37 +4122,40 @@ function renderProps() {
   }
 
   if (node !== doc) {
-    const same = document.createElement('input');
-    same.type = 'checkbox';
-    same.checked = !!node.sameline;
+    addHead('layout');
+    const parent = findParent(node.id);
+    const first = parent && parent.children.indexOf(node) === 0;
+    const t = document.createElement('div');
+    t.className = 'toggle' + (node.sameline && !first ? ' on' : '');
+    t.innerHTML = '<span class="track"></span><span class="lb"></span>';
+    t.querySelector('.lb').textContent = first
+      ? 'nothing to join to'
+      : (node.sameline ? 'joined to the line above' : 'starts a new line');
+    t.title = first
+      ? 'The first widget in a container has no previous line to join'
+      : 'ImGui::SameLine() puts this widget on the same row as the one before it (J)';
+    if (first) t.style.opacity = '0.5';
     // full refresh: normalizeDoc may drop the flag on a first child, and the
-    // checkbox has to stop showing it as set
-    same.onchange = () => { node.sameline = same.checked; refresh(); };
-    addField('sameline', same);
+    // control has to stop showing it as set
+    else t.onclick = () => { node.sameline = !node.sameline; refresh(); };
+    addField('SameLine', t, !!node.sameline && !first);
   }
 
   // ---- colour overrides ----
-  if (!colorSlots(node.type).length) return;
-  const hdr = document.createElement('div');
-  hdr.className = 'empty';
-  hdr.style.color = 'var(--mk-green)';
-  hdr.style.paddingTop = '8px';
-  hdr.textContent = 'colors';
-  host.appendChild(hdr);
+  const slots = colorSlots(node.type);
+  if (!slots.length) return;
+  const overridden = slots.filter(s => node.colors && node.colors[s]).length;
+  addHead('colors' + (overridden ? ' (' + overridden + ' overridden)' : ''));
 
-  for (const slot of colorSlots(node.type)) {
+  for (const slot of slots) {
     const cur = node.colors && node.colors[slot];
     const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '4px';
-    row.style.alignItems = 'center';
+    row.className = 'colorrow';
 
     const inp = document.createElement('input');
     inp.type = 'color';
-    inp.style.width = '30px';
-    inp.style.height = '20px';
-    inp.style.padding = '0';
     inp.value = cur ? rgbToHex(cur) : defaultHexFor(slot);
+    inp.title = 'ImGuiCol_' + slot;
     inp.oninput = () => {
       if (!node.colors) node.colors = {};
       node.colors[slot] = hexToRgb(inp.value);
@@ -3459,12 +4163,17 @@ function renderProps() {
     };
     row.appendChild(inp);
 
+    // the value in the same notation the generated C++ uses
+    const hex = document.createElement('span');
+    hex.className = 'hex';
+    hex.textContent = cur ? rgbToHex(cur).toUpperCase() : 'default';
+    row.appendChild(hex);
+
     if (cur) {
       const clr = document.createElement('button');
+      clr.className = 'unset';
       clr.textContent = 'unset';
-      clr.style.cssText = 'background:none;border:1px solid var(--mk-border);'
-        + 'color:var(--mk-comment);border-radius:3px;font-family:var(--font);'
-        + 'font-size:10px;cursor:pointer;padding:1px 5px';
+      clr.title = 'Stop overriding this colour';
       clr.onclick = () => {
         delete node.colors[slot];
         if (!Object.keys(node.colors).length) delete node.colors;
@@ -3473,12 +4182,8 @@ function renderProps() {
       row.appendChild(clr);
     }
 
-    const l = document.createElement('label');
-    l.textContent = slot;
-    // an overridden value reads bold, so "changed here" is visible at a glance
-    if (cur) { l.style.color = 'var(--mk-fg)'; l.style.fontWeight = '700'; }
-    host.appendChild(l);
-    host.appendChild(row);
+    // an overridden value is marked, so "changed here" is visible at a glance
+    addField(slot, row, !!cur);
   }
 }
 
@@ -3510,6 +4215,10 @@ function renderCode() {
   // under the user's cursor is the two-writer race the research warns about
   if (codeEditing) return;
   document.getElementById('code').innerHTML = highlightOwned(generateCode(), generateCode.owners);
+  // the selection is the same thing in three panes, so the code pane marks it too
+  for (const m of document.querySelectorAll('#code .cline')) {
+    if (selection.has(m.dataset.node)) m.classList.add('sel');
+  }
 }
 
 // ---------- editing the generated C++ ----------
@@ -3527,7 +4236,7 @@ const reloadBtn = document.getElementById('reloadCodeBtn');
 function setCodeEditing(on) {
   codeEditing = on;
   codeEl.hidden = on;
-  codeEdit.hidden = !on;
+  document.getElementById('codeEditWrap').hidden = !on;
   codeStatus.hidden = !on;
   editBtn.hidden = on;
   applyBtn.hidden = !on;
@@ -3535,6 +4244,7 @@ function setCodeEditing(on) {
   reloadBtn.hidden = true;   // only offered once the document actually moves on
   if (on) {
     codeEdit.value = generateCode();
+    paintCodeEditor();
     const gone = generateCode.skipped || [];
     const lost = gone.reduce((n, s) => n + 1 + s.lost, 0);
     codeStatus.className = gone.length ? 'err' : '';
@@ -3617,10 +4327,117 @@ function countType(list, type) {
   return n;
 }
 
-codeEdit.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { setCodeEditing(false); e.preventDefault(); }
-  e.stopPropagation();
+// ---------- the C++ editor ----------
+// Enough of an IDE to be usable: highlighting under the caret, Tab that
+// indents instead of leaving the field, and indentation that follows braces.
+
+const codeEditHl = document.getElementById('codeEditHl');
+const codeEditWrap = document.getElementById('codeEditWrap');
+const INDENT = '    ';
+
+function paintCodeEditor() {
+  // trailing newline keeps the last line's box alive so the two layers agree
+  codeEditHl.innerHTML = highlightCpp(codeEdit.value) + '\n';
+  codeEditHl.scrollTop = codeEdit.scrollTop;
+  codeEditHl.scrollLeft = codeEdit.scrollLeft;
+}
+
+codeEdit.addEventListener('input', paintCodeEditor);
+codeEdit.addEventListener('scroll', () => {
+  codeEditHl.scrollTop = codeEdit.scrollTop;
+  codeEditHl.scrollLeft = codeEdit.scrollLeft;
 });
+
+// insertText keeps the browser's own undo stack intact, which setRangeText
+// throws away. It quietly does nothing when the field isn't really focused,
+// so the result is checked rather than the return value trusted.
+function replaceRange(from, to, text, selStart, selEnd) {
+  const was = codeEdit.value;
+  codeEdit.setSelectionRange(from, to);
+  let ok = false;
+  try { ok = document.execCommand('insertText', false, text); } catch (e) { ok = false; }
+  if (!ok || codeEdit.value === was) codeEdit.setRangeText(text, from, to, 'end');
+  if (selStart !== undefined) codeEdit.setSelectionRange(selStart, selEnd === undefined ? selStart : selEnd);
+  paintCodeEditor();
+}
+
+const lineStartAt = (v, i) => v.lastIndexOf('\n', i - 1) + 1;
+const indentOf = line => (line.match(/^[ \t]*/) || [''])[0];
+
+// Returns true when it took the key, which is the signal to stop it going any
+// further. Anything it doesn't claim types normally.
+function handleCodeEditorKey(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  if (e.key === 'Escape') { setCodeEditing(false); e.preventDefault(); return true; }
+  const v = codeEdit.value;
+  const s = codeEdit.selectionStart, t = codeEdit.selectionEnd;
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const multi = v.slice(s, t).includes('\n');
+    if (!multi && !e.shiftKey) { replaceRange(s, t, INDENT, s + INDENT.length); return true; }
+    // block indent or outdent, keeping the whole span selected afterwards
+    const from = lineStartAt(v, s);
+    const to = v.indexOf('\n', t) === -1 ? v.length : v.indexOf('\n', t);
+    const lines = v.slice(from, to).split('\n');
+    const out = lines.map(l => {
+      if (!e.shiftKey) return INDENT + l;
+      if (l.startsWith(INDENT)) return l.slice(INDENT.length);
+      return l.replace(/^[ \t]{1,4}/, '');
+    });
+    const text = out.join('\n');
+    replaceRange(from, to, text, from, from + text.length);
+    return true;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const ls = lineStartAt(v, s);
+    const line = v.slice(ls, s);
+    let ind = indentOf(line);
+    // opening a block indents the next line, and a closing brace already
+    // waiting on the right gets pushed onto its own line below
+    const opens = /[{(]\s*$/.test(line.trimEnd());
+    const closesNext = /^\s*[}\)]/.test(v.slice(t));
+    if (opens) {
+      const inner = ind + INDENT;
+      if (closesNext) {
+        const text = '\n' + inner + '\n' + ind;
+        replaceRange(s, t, text, s + 1 + inner.length);
+      } else {
+        replaceRange(s, t, '\n' + inner, s + 1 + inner.length);
+      }
+      return true;
+    }
+    replaceRange(s, t, '\n' + ind, s + 1 + ind.length);
+    return true;
+  }
+
+  // typing a closing brace pulls its line back out one level
+  if (e.key === '}' && s === t) {
+    const ls = lineStartAt(v, s);
+    const before = v.slice(ls, s);
+    if (/^[ \t]+$/.test(before) && before.length >= INDENT.length) {
+      e.preventDefault();
+      const ind = before.slice(0, before.length - INDENT.length);
+      replaceRange(ls, s, ind + '}', ls + ind.length + 1);
+      return true;
+    }
+    return false;
+  }
+
+  // Backspace at the head of a line eats a whole indent level
+  if (e.key === 'Backspace' && s === t) {
+    const ls = lineStartAt(v, s);
+    const before = v.slice(ls, s);
+    if (before.length && /^[ \t]+$/.test(before) && before.length % INDENT.length === 0) {
+      e.preventDefault();
+      replaceRange(s - INDENT.length, s, '', s - INDENT.length);
+      return true;
+    }
+  }
+  return false;
+}
 
 // A sameline flag on a first child is suppressed at render and emit time
 // rather than deleted from the model: deleting it meant a transient reorder
@@ -3649,19 +4466,498 @@ document.getElementById('copyBtn').onclick = () => {
   navigator.clipboard.writeText(generateCode());
 };
 
-document.getElementById('resetBtn').onclick = () => {
-  applyDocData(JSON.parse(JSON.stringify(DEFAULT_DOC)), 100);
-  refresh();
-};
+// ---------- templates ----------
+// Starting points, kept apart from projects: a template is a shape you stamp
+// out repeatedly, a project is a thing you are working on.
 
-document.getElementById('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify({ v: 2, doc }, null, 2)], { type: 'application/json' });
+const TEMPLATES_KEY = 'imguistudio.templates.v1';
+const tn = (type, extra) => Object.assign(makeNode(type), extra || {});
+
+function builtinTemplates() {
+  const defs = [
+    ['Blank window', () => []],
+    ['Settings dialog', () => [
+      tn('separatortext', { label: 'Display' }),
+      tn('checkbox', { label: 'Fullscreen' }),
+      tn('checkbox', { label: 'V-Sync' }),
+      tn('sliderfloat', { label: 'Brightness' }),
+      tn('separatortext', { label: 'Audio' }),
+      tn('sliderfloat', { label: 'Master' }),
+      tn('sliderfloat', { label: 'Music' }),
+      tn('separator'),
+      tn('button', { label: 'Apply' }),
+      tn('button', { label: 'Cancel', sameline: true }),
+    ]],
+    ['Toolbar and list', () => [
+      tn('button', { label: 'New' }),
+      tn('button', { label: 'Open', sameline: true }),
+      tn('button', { label: 'Save', sameline: true }),
+      tn('separator'),
+      tn('inputtextwithhint', { label: 'Search' }),
+      tn('listbox', { label: 'Items', items: 'First, Second, Third' }),
+    ]],
+    ['Property inspector', () => [
+      tn('inputtext', { label: 'Name' }),
+      tn('dragfloat', { label: 'Position X' }),
+      tn('dragfloat', { label: 'Position Y' }),
+      tn('sliderfloat', { label: 'Scale' }),
+      tn('coloredit', { label: 'Tint' }),
+      tn('checkbox', { label: 'Visible' }),
+    ]],
+    ['Debug overlay', () => [
+      tn('text', { label: 'Frame stats' }),
+      tn('plotlines', { label: 'Frame time' }),
+      tn('separator'),
+      tn('checkbox', { label: 'Show colliders' }),
+      tn('checkbox', { label: 'Show wireframe' }),
+      tn('collapsingheader', { label: 'Counters' }),
+    ]],
+    ['Tabbed panel', () => {
+      const bar = tn('tabbar', { label: 'Tabs' });
+      const one = tn('tabitem', { label: 'General' });
+      one.children = [tn('checkbox', { label: 'Enabled' })];
+      const two = tn('tabitem', { label: 'Advanced' });
+      two.children = [tn('inputint', { label: 'Threads' })];
+      bar.children = [one, two];
+      return [bar];
+    }],
+  ];
+  return defs.map(([name, build]) => {
+    // built from a function so one bad widget type can't take the whole list
+    // down at load time
+    let kids = [];
+    try { kids = build().filter(n => n && WIDGETS[n.type]); } catch (e) { kids = []; }
+    return {
+      id: 'builtin:' + name,
+      name,
+      builtin: true,
+      doc: Object.assign(JSON.parse(JSON.stringify(DEFAULT_DOC)), { label: name, children: kids }),
+    };
+  });
+}
+
+let templates = [];
+
+function saveTemplates() {
+  try {
+    const mine = templates.filter(t => !t.builtin);
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify({ v: 1, templates: mine }));
+  } catch (e) {}
+}
+
+function loadTemplates() {
+  let saved = [];
+  try {
+    const s = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null');
+    if (s && Array.isArray(s.templates)) saved = s.templates.filter(t => t && t.doc);
+  } catch (e) {}
+  templates = builtinTemplates().concat(saved);
+}
+
+function applyTemplate(t, asNew) {
+  const run = () => {
+    if (asNew) { addProject(t.name, t.doc); saveProjects(); return; }
+    applyDocData(JSON.parse(JSON.stringify(t.doc)), 100);
+    refresh();
+  };
+  const n = countNodes(doc.children);
+  if (!asNew && n > 0) {
+    askConfirm(`Replace this document with the "${t.name}" template? `
+      + `${n} widget${n > 1 ? 's' : ''} will be discarded. Ctrl+Z undoes it.`, run);
+  } else run();
+}
+
+function renderTemplates() {
+  const host = document.getElementById('tpllist');
+  host.innerHTML = '';
+  for (const t of templates) {
+    const row = document.createElement('div');
+    row.className = 'tplrow';
+    const n = document.createElement('span');
+    n.className = 'tplname';
+    n.textContent = t.name;
+    n.title = (t.builtin ? 'Built in. ' : '') + 'Click to apply here, or use the ＋ to open it as a new project';
+    n.onclick = () => applyTemplate(t, false);
+    row.appendChild(n);
+    const count = document.createElement('span');
+    count.className = 'tplcount';
+    count.textContent = countNodes(t.doc.children);
+    row.appendChild(count);
+    const asNew = document.createElement('button');
+    asNew.textContent = '＋';
+    asNew.title = 'Open as a new project';
+    asNew.onclick = e => { e.stopPropagation(); applyTemplate(t, true); };
+    row.appendChild(asNew);
+    if (!t.builtin) {
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.title = 'Delete this template';
+      del.onclick = e => {
+        e.stopPropagation();
+        askConfirm(`Delete the template "${t.name}"?`, () => {
+          templates = templates.filter(x => x !== t);
+          saveTemplates();
+          renderTemplates();
+        });
+      };
+      row.appendChild(del);
+    }
+    row.oncontextmenu = e => {
+      e.preventDefault();
+      openContextMenu(e, [
+        { group: '1', order: 0, label: 'Apply to this document', run: () => applyTemplate(t, false) },
+        { group: '1', order: 1, label: 'Open as a new project', run: () => applyTemplate(t, true) },
+        { group: '2', order: 0, label: 'Export this template', run: () => exportTemplates([t]) },
+        t.builtin ? null : { group: '9z', order: 0, label: 'Delete', danger: true,
+          run: () => { templates = templates.filter(x => x !== t); saveTemplates(); renderTemplates(); } },
+      ]);
+    };
+    host.appendChild(row);
+  }
+}
+
+function saveCurrentAsTemplate() {
+  const base = (doc.label || 'Template').trim();
+  let name = base;
+  let i = 2;
+  while (templates.some(t => t.name === name)) name = base + ' ' + (i++);
+  templates.push({ id: 't' + templates.length + '-' + name, name, doc: JSON.parse(JSON.stringify(doc)) });
+  saveTemplates();
+  renderTemplates();
+}
+
+// ---------- import and export ----------
+
+function downloadJson(name, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'imguistudio-panel.json';
+  a.download = name;
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function exportProject() {
+  downloadJson('imguistudio-panel.json', { v: 2, kind: 'project', doc });
+}
+
+// Templates get their own file kind so importing one can't be mistaken for
+// opening a document, which is why these buttons are separate from Export JSON.
+function exportTemplates(list) {
+  const mine = (list || templates).filter(t => !t.builtin || list);
+  downloadJson('imguistudio-templates.json',
+    { v: 1, kind: 'templates', templates: mine.map(t => ({ name: t.name, doc: t.doc })) });
+}
+
+function exportEverything() {
+  snapshotActive();
+  downloadJson('imguistudio-everything.json', {
+    v: 1,
+    kind: 'everything',
+    projects: projects.map(p => ({ name: p.name, doc: p.doc, nextId: p.nextId })),
+    templates: templates.filter(t => !t.builtin).map(t => ({ name: t.name, doc: t.doc })),
+    layout,
+    binds: bindOverrides,
+    theme: currentTheme,
+  });
+}
+
+// One reader for every file kind, so dropping the wrong file tells you what it
+// was instead of silently doing nothing.
+function importPayload(s) {
+  if (!s || typeof s !== 'object') throw new Error('not an ImGuiStudio file');
+  if (s.kind === 'templates' || (Array.isArray(s.templates) && !s.projects && !s.doc)) {
+    const add = (s.templates || []).filter(t => t && t.doc);
+    if (!add.length) throw new Error('no templates in that file');
+    for (const t of add) {
+      let name = t.name || 'Imported';
+      let i = 2;
+      while (templates.some(x => x.name === name)) name = (t.name || 'Imported') + ' ' + (i++);
+      templates.push({ id: 'ti' + templates.length, name, doc: t.doc });
+    }
+    saveTemplates();
+    renderTemplates();
+    return `imported ${add.length} template${add.length > 1 ? 's' : ''}`;
+  }
+  if (s.kind === 'everything') {
+    for (const p of (s.projects || [])) {
+      if (p && p.doc) addProject(p.name, p.doc);
+    }
+    for (const t of (s.templates || [])) {
+      if (t && t.doc) templates.push({ id: 'ti' + templates.length, name: t.name || 'Imported', doc: t.doc });
+    }
+    if (s.binds) { bindOverrides = s.binds; for (const b of KEYMAP) Object.assign(b, b.def, bindOverrides[b.id] || {}); }
+    saveTemplates();
+    saveProjects();
+    renderTemplates();
+    return 'imported everything';
+  }
+  const d = s.doc || s;
+  if (!d || d.type !== 'window') throw new Error('no window document in that file');
+  addProject(d.label || 'Imported', d);
+  saveProjects();
+  return 'opened as a new project';
+}
+
+// ---------- share links ----------
+// The document rides in the URL fragment, which never reaches a server. Deflate
+// keeps a real panel inside what browsers and chat apps will carry.
+
+function b64urlEncode(bytes) {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function b64urlDecode(str) {
+  const s = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
+async function encodeShare(payload) {
+  const json = JSON.stringify(payload);
+  const raw = new TextEncoder().encode(json);
+  if (typeof CompressionStream !== 'function') return 'u' + b64urlEncode(raw);
+  const cs = new CompressionStream('deflate-raw');
+  const buf = await new Response(new Blob([raw]).stream().pipeThrough(cs)).arrayBuffer();
+  return 'z' + b64urlEncode(new Uint8Array(buf));
+}
+
+async function decodeShare(code) {
+  const bytes = b64urlDecode(code.slice(1));
+  if (code[0] === 'u') return JSON.parse(new TextDecoder().decode(bytes));
+  const ds = new DecompressionStream('deflate-raw');
+  const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+
+async function buildShareLink() {
+  const code = await encodeShare({ v: 1, doc });
+  return location.origin + location.pathname + '#d=' + code;
+}
+
+async function copyShareLink() {
+  try {
+    const url = await buildShareLink();
+    await navigator.clipboard.writeText(url);
+    flashStatus(url.length > 1800
+      ? `Link copied (${url.length} characters, which some chat apps will truncate).`
+      : 'Share link copied to the clipboard.');
+  } catch (e) {
+    flashStatus('Could not build a share link: ' + e.message);
+  }
+}
+
+// Reads a shared document out of the fragment and opens it as its own project,
+// so following a link never overwrites what you were working on.
+async function loadSharedFromUrl() {
+  const m = /[#&]d=([A-Za-z0-9_-]+)/.exec(location.hash || '');
+  if (!m) return false;
+  try {
+    const payload = await decodeShare(m[1]);
+    if (!payload || !payload.doc || payload.doc.type !== 'window') return false;
+    addProject(payload.doc.label || 'Shared', payload.doc);
+    saveProjects();
+    history.replaceState(null, '', location.pathname + location.search);
+    flashStatus('Opened a shared document as a new project.');
+    return true;
+  } catch (e) {
+    flashStatus('That share link could not be read.');
+    return false;
+  }
+}
+
+let flashTimer = null;
+function flashStatus(msg) {
+  hoverInfoEl.innerHTML = esc(msg);
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => updateHoverStatus(null), 6000);
+}
+
+// ---------- settings ----------
+// The ? overlay lists shortcuts in context and is the fast path. This is the
+// deliberate one: every binding at once, plus the view and data switches, in a
+// place you'd think to look for them.
+const settingsOv = document.getElementById('settingsov');
+const settingsBody = document.getElementById('settingsBody');
+let settingsTab = 'keys';
+let settingsCapture = null;
+
+function openSettings(tab) {
+  settingsTab = tab || settingsTab;
+  settingsOv.hidden = false;
+  renderSettings();
+}
+
+function closeSettings() {
+  if (settingsOv.hidden) return;
+  settingsOv.hidden = true;
+  settingsCapture = null;
+}
+
+function setRow(label, controlEl) {
+  const row = document.createElement('div');
+  row.className = 'set-row';
+  const l = document.createElement('span');
+  l.textContent = label;
+  row.appendChild(l);
+  const sp = document.createElement('span');
+  sp.className = 'spacer';
+  row.appendChild(sp);
+  row.appendChild(controlEl);
+  return row;
+}
+
+function settingsButton(text, onClick) {
+  const b = document.createElement('button');
+  b.className = 'k';
+  b.textContent = text;
+  b.onclick = onClick;
+  return b;
+}
+
+function renderSettings() {
+  for (const b of settingsOv.querySelectorAll('.settings-tabs button')) {
+    b.classList.toggle('on', b.dataset.tab === settingsTab);
+  }
+  settingsBody.innerHTML = '';
+  if (settingsTab === 'keys') return renderKeySettings();
+  if (settingsTab === 'view') return renderViewSettings();
+  return renderDataSettings();
+}
+
+function renderKeySettings() {
+  const hint = document.createElement('div');
+  hint.className = 'ov-cat';
+  hint.textContent = settingsCapture
+    ? 'press a key for: ' + settingsCapture.help + '   (Esc cancels)'
+    : 'click a shortcut to rebind it';
+  hint.style.color = settingsCapture ? 'var(--mk-green)' : 'var(--mk-comment)';
+  settingsBody.appendChild(hint);
+
+  let lastCat = '';
+  for (const b of KEYMAP) {
+    if (b.cat !== lastCat) {
+      lastCat = b.cat;
+      const c = document.createElement('div');
+      c.className = 'ov-cat';
+      c.textContent = b.cat;
+      settingsBody.appendChild(c);
+    }
+    const k = settingsButton(settingsCapture === b ? '…press a key' : comboLabel(b), () => {
+      settingsCapture = b;
+      renderSettings();
+    });
+    if (bindOverrides[b.id]) k.classList.add('custom');
+    if (settingsCapture === b) k.classList.add('capturing');
+    settingsBody.appendChild(setRow(b.help, k));
+  }
+  settingsBody.appendChild(setRow('Restore every default',
+    settingsButton('reset all', () => { resetBinds(); renderSettings(); })));
+}
+
+function renderViewSettings() {
+  settingsBody.appendChild(setRow('Background grid',
+    settingsButton(showGrid ? 'on' : 'off', () => { setGrid(!showGrid); renderSettings(); })));
+  settingsBody.appendChild(setRow('Rulers and guides',
+    settingsButton(showRulers ? 'on' : 'off', () => { setRulers(!showRulers); renderSettings(); })));
+  settingsBody.appendChild(setRow('Panel layout',
+    settingsButton('reset', () => { resetPanelLayout(); renderSettings(); })));
+  settingsBody.appendChild(setRow('View position',
+    settingsButton('recentre', () => { resetPan(); })));
+  const sel = document.createElement('select');
+  sel.className = 'k';
+  for (const [key, t] of Object.entries(THEMES)) {
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = t.name;
+    sel.appendChild(o);
+  }
+  sel.value = currentTheme;
+  sel.onchange = () => { themeSel.value = sel.value; themeSel.onchange(); };
+  settingsBody.appendChild(setRow('Code syntax theme', sel));
+}
+
+function renderDataSettings() {
+  settingsBody.appendChild(setRow('This project as JSON',
+    settingsButton('export', () => exportProject())));
+  settingsBody.appendChild(setRow('Every project and template',
+    settingsButton('export all', () => exportEverything())));
+  settingsBody.appendChild(setRow('Import a project file',
+    settingsButton('import', () => document.getElementById('importFile').click())));
+  settingsBody.appendChild(setRow('Shareable link for this document',
+    settingsButton('copy link', () => copyShareLink())));
+}
+
+document.getElementById('settingsClose').onclick = closeSettings;
+for (const b of settingsOv.querySelectorAll('.settings-tabs button')) {
+  b.onclick = () => { settingsTab = b.dataset.tab; renderSettings(); };
+}
+settingsOv.addEventListener('mousedown', e => { if (e.target === settingsOv) closeSettings(); });
+
+// While a shortcut row is armed the next key becomes the binding. This listener
+// is capture-phase and ahead of the dispatcher so the key can't also fire.
+window.addEventListener('keydown', e => {
+  if (!settingsCapture) return;
+  if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.key === 'Escape') { settingsCapture = null; renderSettings(); return; }
+  const cand = {
+    key: e.key.length === 1 ? e.key.toUpperCase() : e.key,
+    ctrl: e.ctrlKey || e.metaKey, alt: e.altKey, shift: e.shiftKey,
+  };
+  const clash = rebind(settingsCapture, cand);
+  settingsCapture = null;
+  renderSettings();
+  if (clash) {
+    const hint = settingsBody.firstChild;
+    hint.textContent = comboLabel(cand) + ' is already "' + clash.help + '" under '
+      + clash.cat + '. Keys can only be shared inside one group.';
+    hint.style.color = 'var(--mk-pink)';
+  }
+}, true);
+
+// An in-app confirm rather than window.confirm: the native one blocks the whole
+// page, which also means it can't be driven by the self-test.
+const confirmOv = document.getElementById('confirmov');
+const confirmMsg = document.getElementById('confirmMsg');
+let confirmAction = null;
+
+function askConfirm(message, onYes) {
+  confirmMsg.textContent = message;
+  confirmAction = onYes;
+  confirmOv.hidden = false;
+  document.getElementById('confirmYes').focus();
+}
+
+function closeConfirm() { confirmOv.hidden = true; confirmAction = null; }
+document.getElementById('confirmNo').onclick = closeConfirm;
+document.getElementById('confirmYes').onclick = () => {
+  const run = confirmAction;
+  closeConfirm();
+  if (run) run();
 };
+confirmOv.addEventListener('mousedown', e => { if (e.target === confirmOv) closeConfirm(); });
+
+function resetDocument() {
+  applyDocData(JSON.parse(JSON.stringify(DEFAULT_DOC)), 100);
+  // refresh() pushes a history entry, so the reset itself is one Ctrl+Z away
+  refresh();
+}
+
+document.getElementById('resetBtn').onclick = () => {
+  const n = countNodes(doc.children);
+  if (!n) { resetDocument(); return; }
+  askConfirm(`Replace this document with the sample layout? ${n} widget`
+    + `${n > 1 ? 's' : ''} will be discarded. Ctrl+Z undoes it.`, resetDocument);
+};
+
+document.getElementById('exportBtn').onclick = () => exportProject();
+document.getElementById('shareBtn').onclick = () => copyShareLink();
+document.getElementById('settingsBtn').onclick = () => openSettings('keys');
 
 const importFile = document.getElementById('importFile');
 document.getElementById('importBtn').onclick = () => importFile.click();
@@ -3669,13 +4965,27 @@ importFile.onchange = async e => {
   const file = e.target.files[0];
   if (!file) return;
   try {
-    const s = JSON.parse(await file.text());
-    const d = s && s.doc ? s.doc : s;
-    if (!d || d.type !== 'window') throw new Error('not a panel document');
-    applyDocData(d, 0);
-    refresh();
+    flashStatus(importPayload(JSON.parse(await file.text())));
   } catch (err) {
-    console.warn('[import] failed:', err);
+    flashStatus('Import failed: ' + err.message);
+  }
+  e.target.value = '';
+};
+
+// Templates get their own pair of buttons. Mixing them with Export JSON meant
+// you could not tell from the file whether you were about to open a document
+// or add starting points.
+document.getElementById('tplSaveBtn').onclick = () => saveCurrentAsTemplate();
+document.getElementById('tplExportBtn').onclick = () => exportTemplates();
+const importTplFile = document.getElementById('importTplFile');
+document.getElementById('tplImportBtn').onclick = () => importTplFile.click();
+importTplFile.onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    flashStatus(importPayload(JSON.parse(await file.text())));
+  } catch (err) {
+    flashStatus('Import failed: ' + err.message);
   }
   e.target.value = '';
 };
@@ -3720,6 +5030,30 @@ window.__test = {
   generate: () => generateCode(),
   refresh: () => refresh(),
   selectMany: ids => selectMany(ids),
+  // Reset asks first now, so the test drives the dialog the way a user does
+  resetDoc: () => {
+    document.getElementById('resetBtn').onclick();
+    if (!confirmOv.hidden) document.getElementById('confirmYes').click();
+  },
+  confirmOpen: () => !confirmOv.hidden,
+  projects: () => projects.map(p => ({ id: p.id, name: p.name, active: p.id === activeProject })),
+  addProject: (name, d) => addProject(name, d).id,
+  switchProject: id => switchProject(id),
+  templates: () => templates.map(t => ({ name: t.name, builtin: !!t.builtin, n: countNodes(t.doc.children) })),
+  applyTemplate: name => applyTemplate(templates.find(t => t.name === name), false),
+  saveTemplate: () => saveCurrentAsTemplate(),
+  shareLink: () => buildShareLink(),
+  loadShare: async url => {
+    const m = /[#&]d=([A-Za-z0-9_-]+)/.exec(url);
+    return m ? (await decodeShare(m[1])) : null;
+  },
+  settingsOpen: () => !settingsOv.hidden,
+  openSettings: tab => openSettings(tab),
+  treeRows: () => document.querySelectorAll('#tree .row').length,
+  setTreeFilter: v => { treeFilterEl.value = v; renderTree(); },
+  pan: () => ({ ...pan }),
+  focusSel: () => focusSelection(),
+  hoverText: () => hoverInfoEl.textContent,
   resizing: () => !!resizing,
   panelDragging: () => !!panelDrag,
   pin: (type, slot) => pinToHotbar(type, slot),
@@ -3751,6 +5085,7 @@ window.__test = {
   applyCpp: text => {
     setCodeEditing(true);
     codeEdit.value = text;
+    paintCodeEditor();
     applyBtn.onclick();
     return document.getElementById('codeStatus').textContent;
   },
@@ -3758,6 +5093,7 @@ window.__test = {
     const before = generateCode();
     setCodeEditing(true);
     codeEdit.value = before;
+    paintCodeEditor();
     applyBtn.onclick();
     return { same: generateCode() === before, before, after: generateCode() };
   },
@@ -3826,13 +5162,18 @@ renderGuides();
 setRulers(localStorage.getItem('imguistudio.rulers') !== '0');
 setGrid(localStorage.getItem('imguistudio.grid') !== '0');
 
-renderHotbar();
 renderPalette();
-loadLocal();
+loadProjects();      // adopts the old single-document save on first run
+loadTemplates();
+renderTemplates();
+renderProjectTabs();
 refresh();
 // the loaded document is the undo floor
 pushHistory();
 syncCanvasSize();
+applyPan();
+// a #d= fragment opens as its own project, so a link never eats your work
+loadSharedFromUrl();
 
 document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
