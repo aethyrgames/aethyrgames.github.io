@@ -160,7 +160,7 @@
     font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--mk-green);
     border-bottom: 1px solid var(--mk-border); cursor: grab; user-select: none;
-    flex-shrink: 0; background: var(--mk-gutter);
+    flex-shrink: 0; background: color-mix(in srgb, var(--mk-fg) 9%, var(--mk-surface));
   }
   .panel-head:active { cursor: grabbing; }
   .panel-head .tw { color: var(--mk-comment); font-size: 14px; width: 12px; line-height: 1; }
@@ -260,15 +260,25 @@
     color: var(--mk-fg); font-size: 12px;
   }
   .set-row .spacer { flex: 1; }
+  /* A key chip should look like a key: raised off the row, readable, and using
+     the theme's own foreground rather than its comment grey. */
   .set-row .k {
-    color: var(--mk-comment); font-size: 11px; border: 1px solid var(--mk-border);
-    border-radius: var(--radius); padding: 1px 7px; cursor: pointer; white-space: nowrap;
+    color: var(--mk-fg); font-size: 11px; font-weight: 600;
+    background: color-mix(in srgb, var(--mk-fg) 12%, var(--mk-gutter));
+    border: 1px solid color-mix(in srgb, var(--mk-fg) 26%, transparent);
+    border-bottom-width: 2px;
+    border-radius: 4px; padding: 2px 8px; cursor: pointer; white-space: nowrap;
   }
-  .set-row .k:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  .set-row .k:hover {
+    color: var(--mk-cyan); border-color: var(--mk-cyan);
+    background: color-mix(in srgb, var(--mk-cyan) 14%, var(--mk-gutter));
+  }
   .set-row .k.capturing { color: var(--mk-green); border-color: var(--mk-green); }
   .set-row .k.custom { color: var(--mk-green); }
   /* Listening for a key: the row itself lights up, so it reads at a glance
      instead of relying on one small label changing. */
+  .set-row.rebindable { cursor: pointer; border-radius: var(--radius); }
+  .set-row.rebindable:hover { background: var(--mk-hover); }
   .set-row.listening { background: color-mix(in srgb, var(--mk-green) 12%, transparent); }
   .set-row .k.capturing {
     color: var(--mk-bg); background: var(--mk-green); border-color: var(--mk-green);
@@ -606,7 +616,7 @@
   .cat {
     color: var(--mk-comment); font-size: 11px; text-transform: uppercase;
     letter-spacing: 0.07em; padding: 7px 4px 3px; cursor: pointer;
-    grid-column: 1 / 3; display: flex; align-items: center; gap: 5px;
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 5px;
     user-select: none;
   }
   .cat:hover { color: var(--mk-fg); }
@@ -690,12 +700,9 @@
   }
 
   #codehead { display: flex; align-items: center; border-bottom: 1px solid var(--mk-border); flex-shrink: 0; }
-  #codehead select {
-    margin: 4px 0 4px 8px; background: var(--mk-gutter); color: var(--mk-fg);
-    border: 1px solid var(--mk-border); border-radius: var(--radius);
-    font-family: var(--font); font-size: 12px; padding: 3px 6px; cursor: pointer;
-  }
-  #codehead select:focus { outline: none; border-color: var(--mk-cyan); }
+  /* Only the spacing here: the shared select rule above owns the look, and a
+     second full declaration was quietly stripping its arrow. */
+  #codehead select { margin: 4px 0 4px 8px; }
   #codehead button {
     margin: 4px 8px; background: transparent; color: var(--mk-green);
     border: 1px solid var(--mk-green); border-radius: var(--radius);
@@ -1030,7 +1037,7 @@
     </div>
   </div>
 
-<script src="widgets.js?v=97aff04e6c"></script>
+<script src="widgets.js?v=7089f38e99"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
 <script src="cpp.js?v=bd36923f34"></script>
 <script>
@@ -2382,15 +2389,22 @@ document.addEventListener('mousemove', e => {
       node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
     }
     // a left or top edge grows the other way, so the node moves as it sizes
+    // A left or top edge grows the other way, so the node moves as it sizes.
+    // The origin is a hard floor: there is no surface at negative coordinates,
+    // so the edge stops rather than dragging the window off the sheet.
     if (resizing.axis.includes('W')) {
-      const w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 - dx));
-      node.x = Math.round(resizing.x0 + (resizing.w0 - w));
-      node[resizing.wkey] = w;
+      let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 - dx));
+      let x = Math.round(resizing.x0 + (resizing.w0 - w));
+      if (x < 0) { w += x; x = 0; }
+      node.x = x;
+      node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, w);
     }
     if (resizing.axis.includes('H')) {
-      const h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 - dy));
-      node.y = Math.round(resizing.y0 + (resizing.h0 - h));
-      node.h = h;
+      let h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 - dy));
+      let y = Math.round(resizing.y0 + (resizing.h0 - h));
+      if (y < 0) { h += y; y = 0; }
+      node.y = y;
+      node.h = Math.max(MIN_DRAG_SIZE, h);
     }
     // The engine has to see every step so the preview tracks the cursor; the
     // panels and the generated C++ can wait for the next frame, and the undo
@@ -3901,6 +3915,17 @@ let panelDrag = null;
 const dropzone = document.getElementById('dropzone');
 
 function edgeUnderCursor(x, y) {
+  // If the pointer is inside a dock that already exists, that is the dock you
+  // mean. Going by nearest workspace edge meant the top of the left dock read
+  // as "top", so reordering within a dock kept throwing the panel somewhere
+  // else and felt impossible to aim.
+  for (const side of DOCK_SIDES) {
+    const el = dockEl(side);
+    if (!el.offsetParent) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) continue;
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return side;
+  }
   const ws = document.getElementById('workspace').getBoundingClientRect();
   const d = {
     left: (x - ws.left) / ws.width,
@@ -3909,6 +3934,27 @@ function edgeUnderCursor(x, y) {
     bottom: (ws.bottom - y) / ws.height,
   };
   return DOCK_SIDES.reduce((best, s) => (d[s] < d[best] ? s : best), 'left');
+}
+
+// Which slot in the target dock the cursor is over. Dropping used to append
+// unconditionally, so a panel put back always went to the bottom and there was
+// no way to reorder within a dock at all.
+function dropIndexFor(side, key, x, y) {
+  const stacks = side === 'left' || side === 'right';
+  const others = Object.entries(layout.panels)
+    .filter(([k, p]) => !p.hidden && p.dock === side && k !== key)
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([k]) => k);
+  let i = 0;
+  for (const k of others) {
+    const el = panelEls[k];
+    if (!el || !el.offsetParent) { i++; continue; }
+    const r = el.getBoundingClientRect();
+    const mid = stacks ? r.top + r.height / 2 : r.left + r.width / 2;
+    if ((stacks ? y : x) > mid) i++;
+    else break;
+  }
+  return { index: i, order: others };
 }
 
 // Where a dock would land if it isn't on screen yet, so the preview is the real
@@ -3927,14 +3973,15 @@ function dockPreviewRect(side) {
 // Draw the dock at its real size and split it into slots, one per panel that
 // will share it, with the dragged one marked. "Somewhere on the right" tells
 // you much less than "this tall, second of three".
-function showDropPreview(side, key) {
+function showDropPreview(side, key, at) {
   const r = dockPreviewRect(side);
   const stacks = side === 'left' || side === 'right';
   const sharing = Object.entries(layout.panels)
     .filter(([k, p]) => !p.hidden && p.dock === side && k !== key)
     .sort((a, b) => a[1].order - b[1].order)
-    .map(([k]) => k)
-    .concat([key]);
+    .map(([k]) => k);
+  // insert at the cursor's slot rather than always at the end
+  sharing.splice(at === undefined ? sharing.length : at, 0, key);
   dropzone.style.display = 'block';
   dropzone.style.left = r.left + 'px';
   dropzone.style.top = r.top + 'px';
@@ -3985,8 +4032,11 @@ document.addEventListener('mousemove', e => {
     panelDrag.moved = true;
     panelEls[panelDrag.key].classList.add('dragging');
   }
+  panelDrag.lastX = e.clientX;
+  panelDrag.lastY = e.clientY;
   panelDrag.side = edgeUnderCursor(e.clientX, e.clientY);
-  showDropPreview(panelDrag.side, panelDrag.key);
+  panelDrag.at = dropIndexFor(panelDrag.side, panelDrag.key, e.clientX, e.clientY).index;
+  showDropPreview(panelDrag.side, panelDrag.key, panelDrag.at);
 });
 
 document.addEventListener('mouseup', () => {
@@ -3997,12 +4047,14 @@ document.addEventListener('mouseup', () => {
   panelEls[d.key].classList.remove('dragging');
   if (!d.moved || !d.side) return;
   const p = layout.panels[d.key];
-  if (p.dock !== d.side) {
-    p.dock = d.side;
-    p.hidden = false;
-    p.order = Math.max(0, ...Object.values(layout.panels)
-      .filter(x => x.dock === d.side).map(x => x.order + 1));
-  }
+  const target = dropIndexFor(d.side, d.key, d.lastX, d.lastY);
+  p.dock = d.side;
+  p.hidden = false;
+  // rebuild the dock's order with the panel at the cursor's slot, so putting one
+  // back lands where you dropped it instead of at the bottom
+  const list = target.order.slice();
+  list.splice(Math.min(d.at !== undefined ? d.at : target.index, list.length), 0, d.key);
+  list.forEach((k, i) => { layout.panels[k].order = i; });
   applyLayout();
 });
 
@@ -5996,6 +6048,8 @@ function renderKeySettings() {
     if (bindOverrides[b.id]) k.classList.add('custom');
     if (capturing) k.classList.add('capturing');
     const row = setRow(b.help, k);
+    row.classList.add('rebindable');
+    row.onclick = e => { if (!e.target.closest('.revert')) startCapture(b); };
     if (capturing) row.classList.add('listening');
     // only where it differs from the shipped default
     if (bindOverrides[b.id]) {
@@ -6075,7 +6129,12 @@ for (const b of settingsOv.querySelectorAll('.settings-tabs button')) {
   b.onclick = () => { settingsTab = b.dataset.tab; renderSettings(); };
 }
 settingsOv.addEventListener('mousedown', e => {
-  if (e.target === settingsOv) { closeSettings(); return; }
+  if (e.target === settingsOv) {
+    // an armed row is the thing you most likely meant to back out of
+    if (settingsCapture) cancelCapture();
+    else closeSettings();
+    return;
+  }
   // clicking off a row while listening abandons the capture rather than
   // leaving it armed for the next keystroke
   if (settingsCapture && !e.target.closest('.set-row.listening')) cancelCapture();
@@ -6195,6 +6254,7 @@ window.__test = {
     if (wins[i]) { wins[i].children = kids; refresh(); }
   },
   paletteBlocked: type => blockedReason(type),
+  resetPanelLayout: () => resetPanelLayout(),
   setWidgets: kids => {
     let win = doc.children.find(n => n.type === 'window');
     if (!win) { win = makeNode('window'); doc.children.push(win); }
@@ -6418,6 +6478,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=80789fa25e"></script>
+<script src="engine.js?v=760bee6137"></script>
 </body>
 </html>

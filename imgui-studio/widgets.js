@@ -66,7 +66,7 @@ const WIDGETS = {
     name: 'Window', cat: 'Window', container: true, rootOnly: true,
     props: [
       ['label', 'text', 'My Panel'],
-      ['x', 'float', 30, PX], ['y', 'float', 30, PX],
+      ['x', 'float', 30, PX], ['y', 'float', 30, PX],   // PX floors at 0
       ['w', 'float', 380, PX], ['h', 'float', 460, PX],
       ['noTitleBar', 'bool', false], ['noResize', 'bool', false], ['noMove', 'bool', false],
       ['noScrollbar', 'bool', false], ['noCollapse', 'bool', false], ['autoResize', 'bool', false],
