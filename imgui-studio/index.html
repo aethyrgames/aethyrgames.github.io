@@ -367,6 +367,13 @@
     color: var(--mk-cyan); border-color: var(--mk-cyan);
   }
   #palette button:active { background: var(--mk-gutter); }
+  /* offered but not usable yet: the tooltip says what is missing */
+  #palette button.blocked {
+    opacity: 0.38; cursor: not-allowed; background: transparent;
+  }
+  #palette button.blocked:hover {
+    background: transparent; color: var(--mk-comment); border-color: var(--mk-border);
+  }
 
   #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
   .row {
@@ -972,9 +979,9 @@
     </div>
   </div>
 
-<script src="widgets.js?v=d31d65354b"></script>
+<script src="widgets.js?v=fcdb3be5d6"></script>
 <script src="imguidocs.js?v=b86a4253f9"></script>
-<script src="cpp.js?v=4ad1bd93e9"></script>
+<script src="cpp.js?v=3d135265dd"></script>
 <script>
 // ---------- document model ----------
 
@@ -987,8 +994,12 @@ const HOTBAR_KEYS = '0123456789-='.split('');
 const HOTBAR_KEY = 'imguistudio.hotbar';
 const hotbar = new Array(HOTBAR_KEYS.length).fill(null);
 
+// The document root holds windows. It is not itself a window: a panel design
+// can have several, and deleting the last one has to be possible without
+// leaving the document in an impossible state.
 const doc = {
-  type: 'window', id: 'root', label: 'My Panel', w: 380, h: 460,
+  type: 'root', id: 'root', children: [{
+  type: 'window', id: 'w1', label: 'My Panel', w: 380, h: 460,
   children: [
     { type: 'text',        id: 'n1', label: 'Engine settings' },
     { type: 'separator',   id: 'n2', label: '' },
@@ -999,6 +1010,7 @@ const doc = {
     { type: 'coloredit',   id: 'n7', label: 'Tint', n: 3 },
     { type: 'progressbar', id: 'n8', label: '', fraction: 0.4 },
   ],
+  }],
 };
 
 const DEFAULT_DOC = JSON.parse(JSON.stringify(doc));
@@ -1054,18 +1066,43 @@ function detach(id) {
 
 // drop = { parentId, index, sameline? }
 function insertAt(node, drop) {
-  const parent = findNode(drop.parentId) || doc;
+  let parent = findNode(drop.parentId) || doc;
+  // only a window may sit at the root, so anything else lands in one
+  if (parent === doc && node.type !== 'window') {
+    const wins = doc.children.filter(n => n.type === 'window');
+    if (!wins.length) return false;
+    parent = wins[wins.length - 1];
+    drop = { parentId: parent.id, index: (parent.children || []).length, sameline: drop.sameline };
+  }
+  if (parent !== doc && node.type === 'window') return false;
   if (!parent.children) parent.children = [];
   const i = Math.max(0, Math.min(drop.index, parent.children.length));
   if (drop.sameline) node.sameline = true; else delete node.sameline;
   parent.children.splice(i, 0, node);
+  return true;
+}
+
+// Where a newly added widget belongs. A window is a required root for
+// everything else, so this walks up from the selection to the nearest
+// container, and falls back to the last window rather than the document.
+function insertHost(type) {
+  if (WIDGETS[type] && WIDGETS[type].rootOnly) return doc;
+  const sel = selectedId ? findNode(selectedId) : null;
+  if (sel && sel !== doc) {
+    if (isContainer(sel) && sel.type !== 'window') return sel;
+    if (isContainer(sel)) return sel;
+    const p = findParent(sel.id);
+    if (p && p !== doc) return p;
+    if (p === doc) return sel;          // a window was selected via its child
+  }
+  const wins = doc.children.filter(n => n.type === 'window');
+  return wins.length ? wins[wins.length - 1] : null;
 }
 
 function addNode(type) {
   const node = makeNode(type);
-  // append into the selected container, otherwise at the end of the window
-  const sel = selectedId ? findNode(selectedId) : null;
-  const host = sel && isContainer(sel) ? sel : doc;
+  const host = insertHost(type);
+  if (!host) return;
   if (!host.children) host.children = [];
   host.children.push(node);
   // the new node becomes the whole selection: leaving the previous one in the
@@ -1079,7 +1116,7 @@ function addNode(type) {
 
 function insertNodeAt(type, drop) {
   const node = makeNode(type);
-  insertAt(node, drop);
+  if (!insertAt(node, drop)) return;
   selection.clear();
   selection.add(node.id);
   selectedId = node.id;
@@ -1260,9 +1297,17 @@ function selectedNodes() {
   return out;
 }
 
+// With a single window the widgets are what you are navigating; the window
+// itself is scaffolding. Descend through it so the arrows land where expected.
+function navRoot() {
+  const wins = doc.children.filter(n => n.type === 'window');
+  return wins.length === 1 ? wins[0] : doc;
+}
+
 function selectSibling(delta) {
   if (!selectedId || selectedId === 'root') {
-    if (doc.children.length) selectId(doc.children[delta < 0 ? doc.children.length - 1 : 0].id);
+    const r = navRoot();
+    if (r.children.length) selectId(r.children[delta < 0 ? r.children.length - 1 : 0].id);
     return;
   }
   const parent = findParent(selectedId);
@@ -1273,13 +1318,13 @@ function selectSibling(delta) {
 }
 
 function selectEdge(last) {
-  const parent = selectedId && selectedId !== 'root' ? findParent(selectedId) : doc;
-  const kids = (parent || doc).children;
+  const parent = selectedId && selectedId !== 'root' ? findParent(selectedId) : navRoot();
+  const kids = (parent || navRoot()).children;
   if (kids.length) selectId(kids[last ? kids.length - 1 : 0].id);
 }
 
 function descend() {
-  const node = selectedId ? findNode(selectedId) : doc;
+  const node = selectedId ? findNode(selectedId) : navRoot();
   const kids = (node && node.children) || [];
   if (kids.length) selectId(kids[0].id);
 }
@@ -1306,7 +1351,8 @@ function dropAfterSelection() {
     const parent = findParent(node.id);
     return { parentId: parent.id, index: parent.children.indexOf(node) + 1 };
   }
-  return { parentId: 'root', index: doc.children.length };
+  const r = navRoot();
+  return { parentId: r.id, index: r.children.length };
 }
 
 // The structure verbs are bound and labelled as selection verbs, so they act on
@@ -1461,7 +1507,7 @@ function pasteClipboard() {
 // container then stamping again would nest each insert inside the previous.
 function dropSiblingAfterSelection() {
   const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
-  if (!node) return { parentId: 'root', index: doc.children.length };
+  if (!node) { const r = navRoot(); return { parentId: r.id, index: r.children.length }; }
   const parent = findParent(node.id);
   return { parentId: parent.id, index: parent.children.indexOf(node) + 1 };
 }
@@ -1522,13 +1568,16 @@ function sanitizeColors(type, raw) {
   return Object.keys(out).length ? out : null;
 }
 
-function sanitize(list, ids) {
+function sanitize(list, ids, atRoot) {
   if (!Array.isArray(list)) return [];
   const out = [];
   for (const n of list) {
     if (!n || typeof n !== 'object' || typeof n.type !== 'string') continue;
     const spec = WIDGETS[n.type];
-    if (!spec || n.type === 'window') continue;
+    // a window is only meaningful at the root; anywhere else it is dropped
+    if (!spec || n.type === 'root') continue;
+    if (n.type === 'window' && !atRoot) continue;
+    if (n.type !== 'window' && atRoot) continue;
     const c = { type: n.type };
     // keep looking until the id really is free, or a document full of
     // duplicates would just get more duplicates
@@ -1540,7 +1589,7 @@ function sanitize(list, ids) {
     if (n.sameline === true) c.sameline = true;
     const cols = sanitizeColors(n.type, n.colors);
     if (cols) c.colors = cols;
-    if (spec.container) c.children = sanitize(n.children, ids);
+    if (spec.container) c.children = sanitize(n.children, ids, false);
     out.push(c);
   }
   return out;
@@ -1560,15 +1609,21 @@ function maxRawId(list, cur) {
 }
 
 // Replaces the working document in place so existing references stay valid.
-function applyDocData(d, savedNextId) {
+// Accepts either shape: a bare window (everything saved before multiple
+// windows existed) or a root holding windows.
+function asRootData(d) {
+  if (!d || typeof d !== 'object') return { type: 'root', children: [] };
+  if (d.type === 'root') return d;
+  return { type: 'root', children: [d], pre: d.pre, post: d.post };
+}
+
+function applyDocData(raw, savedNextId) {
+  const d = asRootData(raw);
   nextId = Math.max(savedNextId || 0, 100, maxRawId(d.children, 100));
   const ids = new Set(['root']);
-  doc.children = sanitize(d.children, ids);
-  for (const [k, t, def, opts] of WIDGETS.window.props) doc[k] = coerce(t, d[k], def, opts);
-  // the window carries colour overrides too, through the same filter
+  doc.children = sanitize(d.children, ids, true);
+  // code the user wrote around the windows lives on the root
   delete doc.colors;
-  const winCols = sanitizeColors('window', d.colors);
-  if (winCols) doc.colors = winCols;
   // hand-written C++ around the window survives save/load like any other content
   delete doc.pre; delete doc.post;
   if (typeof d.pre === 'string' && d.pre.trim()) doc.pre = d.pre;
@@ -1584,7 +1639,7 @@ function loadLocal() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
-    if (!s || !s.doc || s.doc.type !== 'window') return false;
+    if (!s || !s.doc || (s.doc.type !== 'root' && s.doc.type !== 'window')) return false;
     applyDocData(s.doc, s.nextId);
     return true;
   } catch (e) { return false; }
@@ -1620,7 +1675,7 @@ function loadProjects() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(PROJECTS_KEY) || 'null'); } catch (e) {}
   if (s && Array.isArray(s.projects) && s.projects.length) {
-    projects = s.projects.filter(p => p && p.doc && p.doc.type === 'window');
+    projects = s.projects.filter(p => p && p.doc && (p.doc.type === 'root' || p.doc.type === 'window'));
     projectSeq = s.projectSeq || projects.length + 1;
     activeProject = projects.some(p => p.id === s.activeProject) ? s.activeProject : projects[0].id;
   }
@@ -1630,7 +1685,7 @@ function loadProjects() {
     const had = loadLocal();
     projects = [{
       id: newProjectId(),
-      name: had ? (doc.label || 'Untitled') : 'Untitled',
+      name: 'Untitled',
       doc: JSON.parse(JSON.stringify(doc)),
       nextId,
     }];
@@ -1834,7 +1889,7 @@ function updateHoverStatus(e) {
   const pos = `<i>${p.x}, ${p.y}</i>`;
   if (!node) { hoverInfoEl.innerHTML = pos; return; }
   const spec = WIDGETS[node.type] || {};
-  const label = node === doc ? (doc.label || 'Window') : (node.label || spec.name || node.type);
+  const label = node === doc ? 'Document' : (node.label || spec.name || node.type);
   hoverInfoEl.innerHTML = `<b>${esc(label)}</b> <i>${esc(spec.name || node.type)}</i> · `
     + `${Math.round(hit.w)}x${Math.round(hit.h)} at ${Math.round(hit.x)}, ${Math.round(hit.y)} · ${pos}`;
 }
@@ -2034,7 +2089,7 @@ function updateMarquee() {
 
   const hits = new Set(m.base);
   walk(doc, n => {
-    if (n === doc) return;
+    if (n === doc || n.type === 'window') return;
     const r = rectFor(n.id);
     if (!r) return;
     // Containers only when fully enclosed; a marquee that merely clips one
@@ -3144,49 +3199,88 @@ function generateCode() {
     claimLines();
   };
 
-  const kids = doc.children || [];
-  for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, 'window', false);
+  // One struct and one function per window. That is what a window is in ImGui
+  // terms, and it means a document with three panels reads as three functions
+  // rather than one long one.
+  const windows = (doc.children || []).filter(n => n.type === 'window');
+  const sections = [];
+  const usedFnNames = new Set();
 
-  const base = pascal(doc.label, 'MyPanel');
-  const flags = WINDOW_FLAGS.filter(([k]) => doc[k]).map(([, f]) => 'ImGuiWindowFlags_' + f);
-  if (kids.some(c => c.type === 'menubar')) flags.push('ImGuiWindowFlags_MenuBar');
+  for (const win of windows) {
+    out.length = 0;
+    owners.length = 0;
+    fields.length = 0;
+    fieldSeen.clear();
+    usedNames.clear();
+    groupNames.clear();
+    labelCount.clear();
 
-  const head = [];
-  head.push('// Generated by ImGuiStudio');
-  head.push('');
-  head.push(`struct ${base}State`);
-  head.push('{');
-  for (const f of fields) head.push('    ' + f);
-  head.push('};');
-  head.push('');
-  head.push(`void Draw${base}(${base}State& state)`);
-  head.push('{');
-  if (flags.length) head.push(`    ImGuiWindowFlags flags = ${flags.join(' | ')};`);
-  if (doc.w > 0 || doc.h > 0) {
-    head.push(`    ImGui::SetNextWindowSize(ImVec2(${f(doc.w)}, ${f(doc.h)}), ImGuiCond_FirstUseEver);`);
+    const kids = win.children || [];
+    for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, 'window', false);
+
+    let base = pascal(win.label, 'MyPanel');
+    let n = 2;
+    while (usedFnNames.has(base)) base = pascal(win.label, 'MyPanel') + n++;
+    usedFnNames.add(base);
+
+    const flags = WINDOW_FLAGS.filter(([k]) => win[k]).map(([, f]) => 'ImGuiWindowFlags_' + f);
+    if (kids.some(c => c.type === 'menubar')) flags.push('ImGuiWindowFlags_MenuBar');
+
+    const head = [];
+    head.push(`struct ${base}State`);
+    head.push('{');
+    for (const fld of fields) head.push('    ' + fld);
+    head.push('};');
+    head.push('');
+    head.push(`void Draw${base}(${base}State& state)`);
+    head.push('{');
+    if (flags.length) head.push(`    ImGuiWindowFlags flags = ${flags.join(' | ')};`);
+    if (win.w > 0 || win.h > 0) {
+      head.push(`    ImGui::SetNextWindowSize(ImVec2(${f(win.w)}, ${f(win.h)}), ImGuiCond_FirstUseEver);`);
+    }
+    // Window colours have to be pushed before Begin: WindowBg and the title-bar
+    // slots are read while the window is being opened, not while it is filled.
+    const winCols = Object.entries(win.colors || {})
+      .filter(([slot]) => colorSlots('window').includes(slot));
+    for (const [slot, c] of winCols) {
+      head.push(`    ImGui::PushStyleColor(ImGuiCol_${slot}, `
+        + `ImVec4(${f(c[0])}, ${f(c[1])}, ${f(c[2])}, ${f(c[3] === undefined ? 1 : c[3])}));`);
+    }
+    head.push(`    ImGui::Begin(${q(win.label || 'My Panel')}${flags.length ? ', nullptr, flags' : ''});`);
+    const tail = ['    ImGui::End();'];
+    if (winCols.length) tail.push(`    ImGui::PopStyleColor(${winCols.length});`);
+    tail.push('}');
+    sections.push({
+      win, head, body: out.slice(),
+      owners: head.map(() => null)
+        .concat(Array.from({ length: out.length }, (_, i) => owners[i] || win.id), tail.map(() => null)),
+      tail,
+    });
   }
-  // Code the user wrote around the window in the C++ pane, replayed at the same
-  // spot so editing the document can't delete it.
-  if (doc.pre) for (const l of String(doc.pre).split('\n')) head.push(l ? '    ' + l : '');
-  // Window colours have to be pushed before Begin: WindowBg and the title-bar
-  // slots are read while the window is being opened, not while it is filled.
-  const winCols = Object.entries(doc.colors || {})
-    .filter(([slot]) => colorSlots('window').includes(slot));
-  for (const [slot, c] of winCols) {
-    head.push(`    ImGui::PushStyleColor(ImGuiCol_${slot}, `
-      + `ImVec4(${f(c[0])}, ${f(c[1])}, ${f(c[2])}, ${f(c[3] === undefined ? 1 : c[3])}));`);
+
+  const lines = ['// Generated by ImGuiStudio', ''];
+  let allOwners = [null, null];
+  // code the user wrote around the whole file, kept verbatim
+  if (doc.pre) {
+    for (const l of String(doc.pre).split('\n')) { lines.push(l); allOwners.push(null); }
+    lines.push('');
+    allOwners.push(null);
   }
-  head.push(`    ImGui::Begin(${q(doc.label || 'My Panel')}${flags.length ? ', nullptr, flags' : ''});`);
-  const tail = ['    ImGui::End();'];
-  if (winCols.length) tail.push(`    ImGui::PopStyleColor(${winCols.length});`);
-  if (doc.post) for (const l of String(doc.post).split('\n')) tail.push(l ? '    ' + l : '');
-  tail.push('}');
+  sections.forEach((sec, i) => {
+    if (i) { lines.push(''); allOwners.push(null); }
+    lines.push(...sec.head, ...sec.body, ...sec.tail);
+    allOwners = allOwners.concat(sec.owners);
+  });
+  if (doc.post) {
+    lines.push('');
+    allOwners.push(null);
+    for (const l of String(doc.post).split('\n')) { lines.push(l); allOwners.push(null); }
+  }
+
   generateCode.skipped = skipped;
-  // Shift the ownership map onto the final line numbering for revealInCode.
-  generateCode.owners = head.map(() => null)
-    .concat(Array.from({ length: out.length }, (_, i) => owners[i] || null),
-      tail.map(() => null));
-  return head.concat(out, tail).join('\n');
+  // already shifted onto the final line numbering, section by section
+  generateCode.owners = allOwners;
+  return lines.join('\n');
 }
 
 // Monokai-family highlighter for the code pane: a single-pass tokenizer whose
@@ -4139,6 +4233,27 @@ function saveCats() {
   try { localStorage.setItem(CAT_KEY, JSON.stringify(catOpen)); } catch (e) {}
 }
 
+// A widget that can only live inside a particular container. Offering it when
+// that container does not exist just produces a placeholder, so the button is
+// disabled and says why instead.
+const NEEDS_CONTAINER = {
+  tabitem: ['tabbar', 'a Tab bar'],
+  menuitem: ['menu', 'a Menu'],
+  menu: ['menubar', 'a Menu bar'],
+};
+
+function blockedReason(type) {
+  const wins = doc.children.filter(n => n.type === 'window');
+  if (!wins.length && type !== 'window') {
+    return 'Add a Window first: every widget lives inside one.';
+  }
+  const need = NEEDS_CONTAINER[type];
+  if (!need) return null;
+  let found = false;
+  walk(doc, n => { if (n.type === need[0]) found = true; });
+  return found ? null : `Needs ${need[1]}. Add one, then put this inside it.`;
+}
+
 function paletteButton(type, spec) {
   const b = document.createElement('button');
   const lbl = document.createElement('span');
@@ -4148,8 +4263,15 @@ function paletteButton(type, spec) {
   b.dataset.type = type;
   const fam = FAMILY_OF[type];
   const slot = hotbar.indexOf(type);
-  b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas'
-    + (fam ? '. Key: ' + fam : '') + (slot >= 0 ? '. Hotbar: ' + HOTBAR_KEYS[slot] : '');
+  const blocked = blockedReason(type);
+  if (blocked) {
+    b.disabled = true;
+    b.classList.add('blocked');
+    b.title = blocked;
+  } else {
+    b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas'
+      + (fam ? '. Key: ' + fam : '') + (slot >= 0 ? '. Hotbar: ' + HOTBAR_KEYS[slot] : '');
+  }
   const badge = slot >= 0 ? HOTBAR_KEYS[slot] : fam;
   if (badge) {
     const k = document.createElement('span');
@@ -4159,7 +4281,7 @@ function paletteButton(type, spec) {
     b.appendChild(k);
   }
   b.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || b.disabled) return;
     e.preventDefault();
     drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
   });
@@ -4793,13 +4915,13 @@ function renderProps() {
   const ident = document.createElement('div');
   ident.className = 'propident';
   const nb = document.createElement('b');
-  nb.textContent = node === doc ? (doc.label || 'Window') : (node.label || spec.name || node.type);
+  nb.textContent = node === doc ? 'Document' : (node.label || spec.name || node.type);
   ident.appendChild(nb);
   const ns = document.createElement('span');
   ns.textContent = spec.name || node.type;
   ident.appendChild(ns);
   host.appendChild(ident);
-  addHead(node === doc ? 'window' : 'properties');
+  addHead(node === doc ? titleCase('document') : titleCase('properties'));
 
   const propDefs = spec.props || [];
   const byKey = Object.fromEntries(propDefs.map(p => [p[0], p]));
@@ -5072,17 +5194,12 @@ applyBtn.onclick = () => {
   const before = countNodes(doc.children);
   const ids = new Set(['root']);
   nextId = Math.max(nextId, result.nextId);
-  const cleaned = sanitize(result.children, ids);
+  const cleaned = sanitize(result.windows, ids, true);
   const after = countNodes(cleaned);
   const raws = countType(cleaned, 'rawcode');
 
   doc.children = cleaned;
-  if (result.windowLabel !== null && result.windowLabel !== undefined) {
-    doc.label = result.windowLabel;
-  }
-  const winCols = sanitizeColors('window', result.windowColors);
-  if (winCols) doc.colors = winCols; else delete doc.colors;
-  // code the user wrote around the window, kept so Apply never eats it
+  // code the user wrote around the windows, kept so Apply never eats it
   if (result.pre) doc.pre = result.pre; else delete doc.pre;
   if (result.post) doc.post = result.post; else delete doc.post;
   clearSelection();
@@ -5312,7 +5429,8 @@ function builtinTemplates() {
       id: 'builtin:' + name,
       name,
       builtin: true,
-      doc: Object.assign(JSON.parse(JSON.stringify(DEFAULT_DOC)), { label: name, children: kids }),
+      doc: { type: 'root', children: [
+        Object.assign(makeNode('window'), { id: 'tw', label: name, children: kids })] },
     };
   });
 }
@@ -5398,7 +5516,8 @@ function renderTemplates() {
 }
 
 function saveCurrentAsTemplate() {
-  const base = (doc.label || 'Template').trim();
+  const firstWin = doc.children.find(n => n.type === 'window');
+  const base = ((firstWin && firstWin.label) || 'Template').trim();
   let name = base;
   let i = 2;
   while (templates.some(t => t.name === name)) name = base + ' ' + (i++);
@@ -5474,7 +5593,7 @@ function importPayload(s) {
     return 'imported everything';
   }
   const d = s.doc || s;
-  if (!d || d.type !== 'window') throw new Error('no window document in that file');
+  if (!d || (d.type !== 'root' && d.type !== 'window')) throw new Error('not an ImGuiStudio document');
   addProject(d.label || 'Imported', d);
   saveProjects();
   return 'opened as a new project';
@@ -5538,7 +5657,7 @@ async function loadSharedFromUrl() {
   if (!m) return false;
   try {
     const payload = await decodeShare(m[1]);
-    if (!payload || !payload.doc || payload.doc.type !== 'window') return false;
+    if (!payload || !payload.doc || (payload.doc.type !== 'root' && payload.doc.type !== 'window')) return false;
     addProject(payload.doc.label || 'Shared', payload.doc);
     saveProjects();
     history.replaceState(null, '', location.pathname + location.search);
@@ -5891,6 +6010,26 @@ importTplFile.onchange = async e => {
 window.__test = {
   rects: () => latestRects,
   doc: () => doc,
+  // the widgets of the first window: what "the document" used to mean
+  widgets: () => (doc.children.find(n => n.type === 'window') || { children: [] }).children,
+  windows: () => doc.children.filter(n => n.type === 'window'),
+  addWindow: label => {
+    const w = Object.assign(makeNode('window'), { label: label || 'Window' });
+    doc.children.push(w);
+    refresh();
+    return w.id;
+  },
+  setWidgetsIn: (i, kids) => {
+    const wins = doc.children.filter(n => n.type === 'window');
+    if (wins[i]) { wins[i].children = kids; refresh(); }
+  },
+  paletteBlocked: type => blockedReason(type),
+  setWidgets: kids => {
+    let win = doc.children.find(n => n.type === 'window');
+    if (!win) { win = makeNode('window'); doc.children.push(win); }
+    win.children = kids;
+    refresh();
+  },
   selected: () => selectedId,
   select: id => selectId(id),
   selection: () => [...selection],
@@ -6021,14 +6160,16 @@ window.__test = {
   },
   addAll: () => {
     // one of every widget type, containers nested so the tree is exercised
+    const win = doc.children.find(n => n.type === 'window')
+      || doc.children[doc.children.push(makeNode('window')) - 1];
     for (const [type, spec] of Object.entries(WIDGETS)) {
-      if (spec.hidden) continue;
+      if (spec.hidden || spec.rootOnly) continue;
       const node = makeNode(type);
-      doc.children.push(node);
+      win.children.push(node);
       if (spec.container) node.children.push(makeNode('text'));
     }
     refresh();
-    return doc.children.length;
+    return win.children.length;
   },
   // Arrangements ImGui asserts on. The engine must survive all of these,
   // because an assert aborts the wasm module and kills the preview outright.
@@ -6042,9 +6183,11 @@ window.__test = {
     const tbl = makeNode('table'); tbl.cols = 0;    // BeginTable asserts on < 1
     const tbl2 = makeNode('table'); tbl2.cols = 9999;
     const ti = makeNode('tabitem');                 // tab item with no tab bar
-    doc.children.push(nested, grp, ab, ab2, tbl, tbl2, ti);
+    const win = doc.children.find(n => n.type === 'window')
+      || doc.children[doc.children.push(makeNode('window')) - 1];
+    win.children.push(nested, grp, ab, ab2, tbl, tbl2, ti);
     refresh();
-    return doc.children.length;
+    return win.children.length;
   },
   canvasOrigin: () => {
     const r = canvas.getBoundingClientRect();
@@ -6101,6 +6244,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=9c573e79f8"></script>
+<script src="engine.js?v=d1a36586b8"></script>
 </body>
 </html>

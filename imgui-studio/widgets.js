@@ -57,8 +57,13 @@ const DIRS = [['Left', 0], ['Right', 1], ['Up', 2], ['Down', 3]];
 
 const WIDGETS = {
   // ---------------------------------------------------------------- Window
+  // The document root. Holds windows and nothing else, and never appears in
+  // the palette: you add windows, not roots.
+  root: {
+    name: 'Document', cat: 'Window', hidden: true, container: true, props: [],
+  },
   window: {
-    name: 'Window', cat: 'Window', hidden: true, container: true,
+    name: 'Window', cat: 'Window', container: true, rootOnly: true,
     props: [
       ['label', 'text', 'My Panel'], ['w', 'float', 380, PX], ['h', 'float', 460, PX],
       ['noTitleBar', 'bool', false], ['noResize', 'bool', false], ['noMove', 'bool', false],
@@ -441,7 +446,7 @@ function itemList(s) {
     .join(', ');
 }
 
-const CATEGORIES = ['Text', 'Buttons', 'Input', 'Sliders', 'Drags', 'Color',
+const CATEGORIES = ['Window', 'Text', 'Buttons', 'Input', 'Sliders', 'Drags', 'Color',
   'Choice', 'Plots', 'Layout', 'Containers', 'Menus', 'Popups'];
 
 // Colour slots offered per category. Offering an ImGuiCol_ a widget never reads
