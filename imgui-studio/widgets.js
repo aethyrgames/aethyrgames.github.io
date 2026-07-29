@@ -404,3 +404,19 @@ function itemList(s) {
 
 const CATEGORIES = ['Text', 'Buttons', 'Input', 'Sliders', 'Drags', 'Color',
   'Choice', 'Plots', 'Layout', 'Containers', 'Menus', 'Popups'];
+
+// Arming families (docs/CONTROLS.md). A bare letter arms the family's first
+// widget, pressing it again cycles forward, Shift+letter cycles backward.
+// Letters must never collide with the single-key verbs (V J R) or chords.
+const FAMILIES = {
+  B: ['button', 'smallbutton', 'arrowbutton'],
+  T: ['text', 'textcolored', 'textdisabled', 'textwrapped', 'bullettext', 'separatortext'],
+  C: ['checkbox', 'radiobutton', 'selectable'],
+  S: ['sliderfloat', 'sliderint', 'sliderangle', 'vsliderfloat', 'vsliderint'],
+  D: ['dragfloat', 'dragint', 'dragfloatrange2', 'dragintrange2'],
+  I: ['inputtext', 'inputtextmultiline', 'inputtextwithhint', 'inputint', 'inputfloat', 'inputdouble'],
+  P: ['coloredit', 'colorpicker', 'colorbutton'],
+  L: ['combo', 'listbox', 'progressbar', 'plotlines', 'plothistogram'],
+  G: ['group', 'child', 'collapsingheader', 'treenode', 'tabbar', 'table'],
+  M: ['menubar', 'menu', 'menuitem', 'popup', 'modal', 'tooltip'],
+};

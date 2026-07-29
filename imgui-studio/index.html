@@ -207,6 +207,41 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--mk-border); border-radius: 5px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--mk-comment); }
+
+  #palette button { position: relative; }
+  #palette button .kbd {
+    position: absolute; top: 0; right: 4px; font-size: 9px; color: var(--mk-comment);
+  }
+  #palette button.armedbtn { color: var(--mk-green); border-color: var(--mk-green); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+    display: flex; align-items: flex-start; justify-content: center; z-index: 20;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay-box {
+    margin-top: 11vh; width: 500px; max-height: 64vh; display: flex; flex-direction: column;
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+  }
+  .overlay-box input {
+    margin: 8px; padding: 6px 8px; background: var(--mk-gutter); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: var(--radius);
+    font-family: var(--font); font-size: 12px;
+  }
+  .overlay-box input:focus { outline: none; border-color: var(--mk-cyan); }
+  .ov-list { overflow-y: auto; padding: 0 4px 6px; }
+  .ov-item {
+    display: flex; gap: 8px; padding: 4px 8px; cursor: pointer;
+    border-radius: var(--radius); align-items: baseline;
+  }
+  .ov-item.sel, .ov-item:hover { background: rgba(255, 255, 255, 0.06); }
+  .ov-item .k { margin-left: auto; color: var(--mk-comment); font-size: 10px; white-space: nowrap; }
+  .ov-cat {
+    color: var(--mk-comment); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.07em; padding: 7px 8px 2px;
+  }
+  .ov-cat::before { content: '// '; }
 </style>
 <style id="themeStyle"></style>
 </head>
@@ -266,6 +301,19 @@
   </div>
 
   <div id="ghost"></div>
+
+  <div id="cmdk" class="overlay" hidden>
+    <div class="overlay-box">
+      <input type="text" id="cmdkInput" placeholder="search...">
+      <div id="cmdkList" class="ov-list"></div>
+    </div>
+  </div>
+  <div id="helpov" class="overlay" hidden>
+    <div class="overlay-box">
+      <input type="text" id="helpInput" placeholder="filter shortcuts...">
+      <div id="helpList" class="ov-list"></div>
+    </div>
+  </div>
 
 <script src="widgets.js"></script>
 <script>
@@ -356,6 +404,7 @@ function addNode(type) {
   if (!host.children) host.children = [];
   host.children.push(node);
   selectedId = node.id;
+  lastInsertType = type;
   refresh();
 }
 
@@ -363,6 +412,7 @@ function insertNodeAt(type, drop) {
   const node = makeNode(type);
   insertAt(node, drop);
   selectedId = node.id;
+  lastInsertType = type;
   refresh();
 }
 
@@ -382,7 +432,8 @@ function moveNodeTo(id, drop) {
 
 function removeNode(id) {
   detach(id);
-  if (selectedId === id) selectedId = null;
+  // the selection may have been a descendant of the removed subtree
+  if (selectedId && selectedId !== 'root' && !findNode(selectedId)) selectedId = null;
   refresh();
 }
 
@@ -394,6 +445,222 @@ function moveNode(id, delta) {
   if (i < 0 || j < 0 || j >= parent.children.length) return;
   [parent.children[i], parent.children[j]] = [parent.children[j], parent.children[i]];
   refresh();
+}
+
+// ---------- history (undo/redo) ----------
+
+const history = []; // { docStr, sel }
+let histIndex = -1;
+let lastHistAt = 0;
+let lastCoalescible = false;
+
+// Only document changes create entries. Selection is carried along for restore
+// but never compared, or arrow-key browsing would flood the ring and push real
+// edits out of reach.
+function pushHistory(coalesce) {
+  const docStr = JSON.stringify({ doc, nextId });
+  if (histIndex >= 0 && history[histIndex].docStr === docStr) return;
+  const now = Date.now();
+  history.length = histIndex + 1;
+  // A burst only merges into an entry that was itself a coalescible edit.
+  // Without that check, typing right after an insert would overwrite the
+  // insert's snapshot and undo would delete the widget instead of the label.
+  if (coalesce && lastCoalescible && histIndex > 0 && now - lastHistAt < 1000) {
+    history[histIndex] = { docStr, sel: selectedId };
+  } else {
+    history.push({ docStr, sel: selectedId });
+    histIndex = history.length - 1;
+    if (history.length > 100) { history.shift(); histIndex--; }
+  }
+  lastCoalescible = !!coalesce;
+  lastHistAt = now;
+}
+
+// bypasses refresh() so restoring can't push a new history entry
+function restoreSnapshot(entry) {
+  const s = JSON.parse(entry.docStr);
+  doc.children = s.doc.children;
+  for (const [k] of WIDGETS.window.props) doc[k] = s.doc[k];
+  nextId = s.nextId;
+  selectedId = entry.sel;
+  if (selectedId && selectedId !== 'root' && !findNode(selectedId)) selectedId = null;
+  renderTree();
+  renderProps();
+  renderCode();
+  pushDoc();
+  saveLocal();
+}
+
+function undo() { if (histIndex > 0) { histIndex--; restoreSnapshot(history[histIndex]); } }
+function redo() { if (histIndex < history.length - 1) { histIndex++; restoreSnapshot(history[histIndex]); } }
+
+// ---------- selection navigation and structure verbs ----------
+
+function selectId(id) { selectedId = id; refresh(); }
+
+function selectSibling(delta) {
+  if (!selectedId || selectedId === 'root') {
+    if (doc.children.length) selectId(doc.children[delta < 0 ? doc.children.length - 1 : 0].id);
+    return;
+  }
+  const parent = findParent(selectedId);
+  if (!parent) return;
+  const i = parent.children.findIndex(n => n.id === selectedId);
+  const j = Math.max(0, Math.min(parent.children.length - 1, i + delta));
+  if (j !== i) selectId(parent.children[j].id);
+}
+
+function selectEdge(last) {
+  const parent = selectedId && selectedId !== 'root' ? findParent(selectedId) : doc;
+  const kids = (parent || doc).children;
+  if (kids.length) selectId(kids[last ? kids.length - 1 : 0].id);
+}
+
+function descend() {
+  const node = selectedId ? findNode(selectedId) : doc;
+  const kids = (node && node.children) || [];
+  if (kids.length) selectId(kids[0].id);
+}
+
+function ascend() {
+  if (!selectedId) return;
+  if (selectedId === 'root') { selectId(null); return; }
+  const parent = findParent(selectedId);
+  selectId(parent ? parent.id : null);
+}
+
+function cloneWithNewIds(node) {
+  const copy = JSON.parse(JSON.stringify(node));
+  walk(copy, n => { n.id = 'n' + (nextId++); });
+  return copy;
+}
+
+// where an insert lands relative to the selection: inside a selected
+// container, after a selected leaf, or at the end of the window
+function dropAfterSelection() {
+  const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
+  if (node && isContainer(node)) return { parentId: node.id, index: (node.children || []).length };
+  if (node) {
+    const parent = findParent(node.id);
+    return { parentId: parent.id, index: parent.children.indexOf(node) + 1 };
+  }
+  return { parentId: 'root', index: doc.children.length };
+}
+
+function reorderSelection(delta, extreme) {
+  const node = selectedId && findNode(selectedId);
+  if (!node || node === doc) return;
+  const parent = findParent(node.id);
+  const i = parent.children.indexOf(node);
+  let j = extreme ? (delta < 0 ? 0 : parent.children.length - 1) : i + delta;
+  j = Math.max(0, Math.min(parent.children.length - 1, j));
+  if (i === j) return;
+  parent.children.splice(i, 1);
+  parent.children.splice(j, 0, node);
+  refresh();
+}
+
+function wrapSelection() {
+  const node = selectedId && findNode(selectedId);
+  if (!node || node === doc) return;
+  const parent = findParent(node.id);
+  const idx = parent.children.indexOf(node);
+  const grp = makeNode('group');
+  if (node.sameline) { grp.sameline = true; delete node.sameline; }
+  parent.children.splice(idx, 1);
+  grp.children.push(node);
+  parent.children.splice(idx, 0, grp);
+  selectId(grp.id);
+}
+
+function unwrapSelection() {
+  const node = selectedId && findNode(selectedId);
+  if (!node || node === doc || !isContainer(node)) return;
+  const parent = findParent(node.id);
+  const idx = parent.children.indexOf(node);
+  const kids = node.children || [];
+  // the container may be carrying a join that wrapSelection moved onto it
+  if (node.sameline && kids[0]) kids[0].sameline = true;
+  parent.children.splice(idx, 1, ...kids);
+  selectId(kids[0] ? kids[0].id : parent.id);
+}
+
+function toggleJoin() {
+  const node = selectedId && findNode(selectedId);
+  if (!node || node === doc) return;
+  if (node.sameline) delete node.sameline;
+  else node.sameline = true;
+  refresh();
+}
+
+function duplicateSelection() {
+  const node = selectedId && findNode(selectedId);
+  if (!node || node === doc) return;
+  const parent = findParent(node.id);
+  const copy = cloneWithNewIds(node);
+  insertAt(copy, {
+    parentId: parent.id,
+    index: parent.children.indexOf(node) + 1,
+    sameline: !!node.sameline,
+  });
+  selectId(copy.id);
+}
+
+function duplicateTo(id, drop) {
+  const node = findNode(id);
+  if (!node) return;
+  const copy = cloneWithNewIds(node);
+  insertAt(copy, drop);
+  selectId(copy.id);
+}
+
+function deleteSelection() {
+  const node = selectedId && findNode(selectedId);
+  if (!node || node === doc) return;
+  const parent = findParent(node.id);
+  const i = parent.children.indexOf(node);
+  detach(node.id);
+  const next = parent.children[i] || parent.children[i - 1];
+  selectId(next ? next.id : (parent === doc ? null : parent.id));
+}
+
+// ---------- clipboard and repeat ----------
+
+let clipboardNode = null;
+let lastInsertType = null;
+
+function copySelection() {
+  const node = selectedId && selectedId !== 'root' && findNode(selectedId);
+  if (!node) return false;
+  clipboardNode = JSON.stringify(node);
+  return true;
+}
+
+function cutSelection() {
+  if (copySelection()) deleteSelection();
+}
+
+function pasteClipboard() {
+  if (!clipboardNode) return;
+  const node = cloneWithNewIds(JSON.parse(clipboardNode));
+  const drop = dropAfterSelection();
+  // a joined widget stays joined through cut/copy+paste, matching Ctrl+D
+  if (node.sameline) drop.sameline = true;
+  insertAt(node, drop);
+  selectId(node.id);
+}
+
+// Stamping repeats want siblings: with dropAfterSelection, inserting a
+// container then stamping again would nest each insert inside the previous.
+function dropSiblingAfterSelection() {
+  const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
+  if (!node) return { parentId: 'root', index: doc.children.length };
+  const parent = findParent(node.id);
+  return { parentId: parent.id, index: parent.children.indexOf(node) + 1 };
+}
+
+function repeatInsert() {
+  if (lastInsertType) insertNodeAt(lastInsertType, dropSiblingAfterSelection());
 }
 
 function saveLocal() {
@@ -484,6 +751,7 @@ function loadLocal() {
 let engineReady = false;
 let editMode = true;
 let latestRects = [];
+let engineWantsText = false;
 
 function pushDoc() {
   if (!engineReady) return;
@@ -496,8 +764,8 @@ var Module = {
   printErr: t => console.warn(t),
   onRuntimeInitialized: () => {
     engineReady = true;
-    document.getElementById('status').textContent =
-      'engine: running (real Dear ImGui via wasm) — ' + paletteCount + ' widget types';
+    statusBase = 'engine: running (real Dear ImGui via wasm) — ' + paletteCount + ' widget types';
+    updateArmedUI(); // writes statusBase without clobbering an active armed line
     Module.ccall('engine_show_demo', null, ['number'], [document.getElementById('demoToggle').checked ? 1 : 0]);
     Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
     pushDoc();
@@ -547,28 +815,42 @@ function updateSelectionOverlay() {
   selbox.style.height = (r.h + 4) + 'px';
 }
 
-function tick() {
-  if (engineReady) {
+function pollEngine() {
+  if (!engineReady) return;
+  try {
+    // the ccall itself throws after a wasm abort, so it must sit inside the
+    // try or one abort would kill the rAF chain and spam the interval backstop
     const raw = Module.ccall('engine_get_rects', 'string', [], []);
-    try {
-      const payload = JSON.parse(raw);
-      latestRects = payload.rects || [];
-      // mirror engine state: the demo can be closed via its own titlebar X
-      const demoToggle = document.getElementById('demoToggle');
-      if (typeof payload.showDemo === 'boolean' && demoToggle.checked !== payload.showDemo) {
-        demoToggle.checked = payload.showDemo;
-      }
-    } catch (e) { latestRects = []; }
-    updateSelectionOverlay();
+    const payload = JSON.parse(raw);
+    latestRects = payload.rects || [];
+    engineWantsText = !!payload.wantText;
+    // mirror engine state: the demo can be closed via its own titlebar X
+    const demoToggle = document.getElementById('demoToggle');
+    if (typeof payload.showDemo === 'boolean' && demoToggle.checked !== payload.showDemo) {
+      demoToggle.checked = payload.showDemo;
+    }
+  } catch (e) {
+    if (!pollEngine.reported) { pollEngine.reported = true; console.warn('[tick] ' + (e && e.stack || e)); }
+    latestRects = [];
   }
+  updateSelectionOverlay();
+}
+
+function tick() {
+  pollEngine();
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
+// rAF stops entirely while the window is occluded (locked screen, minimized),
+// so a timer backstop keeps selection and drop targeting alive regardless
+setInterval(pollEngine, 100);
 
 // drag = { kind: 'palette'|'move', type?, nodeId?, started, startX, startY, drop }
 let drag = null;
 
-function computeDropTarget(p) {
+// excludeId keeps a move-drag from targeting itself or its own subtree, and
+// forceJoin (held Shift) turns any leaf hit into a SameLine drop.
+function computeDropTarget(p, excludeId, forceJoin) {
   if (!p.inside) return null;
   const hit = hitTest(p);
   if (!hit) return null;
@@ -576,7 +858,7 @@ function computeDropTarget(p) {
   if (!node) return null;
   // Hovering the dragged node or its own subtree has no valid answer, so the
   // drop is a no-op rather than a surprise move to the bottom of the panel.
-  if (drag && drag.kind === 'move' && (node.id === drag.nodeId || isAncestor(drag.nodeId, node.id))) {
+  if (excludeId && (node.id === excludeId || isAncestor(excludeId, node.id))) {
     return null;
   }
   if (node.id === doc.id) {
@@ -584,22 +866,21 @@ function computeDropTarget(p) {
   }
   const parent = findParent(node.id) || doc;
   const idx = parent.children.indexOf(node);
-  if (isContainer(node)) {
+  if (isContainer(node) && !forceJoin) {
     // upper third inserts before the container, the rest drops inside it
     if (p.y < hit.y + hit.h / 3) {
       return { parentId: parent.id, index: idx, anchorId: node.id, pos: 'above' };
     }
     return { parentId: node.id, index: (node.children || []).length, anchorId: node.id, pos: 'inside' };
   }
-  if (p.x >= hit.x + hit.w * 0.55) {
+  if (forceJoin || p.x >= hit.x + hit.w * 0.55) {
     return { parentId: parent.id, index: idx + 1, sameline: true, anchorId: node.id, pos: 'right' };
   }
   const above = p.y < hit.y + hit.h / 2;
   return { parentId: parent.id, index: above ? idx : idx + 1, anchorId: node.id, pos: above ? 'above' : 'below' };
 }
 
-function updateDropIndicator() {
-  const drop = drag && drag.drop;
+function updateDropIndicator(drop) {
   dropline.style.display = 'none';
   dropbox.style.display = 'none';
   if (!drop) return;
@@ -629,12 +910,22 @@ function updateDropIndicator() {
 
 canvas.addEventListener('mousedown', e => {
   if (!editMode || e.button !== 0) return;
-  const hit = hitTest(canvasPoint(e));
+  const p = canvasPoint(e);
+  if (armed) {
+    const drop = computeDropTarget(p, null, e.shiftKey);
+    if (drop) stampArmed(drop);
+    return;
+  }
+  const hit = hitTest(p);
   if (hit) {
     selectedId = hit.id;
     refresh();
     if (hit.id !== doc.id) {
-      drag = { kind: 'move', nodeId: hit.id, started: false, startX: e.clientX, startY: e.clientY, drop: null };
+      // Alt at drag start means duplicate instead of move, the universal Alt-drag
+      drag = {
+        kind: 'move', nodeId: hit.id, dup: e.altKey, started: false,
+        startX: e.clientX, startY: e.clientY, drop: null,
+      };
     }
   } else {
     selectedId = null;
@@ -650,25 +941,45 @@ function cancelDrag() {
 }
 
 document.addEventListener('mousemove', e => {
-  if (!drag) return;
-  // A mouseup lost to focus stealing would leave a started drag armed forever.
-  // Synthetic click sequences (test drivers, extensions) can emit buttons=0
-  // moves between down and up, so only started drags cancel here; blur and
-  // Escape cover the un-started case.
-  if (drag.started && e.buttons === 0) { cancelDrag(); return; }
-  if (!drag.started) {
-    if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 5) return;
-    drag.started = true;
-    const label = drag.kind === 'palette'
-      ? WIDGETS[drag.type].name
-      : (findNode(drag.nodeId)?.label || drag.nodeId);
-    ghost.textContent = label;
-    ghost.style.display = 'block';
+  if (drag) {
+    // A mouseup lost to focus stealing would leave a started drag armed forever.
+    // Synthetic click sequences (test drivers, extensions) can emit buttons=0
+    // moves between down and up, so only started drags cancel here; blur and
+    // Escape cover the un-started case.
+    if (drag.started && e.buttons === 0) { cancelDrag(); return; }
+    if (!drag.started) {
+      if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 5) return;
+      drag.started = true;
+      const label = drag.kind === 'palette'
+        ? WIDGETS[drag.type].name
+        : (findNode(drag.nodeId)?.label || drag.nodeId);
+      ghost.textContent = (drag.dup ? '+ ' : '') + label;
+      ghost.style.display = 'block';
+    }
+    ghost.style.left = (e.clientX + 14) + 'px';
+    ghost.style.top = (e.clientY + 14) + 'px';
+    // duplicating may drop next to the original, so no self-exclusion then
+    drag.drop = computeDropTarget(
+      canvasPoint(e),
+      drag.kind === 'move' && !drag.dup ? drag.nodeId : null,
+      e.shiftKey);
+    updateDropIndicator(drag.drop);
+    return;
   }
-  ghost.style.left = (e.clientX + 14) + 'px';
-  ghost.style.top = (e.clientY + 14) + 'px';
-  drag.drop = computeDropTarget(canvasPoint(e));
-  updateDropIndicator();
+  if (armed && editMode) {
+    const p = canvasPoint(e);
+    if (p.inside) {
+      ghost.textContent = WIDGETS[armedType()].name;
+      ghost.style.display = 'block';
+      ghost.style.left = (e.clientX + 14) + 'px';
+      ghost.style.top = (e.clientY + 14) + 'px';
+      updateDropIndicator(computeDropTarget(p, null, e.shiftKey));
+    } else {
+      ghost.style.display = 'none';
+      dropline.style.display = 'none';
+      dropbox.style.display = 'none';
+    }
+  }
 });
 
 document.addEventListener('mouseup', e => {
@@ -682,16 +993,400 @@ document.addEventListener('mouseup', e => {
   }
   if (!d.drop) return;
   if (d.kind === 'palette') insertNodeAt(d.type, d.drop);
+  else if (d.dup) duplicateTo(d.nodeId, d.drop);
   else moveNodeTo(d.nodeId, d.drop);
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && drag) cancelDrag();
 });
 
 window.addEventListener('blur', () => {
   if (drag) cancelDrag();
+  resetTabSpring();
 });
+
+// ---------- arming (widget stamp tool) ----------
+
+const FAMILY_OF = {};
+for (const [letter, types] of Object.entries(FAMILIES)) {
+  for (const t of types) FAMILY_OF[t] = letter;
+}
+
+let armed = null; // { letter, index }
+let statusBase = 'engine: loading...';
+
+function armedType() {
+  return armed ? FAMILIES[armed.letter][armed.index] : null;
+}
+
+function arm(letter, backward) {
+  const fam = FAMILIES[letter];
+  if (armed && armed.letter === letter) {
+    armed.index = (armed.index + (backward ? fam.length - 1 : 1)) % fam.length;
+  } else {
+    armed = { letter, index: 0 };
+  }
+  updateArmedUI();
+}
+
+function disarm() {
+  if (!armed) return;
+  armed = null;
+  ghost.style.display = 'none';
+  dropline.style.display = 'none';
+  dropbox.style.display = 'none';
+  updateArmedUI();
+}
+
+function updateArmedUI() {
+  const status = document.getElementById('status');
+  status.textContent = armed
+    ? 'armed: ' + WIDGETS[armedType()].name + ' (' + armed.letter + ' cycles, Enter inserts, Esc exits)'
+    : statusBase;
+  for (const b of document.querySelectorAll('#palette button')) {
+    b.classList.toggle('armedbtn', !!armed && b.dataset.type === armedType());
+  }
+  // cycling the family while hovering must retag the ghost in place
+  if (armed && !drag && ghost.style.display === 'block') {
+    ghost.textContent = WIDGETS[armedType()].name;
+  }
+}
+
+function stampArmed(drop) {
+  insertNodeAt(armedType(), drop); // stays armed for repeated stamps
+}
+
+// ---------- mode switching (with spring-loaded Tab) ----------
+
+function setLiveMode(live) {
+  editMode = !live;
+  document.getElementById('liveToggle').checked = live;
+  if (live) disarm();
+  if (engineReady) Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
+  updateSelectionOverlay();
+}
+
+let tabTimer = null;
+let tabHeld = false;
+let tabPeek = false;
+const TAB_HOLD_MS = 220;
+
+function handleTabDown(e) {
+  e.preventDefault();
+  if (e.repeat || tabHeld) return;
+  tabHeld = true;
+  tabTimer = setTimeout(() => {
+    tabTimer = null;
+    // held past the threshold: peek Live, revert on release
+    tabPeek = true;
+    setLiveMode(true);
+  }, TAB_HOLD_MS);
+}
+
+function handleTabUp() {
+  if (!tabHeld) return;
+  tabHeld = false;
+  if (tabTimer) {
+    // released before the threshold: a tap, toggle the mode
+    clearTimeout(tabTimer);
+    tabTimer = null;
+    setLiveMode(editMode);
+  } else if (tabPeek) {
+    tabPeek = false;
+    setLiveMode(false);
+  }
+}
+
+function resetTabSpring() {
+  if (tabTimer) { clearTimeout(tabTimer); tabTimer = null; }
+  tabHeld = false;
+  if (tabPeek) { tabPeek = false; setLiveMode(false); }
+}
+
+// ---------- keymap and dispatcher ----------
+
+// One table drives dispatch, the ? overlay, and the command palette, the same
+// single-source pattern widgets.js uses. `shift: undefined` means don't care.
+const KEYMAP = [];
+function bind(ctx, show, spec, help, cat, run) {
+  KEYMAP.push({ ctx, show, help, cat, run, ...spec });
+}
+
+function keyMatches(e, b) {
+  const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  if (key !== b.key) return false;
+  // backing out must work whatever is held: Escape mid Alt-duplicate-drag
+  // would otherwise match nothing until Alt comes back up
+  if (b.key === 'Escape') return true;
+  if (!!b.ctrl !== (e.ctrlKey || e.metaKey)) return false;
+  if (!!b.alt !== e.altKey) return false;
+  if (b.shift !== undefined && !!b.shift !== e.shiftKey) return false;
+  return true;
+}
+
+function isTextEntry(t) {
+  if (!t || !t.tagName) return false;
+  if (t.tagName === 'TEXTAREA' || t.isContentEditable) return true;
+  return t.tagName === 'INPUT'
+    && t.type !== 'checkbox' && t.type !== 'radio' && t.type !== 'file' && t.type !== 'button';
+}
+
+// emscripten's GLFW handler preventDefaults Backspace and Tab page-wide, which
+// would make every text field uneditable. This capture listener registers
+// before engine.js loads, so it runs first and shields text-entry targets.
+// Default actions (the actual typing) still happen; only later listeners stop.
+window.addEventListener('keydown', e => {
+  if ((e.key === 'Backspace' || e.key === 'Tab') && isTextEntry(e.target)) {
+    e.stopImmediatePropagation();
+  }
+}, true);
+
+bind('drag', 'Esc', { key: 'Escape' }, 'Cancel the drag', 'Drag', () => cancelDrag());
+
+bind('edit', 'Up / Down', { key: 'ArrowUp', shift: false }, 'Previous sibling', 'Navigate', () => selectSibling(-1));
+bind('edit', '', { key: 'ArrowDown', shift: false }, 'Next sibling', 'Navigate', () => selectSibling(1));
+bind('edit', 'Home / End', { key: 'Home' }, 'First sibling', 'Navigate', () => selectEdge(false));
+bind('edit', '', { key: 'End' }, 'Last sibling', 'Navigate', () => selectEdge(true));
+bind('edit', 'Enter', { key: 'Enter' }, 'Descend into container (or insert the armed widget)', 'Navigate', () => {
+  if (armed) { stampArmed(dropSiblingAfterSelection()); return; }
+  descend();
+});
+bind('edit', 'Esc', { key: 'Escape' }, 'Disarm, else ascend to parent, else deselect', 'Navigate', () => {
+  if (armed) { disarm(); return; }
+  ascend();
+});
+bind('edit', 'F2', { key: 'F2' }, 'Edit the label in the inspector', 'Navigate', () => {
+  renderProps();
+  const inp = document.querySelector('#propbody input[type=text]');
+  if (inp) { inp.focus(); inp.select(); }
+});
+
+bind('edit', 'Ctrl+Up / Ctrl+Down', { key: 'ArrowUp', ctrl: true, shift: false }, 'Move up among siblings', 'Structure', () => reorderSelection(-1, false));
+bind('edit', '', { key: 'ArrowDown', ctrl: true, shift: false }, 'Move down among siblings', 'Structure', () => reorderSelection(1, false));
+bind('edit', 'Ctrl+Shift+Up / Down', { key: 'ArrowUp', ctrl: true, shift: true }, 'Move to first sibling', 'Structure', () => reorderSelection(-1, true));
+bind('edit', '', { key: 'ArrowDown', ctrl: true, shift: true }, 'Move to last sibling', 'Structure', () => reorderSelection(1, true));
+bind('edit', 'Ctrl+G', { key: 'G', ctrl: true, shift: false }, 'Wrap selection in a Group', 'Structure', () => wrapSelection());
+bind('edit', 'Ctrl+Shift+G', { key: 'G', ctrl: true, shift: true }, 'Unwrap container', 'Structure', () => unwrapSelection());
+bind('edit', 'J', { key: 'J', shift: false }, 'Toggle the SameLine join', 'Structure', () => toggleJoin());
+bind('edit', 'Ctrl+D', { key: 'D', ctrl: true }, 'Duplicate selection', 'Structure', () => duplicateSelection());
+bind('edit', 'Del', { key: 'Delete' }, 'Delete selection', 'Structure', () => deleteSelection());
+bind('edit', '', { key: 'Backspace' }, 'Delete selection', 'Structure', () => deleteSelection());
+bind('edit', 'Ctrl+C', { key: 'C', ctrl: true, shift: false }, 'Copy subtree', 'Structure', () => {
+  // never steal a real text copy from the code pane
+  if (String(window.getSelection())) return false;
+  return copySelection() ? undefined : false;
+});
+bind('edit', 'Ctrl+X', { key: 'X', ctrl: true }, 'Cut subtree', 'Structure', () => cutSelection());
+bind('edit', 'Ctrl+V', { key: 'V', ctrl: true }, 'Paste after selection', 'Structure', () => pasteClipboard());
+bind('edit', 'R', { key: 'R', shift: false }, 'Repeat the last insert', 'Structure', () => repeatInsert());
+bind('edit', 'Ctrl+Z', { key: 'Z', ctrl: true, shift: false }, 'Undo', 'Structure', () => undo());
+bind('edit', 'Ctrl+Shift+Z', { key: 'Z', ctrl: true, shift: true }, 'Redo', 'Structure', () => redo());
+bind('edit', '', { key: 'Y', ctrl: true }, 'Redo', 'Structure', () => redo());
+
+bind('edit', 'V', { key: 'V', shift: false }, 'Back to select (disarm)', 'Insert', () => disarm());
+for (const letter of Object.keys(FAMILIES)) {
+  const names = FAMILIES[letter].map(t => WIDGETS[t].name).join(', ');
+  bind('edit', letter + ' / Shift+' + letter, { key: letter, shift: false },
+    'Arm ' + names + ' (press again to cycle)', 'Insert', () => arm(letter, false));
+  bind('edit', '', { key: letter, shift: true },
+    'Cycle ' + letter + ' family backward', 'Insert', () => arm(letter, true));
+}
+bind('edit', '/', { key: '/' }, 'Insert menu (filter all widgets)', 'Insert', () => openCmdk('insert'));
+
+bind('global', 'Ctrl+K', { key: 'K', ctrl: true }, 'Command palette', 'Global', () => openCmdk('all'));
+bind('global', '?', { key: '?' }, 'Keyboard shortcuts', 'Global', () => toggleHelp());
+
+window.addEventListener('keydown', e => {
+  const t = e.target;
+  if (isTextEntry(t) || (t && t.tagName === 'SELECT')) {
+    if (e.key === 'Escape') {
+      // Escape from a field is a full back-out, including a drag that was
+      // started while the palette filter still held focus
+      t.blur();
+      closeOverlays();
+      cancelDrag();
+      disarm();
+      e.preventDefault();
+    }
+    return;
+  }
+  // a focused checkbox keeps Space for its own toggle; everything else dispatches
+  if (t && t.tagName === 'INPUT' && e.key === ' ') return;
+  if (e.key === 'Tab' && !e.ctrlKey && !e.altKey) { handleTabDown(e); return; }
+  if (e.key === 'Escape' && (!cmdkEl.hidden || !helpEl.hidden)) {
+    closeOverlays();
+    e.preventDefault();
+    return;
+  }
+  // never steal keys from an active ImGui text field in live mode
+  if (!editMode && engineWantsText) return;
+  const contexts = [];
+  if (drag) contexts.push('drag');
+  contexts.push(editMode ? 'edit' : 'live');
+  contexts.push('global');
+  for (const ctx of contexts) {
+    for (const b of KEYMAP) {
+      if (b.ctx !== ctx || !keyMatches(e, b)) continue;
+      if (b.run(e) === false) continue; // declined, keep looking / keep default
+      e.preventDefault();
+      return;
+    }
+  }
+});
+
+window.addEventListener('keyup', e => {
+  if (e.key === 'Tab') handleTabUp();
+});
+
+// ---------- command palette and insert menu ----------
+
+const cmdkEl = document.getElementById('cmdk');
+const cmdkInput = document.getElementById('cmdkInput');
+const cmdkList = document.getElementById('cmdkList');
+const helpEl = document.getElementById('helpov');
+const helpInput = document.getElementById('helpInput');
+const helpList = document.getElementById('helpList');
+
+let cmdkItems = [];
+let cmdkSel = 0;
+
+function commandEntries() {
+  return [
+    { label: 'Undo', k: 'Ctrl+Z', run: undo },
+    { label: 'Redo', k: 'Ctrl+Shift+Z', run: redo },
+    { label: 'Toggle Edit / Live mode', k: 'Tab', run: () => setLiveMode(editMode) },
+    { label: 'Duplicate selection', k: 'Ctrl+D', run: duplicateSelection },
+    { label: 'Delete selection', k: 'Del', run: deleteSelection },
+    { label: 'Wrap selection in Group', k: 'Ctrl+G', run: wrapSelection },
+    { label: 'Unwrap container', k: 'Ctrl+Shift+G', run: unwrapSelection },
+    { label: 'Toggle SameLine join', k: 'J', run: toggleJoin },
+    { label: 'Repeat last insert', k: 'R', run: repeatInsert },
+    { label: 'Keyboard shortcuts', k: '?', run: toggleHelp },
+    { label: 'Reset layout', run: () => document.getElementById('resetBtn').onclick() },
+    { label: 'Export JSON', run: () => document.getElementById('exportBtn').onclick() },
+    { label: 'Copy generated C++', run: () => navigator.clipboard.writeText(generateCode()) },
+  ];
+}
+
+function openCmdk(mode) {
+  const inserts = Object.entries(WIDGETS)
+    .filter(([, s]) => !s.hidden)
+    .map(([type, s]) => ({
+      label: 'Insert ' + s.name,
+      k: FAMILY_OF[type] || '',
+      run: () => insertNodeAt(type, dropAfterSelection()),
+    }));
+  cmdkItems = mode === 'insert' ? inserts : commandEntries().concat(inserts);
+  cmdkEl.hidden = false;
+  cmdkInput.value = '';
+  cmdkInput.placeholder = mode === 'insert' ? 'insert widget...' : 'search commands and widgets...';
+  cmdkSel = 0;
+  renderCmdk();
+  cmdkInput.focus();
+}
+
+function renderCmdk() {
+  const term = cmdkInput.value.trim().toLowerCase();
+  const vis = cmdkItems.filter(i => !term || i.label.toLowerCase().includes(term));
+  // rank prefix matches first so short queries land where expected
+  vis.sort((a, b) => {
+    const ap = a.label.toLowerCase().replace('insert ', '').startsWith(term) ? 0 : 1;
+    const bp = b.label.toLowerCase().replace('insert ', '').startsWith(term) ? 0 : 1;
+    return ap - bp;
+  });
+  const shown = vis.slice(0, 40);
+  cmdkSel = Math.max(0, Math.min(cmdkSel, shown.length - 1));
+  cmdkList.innerHTML = '';
+  shown.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'ov-item' + (i === cmdkSel ? ' sel' : '');
+    const l = document.createElement('span');
+    l.textContent = item.label;
+    row.appendChild(l);
+    if (item.k) {
+      const k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = item.k;
+      row.appendChild(k);
+    }
+    row.onclick = () => { closeOverlays(); item.run(); };
+    cmdkList.appendChild(row);
+  });
+  cmdkList.__visible = shown;
+}
+
+cmdkInput.addEventListener('input', () => { cmdkSel = 0; renderCmdk(); });
+cmdkInput.addEventListener('keydown', e => {
+  const vis = cmdkList.__visible || [];
+  if (e.key === 'ArrowDown') { cmdkSel++; renderCmdk(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { cmdkSel--; renderCmdk(); e.preventDefault(); }
+  else if (e.key === 'Enter') {
+    const item = vis[cmdkSel];
+    closeOverlays();
+    if (item) item.run();
+    e.preventDefault();
+  } else if (e.key === 'Escape') {
+    // must live here: the stopPropagation below keeps real keypresses from
+    // ever reaching the window listener's overlay handling
+    closeOverlays();
+    e.preventDefault();
+  }
+  e.stopPropagation();
+});
+
+function renderHelp() {
+  const term = helpInput.value.trim().toLowerCase();
+  const activeCtx = new Set(['global', editMode ? 'edit' : 'live', drag ? 'drag' : null]);
+  const rows = [{ show: 'Tab', help: 'Toggle Edit / Live. Hold to peek Live, release to snap back.', cat: 'Global' }];
+  for (const b of KEYMAP) {
+    if (!b.show || !activeCtx.has(b.ctx)) continue;
+    rows.push(b);
+  }
+  helpList.innerHTML = '';
+  let lastCat = '';
+  for (const r of rows) {
+    if (term && !(r.show + ' ' + r.help).toLowerCase().includes(term)) continue;
+    if (r.cat !== lastCat) {
+      lastCat = r.cat;
+      const c = document.createElement('div');
+      c.className = 'ov-cat';
+      c.textContent = r.cat;
+      helpList.appendChild(c);
+    }
+    const row = document.createElement('div');
+    row.className = 'ov-item';
+    const l = document.createElement('span');
+    l.textContent = r.help;
+    row.appendChild(l);
+    const k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = r.show;
+    row.appendChild(k);
+    helpList.appendChild(row);
+  }
+}
+
+helpInput.addEventListener('input', renderHelp);
+helpInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeOverlays(); e.preventDefault(); }
+  e.stopPropagation();
+});
+
+function toggleHelp() {
+  if (helpEl.hidden) {
+    helpEl.hidden = false;
+    helpInput.value = '';
+    renderHelp();
+    helpInput.focus();
+  } else {
+    helpEl.hidden = true;
+  }
+}
+
+function closeOverlays() {
+  cmdkEl.hidden = true;
+  helpEl.hidden = true;
+}
+
+cmdkEl.addEventListener('mousedown', e => { if (e.target === cmdkEl) closeOverlays(); });
+helpEl.addEventListener('mousedown', e => { if (e.target === helpEl) closeOverlays(); });
 
 // ---------- code generation ----------
 
@@ -1016,7 +1711,16 @@ function renderPalette() {
     for (const [type, spec] of entries) {
       const b = document.createElement('button');
       b.textContent = spec.name;
-      b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas';
+      b.dataset.type = type;
+      const fam = FAMILY_OF[type];
+      b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas'
+        + (fam ? '. Key: ' + fam : '');
+      if (fam) {
+        const k = document.createElement('span');
+        k.className = 'kbd';
+        k.textContent = fam;
+        b.appendChild(k);
+      }
       b.addEventListener('mousedown', e => {
         if (e.button !== 0) return;
         e.preventDefault();
@@ -1054,7 +1758,7 @@ function renderTree() {
     l.textContent = node.label || '';
     row.appendChild(l);
 
-    if (node.sameline) {
+    if (node.sameline && index > 0) {
       const j = document.createElement('span');
       j.className = 'join';
       j.textContent = '⤷';
@@ -1072,6 +1776,8 @@ function renderTree() {
     }
     host.appendChild(row);
   });
+  const sel = host.querySelector('.row.selected');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
 }
 
 function renderProps() {
@@ -1149,22 +1855,20 @@ function renderCode() {
   document.getElementById('code').innerHTML = highlightCpp(generateCode());
 }
 
-// a sameline flag on a first child would join it to a line that doesn't exist
-function normalizeDoc() {
-  walk(doc, node => {
-    const kids = node.children || [];
-    if (kids.length && kids[0].sameline) delete kids[0].sameline;
-  });
-}
+// A sameline flag on a first child is suppressed at render and emit time
+// rather than deleted from the model: deleting it meant a transient reorder
+// through index 0 silently destroyed the join.
 
-// rebuildProps=false keeps focus in the inspector while typing
+// rebuildProps=false keeps focus in the inspector while typing, and doubles
+// as the history coalescing signal: bursty property edits merge into one
+// undo step, discrete operations each get their own.
 function refresh(rebuildProps = true) {
-  normalizeDoc();
   renderTree();
   if (rebuildProps) renderProps();
   renderCode();
   pushDoc();
   saveLocal();
+  pushHistory(!rebuildProps);
 }
 
 document.getElementById('filter').oninput = renderPalette;
@@ -1173,11 +1877,7 @@ document.getElementById('demoToggle').onchange = e => {
   if (engineReady) Module.ccall('engine_show_demo', null, ['number'], [e.target.checked ? 1 : 0]);
 };
 
-document.getElementById('liveToggle').onchange = e => {
-  editMode = !e.target.checked;
-  if (engineReady) Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
-  updateSelectionOverlay();
-};
+document.getElementById('liveToggle').onchange = e => setLiveMode(e.target.checked);
 
 document.getElementById('copyBtn').onclick = () => {
   navigator.clipboard.writeText(generateCode());
@@ -1219,6 +1919,15 @@ window.__test = {
   rects: () => latestRects,
   doc: () => doc,
   selected: () => selectedId,
+  select: id => { selectedId = id; refresh(); },
+  key: (k, mods = {}) => window.dispatchEvent(new KeyboardEvent('keydown', {
+    key: k, ctrlKey: !!mods.ctrl, shiftKey: !!mods.shift, altKey: !!mods.alt, cancelable: true,
+  })),
+  keyUp: k => window.dispatchEvent(new KeyboardEvent('keyup', { key: k })),
+  armed: () => armedType(),
+  isLive: () => !editMode,
+  histLen: () => history.length,
+  overlayOpen: () => !cmdkEl.hidden || !helpEl.hidden,
   widgetTypes: () => Object.keys(WIDGETS).filter(k => !WIDGETS[k].hidden),
   generate: () => generateCode(),
   addAll: () => {
@@ -1254,7 +1963,8 @@ window.__test = {
   },
   paletteButtonPos: text => {
     for (const b of document.querySelectorAll('#palette button')) {
-      if (b.textContent === text) {
+      // the badge span is part of textContent, so match on the widget name
+      if (b.dataset.type && WIDGETS[b.dataset.type].name === text) {
         const r = b.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       }
@@ -1266,6 +1976,8 @@ window.__test = {
 renderPalette();
 loadLocal();
 refresh();
+// the loaded document is the undo floor
+pushHistory();
 </script>
 <script src="engine.js"></script>
 </body>
