@@ -513,6 +513,7 @@
   </div>
 
 <script src="widgets.js?v=3118603c31"></script>
+<script src="imguidocs.js?v=b86a4253f9"></script>
 <script src="cpp.js?v=4c03ed49a1"></script>
 <script>
 // ---------- document model ----------
@@ -2896,11 +2897,22 @@ document.addEventListener('mousedown', e => {
 }, true);
 window.addEventListener('blur', closeContextMenu);
 
+// The label promises a page about THIS widget, so resolve the widget's own
+// ImGui function and open its declaration (and doc comment) in the pinned
+// header. Falls back to the manual only when the function can't be resolved.
+function docsUrlFor(type) {
+  const entry = Object.entries(parseCpp.schema || {}).find(([, e]) => e.type === type);
+  const line = entry && IMGUI_DOC_LINES[entry[0]];
+  return line
+    ? `https://github.com/ocornut/imgui/blob/${IMGUI_DOC_TAG}/imgui.h#L${line}`
+    : IMGUI_MANUAL;
+}
+
 function docsItem(type) {
   return {
     group: '9_docs', order: 0,
     label: 'ImGui reference for ' + WIDGETS[type].name,
-    run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener'),
+    run: () => window.open(docsUrlFor(type), '_blank', 'noopener'),
   };
 }
 
@@ -3401,6 +3413,7 @@ window.__test = {
     return !!(el && el.offsetParent);
   },
   ctxItems: () => [...document.querySelectorAll('#ctxmenu .mi')].map(x => x.firstChild.textContent),
+  docsUrl: type => docsUrlFor(type),
   key: (k, mods = {}) => window.dispatchEvent(new KeyboardEvent('keydown', {
     key: k, ctrlKey: !!mods.ctrl, shiftKey: !!mods.shift, altKey: !!mods.alt, cancelable: true,
   })),
