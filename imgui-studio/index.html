@@ -6555,7 +6555,10 @@ function templateWidgets(t) {
 function templateWindows(t) {
   const wins = ((t.doc && t.doc.children) || []).filter(w => w && w.type === 'window');
   const ids = new Set();
-  return sanitize(JSON.parse(JSON.stringify(wins)), ids, false);
+  // atRoot, because sanitize drops a window node anywhere else and these are
+  // going to the document root. Passing false returned an empty list, so the
+  // multi-window branch never ran and only the first window's widgets landed.
+  return sanitize(JSON.parse(JSON.stringify(wins)), ids, true);
 }
 
 function insertTemplateAt(t, drop) {
