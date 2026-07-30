@@ -822,9 +822,23 @@
   #codeLint .lfix:hover { border-color: var(--mk-green); background: var(--mk-hover); }
   #codeLint .lclean { padding: 3px 10px; color: var(--mk-green); }
 
-  /* the zoom group reads as one control rather than three loose buttons */
-  #zoomctl { display: inline-flex; align-items: center; }
-  #zoomctl .zbtn { min-width: 22px; padding-left: 6px; padding-right: 6px; }
+  /* The zoom group sits in the status bar, in the space the engine line used to
+     take. It reads as one segmented control rather than three loose buttons. */
+  #zoomctl { display: inline-flex; align-items: stretch; flex-shrink: 0; }
+  #zoomctl button {
+    background: transparent; color: var(--mk-comment);
+    border: 1px solid var(--mk-border); border-radius: 0; margin: 0;
+    padding: 1px 7px; cursor: pointer; font-family: var(--font); font-size: 11px;
+    line-height: 1.5; white-space: nowrap;
+  }
+  /* one shared edge between neighbours, so it reads as a single control */
+  #zoomctl button + button { border-left: none; }
+  #zoomctl button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  #zoomctl button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  #zoomctl button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  /* the hovered button owns the shared edge, or it looks half-lit */
+  #zoomctl button:hover + button { border-left-color: var(--mk-cyan); }
+  #zoomctl .zbtn { min-width: 22px; text-align: center; }
   #zoomPctBtn {
     min-width: 46px; text-align: center; font-variant-numeric: tabular-nums;
   }
@@ -856,7 +870,6 @@
   #hoverInfo b { color: var(--mk-cyan); font-weight: 600; }
   #hoverInfo i { color: var(--mk-comment); font-style: normal; }
   #armInfo { color: var(--mk-green); white-space: nowrap; }
-  #engineInfo { white-space: nowrap; opacity: 0.75; }
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -954,11 +967,6 @@
     <span class="spacer"></span>
     <span id="modeHint">hold <b>Space</b> to test interaction</span>
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
-    <span id="zoomctl">
-      <button class="headbtn zbtn" id="zoomOutBtn" title="Zoom out ([)">&minus;</button>
-      <button class="headbtn" id="zoomPctBtn" title="Back to 100% (click), or fit the document (Ctrl+Shift+F)">100%</button>
-      <button class="headbtn zbtn" id="zoomInBtn" title="Zoom in (])">+</button>
-    </span>
     <button class="headbtn" id="resetViewBtn" title="Recentre the canvas (Shift+F)">Reset view</button>
   </div>
   <div id="menupop"></div>
@@ -1065,7 +1073,11 @@
         <span id="hoverInfo">—</span>
         <span class="spacer"></span>
         <span id="armInfo"></span>
-        <span id="engineInfo">engine: loading...</span>
+        <span id="zoomctl">
+          <button class="zbtn" id="zoomOutBtn" title="Zoom out ([)">&minus;</button>
+          <button id="zoomPctBtn" title="Back to 100% (click), or fit the document (Ctrl+Shift+F)">100%</button>
+          <button class="zbtn" id="zoomInBtn" title="Zoom in (])">+</button>
+        </span>
       </div>
     </div>
 
@@ -1984,8 +1996,7 @@ var Module = {
   printErr: t => console.warn(t),
   onRuntimeInitialized: () => {
     engineReady = true;
-    statusBase = 'engine: running (real Dear ImGui via wasm) — ' + paletteCount + ' widget types';
-    updateArmedUI(); // writes statusBase without clobbering an active armed line
+    updateArmedUI();
     syncCanvasSize();
     Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
     pushDoc();
@@ -2723,7 +2734,6 @@ for (const [letter, types] of Object.entries(FAMILIES)) {
 }
 
 let armed = null; // { letter, index }
-let statusBase = 'engine: loading...';
 
 // Armed either by family letter (which cycles) or by a bare type, which is how
 // a hotbar slot arms a widget that belongs to no family.
@@ -2761,7 +2771,6 @@ function disarm() {
 }
 
 function updateArmedUI() {
-  document.getElementById('engineInfo').textContent = statusBase;
   document.getElementById('armInfo').textContent = armed
     ? 'armed: ' + WIDGETS[armedType()].name
       + (armed.letter ? ' (' + armed.letter + ' cycles, Enter inserts, Esc exits)'
@@ -4736,7 +4745,6 @@ function unpin(type) {
 
 // ---------- ui rendering ----------
 
-const paletteCount = Object.values(WIDGETS).filter(w => !w.hidden).length;
 
 // Category collapse state persists. A filter force-opens sections that contain
 // a match and restores the pre-filter state when cleared, so searching is a
