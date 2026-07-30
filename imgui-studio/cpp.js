@@ -877,7 +877,18 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
     }
   };
 
-  entry.args.forEach((slot, idx) => apply(slot, given[idx]));
+  entry.args.forEach((slot, idx) => {
+    // A variadic tail takes every remaining argument, not just its own slot.
+    // ImGui::Text("%d of %d", a, b) maps `args` to one position by probing, so
+    // without this everything after the first comma was dropped on every apply.
+    const def = slot && propDefs[slot.key];
+    if (def && def[3] && def[3].rest && idx === entry.args.length - 1
+        && given.length > entry.args.length) {
+      apply(slot, given.slice(idx).join(', '));
+      return;
+    }
+    apply(slot, given[idx]);
+  });
 
   // A property that only exists in the struct initializer, recovered via the
   // state member the call references.

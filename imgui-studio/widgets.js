@@ -104,7 +104,10 @@ const WIDGETS = {
     name: 'Text formatted', cat: 'Text',
     // the default has to be an expression that compiles on its own, since the
     // generated file is built as-is by the verify step
-    props: [['format', 'text', '%s'], ['args', 'expr', '"text"', { placeholder: 'count, name' }]],
+    // rest: the argument list is variadic, so the parser has to take every
+    // remaining argument rather than the one position probing found
+    props: [['format', 'text', '%s'],
+      ['args', 'expr', '"text"', { placeholder: 'count, name', rest: true }]],
     // no arguments means it is just text, so emit it as such rather than
     // producing ImGui::Text("...", ) which would not compile
     code: n => (String(n.args || '').trim()

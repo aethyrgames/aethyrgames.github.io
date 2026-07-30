@@ -371,7 +371,12 @@
   #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
   #propbody {
     flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px;
-    display: grid; grid-template-columns: minmax(0, 94px) minmax(0, 1fr); gap: 5px 7px; align-content: start;
+    /* 128px because the longest label the inspector can render is
+       TableBorderStrong at 123px. At 94px that one, SliderGrabActive and
+       FrameBgHovered all wrapped onto two lines. A fixed width rather than
+       max-content keeps the field edge in the same place as you click between
+       widgets. */
+    display: grid; grid-template-columns: minmax(0, 128px) minmax(0, 1fr); gap: 5px 7px; align-content: start;
     align-items: center;
   }
   .paltools { display: flex; align-items: center; gap: 6px; margin: 6px 8px; flex-shrink: 0; min-width: 0; }
@@ -447,11 +452,16 @@
   }
   .row button:hover { color: var(--mk-fg); }
 
-  /* Long names like TitleBgActive used to run under the field next to them, so
-     the label column is wider and wraps rather than overlapping. */
+  /* The column is sized to the longest label, so these do not wrap. Anything
+     longer that turns up later ellipsises rather than silently going to two
+     lines, and the full text is on the tooltip. */
   #propbody label {
     color: var(--mk-comment); font-size: 12px; line-height: 1.25;
-    overflow-wrap: anywhere; hyphens: auto; min-width: 0;
+    min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* stacked in a narrow dock there is a whole row to use, so let it wrap there */
+  @container (max-width: 250px) {
+    #propbody label { white-space: normal; overflow-wrap: anywhere; }
   }
   #propbody input[type=text], #propbody input[type=number], #propbody select {
     background: var(--mk-gutter); color: var(--mk-fg); border: 1px solid var(--mk-border);
@@ -605,7 +615,10 @@
     background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
   }
   #canvashost.nogrid { background-image: none; }
-  #viewport { position: absolute; inset: 0; will-change: transform; }
+  /* origin at the top-left, not the default centre: the pan is a world offset
+     and the zoom has to scale about the same corner, or content slides sideways
+     as it scales and no anchor maths can hold a point still */
+  #viewport { position: absolute; inset: 0; will-change: transform; transform-origin: 0 0; }
   /* transparent, so the ground above shows through everywhere the panel isn't */
   #canvas { background: transparent; outline: none; display: block; }
   #canvashost.panning { cursor: grabbing; }
@@ -809,6 +822,22 @@
   #codeLint .lfix:hover { border-color: var(--mk-green); background: var(--mk-hover); }
   #codeLint .lclean { padding: 3px 10px; color: var(--mk-green); }
 
+  /* the zoom group reads as one control rather than three loose buttons */
+  #zoomctl { display: inline-flex; align-items: center; }
+  #zoomctl .zbtn { min-width: 22px; padding-left: 6px; padding-right: 6px; }
+  #zoomPctBtn {
+    min-width: 46px; text-align: center; font-variant-numeric: tabular-nums;
+  }
+
+  /* Handles and the selection outline live inside the scaled viewport, so they
+     counter-scale to keep the same size on screen. Without this they are specks
+     at 25% and slabs at 400%. */
+  #selbox .rh { transform: scale(var(--inv-zoom, 1)); }
+  /* borders scale with the viewport too, so a 1px outline turns into 4px at 400%
+     and vanishes at 25% */
+  #selbox { border-width: calc(1px * var(--inv-zoom, 1)); }
+  #selboxes .sb { border-width: calc(1px * var(--inv-zoom, 1)); }
+
   #codeStatus {
     padding: 6px 10px; font-size: 12px; border-top: 1px solid var(--mk-border);
     color: var(--mk-comment); max-height: 32%; overflow-y: auto; white-space: pre-wrap;
@@ -925,6 +954,11 @@
     <span class="spacer"></span>
     <span id="modeHint">hold <b>Space</b> to test interaction</span>
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
+    <span id="zoomctl">
+      <button class="headbtn zbtn" id="zoomOutBtn" title="Zoom out ([)">&minus;</button>
+      <button class="headbtn" id="zoomPctBtn" title="Back to 100% (click), or fit the document (Ctrl+Shift+F)">100%</button>
+      <button class="headbtn zbtn" id="zoomInBtn" title="Zoom in (])">+</button>
+    </span>
     <button class="headbtn" id="resetViewBtn" title="Recentre the canvas (Shift+F)">Reset view</button>
   </div>
   <div id="menupop"></div>
@@ -1107,9 +1141,9 @@
     </div>
   </div>
 
-<script src="widgets.js?v=7fd60a3c0f"></script>
+<script src="widgets.js?v=e39a39180b"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=72609570f5"></script>
+<script src="cpp.js?v=22374eb772"></script>
 <script src="codeintel.js?v=c66c48227d"></script>
 <script>
 // ---------- document model ----------
@@ -1974,21 +2008,98 @@ const ghost = document.getElementById('ghost');
 const viewportEl = document.getElementById('viewport');
 const coordTip = document.getElementById('coordtip');
 let pan = { x: 0, y: 0 };
+// Zoom is part of the same transform. Everything that positions in world
+// coordinates lives inside #viewport and so scales with it for free; the pieces
+// that don't (the rulers, the guides, the ground grid) apply the factor
+// themselves, and canvasPoint divides by it so the rest of the app keeps
+// working in world units either way.
+let zoom = 1;
+// assigned once the header control exists; applyView runs before that during init
+let zoomLabel = null;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 4;
+const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
+const GRID_MINOR = 20;
+const GRID_MAJOR = 100;
 
-function applyPan() {
-  viewportEl.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
-  // the ground scrolls with the world, so the grid stays fixed to it rather
-  // than sliding under the panel
+function applyView() {
+  viewportEl.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+  // the ground scrolls and scales with the world, so the grid stays fixed to it
+  // rather than sliding or drifting out of step under the panel
+  const minor = GRID_MINOR * zoom;
+  const major = GRID_MAJOR * zoom;
+  canvasHost.style.backgroundSize =
+    `${major}px ${major}px, ${major}px ${major}px, ${minor}px ${minor}px, ${minor}px ${minor}px`;
   canvasHost.style.backgroundPosition =
     `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`;
+  // handles and the selection outline counter-scale, so they stay the same size
+  // on screen at every zoom instead of turning into specks or slabs
+  document.documentElement.style.setProperty('--zoom', String(zoom));
+  document.documentElement.style.setProperty('--inv-zoom', String(1 / zoom));
+  const pct = Math.round(zoom * 100) + '%';
+  if (zoomLabel) zoomLabel.textContent = pct;
   drawRulers();
   renderGuides();
+  syncCanvasSize();
 }
+
+// kept as the old name so existing call sites read the same
+const applyPan = applyView;
 
 function panBy(dx, dy) {
   pan.x += dx;
   pan.y += dy;
-  applyPan();
+  applyView();
+}
+
+// Zoom about a screen point, so whatever is under the cursor stays under it.
+// Without the pan correction the view slides away from what you were looking at.
+function zoomTo(next, screenX, screenY) {
+  const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, next));
+  if (z === zoom) return;
+  const host = canvasHost.getBoundingClientRect();
+  const sx = screenX === undefined ? host.left + host.width / 2 : screenX;
+  const sy = screenY === undefined ? host.top + host.height / 2 : screenY;
+  // The world point under the cursor, read the same way every gesture reads it.
+  // Deriving it from the host rect instead assumed the canvas origin sat exactly
+  // at the host origin plus the pan, and the anchor drifted when it did not.
+  const w = canvasPoint({ clientX: sx, clientY: sy });
+  // screen = base + pan + world * zoom, and base does not move with the pan
+  const r = canvas.getBoundingClientRect();
+  const baseX = r.left - pan.x;
+  const baseY = r.top - pan.y;
+  zoom = z;
+  pan.x = Math.round(sx - w.x * zoom - baseX);
+  pan.y = Math.round(sy - w.y * zoom - baseY);
+  applyView();
+}
+
+// One notch along the preset ladder, which gives round percentages rather than
+// whatever a multiplier lands on.
+function zoomStep(dir, screenX, screenY) {
+  const i = ZOOM_STEPS.findIndex(v => Math.abs(v - zoom) < 0.001);
+  let next;
+  if (i >= 0) next = ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, i + dir))];
+  else next = dir > 0 ? ZOOM_STEPS.find(v => v > zoom) : [...ZOOM_STEPS].reverse().find(v => v < zoom);
+  zoomTo(next === undefined ? zoom : next, screenX, screenY);
+}
+
+// Fit the whole document in view, which is the useful counterpart to 100%.
+function zoomToFit() {
+  const ext = contentExtent();
+  const host = canvasHost.getBoundingClientRect();
+  if (!ext.w || !ext.h) return;
+  const pad = 24;
+  const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX,
+    Math.min((host.width - pad * 2) / ext.w, (host.height - pad * 2) / ext.h)));
+  const r = canvas.getBoundingClientRect();
+  const baseX = r.left - pan.x;
+  const baseY = r.top - pan.y;
+  zoom = z;
+  // put world 0,0 where the centred content should start
+  pan.x = Math.round(host.left + (host.width - ext.w * z) / 2 - baseX);
+  pan.y = Math.round(host.top + (host.height - ext.h * z) / 2 - baseY);
+  applyView();
 }
 
 // Centre the selection in the visible area. Only useful once the document is
@@ -1997,15 +2108,16 @@ function focusSelection() {
   const r = selectedId && rectFor(selectedId);
   if (!r) return false;
   const host = canvasHost.getBoundingClientRect();
-  pan.x = Math.round(host.width / 2 - (r.x + r.w / 2));
-  pan.y = Math.round(host.height / 2 - (r.y + r.h / 2));
-  applyPan();
+  pan.x = Math.round(host.width / 2 - (r.x + r.w / 2) * zoom);
+  pan.y = Math.round(host.height / 2 - (r.y + r.h / 2) * zoom);
+  applyView();
   return true;
 }
 
 function resetPan() {
   pan = { x: 0, y: 0 };
-  applyPan();
+  zoom = 1;
+  applyView();
 }
 
 // The footer used to repeat the engine state, which never changes after load.
@@ -2034,10 +2146,13 @@ function esc(s) {
 }
 
 function canvasPoint(e) {
+  // The client rect is already the scaled box, so dividing by the zoom turns a
+  // screen offset back into the world coordinate the engine's rects use. Every
+  // caller downstream stays in world units and needs no changes.
   const r = canvas.getBoundingClientRect();
   return {
-    x: e.clientX - r.left,
-    y: e.clientY - r.top,
+    x: (e.clientX - r.left) / zoom,
+    y: (e.clientY - r.top) / zoom,
     inside: e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom,
   };
 }
@@ -2884,8 +2999,12 @@ bind('edit', 'Esc', { key: 'Escape' }, 'Disarm, else ascend to parent, else dese
 });
 bind('edit', 'F', { key: 'F', shift: false }, 'Focus the selection (centre it on screen)', 'Navigate',
   () => focusSelection());
-bind('edit', 'Shift+F', { key: 'F', shift: true }, 'Reset the view to the origin', 'Navigate',
+bind('edit', 'Shift+F', { key: 'F', shift: true }, 'Reset the view to the origin and 100%', 'Navigate',
   () => resetPan());
+bind('edit', '] / [', { key: ']' }, 'Zoom in', 'Navigate', () => zoomStep(1));
+bind('edit', '', { key: '[' }, 'Zoom out', 'Navigate', () => zoomStep(-1));
+bind('edit', 'Ctrl+Shift+F', { key: 'F', ctrl: true, shift: true }, 'Fit the document in the view',
+  'Navigate', () => zoomToFit());
 bind('edit', 'F2', { key: 'F2' }, 'Rename inline on the canvas', 'Navigate', () => {
   if (selectedId) beginInlineEdit(selectedId);
 });
@@ -4365,8 +4484,13 @@ const quantise = v => Math.ceil(v / CANVAS_STEP) * CANVAS_STEP;
 
 function syncCanvasSize() {
   const ext = contentExtent();
-  const wantW = Math.max(Math.floor(canvasHost.clientWidth), quantise(ext.w + CANVAS_MARGIN));
-  const wantH = Math.max(Math.floor(canvasHost.clientHeight), quantise(ext.h + CANVAS_MARGIN));
+  // Zoomed out, the visible box covers more world than its pixel size, so the
+  // surface has to be the box divided by the zoom or the ground runs out before
+  // the edge of the view.
+  const visW = Math.floor(canvasHost.clientWidth / zoom);
+  const visH = Math.floor(canvasHost.clientHeight / zoom);
+  const wantW = Math.max(visW, quantise(ext.w + CANVAS_MARGIN));
+  const wantH = Math.max(visH, quantise(ext.h + CANVAS_MARGIN));
   let w = Math.min(CANVAS_MAX, Math.max(64, wantW));
   let h = Math.min(CANVAS_MAX, Math.max(64, wantH));
   // hold the larger size while dragging or resizing, so a shrinking extent
@@ -4424,9 +4548,13 @@ function drawRulers() {
     // the same thing once the view has been panned. Negatives are real now:
     // the grid carries on above and to the left of the origin.
     const off = horiz ? pan.x : pan.y;
-    const first = Math.floor(-off / 10) * 10;
-    for (let wv = first; wv + off < len; wv += 10) {
-      const p = wv + off;
+    // World units, drawn at world * zoom. The step grows as you zoom out so the
+    // ticks never collapse into a solid bar, and shrinks as you zoom in so there
+    // is something to read between the hundreds.
+    const step = zoom >= 2 ? 5 : (zoom >= 0.75 ? 10 : (zoom >= 0.4 ? 20 : 50));
+    const first = Math.floor(-off / zoom / step) * step;
+    for (let wv = first; wv * zoom + off < len; wv += step) {
+      const p = wv * zoom + off;
       if (p < 0) continue;
       const major = wv % 100 === 0, mid = wv % 50 === 0;
       const size = major ? 20 : (mid ? 8 : 4);
@@ -4456,7 +4584,7 @@ function drawRulers() {
     // cursor position marker, the measurement half of a ruler. A world
     // coordinate can be negative now, so "is the pointer here" is its own flag
     // rather than a -1 sentinel.
-    const c = (horiz ? cursorCanvas.x : cursorCanvas.y) + off;
+    const c = (horiz ? cursorCanvas.x : cursorCanvas.y) * zoom + off;
     if (cursorInside) {
       g.strokeStyle = v('cyan');
       g.beginPath();
@@ -4474,15 +4602,15 @@ function renderGuides() {
     el.className = 'guide ' + (gd.axis === 'x' ? 'gx' : 'gy');
     // the position is a world coordinate; the layer is the host, which does not
     // pan, so the offset is applied here and the line spans ruler to ruler
-    if (gd.axis === 'x') el.style.left = (gd.pos + pan.x) + 'px';
-    else el.style.top = (gd.pos + pan.y) + 'px';
+    if (gd.axis === 'x') el.style.left = (gd.pos * zoom + pan.x) + 'px';
+    else el.style.top = (gd.pos * zoom + pan.y) + 'px';
     el.title = gd.axis + ' = ' + gd.pos + ' (drag to move, double-click to remove)';
     el.addEventListener('mousedown', e => {
       e.preventDefault();
       e.stopPropagation();
       const move = ev => {
-        const r = canvas.getBoundingClientRect();
-        gd.pos = Math.round(gd.axis === 'x' ? ev.clientX - r.left : ev.clientY - r.top);
+        const p = canvasPoint(ev);
+        gd.pos = Math.round(gd.axis === 'x' ? p.x : p.y);
         renderGuides();
       };
       const up = () => {
@@ -5434,7 +5562,10 @@ function renderProps() {
   const addField = (labelText, input, isSet, restore, help) => {
     const l = document.createElement('label');
     l.textContent = labelText;
-    if (help) { l.title = help; if (input.title === undefined || !input.title) input.title = help; }
+    // the name itself when there is nothing better, so an ellipsised label is
+    // still readable on hover
+    l.title = help || labelText;
+    if (help && (input.title === undefined || !input.title)) input.title = help;
     if (isSet) l.className = 'set';
     host.appendChild(l);
     if (restore) {
@@ -6200,65 +6331,180 @@ const TEMPLATES_KEY = 'imguistudio.templates.v1';
 const tn = (type, extra) => Object.assign(makeNode(type), extra || {});
 
 function builtinTemplates() {
+  // A builder returns the window's children, or { windows: [...] } when the
+  // example is about windows themselves. Every extra feature the tool has should
+  // turn up in at least one of these, since a template is where people look to
+  // find out what it can do.
+  const win = (label, kids, extra) => Object.assign(
+    makeNode('window'), { label, children: kids }, extra || {});
+  const sec = (label, kids) => Object.assign(tn('section', { label }), { children: kids });
+  const kids = (node, list) => Object.assign(node, { children: list });
+
   const defs = [
     ['Blank window', () => []],
+
+    // Function containers, units, per-widget width, a colour override, a modal
     ['Settings dialog', () => [
-      tn('separatortext', { label: 'Display' }),
-      tn('checkbox', { label: 'Fullscreen' }),
-      tn('checkbox', { label: 'V-Sync' }),
-      tn('sliderfloat', { label: 'Brightness' }),
-      tn('separatortext', { label: 'Audio' }),
-      tn('sliderfloat', { label: 'Master' }),
-      tn('sliderfloat', { label: 'Music' }),
+      sec('Display', [
+        tn('checkbox', { label: 'Fullscreen' }),
+        tn('checkbox', { label: 'V-Sync' }),
+        tn('sliderfloat', { label: 'Brightness', min: 0, max: 100, unit: '%', itemw: 160 }),
+        tn('combo', { label: 'Quality', items: 'Low, Medium, High, Ultra', itemw: 160 }),
+      ]),
+      sec('Audio', [
+        tn('sliderfloat', { label: 'Master', min: 0, max: 100, unit: '%', itemw: 160 }),
+        tn('sliderfloat', { label: 'Music', min: 0, max: 100, unit: '%', itemw: 160 }),
+        tn('sliderint', { label: 'Latency', min: 0, max: 200, unit: 'ms', itemw: 160 }),
+      ]),
       tn('separator'),
-      tn('button', { label: 'Apply' }),
-      tn('button', { label: 'Cancel', sameline: true }),
+      tn('button', { label: 'Apply', colors: { Button: [0.15, 0.55, 0.55, 1] } }),
+      kids(tn('modal', { label: 'Discard changes?', sameline: true }), [
+        tn('textwrapped', { label: 'Your changes will be lost.' }),
+        tn('button', { label: 'Discard' }),
+        tn('button', { label: 'Keep editing', sameline: true }),
+      ]),
     ]],
+
+    // A SameLine run, a context popup, and Text with format arguments
     ['Toolbar and list', () => [
       tn('button', { label: 'New' }),
       tn('button', { label: 'Open', sameline: true }),
       tn('button', { label: 'Save', sameline: true }),
+      kids(tn('popup', { label: 'More', sameline: true }), [
+        tn('menuitem', { label: 'Duplicate', shortcut: 'Ctrl+D' }),
+        tn('menuitem', { label: 'Rename', shortcut: 'F2' }),
+        tn('separator'),
+        tn('menuitem', { label: 'Delete', shortcut: 'Del' }),
+      ]),
       tn('separator'),
       tn('inputtextwithhint', { label: 'Search' }),
       tn('listbox', { label: 'Items', items: 'First, Second, Third' }),
+      tn('textfmt', { format: '%d of %d shown', args: 'state.shown, state.total' }),
+      tn('inputint', { label: 'Shown' }),
+      tn('inputint', { label: 'Total' }),
     ]],
+
+    // A table keeps label and field columns aligned, which a flow layout cannot
     ['Property inspector', () => [
-      tn('inputtext', { label: 'Name' }),
-      tn('dragfloat', { label: 'Position X' }),
-      tn('dragfloat', { label: 'Position Y' }),
-      tn('sliderfloat', { label: 'Scale' }),
-      tn('coloredit', { label: 'Tint' }),
-      tn('checkbox', { label: 'Visible' }),
-    ]],
-    ['Debug overlay', () => [
-      tn('text', { label: 'Frame stats' }),
-      tn('plotlines', { label: 'Frame time' }),
+      kids(tn('table', { label: 'props', cols: 2 }), [
+        tn('text', { label: 'Name' }), tn('inputtext', { label: '##name' }),
+        tn('text', { label: 'Position' }), tn('dragfloat', { label: '##pos', n: 3, unit: 'm' }),
+        tn('text', { label: 'Scale' }), tn('sliderfloat', { label: '##scale', min: 0.1, max: 4 }),
+        tn('text', { label: 'Tint' }), tn('coloredit', { label: '##tint' }),
+      ]),
       tn('separator'),
-      tn('checkbox', { label: 'Show colliders' }),
-      tn('checkbox', { label: 'Show wireframe' }),
-      tn('collapsingheader', { label: 'Counters' }),
+      kids(tn('collapsingheader', { label: 'Advanced' }), [
+        tn('checkbox', { label: 'Cast shadows' }),
+        tn('inputint', { label: 'LOD bias' }),
+      ]),
     ]],
-    ['Tabbed panel', () => {
-      const bar = tn('tabbar', { label: 'Tabs' });
-      const one = tn('tabitem', { label: 'General' });
-      one.children = [tn('checkbox', { label: 'Enabled' })];
-      const two = tn('tabitem', { label: 'Advanced' });
-      two.children = [tn('inputint', { label: 'Threads' })];
-      bar.children = [one, two];
-      return [bar];
-    }],
+
+    // The overlay is a window of its own that the main one shows and hides
+    ['Debug overlay', () => ({
+      windows: [
+        win('Game', [
+          tn('textfmt', { format: 'Frame %.2f ms', args: 'state.frameMs' }),
+          tn('inputfloat', { label: 'Frame Ms' }),
+          tn('separator'),
+          tn('button', { label: 'Debug overlay', toggles: 'Overlay' }),
+        ]),
+        win('Overlay', [
+          tn('plotlines', { label: 'Frame time' }),
+          tn('plothistogram', { label: 'Draw calls' }),
+          tn('separator'),
+          tn('checkbox', { label: 'Show colliders' }),
+          tn('checkbox', { label: 'Show wireframe' }),
+        ], {
+          closable: true, openAtStart: false, x: 440, y: 30, w: 300, h: 260,
+          colors: { WindowBg: [0.05, 0.06, 0.08, 0.92] },
+        }),
+      ],
+    })],
+
+    // Tabs, and a child region that scrolls on its own
+    ['Tabbed panel', () => [
+      kids(tn('tabbar', { label: 'Tabs' }), [
+        kids(tn('tabitem', { label: 'General' }), [
+          tn('checkbox', { label: 'Enabled' }),
+          tn('inputtext', { label: 'Name' }),
+        ]),
+        kids(tn('tabitem', { label: 'Advanced' }), [
+          tn('inputint', { label: 'Threads' }),
+          kids(tn('child', { label: 'log', h: 90 }), [
+            tn('textwrapped', { label: 'Output appears here.' }),
+          ]),
+        ]),
+      ]),
+    ]],
+
+    // The show/hide mechanism on its own, which is the part worth seeing wired up
+    ['Show and hide windows', () => ({
+      windows: [
+        win('Workspace', [
+          tn('text', { label: 'Toggle the panels:' }),
+          tn('separator'),
+          tn('button', { label: 'Inspector', toggles: 'Inspector' }),
+          tn('button', { label: 'Console', toggles: 'Console', sameline: true }),
+          tn('separator'),
+          tn('textwrapped', {
+            label: 'Each button flips a bool the generated code owns. The panels '
+              + 'carry a close button of their own, which clears the same bool.',
+          }),
+        ]),
+        win('Inspector', [
+          tn('inputtext', { label: 'Name' }),
+          tn('dragfloat', { label: 'Weight', unit: 'kg' }),
+        ], { closable: true, openAtStart: true, x: 440, y: 30, w: 260, h: 190 }),
+        win('Console', [
+          tn('inputtextwithhint', { label: 'Command' }),
+          tn('textwrapped', { label: 'Ready.' }),
+        ], { closable: true, openAtStart: false, x: 440, y: 250, w: 260, h: 190 }),
+      ],
+    })],
+
+    // Menu bar, nested menus, and a tooltip hung off the item before it
+    ['Menus and dialogs', () => [
+      kids(tn('menubar'), [
+        kids(tn('menu', { label: 'File' }), [
+          tn('menuitem', { label: 'New', shortcut: 'Ctrl+N' }),
+          tn('menuitem', { label: 'Open', shortcut: 'Ctrl+O' }),
+          tn('separator'),
+          tn('menuitem', { label: 'Quit', shortcut: 'Alt+F4' }),
+        ]),
+        kids(tn('menu', { label: 'View' }), [
+          tn('menuitem', { label: 'Zoom in', shortcut: ']' }),
+          tn('menuitem', { label: 'Zoom out', shortcut: '[' }),
+        ]),
+      ]),
+      tn('text', { label: 'Hover the button for a tooltip.' }),
+      tn('button', { label: 'What is this?' }),
+      kids(tn('tooltip'), [
+        tn('textwrapped', { label: 'A tooltip attaches to the item before it.' }),
+      ]),
+      tn('separator'),
+      kids(tn('modal', { label: 'Delete file?' }), [
+        tn('textwrapped', { label: 'This cannot be undone.' }),
+        tn('button', { label: 'Delete', colors: { Button: [0.6, 0.15, 0.3, 1] } }),
+        tn('button', { label: 'Cancel', sameline: true }),
+      ]),
+    ]],
   ];
+
   return defs.map(([name, build]) => {
     // built from a function so one bad widget type can't take the whole list
     // down at load time
-    let kids = [];
-    try { kids = build().filter(n => n && WIDGETS[n.type]); } catch (e) { kids = []; }
+    let built = [];
+    try { built = build(); } catch (e) { built = []; }
+    const windows = Array.isArray(built)
+      ? [win(name, built.filter(n => n && WIDGETS[n.type]))]
+      : (built.windows || []).filter(w => w && w.type === 'window');
+    let i = 0;
+    for (const w of windows) w.id = 'tw' + (i++);
     return {
       id: 'builtin:' + name,
       name,
       builtin: true,
-      doc: { type: 'root', children: [
-        Object.assign(makeNode('window'), { id: 'tw', label: name, children: kids })] },
+      doc: { type: 'root', children: windows.length ? windows : [win(name, [])] },
     };
   });
 }
@@ -6304,6 +6550,14 @@ function templateWidgets(t) {
   return sanitize(JSON.parse(JSON.stringify(src || [])), ids, false);
 }
 
+// Every window a template carries. An example about showing and hiding windows
+// is only an example if all of them come along.
+function templateWindows(t) {
+  const wins = ((t.doc && t.doc.children) || []).filter(w => w && w.type === 'window');
+  const ids = new Set();
+  return sanitize(JSON.parse(JSON.stringify(wins)), ids, false);
+}
+
 function insertTemplateAt(t, drop) {
   const kids = templateWidgets(t);
   // A template holding an empty window has no widgets to insert. Saying so beats
@@ -6313,7 +6567,18 @@ function insertTemplateAt(t, drop) {
       + 'Right-click it to open it as its own project.');
     return;
   }
-  // The template lands in a Function container, so the generated code calls it
+  // A template built around several windows brings all of them, as windows. Its
+  // buttons refer to the others by title, so folding it into one container would
+  // leave the example pointing at nothing.
+  const wins = templateWindows(t);
+  if (wins.length > 1) {
+    for (const w of wins) doc.children.push(w);
+    selectId(wins[0].id);
+    refresh();
+    flashStatus(`Added ${wins.length} windows from "${titleCase(t.name)}".`);
+    return;
+  }
+  // Otherwise it lands in a Function container, so the generated code calls it
   // rather than inlining a wall of widgets. It draws nothing of its own, so the
   // canvas looks the same either way, and it can be ungrouped like any other.
   const wrap = Object.assign(makeNode('section'), {
@@ -6853,6 +7118,27 @@ document.getElementById('resetBtn').onclick = () => {
 
 document.getElementById('shareTopBtn').onclick = () => copyShareLink();
 document.getElementById('resetViewBtn').onclick = () => resetPan();
+zoomLabel = document.getElementById('zoomPctBtn');
+document.getElementById('zoomInBtn').onclick = () => zoomStep(1);
+document.getElementById('zoomOutBtn').onclick = () => zoomStep(-1);
+zoomLabel.onclick = () => zoomTo(1);
+zoomLabel.textContent = Math.round(zoom * 100) + '%';
+
+// Ctrl+wheel zooms at the cursor, which is what every canvas tool does. A bare
+// wheel pans instead of scrolling the page, since there is nothing to scroll and
+// a trapped wheel over the canvas is worse than a useful one.
+canvasHost.addEventListener('wheel', e => {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    zoomStep(e.deltaY < 0 ? 1 : -1, e.clientX, e.clientY);
+    return;
+  }
+  if (e.shiftKey) { e.preventDefault(); panBy(-e.deltaY, 0); return; }
+  if (Math.abs(e.deltaY) > 0 || Math.abs(e.deltaX) > 0) {
+    e.preventDefault();
+    panBy(-e.deltaX, -e.deltaY);
+  }
+}, { passive: false });
 document.getElementById('exportBtn').onclick = () => exportProject();
 document.getElementById('shareBtn').onclick = () => copyShareLink();
 document.getElementById('settingsBtn').onclick = () => openSettings('keys');
@@ -6996,6 +7282,14 @@ window.__test = {
     ? Module.ccall('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
   addGuideAt: (axis, pos) => { guides.push({ axis, pos }); renderGuides(); },
   clearGuides: () => { guides.length = 0; renderGuides(); saveGuides(); },
+  zoom: () => zoom,
+  setZoom: z => zoomTo(z),
+  zoomAt: (z, x, y) => zoomTo(z, x, y),
+  zoomStep: d => zoomStep(d),
+  zoomFit: () => zoomToFit(),
+  pan: () => ({ ...pan }),
+  // a screen point in world coordinates, the conversion every gesture uses
+  pointAt: (x, y) => canvasPoint({ clientX: x, clientY: y }),
   gridOn: () => showGrid,
   rulersOn: () => showRulers,
   menu: name => renderMenu(name),
