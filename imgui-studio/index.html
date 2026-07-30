@@ -2307,6 +2307,7 @@ function pollEngine() {
     latestRects = [];
   }
   adoptDraggedWindowPos();
+  adoptResizedWindowSize();
   updateSelectionOverlay();
 }
 
@@ -2349,6 +2350,47 @@ function adoptDraggedWindowPos() {
   wasMovingWindow = false;
   if (changed) { pushHistory(); refresh(); }
   else refresh();
+}
+
+// The same problem as adoptDraggedWindowPos, for the other gesture. Dragging a
+// window's own grip or border resizes it in the preview, and nothing told the
+// document: the inspector kept reading the old size, the generated
+// SetNextWindowSize kept emitting it, and the size vanished on the next reload
+// or the moment any size field was touched.
+//
+// Only windows the document has already given an explicit size are adopted. A
+// window sized 0 is auto-sized, so its published size is ImGui's choice rather
+// than the user's, and writing that back would silently convert it into a fixed
+// one on the first frame it was ever drawn.
+let wasResizingWindow = false;
+function adoptResizedWindowSize() {
+  let resizingWin = false;
+  try {
+    resizingWin = Module.ccall('engine_resizing_window', 'number', [], []) === 1;
+  } catch (e) { return; }
+  if (!resizingWin && !wasResizingWindow) return;
+  let changed = false;
+  for (const win of doc.children) {
+    if (win.type !== 'window') continue;
+    if (!(Number(win.w) > 0) || !(Number(win.h) > 0)) continue;   // auto-sized
+    const r = latestRects.find(x => x.id === win.id && x.window);
+    if (!r || (r.w === 0 && r.h === 0)) continue;                 // hidden
+    const w = Math.round(r.w), h = Math.round(r.h);
+    if (w === Math.round(win.w) && h === Math.round(win.h)) continue;
+    win.w = w;
+    win.h = h;
+    changed = true;
+  }
+  if (resizingWin) {
+    wasResizingWindow = true;
+    // Pushed every frame so the engine's copy keeps up, exactly as the move
+    // path does. It cannot fight the drag: the size sent is the one ImGui just
+    // produced, so the re-apply is a no-op.
+    if (changed) { pushDoc(); syncCanvasSize(); renderProps(); }
+    return;
+  }
+  wasResizingWindow = false;
+  if (changed) { pushHistory(); refresh(); }
 }
 
 function tick() {
@@ -4808,7 +4850,8 @@ function syncCanvasSize() {
   // that the frame on which content first crosses zero can clip by a pixel or two
   // before the next poll; anything PLACED at a negative position is covered before
   // it is ever drawn, which is what matters.
-  const gesture = !!(drag || resizing || wasMovingWindow || armedWindowDrag);
+  const gesture = !!(drag || resizing || wasMovingWindow || wasResizingWindow
+    || armedWindowDrag);
   // Extra headroom once content is ALREADY in negative space and a gesture is
   // running, which is the only time the sheet has to stay ahead of a moving edge.
   // Applying it to every gesture instead churned the surface during ordinary
@@ -7940,6 +7983,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=a02b0e5ba9"></script>
+<script src="engine.js?v=ee5a79e91c"></script>
 </body>
 </html>
