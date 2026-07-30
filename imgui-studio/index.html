@@ -1164,9 +1164,9 @@
     </div>
   </div>
 
-<script src="widgets.js?v=291f0eeab6"></script>
+<script src="widgets.js?v=2a961c8462"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=22374eb772"></script>
+<script src="cpp.js?v=07fe50f6c4"></script>
 <script src="codeintel.js?v=c66c48227d"></script>
 <script>
 // ---------- document model ----------
@@ -2043,6 +2043,9 @@ let pan = { x: 0, y: 0 };
 // engine is told the offset to apply, and the canvas element is positioned so
 // world 0,0 still lands wherever the pan says it should.
 let origin = { x: 0, y: 0 };
+// What the engine has actually been told. Kept apart from `origin` so a change
+// made before the engine was ready is still delivered once it is.
+let sentOrigin = { x: 0, y: 0 };
 // Zoom is part of the same transform. Everything that positions in world
 // coordinates lives inside #viewport and so scales with it for free; the pieces
 // that don't (the rulers, the guides, the ground grid) apply the factor
@@ -2573,6 +2576,36 @@ const panModsHeld = e => (e.ctrlKey || e.metaKey) && e.altKey;
 window.addEventListener('keydown', e => setPanReady(panModsHeld(e)));
 window.addEventListener('keyup', e => setPanReady(panModsHeld(e)));
 window.addEventListener('blur', () => { setPanReady(false); spacePhysicallyDown = false; });
+
+// A window drag is the one gesture that can outrun the sheet. ImGui places the
+// window from the pointer, so it is DRAWN at the new position before the front
+// end has seen the rect and grown the surface to cover it. Waiting for the
+// engine to report a moving window is a frame too late: several pointer moves
+// can land inside one engine frame, and a fast drag crossed the origin and was
+// drawn clipped inside that window. The press is the last moment the headroom is
+// still ahead of the motion, so arm it there.
+//
+// Only a press on a title bar, because that is the only thing that moves a
+// window (ConfigWindowsMoveFromTitleBarOnly is on), and arming on every click
+// would resize the surface twice for an ordinary selection.
+let armedWindowDrag = false;
+const TITLE_GRAB = 30;
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const p = canvasPoint(e);
+  armedWindowDrag = latestRects.some(r => r.window && (r.w > 0 || r.h > 0)
+    && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + TITLE_GRAB);
+  // Deliberately NOT syncing here. Resizing the canvas inside the mousedown
+  // costs the press: glfwSetWindowSize lands between our handler and the
+  // engine's, and ImGui never sees the click that starts the drag. The next
+  // poll is one frame away and picks the reserve up, which is still well ahead
+  // of the old trigger.
+}, true);
+document.addEventListener('mouseup', () => {
+  if (!armedWindowDrag) return;
+  armedWindowDrag = false;
+  syncCanvasSize();
+});
 
 canvas.addEventListener('mousedown', e => {
   if (!editMode || e.button !== 0) return;
@@ -3604,6 +3637,12 @@ function generateCode() {
   const ENDS_TABBAR = new Set(['child', 'popup', 'modal', 'tooltip', 'menu', 'menubar', 'table', 'tabitem']);
 
   const out = [];
+  // Set per window, below. A Button's `toggles` resolves against the window
+  // being emitted, so the resolver has to be swapped in rather than passed
+  // down through every emit() frame.
+  let curToggleRef = () => null;
+  let curHelperParams = '';
+  let curHelperArgs = '';
   const emit = (node, depth, index, parentType, inTabbar) => {
     const spec = WIDGETS[node.type];
     if (!spec) return;
@@ -3655,7 +3694,7 @@ function generateCode() {
       if (parentType !== 'table' && node.sameline && index > 0) {
         out.push(ind + 'ImGui::SameLine();');
       }
-      out.push(ind + `${fnName}(state);`);
+      out.push(ind + `${fnName}(state${curHelperArgs});`);
       claimLines();
       return;
     }
@@ -3679,7 +3718,15 @@ function generateCode() {
       if (cols.length) out.push(ind + `ImGui::PopStyleColor(${cols.length});`);
     };
 
-    const res = spec.code ? spec.code(node, v, idStr) : null;
+    // A `toggles` only means something when the named window is closable, since
+    // that is the window declaring the flag. Report a dangling one: the body
+    // falls back to a plain TODO, so Apply would otherwise drop the property
+    // with nothing said.
+    if (node.type === 'button' && node.toggles && !curToggleRef(node.toggles)) {
+      skipped.push({ type: spec.name, label: node.label || '', lost: 0,
+        reason: `toggles "${node.toggles}", which is not a closable window here` });
+    }
+    const res = spec.code ? spec.code(node, v, idStr, { toggleRef: curToggleRef }) : null;
     if (!res) { popColors(); claimLines(); return; }
     if (Array.isArray(res)) {
       for (const l of res) out.push(ind + l);
@@ -3734,6 +3781,13 @@ function generateCode() {
     return name;
   };
 
+  // A closable window owns exactly one visibility flag, declared in its own
+  // struct. Nothing else may declare a second one under the same name.
+  const flagOwners = new Set();
+  for (const w of windows) {
+    if (w.closable) flagOwners.add(pascalId(w.label || 'Window'));
+  }
+
   for (const win of windows) {
     out.length = 0;
     owners.length = 0;
@@ -3743,6 +3797,21 @@ function generateCode() {
     groupNames.clear();
     labelCount.clear();
     helpers.length = 0;
+
+    // Where this window's buttons find the flags they flip. Its own flag is a
+    // member of its own state. Another window's flag belongs to that window, so
+    // it arrives by reference: one bool per window, shared, rather than a
+    // private copy per toggler that the owner never reads.
+    const selfId = pascalId(win.label || 'Window');
+    const borrowed = togglesIn(win)
+      .filter(t => flagOwners.has(t) && !(t === selfId && win.closable));
+    curToggleRef = title => {
+      const t = pascalId(title);
+      if (!flagOwners.has(t)) return null;
+      return (t === selfId && win.closable) ? `state.show${t}` : `show${t}`;
+    };
+    curHelperParams = borrowed.map(t => `, bool& show${t}`).join('');
+    curHelperArgs = borrowed.map(t => `, show${t}`).join('');
 
     const kids = win.children || [];
     for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, 'window', false);
@@ -3762,11 +3831,9 @@ function generateCode() {
       head.push(`    bool show${pascalId(win.label || 'Window')} = `
         + `${win.openAtStart === false ? 'false' : 'true'};`);
     }
-    // any window this one's buttons can toggle needs its flag here too
-    for (const t of togglesIn(win)) {
-      if (t === pascalId(win.label || 'Window') && win.closable) continue;
-      head.push(`    bool show${t} = true;`);
-    }
+    // Nothing else goes here. Declaring a flag for every window this one's
+    // buttons can toggle gave each toggler a private bool while the target
+    // guarded on its own, so the click flipped something no one read.
     for (const fld of fields) head.push('    ' + fld);
     head.push('};');
     head.push('');
@@ -3775,7 +3842,7 @@ function generateCode() {
     const helperStart = head.length;
     const helperOwners = [];
     for (const h of helpers) {
-      head.push(`static void ${h.fnName}(${base}State& state)`, '{');
+      head.push(`static void ${h.fnName}(${base}State& state${curHelperParams})`, '{');
       helperOwners.push(h.id, h.id);
       for (let k = 0; k < h.lines.length; k++) {
         head.push(h.lines[k]);
@@ -3784,7 +3851,7 @@ function generateCode() {
       head.push('}', '');
       helperOwners.push(h.id, null);
     }
-    head.push(`void Draw${base}(${base}State& state)`);
+    head.push(`void Draw${base}(${base}State& state${curHelperParams})`);
     head.push('{');
     if (flags.length) head.push(`    ImGuiWindowFlags flags = ${flags.join(' | ')};`);
     head.push(`    ImGui::SetNextWindowPos(ImVec2(${f(win.x)}, ${f(win.y)}), ImGuiCond_FirstUseEver);`);
@@ -3802,16 +3869,23 @@ function generateCode() {
     // A closable window is guarded by a visibility flag your code owns, which
     // is also what a Button's `toggles` flips. ImGui takes it as Begin's p_open,
     // so it draws the X and clears the flag when that is clicked.
-    const openFlag = win.closable ? 'show' + pascalId(win.label || 'Window') : null;
-    if (openFlag) {
-      head.push(`    if (${openFlag})`);
-      head.push('    {');
-    }
+    // The flag is a member of this window's own state, so it is `state.showX`.
+    // Emitting it bare did not compile: this is a free function taking `state`.
+    const openFlag = win.closable ? `state.show${selfId}` : null;
     const ind2 = openFlag ? '        ' : '    ';
-    // re-indent the header lines that belong inside the guard
+    // Take the header lines that belong inside the guard BEFORE opening it.
+    // Doing it afterwards could never match: the last line was the guard's own
+    // `{`, so the loop stopped immediately and every SetNextWindowPos and
+    // PushStyleColor stayed outside. A hidden window then pushed style colours
+    // it never popped, because the matching PopStyleColor is inside, and its
+    // SetNextWindowPos leaked onto whichever window opened next.
     const guarded = [];
     while (head.length && /^ {4}ImGui::(SetNextWindow|PushStyleColor)/.test(head[head.length - 1])) {
       guarded.unshift(head.pop());
+    }
+    if (openFlag) {
+      head.push(`    if (${openFlag})`);
+      head.push('    {');
     }
     for (const l of guarded) head.push(openFlag ? '    ' + l : l);
     head.push(`${ind2}ImGui::Begin(${q(win.label || 'My Panel')}`
@@ -3824,7 +3898,11 @@ function generateCode() {
     const headOwners = head.map(() => null);
     for (let k = 0; k < helperOwners.length; k++) headOwners[helperStart + k] = helperOwners[k];
     sections.push({
-      win, head, body: out.slice(),
+      // The guard adds a level, and the body was emitted without knowing about
+      // it, so it has to be shifted to match or the widgets sit a tab to the
+      // left of the Begin they belong to.
+      win, head,
+      body: openFlag ? out.map(l => (l.trim() ? '    ' + l : l)) : out.slice(),
       owners: headOwners
         .concat(Array.from({ length: out.length }, (_, i) => owners[i] || win.id), tail.map(() => null)),
       tail,
@@ -4695,6 +4773,10 @@ function contentExtent() {
 // content crosses a boundary, and it never shrinks while a gesture is running.
 const CANVAS_STEP = 256;
 const quantise = v => Math.ceil(v / CANVAS_STEP) * CANVAS_STEP;
+// Standing room to the left of and above the content. See syncCanvasSize for
+// why this is not just tidiness: it is what keeps the origin still while a
+// press is being taken.
+const EDGE_SLACK = CANVAS_STEP * 2;
 
 function syncCanvasSize() {
   const b = contentBounds();
@@ -4714,7 +4796,7 @@ function syncCanvasSize() {
   // that the frame on which content first crosses zero can clip by a pixel or two
   // before the next poll; anything PLACED at a negative position is covered before
   // it is ever drawn, which is what matters.
-  const gesture = !!(drag || resizing || wasMovingWindow);
+  const gesture = !!(drag || resizing || wasMovingWindow || armedWindowDrag);
   // Extra headroom once content is ALREADY in negative space and a gesture is
   // running, which is the only time the sheet has to stay ahead of a moving edge.
   // Applying it to every gesture instead churned the surface during ordinary
@@ -4724,11 +4806,24 @@ function syncCanvasSize() {
   // after the fact. Reserving a slab of negative headroom for the duration of the
   // drag means the pointer cannot leave the sheet in a single frame. It costs one
   // resize when the drag starts and one when it ends, and nothing at rest.
+  // The sheet already reserves CANVAS_MARGIN beyond the content on the right and
+  // bottom. It reserves the same on the left and top, plus standing slack, and
+  // that slack is load-bearing rather than tidy: THE ORIGIN MUST NOT MOVE ON THE
+  // FRAME A PRESS IS TAKEN. ImGui matches a click against the previous frame's
+  // window rectangles, so shifting the coordinate system between those two
+  // frames puts the click over nothing, the title-bar grab never happens, and
+  // the window simply does not drag. Arming the headroom on mousedown, which is
+  // the obvious place, reliably ate the click that way.
+  //
+  // Standing slack means the ordinary case never moves the origin at all, and a
+  // drag can cross the origin and run 512px past it before the surface has to
+  // grow. By then the drag is established and a mid-drag move is safe, because
+  // the pointer is re-delivered whenever the sheet shifts under it.
   const reserve = wasMovingWindow ? 1024 : 0;
-  const needX = Math.max(0, -b.minX) + (reserve ? CANVAS_MARGIN + reserve : CANVAS_MARGIN);
-  const needY = Math.max(0, -b.minY) + (reserve ? CANVAS_MARGIN + reserve : CANVAS_MARGIN);
-  let ox = (b.minX < 0 || reserve) ? -quantise(needX) : 0;
-  let oy = (b.minY < 0 || reserve) ? -quantise(needY) : 0;
+  const needX = Math.max(EDGE_SLACK, Math.max(0, -b.minX) + CANVAS_MARGIN + reserve);
+  const needY = Math.max(EDGE_SLACK, Math.max(0, -b.minY) + CANVAS_MARGIN + reserve);
+  let ox = -quantise(needX);
+  let oy = -quantise(needY);
   // Never contract mid-gesture: the surface moving under a drag is a jump. This
   // has to include an ImGui-driven window drag, where our own `drag` is null.
   // Without it the slack came and went with the engine's moving flag, the origin
@@ -4751,7 +4846,17 @@ function syncCanvasSize() {
   if (originMoved) {
     origin.x = ox;
     origin.y = oy;
-    if (engineReady) Module.ccall('engine_set_origin', null, ['number', 'number'], [ox, oy]);
+  }
+  // Tracked separately from `origin`, because "has it changed" and "has the
+  // engine been told" are different questions. Gating the ccall on the change
+  // alone meant a move that happened before the engine was ready was never sent
+  // again, and the two sides then disagreed forever: the front end placed a
+  // press in world coordinates the engine had never heard of, so a title-bar
+  // drag landed hundreds of pixels from the title bar and did nothing.
+  if (engineReady && (ox !== sentOrigin.x || oy !== sentOrigin.y)) {
+    Module.ccall('engine_set_origin', null, ['number', 'number'], [ox, oy]);
+    sentOrigin.x = ox;
+    sentOrigin.y = oy;
   }
   const sizeMoved = canvas.width !== w || canvas.height !== h;
   if (sizeMoved) {
@@ -7540,6 +7645,28 @@ window.__test = {
     insertable: templateWidgets(t).length,
   })),
   applyTemplate: name => applyTemplate(templates.find(t => t.name === name), false),
+  // The C++ a template would produce, without disturbing the open document.
+  // The builtin templates are the worked examples of every feature, so this is
+  // what lets the compile gate reach window PROPERTIES (closable, toggles).
+  // test_all_widgets.cpp holds one of every widget TYPE and never sets either,
+  // which is the hole a non-compiling show/hide feature shipped through.
+  templateCode: name => {
+    const t = templates.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+    if (!t) return null;
+    const keep = { children: doc.children, pre: doc.pre, post: doc.post };
+    try {
+      const d = JSON.parse(JSON.stringify(t.doc || {}));
+      doc.children = d.children || [];
+      doc.pre = d.pre || '';
+      doc.post = d.post || '';
+      return generateCode();
+    } finally {
+      doc.children = keep.children; doc.pre = keep.pre; doc.post = keep.post;
+      // generateCode leaves owners/skipped behind for the code pane, so put
+      // them back in step with the document that is actually open
+      generateCode();
+    }
+  },
   saveTemplate: () => saveCurrentAsTemplate(),
   // the path the UI uses: into the nearest container of the selection
   insertTemplate: name => insertTemplateInHost(
@@ -7587,6 +7714,13 @@ window.__test = {
   snapStep: () => GRID_MINOR,
   // what a click at a world point would select, so z-order can be asserted
   hitAt: (x, y) => { const h = hitTest({ x, y }); return h ? h.id : null; },
+  // whether ImGui itself has a window under the cursor, which is the only way to
+  // tell a title-bar drag that engaged from one that silently did not
+  moving: () => {
+    try { return Module.ccall('engine_moving_window', 'number', [], []) === 1; }
+    catch (e) { return false; }
+  },
+  armedDrag: () => armedWindowDrag,
   dragState: () => (drag ? { kind: drag.kind, type: drag.type || null,
     started: !!drag.started, drop: drag.drop || null } : null),
   zoom: () => zoom,

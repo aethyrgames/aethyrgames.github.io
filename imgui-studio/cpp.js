@@ -274,8 +274,14 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // Begin's second argument is p_open, so a & there means the window can be
       // closed and something owns its visibility
       const openArg = (callArgs[1] || '').trim();
-      const closable = /^&\s*\w+/.test(openArg);
-      const openFlag = closable ? openArg.replace(/^&\s*/, '') : null;
+      // `&state.showX`: the flag is a member of the window's own state struct.
+      // Matching a bare `&showX` only would leave openFlag as "state.showX", and
+      // the `bool <name> =` lookup below would then never match, so openAtStart
+      // silently fell back to true on every read.
+      const closable = /^&\s*(?:state\s*\.\s*)?\w+/.test(openArg);
+      const openFlag = closable
+        ? openArg.replace(/^&\s*/, '').replace(/^state\s*\.\s*/, '')
+        : null;
 
       // Whatever the generator owns here is re-derived from the document on the
       // way back out. Anything else is the user's and has to survive, or every
@@ -364,7 +370,9 @@ function unpascal(name) {
 // region ahead of the window so a call inside it can be matched back.
 function collectHelpers(region) {
   const found = {};
-  const re = /(?:^|\n)\s*static\s+void\s+(\w+)\s*\(\s*\w+\s*&\s*state\s*\)\s*\n?\s*\{/g;
+  // A lifted helper also takes any window flags its buttons borrow, so its
+  // parameter list is no longer just `state`.
+  const re = /(?:^|\n)\s*static\s+void\s+(\w+)\s*\(\s*\w+\s*&\s*state\s*(?:,[^)]*)?\)\s*\n?\s*\{/g;
   let m;
   while ((m = re.exec(region))) {
     const open = region.indexOf('{', m.index + m[0].length - 1);
@@ -547,7 +555,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     // before the window was walked, so this rebuilds the container and parses
     // that body as its children. Parsing it here rather than up front means a
     // helper calling another helper nests the same way it generated.
-    const helperCall = helpers && rest.match(/^(\w+)\s*\(\s*state\s*\)\s*;/);
+    const helperCall = helpers && rest.match(/^(\w+)\s*\(\s*state\s*(?:,[^)]*)?\)\s*;/);
     if (helperCall && helpers[helperCall[1]] !== undefined) {
       const body = helpers[helperCall[1]];
       const node = Object.assign(makeNode('section'), {
@@ -671,7 +679,9 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
         }
         // A button whose body is nothing but a window toggle is still a button:
         // the toggle is a property of it, not loose code inside it.
-        const tog = /^\s*(\w+)\s*=\s*!\s*\1\s*;\s*$/.exec(body);
+        // `state.showX = !state.showX;` for a window's own flag, and a bare
+        // `showX = !showX;` for one borrowed from another window by reference.
+        const tog = /^\s*(?:state\s*\.\s*)?(\w+)\s*=\s*!\s*(?:state\s*\.\s*)?\1\s*;\s*$/.exec(body);
         if (tog && entry.type === 'button') {
           const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields);
           node.togglesFlag = tog[1].replace(/^show/, '');

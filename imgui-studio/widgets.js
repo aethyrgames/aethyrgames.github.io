@@ -137,14 +137,28 @@ const WIDGETS = {
     name: 'Button', cat: 'Buttons',
     // `toggles` names a closable window; the click flips that window's flag
     // instead of leaving a TODO, which is how one panel opens another.
+    //
+    // The generator resolves the name to an expression, because only it knows
+    // which window owns the flag. Writing `show<Target>` here unqualified was
+    // wrong twice over: it does not compile (the flag is a struct member, and
+    // this code sits in a function taking `state`), and the flag it named was a
+    // private copy in the CLICKING window's struct while the target guarded on
+    // its own, so the button could never have worked.
     props: [['label', 'text', 'Click me'], ['w', 'float', 0, PX], ['h', 'float', 0, PX],
       ['toggles', 'text', '', { placeholder: 'window title' }]],
-    code: (n, v, id) => [
-      `if (ImGui::Button(${id}${n.w || n.h ? `, ImVec2(${f(n.w)}, ${f(n.h)})` : ''}))`,
-      `{`,
-      n.toggles ? `    show${pascalId(n.toggles)} = !show${pascalId(n.toggles)};` : `    // TODO: ${v}`,
-      `}`,
-    ],
+    code: (n, v, id, ctx) => {
+      const ref = n.toggles && ctx && ctx.toggleRef ? ctx.toggleRef(n.toggles) : null;
+      return [
+        `if (ImGui::Button(${id}${n.w || n.h ? `, ImVec2(${f(n.w)}, ${f(n.h)})` : ''}))`,
+        `{`,
+        // A name that resolves to nothing falls back to the same TODO an
+        // ordinary button emits, so the output stays stable across Apply
+        // rather than alternating between two spellings. The generator
+        // reports the dangling name separately.
+        ref ? `    ${ref} = !${ref};` : `    // TODO: ${v}`,
+        `}`,
+      ];
+    },
   },
   smallbutton: {
     name: 'Small button', cat: 'Buttons', props: [['label', 'text', 'Small']],
