@@ -4616,6 +4616,39 @@ let guides = [];        // { axis: 'x'|'y', pos }
 let cursorCanvas = { x: 0, y: 0 };
 let cursorInside = false;
 
+// Where the pointer really is, in client pixels, tracked on the document so it
+// stays right while a drag is running and the pointer has left the canvas. This
+// is the input to redeliverPointer below, which needs a position the browser
+// will not give it again.
+let lastClient = null;
+document.addEventListener('mousemove',
+  e => { lastClient = { x: e.clientX, y: e.clientY }; }, true);
+
+// The engine's cursor position is a CACHE. The GLFW backend fills it from the
+// last DOM mouse event, mapped through the canvas rect as it was at that moment,
+// and re-asserts that same cached value into ImGui every single frame. So moving
+// or resizing the canvas silently invalidates it: the pointer has not moved, but
+// the surface pixel under it has, and nothing tells the engine.
+//
+// That is not a cosmetic drift. ImGui places a window it is dragging at
+// `mouse - grabOffset` every frame, so a cursor that is stale by the origin delta
+// MOVES the window by the origin delta. The window then sat further into negative
+// space, which grew the sheet, which moved the origin again, which moved the
+// window again: press a title bar, hold perfectly still, and the window
+// accelerated off the sheet at a few thousand pixels a second and never stopped
+// until the button came up.
+//
+// Re-delivering the pointer where it actually is refills the cache against the
+// new rect. Only the canvas needs to hear it (that is where GLFW listens, and it
+// ignores events aimed anywhere else), so this does not bubble into our own
+// handlers. pageX/pageY are what the backend reads.
+function redeliverPointer() {
+  if (!lastClient) return;
+  canvas.dispatchEvent(new MouseEvent('mousemove', {
+    clientX: lastClient.x, clientY: lastClient.y, bubbles: false, cancelable: false,
+  }));
+}
+
 // The wasm surface follows its container instead of being a fixed 1000x740 box,
 // so the preview uses whatever width the docks leave.
 // The drawing surface has to cover the content, not just the part of it you
@@ -4720,7 +4753,8 @@ function syncCanvasSize() {
     origin.y = oy;
     if (engineReady) Module.ccall('engine_set_origin', null, ['number', 'number'], [ox, oy]);
   }
-  if (canvas.width !== w || canvas.height !== h) {
+  const sizeMoved = canvas.width !== w || canvas.height !== h;
+  if (sizeMoved) {
     canvas.width = w;
     canvas.height = h;
     canvas.style.width = w + 'px';
@@ -4729,6 +4763,10 @@ function syncCanvasSize() {
   }
   // the canvas element has to move with its origin, or world 0,0 slides
   if (originMoved) applyViewTransform();
+  // Both of those change where a client pixel lands on the surface, so the
+  // engine's cached cursor is now wrong. Told after the transform, never before,
+  // or it maps against the rect we are in the middle of leaving.
+  if (originMoved || sizeMoved) redeliverPointer();
   drawRulers();
 }
 
