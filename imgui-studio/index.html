@@ -544,6 +544,10 @@
   /* the field and its revert arrow share the value column */
   .fieldwrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
   .fieldwrap > :first-child { flex: 1; min-width: 0; }
+  /* ...but a checkbox has its own size, and flex: 1 overrode it: a changed bool
+     came out as a wide empty box, and looked right again only once you clicked it
+     back to its default and the revert wrapper went away. */
+  .fieldwrap > input[type=checkbox]:first-child { flex: 0 0 auto; width: 15px; }
   #propbody .revert {
     background: transparent; border: none; color: var(--mk-comment); cursor: pointer;
     font-family: var(--font); font-size: 13px; line-height: 1; padding: 0 2px; flex: 0 0 auto;
@@ -622,6 +626,9 @@
   /* transparent, so the ground above shows through everywhere the panel isn't */
   #canvas { background: transparent; outline: none; display: block; }
   #canvashost.panning { cursor: grabbing; }
+  /* Ctrl+Alt held: the next press pans rather than selects, so say so up front */
+  #canvashost.panready { cursor: grab; }
+  #canvashost.panready.panning { cursor: grabbing; }
   /* live readout pinned near the cursor, the other half of a ruler */
   #coordtip {
     position: absolute; display: none; pointer-events: none; z-index: 6;
@@ -831,13 +838,17 @@
     padding: 1px 7px; cursor: pointer; font-family: var(--font); font-size: 11px;
     line-height: 1.5; white-space: nowrap;
   }
-  /* one shared edge between neighbours, so it reads as a single control */
-  #zoomctl button + button { border-left: none; }
+  /* Neighbours overlap by their shared border rather than one of them dropping
+     it. Removing the left border left the middle and right buttons with only
+     three sides lit on hover, since there was no left edge to colour. */
+  #zoomctl button + button { margin-left: -1px; }
   #zoomctl button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
   #zoomctl button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-  #zoomctl button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
-  /* the hovered button owns the shared edge, or it looks half-lit */
-  #zoomctl button:hover + button { border-left-color: var(--mk-cyan); }
+  /* the hovered one draws its whole outline over its neighbour's edge */
+  #zoomctl button:hover {
+    color: var(--mk-cyan); border-color: var(--mk-cyan);
+    position: relative; z-index: 1;
+  }
   #zoomctl .zbtn { min-width: 22px; text-align: center; }
   #zoomPctBtn {
     min-width: 46px; text-align: center; font-variant-numeric: tabular-nums;
@@ -1998,6 +2009,9 @@ var Module = {
     engineReady = true;
     updateArmedUI();
     syncCanvasSize();
+    // the grid step, so a Shift-held title-bar drag snaps to the same grid the
+    // canvas draws rather than to a number the engine invented
+    Module.ccall('engine_set_snap', null, ['number'], [GRID_MINOR]);
     Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
     pushDoc();
   },
@@ -2174,13 +2188,23 @@ function rectFor(id) {
 
 // Smallest containing rect wins. Container rects are emitted at different
 // points relative to their children, so area beats draw order here.
+// Smallest containing rect wins, so a child beats its container. But that alone
+// picked a widget in a window UNDERNEATH when two windows overlap, because a
+// small widget below beats a large window on top. The engine publishes rects in
+// draw order, which is ImGui's z-order, so the last window containing the point
+// is the top one and only it and the rects drawn after it (its own contents) are
+// candidates.
 function hitTest(p) {
+  const hits = [];
+  latestRects.forEach((r, i) => {
+    if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) hits.push({ r, i });
+  });
+  if (!hits.length) return null;
+  let topWin = -1;
+  for (const h of hits) if (h.r.window && h.i > topWin) topWin = h.i;
+  const pool = topWin >= 0 ? hits.filter(h => h.i >= topWin) : hits;
   let best = null;
-  for (const r of latestRects) {
-    if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
-      if (!best || r.w * r.h < best.w * best.h) best = r;
-    }
-  }
+  for (const h of pool) if (!best || h.r.w * h.r.h < best.w * best.h) best = h.r;
   return best;
 }
 
@@ -2460,11 +2484,26 @@ document.addEventListener('mouseup', e => {
 }, true);
 window.addEventListener('blur', () => releaseCanvasButton(null));
 
-// Middle-drag pans. Left is taken by select/move and Ctrl+left by the marquee,
-// and Space is the live-preview quasimode, so the wheel button is what's left.
+// Middle-drag pans, and so does Ctrl+Alt+left, for a trackpad or any mouse
+// without a comfortable wheel button.
+//
+// Two modifiers because every single one is already spoken for on this canvas:
+// plain drag selects and moves, Shift extends a selection, Ctrl rubber-bands
+// (a flow layout has almost no empty space to start a marquee from), and Alt
+// duplicates what you drag. Ctrl alone was tried for panning and it cost the
+// marquee its gesture, which is a worse trade than an extra key.
+//
+// Capture phase, because the canvas is a child of this element and its own
+// mousedown listener would otherwise run first and begin a marquee. Stopping the
+// event here also keeps the press away from the engine, so a pan in Live mode
+// cannot press an ImGui widget on the way past.
+const isPanGesture = e => e.button === 1
+  || (e.button === 0 && (e.ctrlKey || e.metaKey) && e.altKey);
+
 canvasHost.addEventListener('mousedown', e => {
-  if (e.button !== 1) return;
+  if (!isPanGesture(e)) return;
   e.preventDefault();
+  e.stopPropagation();
   canvasHost.classList.add('panning');
   const from = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
   const move = ev => {
@@ -2479,8 +2518,17 @@ canvasHost.addEventListener('mousedown', e => {
   };
   document.addEventListener('mousemove', move);
   document.addEventListener('mouseup', up);
-});
+}, true);
 canvasHost.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+
+// Held modifiers are the only hint that the canvas will pan rather than select or
+// rubber-band, so the cursor says so before the press. Cleared on blur, since a
+// window switch while they are held never delivers the keyup.
+const setPanReady = on => canvasHost.classList.toggle('panready', !!on);
+const panModsHeld = e => (e.ctrlKey || e.metaKey) && e.altKey;
+window.addEventListener('keydown', e => setPanReady(panModsHeld(e)));
+window.addEventListener('keyup', e => setPanReady(panModsHeld(e)));
+window.addEventListener('blur', () => { setPanReady(false); spacePhysicallyDown = false; });
 
 canvas.addEventListener('mousedown', e => {
   if (!editMode || e.button !== 0) return;
@@ -2623,9 +2671,13 @@ document.addEventListener('mousemove', e => {
     // A left or top edge grows the other way, so the node moves as it sizes.
     // The origin is a hard floor: there is no surface at negative coordinates,
     // so the edge stops rather than dragging the window off the sheet.
+    // Shift snaps to the grid, the same as dragging the window by its title bar.
+    // The far edge stays put, so the size takes up whatever the snap moved.
+    const snap = v => Math.round(v / GRID_MINOR) * GRID_MINOR;
     if (resizing.axis.includes('W')) {
       let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 - dx));
       let x = Math.round(resizing.x0 + (resizing.w0 - w));
+      if (e.shiftKey) { const sx = Math.max(0, snap(x)); w += x - sx; x = sx; }
       if (x < 0) { w += x; x = 0; }
       node.x = x;
       node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, w);
@@ -2633,6 +2685,7 @@ document.addEventListener('mousemove', e => {
     if (resizing.axis.includes('H')) {
       let h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 - dy));
       let y = Math.round(resizing.y0 + (resizing.h0 - h));
+      if (e.shiftKey) { const sy = Math.max(0, snap(y)); h += y - sy; y = sy; }
       if (y < 0) { h += y; y = 0; }
       node.y = y;
       node.h = Math.max(MIN_DRAG_SIZE, h);
@@ -2707,6 +2760,23 @@ document.addEventListener('mouseup', e => {
   if (!d.started) {
     if (d.kind === 'template') insertTemplate(d.tpl);
     else if (d.kind === 'palette') addNode(d.type);
+    return;
+  }
+  if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly && !d.drop) {
+    addNode(d.type);
+    return;
+  }
+  // A window can only live at the root, so a drop computed inside another window
+  // was rejected and the drag did nothing at all. Place it at the root instead,
+  // at the point it was dropped, which is what dropping it somewhere means.
+  if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly) {
+    const at = canvasPoint(e);
+    const node = makeNode(d.type);
+    node.x = Math.max(0, Math.round(at.x));
+    node.y = Math.max(0, Math.round(at.y));
+    doc.children.push(node);
+    selectId(node.id);
+    refresh();
     return;
   }
   if (!d.drop) return;
@@ -2848,10 +2918,13 @@ function resetTabSpring() {
 let spaceHeld = false;
 let spaceWasLive = false;
 let spaceWasArmed = null;
+// Down as far as the keyboard is concerned, even when a focused field claimed it.
+let spacePhysicallyDown = false;
 
 function handleSpaceDown(e) {
-  e.preventDefault();
-  if (e.repeat || spaceHeld) return;
+  if (e && e.preventDefault) e.preventDefault();
+  spacePhysicallyDown = true;
+  if ((e && e.repeat) || spaceHeld) return;
   spaceHeld = true;
   spaceWasLive = !editMode;
   // Live mode disarms, but a peek is meant to be free: poking a widget and
@@ -2863,6 +2936,7 @@ function handleSpaceDown(e) {
 }
 
 function releaseSpace() {
+  spacePhysicallyDown = false;
   if (!spaceHeld) return;
   spaceHeld = false;
   guidesEl.style.display = '';
@@ -3089,6 +3163,11 @@ window.addEventListener('keydown', e => {
     handleSpaceDown(e);
     return;
   }
+  // Same key, pointer still over a panel: the field keeps it, because a space is
+  // what you meant while typing. But remember it is down, so arriving over the
+  // canvas with it still held enters the quasimode rather than doing nothing at
+  // all until you let go and press again.
+  if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.repeat) spacePhysicallyDown = true;
   if (isTextEntry(t) || (t && t.tagName === 'SELECT')) {
     if (e.key === 'Escape') {
       // Escape from a field is a full back-out, including a drag that was
@@ -4676,6 +4755,12 @@ canvasHost.addEventListener('mousemove', e => {
   const r = canvas.getBoundingClientRect();
   cursorCanvas = { x: Math.round(e.clientX - r.left), y: Math.round(e.clientY - r.top) };
   cursorInside = true;
+  // Space went down while the pointer was elsewhere, so nothing happened then.
+  // Now that it is here and the key is still held, the peek is plainly meant.
+  if (spacePhysicallyDown && !spaceHeld) {
+    if (isTextEntry(document.activeElement)) document.activeElement.blur();
+    handleSpaceDown(null);
+  }
   drawRulers();
   const host = canvasHost.getBoundingClientRect();
   coordTip.style.display = 'block';
@@ -5617,9 +5702,20 @@ function renderProps() {
   ns.textContent = spec.name || node.type;
   ident.appendChild(ns);
   host.appendChild(ident);
-  addHead(node === doc ? titleCase('document') : titleCase('properties'));
 
   const propDefs = spec.props || [];
+  // A widget with no properties of its own (Separator, Spacing, Bullet) had a
+  // PROPERTIES heading over nothing at all. Say so instead of ruling off an
+  // empty space, and keep the heading only when there is something under it.
+  if (propDefs.length) {
+    addHead(node === doc ? titleCase('document') : titleCase('properties'));
+  } else {
+    const none = document.createElement('div');
+    none.className = 'empty';
+    none.textContent = 'No properties. ' + (spec.name || node.type)
+      + ' takes no arguments, so there is nothing to set.';
+    host.appendChild(none);
+  }
   const byKey = Object.fromEntries(propDefs.map(p => [p[0], p]));
 
   // One editor for one property. Numeric ones honour the range and unit their
@@ -6581,12 +6677,19 @@ function insertTemplateAt(t, drop) {
   // A template built around several windows brings all of them, as windows. Its
   // buttons refer to the others by title, so folding it into one container would
   // leave the example pointing at nothing.
+  //
+  // The same path covers a document with no window at all: a template carries its
+  // own, so inserting one can just add it rather than refusing. Before this the
+  // insert failed silently, since there was no container to put anything in.
   const wins = templateWindows(t);
-  if (wins.length > 1) {
+  const noWindow = !doc.children.some(n => n.type === 'window');
+  if (wins.length > 1 || noWindow) {
     for (const w of wins) doc.children.push(w);
     selectId(wins[0].id);
     refresh();
-    flashStatus(`Added ${wins.length} windows from "${titleCase(t.name)}".`);
+    flashStatus(wins.length > 1
+      ? `Added ${wins.length} windows from "${titleCase(t.name)}".`
+      : `Added the window from "${titleCase(t.name)}".`);
     return;
   }
   // Otherwise it lands in a Function container, so the generated code calls it
@@ -6608,8 +6711,9 @@ function insertTemplate(t) {
 // same way the palette does, rather than as a sibling of whatever is selected.
 function insertTemplateInHost(t) {
   const host = insertHost('section');
-  if (!host) return;
-  insertTemplateAt(t, { parentId: host.id, index: (host.children || []).length });
+  // No host means no window yet, which insertTemplateAt handles by adding the
+  // template's own. Returning here instead made the click do nothing at all.
+  insertTemplateAt(t, host ? { parentId: host.id, index: (host.children || []).length } : null);
 }
 
 function renderTemplates() {
@@ -7293,6 +7397,11 @@ window.__test = {
     ? Module.ccall('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
   addGuideAt: (axis, pos) => { guides.push({ axis, pos }); renderGuides(); },
   clearGuides: () => { guides.length = 0; renderGuides(); saveGuides(); },
+  snapStep: () => GRID_MINOR,
+  // what a click at a world point would select, so z-order can be asserted
+  hitAt: (x, y) => { const h = hitTest({ x, y }); return h ? h.id : null; },
+  dragState: () => (drag ? { kind: drag.kind, type: drag.type || null,
+    started: !!drag.started, drop: drag.drop || null } : null),
   zoom: () => zoom,
   setZoom: z => zoomTo(z),
   zoomAt: (z, x, y) => zoomTo(z, x, y),
@@ -7448,6 +7557,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=7e8a6ff9f4"></script>
+<script src="engine.js?v=fc945c9e43"></script>
 </body>
 </html>
