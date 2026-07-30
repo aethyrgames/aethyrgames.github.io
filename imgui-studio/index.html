@@ -976,7 +976,7 @@
       <button class="menutop" data-menu="help">Help</button>
     </nav>
     <span class="spacer"></span>
-    <span id="modeHint">hold <b>Space</b> to test interaction</span>
+    <span id="modeHint">hold <b>Space</b> to test interaction</span><!-- key filled in from the binding -->
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
     <button class="headbtn" id="resetViewBtn" title="Recentre the canvas (Shift+F)">Reset view</button>
   </div>
@@ -2867,7 +2867,7 @@ function setLiveMode(live) {
   hint.classList.toggle('livehint', live);
   hint.innerHTML = live
     ? '<b>LIVE</b> — widgets respond'
-    : 'hold <b>Space</b> to test interaction';
+    : 'hold <b>' + comboLabel(peekEntry() || { key: ' ' }) + '</b> to test interaction';
   if (live) disarm();
   if (engineReady) Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
   updateSelectionOverlay();
@@ -2978,9 +2978,13 @@ function sameCombo(a, b) {
     && !!a.alt === !!b.alt && !!a.shift === !!b.shift;
 }
 
-// Space and Tab are quasimodes handled ahead of the keymap, so a binding on
-// either can never fire. Accepting one would hand back a dead shortcut.
-const RESERVED_KEYS = new Set([' ', 'Tab']);
+// The two quasimodes live in their own category, which is what protects them:
+// bindingConflict refuses a combo already taken by a DIFFERENT category, so
+// nothing else can claim the peek keys, and being real keymap entries means they
+// can be rebound like everything else. They used to be handled ahead of the
+// keymap and flatly refused as bind targets, which left them the only two
+// shortcuts in the app you could not change.
+const MODES_CAT = 'Modes';
 
 // Only Edit and Live are mutually exclusive. 'global' is live in every context
 // and 'drag' runs alongside whichever of Edit/Live is current, so a key bound
@@ -3002,9 +3006,6 @@ function bindingConflict(entry, cand) {
 }
 
 function rebind(entry, cand) {
-  if (RESERVED_KEYS.has(cand.key)) {
-    return { help: 'the hold-to-peek quasimode', cat: 'reserved keys', reserved: true };
-  }
   const clash = bindingConflict(entry, cand);
   if (clash) return clash;
   Object.assign(entry, { key: cand.key, ctrl: !!cand.ctrl, alt: !!cand.alt, shift: !!cand.shift });
@@ -3084,6 +3085,16 @@ bind('edit', 'F', { key: 'F', shift: false }, 'Focus the selection (centre it on
   () => focusSelection());
 bind('edit', 'Shift+F', { key: 'F', shift: true }, 'Reset the view to the origin and 100%', 'Navigate',
   () => resetPan());
+// Held, not tapped, so the release has to find whichever key currently carries
+// it: peekBinding/modeBinding below look the entry up rather than comparing to a
+// literal. `run` returning nothing means it consumed the key, as usual.
+bind('global', 'Space (hold)', { key: ' ' },
+  'Hold to test interaction: peek Live while held, release to snap back', MODES_CAT,
+  e => { handleSpaceDown(e); });
+bind('global', 'Tab', { key: 'Tab' },
+  'Toggle Edit and Live. Hold past ~200ms to peek Live instead', MODES_CAT,
+  e => { handleTabDown(e); });
+
 bind('edit', '] / [', { key: ']' }, 'Zoom in', 'Navigate', () => zoomStep(1));
 bind('edit', '', { key: '[' }, 'Zoom out', 'Navigate', () => zoomStep(-1));
 bind('edit', 'Ctrl+Shift+F', { key: 'F', ctrl: true, shift: true }, 'Fit the document in the view',
@@ -3158,7 +3169,7 @@ window.addEventListener('keydown', e => {
   // canvas, and you typed a space instead of poking the preview. If the
   // pointer is over the canvas the user plainly means the preview, so take
   // the key and step out of the field.
-  if (e.key === ' ' && cursorInside && !e.ctrlKey && !e.altKey && isTextEntry(t)) {
+  if (isPeekKey(e) && cursorInside && isTextEntry(t)) {
     t.blur();
     handleSpaceDown(e);
     return;
@@ -3167,7 +3178,7 @@ window.addEventListener('keydown', e => {
   // what you meant while typing. But remember it is down, so arriving over the
   // canvas with it still held enters the quasimode rather than doing nothing at
   // all until you let go and press again.
-  if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.repeat) spacePhysicallyDown = true;
+  if (isPeekKey(e) && !e.repeat) spacePhysicallyDown = true;
   if (isTextEntry(t) || (t && t.tagName === 'SELECT')) {
     if (e.key === 'Escape') {
       // Escape from a field is a full back-out, including a drag that was
@@ -3182,10 +3193,20 @@ window.addEventListener('keydown', e => {
   }
   // a focused checkbox keeps Space for its own toggle; everything else dispatches
   if (t && t.tagName === 'INPUT' && e.key === ' ') return;
-  if (e.key === ' ' && !e.ctrlKey && !e.altKey) { handleSpaceDown(e); return; }
-  if (e.key === 'Tab' && !e.ctrlKey && !e.altKey) { handleTabDown(e); return; }
+  // Space and Tab are ordinary keymap entries now, so they fall through to the
+  // dispatcher below with everything else.
   if (e.key === 'Escape' && (!cmdkEl.hidden || !helpEl.hidden)) {
     closeOverlays();
+    e.preventDefault();
+    return;
+  }
+  // The mode keys go first, ahead of the guard below: an ImGui text field asking
+  // for input would otherwise swallow them, and Tab is how you get back out of
+  // Live mode. They used to be handled ahead of the whole keymap for the same
+  // reason, and this keeps that precedence now that they are ordinary entries.
+  for (const b of KEYMAP) {
+    if (b.cat !== MODES_CAT || !keyMatches(e, b)) continue;
+    if (b.run(e) === false) continue;
     e.preventDefault();
     return;
   }
@@ -3221,9 +3242,24 @@ window.addEventListener('keydown', e => {
 
 const cycleState = { sig: '', idx: 0, at: 0 };
 
+// A hold gesture has to release on whatever key currently carries it, and a keyup
+// may arrive with the modifiers already lifted, so only the key itself is
+// compared. Rebinding the peek to Alt+Q still releases on Q.
+function bindingFor(help) {
+  return KEYMAP.find(b => b.cat === MODES_CAT && b.help.startsWith(help));
+}
+function peekEntry() { return bindingFor('Hold to test interaction'); }
+function modeEntry() { return bindingFor('Toggle Edit and Live'); }
+function isPeekKey(e) {
+  const b = peekEntry();
+  return !!b && e.key === b.key && !!b.ctrl === (e.ctrlKey || e.metaKey) && !!b.alt === e.altKey;
+}
+
 window.addEventListener('keyup', e => {
-  if (e.key === 'Tab') handleTabUp();
-  else if (e.key === ' ') releaseSpace();
+  const mode = modeEntry();
+  const peek = peekEntry();
+  if (mode && e.key === mode.key) handleTabUp();
+  else if (peek && e.key === peek.key) releaseSpace();
 });
 
 // ---------- command palette and insert menu ----------
@@ -7397,6 +7433,16 @@ window.__test = {
     ? Module.ccall('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
   addGuideAt: (axis, pos) => { guides.push({ axis, pos }); renderGuides(); },
   clearGuides: () => { guides.length = 0; renderGuides(); saveGuides(); },
+  // the whole keymap, and a rebind through the same path the settings rows use
+  keymap: () => KEYMAP.map(b => ({ id: b.id, ctx: b.ctx, cat: b.cat, help: b.help,
+    key: b.key, ctrl: !!b.ctrl, alt: !!b.alt, shift: !!b.shift })),
+  rebindById: (id, cand) => {
+    const entry = KEYMAP.find(b => b.id === id);
+    if (!entry) return 'no such binding';
+    const clash = rebind(entry, cand);
+    return clash ? (clash.help || 'refused') : null;
+  },
+  resetBinds: () => { resetBinds(); },
   snapStep: () => GRID_MINOR,
   // what a click at a world point would select, so z-order can be asserted
   hitAt: (x, y) => { const h = hitTest({ x, y }); return h ? h.id : null; },
@@ -7557,6 +7603,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=fc945c9e43"></script>
+<script src="engine.js?v=1abe653732"></script>
 </body>
 </html>
