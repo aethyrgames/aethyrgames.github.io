@@ -244,6 +244,7 @@ function createParser(WIDGETS, makeNode, colorSlots) {
     let pre = '';
     let post = '';
     let first = true;
+    let lastClosable = false;
 
     while (true) {
       const bodyStart = src.indexOf('ImGui::Begin(', cursor);
@@ -267,8 +268,14 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       }
 
       const call = balancedArgs(src.slice(bodyStart + 'ImGui::Begin'.length));
-      const firstArg = call === null ? null : splitTopLevel(call)[0];
+      const callArgs = call === null ? [] : splitTopLevel(call);
+      const firstArg = callArgs[0];
       const label = firstArg && firstArg.trim().startsWith('"') ? litStr(firstArg.trim()) : 'My Panel';
+      // Begin's second argument is p_open, so a & there means the window can be
+      // closed and something owns its visibility
+      const openArg = (callArgs[1] || '').trim();
+      const closable = /^&\s*\w+/.test(openArg);
+      const openFlag = closable ? openArg.replace(/^&\s*/, '') : null;
 
       // Whatever the generator owns here is re-derived from the document on the
       // way back out. Anything else is the user's and has to survive, or every
@@ -291,13 +298,19 @@ function createParser(WIDGETS, makeNode, colorSlots) {
 
       const inner = src.slice(src.indexOf(';', bodyStart) + 1, bodyEnd);
       const children = parse(inner, 0, inner.length, errors, newId, schema,
-        colorSlots, WIDGETS, makeNode, fields);
+        colorSlots, WIDGETS, makeNode, fields, collectHelpers(region));
       const win = Object.assign(makeNode('window'), { id: newId(), label, children });
       if (head.colors) win.colors = head.colors;
       const size = /ImGui::SetNextWindowSize\s*\(\s*ImVec2\s*\(([^,]+),([^)]+)\)/.exec(region);
       if (size) { win.w = litNum(size[1]); win.h = litNum(size[2]); }
+      if (closable) {
+        win.closable = true;
+        const decl = new RegExp('bool\\s+' + openFlag + '\\s*=\\s*(true|false)').exec(region);
+        win.openAtStart = !decl || decl[1] === 'true';
+      }
       const pos = /ImGui::SetNextWindowPos\s*\(\s*ImVec2\s*\(([^,]+),([^)]+)\)/.exec(region);
       if (pos) { win.x = litNum(pos[1]); win.y = litNum(pos[2]); }
+      lastClosable = closable;
       windows.push(win);
 
       cursor = src.indexOf(';', bodyEnd) + 1 || src.length;
@@ -307,14 +320,29 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // no window at all: treat the whole text as one window's body so nothing
       // is lost, which is what a paste of loose widget calls looks like
       const children = parse(src, 0, src.length, errors, newId, schema,
-        colorSlots, WIDGETS, makeNode, {});
+        colorSlots, WIDGETS, makeNode, {}, collectHelpers(src));
       if (children.length) {
         windows.push(Object.assign(makeNode('window'), { id: newId(), children }));
         errors.push({ level: 'warn', msg: 'No ImGui::Begin/End pair found; wrapped the body in a window.' });
       }
     } else {
-      post = splitTail(src.slice(cursor));
+      post = splitTail(src.slice(cursor), lastClosable);
     }
+
+    // A toggle is written as a flag name; the document stores the window title.
+    // Both directions go through the same PascalCase rule, so this round-trips.
+    const byFlag = {};
+    for (const w of windows) byFlag[pascalId(w.label)] = w.label;
+    const resolve = list => {
+      for (const n of list || []) {
+        if (n.togglesFlag !== undefined) {
+          n.toggles = byFlag[n.togglesFlag] || '';
+          delete n.togglesFlag;
+        }
+        resolve(n.children);
+      }
+    };
+    for (const w of windows) resolve(w.children);
 
     return { windows, pre, post, errors, nextId: idc };
   }
@@ -322,6 +350,32 @@ function createParser(WIDGETS, makeNode, colorSlots) {
 
 // The End that closes a given Begin, counting nested Begin/End pairs in
 // between so a child window does not steal the match.
+// "AudioSettings" -> "Audio Settings". The generator only ever writes the
+// PascalCase form, so a label that was already spaced comes back the same, and
+// one that wasn't settles after a single apply.
+function unpascal(name) {
+  const s = String(name || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').trim();
+  return s || 'Section';
+}
+
+// The `static void DrawX(SomeState& state)` blocks the generator lifts out of a
+// window, keyed by function name and holding the body text. Collected from the
+// region ahead of the window so a call inside it can be matched back.
+function collectHelpers(region) {
+  const found = {};
+  const re = /(?:^|\n)\s*static\s+void\s+(\w+)\s*\(\s*\w+\s*&\s*state\s*\)\s*\n?\s*\{/g;
+  let m;
+  while ((m = re.exec(region))) {
+    const open = region.indexOf('{', m.index + m[0].length - 1);
+    const end = matchBrace(region, open, region.length);
+    if (end < 0) continue;
+    found[m[1]] = dedent(region.slice(open + 1, end));
+    re.lastIndex = end;
+  }
+  return found;
+}
+
 function matchingEnd(src, beginAt) {
   const re = /ImGui::(Begin|End)\s*\(/g;
   re.lastIndex = beginAt;
@@ -386,14 +440,17 @@ function splitHead(text, colorSlots) {
 // function's closing brace belong to the generator.
 // The brace to drop is the first one alone on a line, not the last one in the
 // text: the user's own code can follow the draw function.
-function splitTail(text) {
-  const rest = text
+function splitTail(text, guarded) {
+  let rest = text
     .replace(/^[ \t]*ImGui::PopStyleColor\s*\([^;]*\)\s*;[ \t]*\r?\n?/m, '')
     .replace(/^[ \t]*\}[ \t]*\r?\n?/m, '');
+  // a closable window is wrapped in `if (showX) { ... }`, so there is a second
+  // brace to account for before the user's own code starts
+  if (guarded) rest = rest.replace(/^[ \t]*\}[ \t]*\r?\n?/m, '');
   return dedent(rest);
 }
 
-function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNode, fields) {
+function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNode, fields, helpers) {
   const out = [];
   let i = from;
   let pendingSameLine = false;
@@ -486,6 +543,24 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       continue;
     }
 
+    // A call to one of the lifted Function containers. Its body was collected
+    // before the window was walked, so this rebuilds the container and parses
+    // that body as its children. Parsing it here rather than up front means a
+    // helper calling another helper nests the same way it generated.
+    const helperCall = helpers && rest.match(/^(\w+)\s*\(\s*state\s*\)\s*;/);
+    if (helperCall && helpers[helperCall[1]] !== undefined) {
+      const body = helpers[helperCall[1]];
+      const node = Object.assign(makeNode('section'), {
+        id: newId(),
+        label: unpascal(helperCall[1].replace(/^Draw/, '')),
+      });
+      node.children = parse(body, 0, body.length, errors, newId, schema,
+        colorSlots, WIDGETS, makeNode, fields, helpers);
+      attach(node);
+      i = src.indexOf(';', i) + 1;
+      continue;
+    }
+
     // Structural calls the generator re-emits from the tree; keeping them would
     // duplicate on every apply.
     if (/^ImGui::(TableNextColumn|TableNextRow)\s*\(\s*\)\s*;/.test(rest)) {
@@ -562,7 +637,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
           : Object.assign(makeNode(type), { id: newId() });
         const bodyFrom = src.indexOf(';', i + bare[0].length + argsText.length) + 1;
         node.children = parse(src, bodyFrom, pair.callStart, errors, newId, schema,
-          colorSlots, WIDGETS, makeNode, fields);
+          colorSlots, WIDGETS, makeNode, fields, helpers);
         attach(node);
         i = pair.end;
         continue;
@@ -589,7 +664,17 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
           const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields);
           const inner = stripTrailingPop(body, fn);
           node.children = parse(inner, 0, inner.length, errors, newId, schema,
-            colorSlots, WIDGETS, makeNode, fields);
+            colorSlots, WIDGETS, makeNode, fields, helpers);
+          attach(node);
+          i = braceEnd + 1;
+          continue;
+        }
+        // A button whose body is nothing but a window toggle is still a button:
+        // the toggle is a property of it, not loose code inside it.
+        const tog = /^\s*(\w+)\s*=\s*!\s*\1\s*;\s*$/.exec(body);
+        if (tog && entry.type === 'button') {
+          const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields);
+          node.togglesFlag = tog[1].replace(/^show/, '');
           attach(node);
           i = braceEnd + 1;
           continue;

@@ -231,6 +231,16 @@
     border-bottom: 1px solid color-mix(in srgb, var(--mk-border) 40%, transparent); font-size: 12px;
   }
   .tplrow:hover { background: var(--mk-hover); }
+  /* the insertion line both lists share while a row is being dragged */
+  #listline {
+    position: fixed; display: none; z-index: 46; pointer-events: none;
+    background: var(--mk-cyan); border-radius: 1px;
+    box-shadow: 0 0 5px color-mix(in srgb, var(--mk-cyan) 60%, transparent);
+  }
+  #listline.into {
+    background: color-mix(in srgb, var(--mk-cyan) 18%, transparent);
+    border: 1px solid var(--mk-cyan); box-shadow: none;
+  }
   .tplname { flex: 1; min-width: 0; color: var(--mk-fg); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tplname:hover { color: var(--mk-cyan); }
   .tplcount { color: var(--mk-comment); font-size: 10px; }
@@ -742,6 +752,55 @@
     box-shadow: inset 2px 0 0 var(--mk-green);
     border-radius: 0 2px 2px 0;
   }
+  /* completion picker, floating over the editor at the caret */
+  #codeCompl {
+    position: absolute; z-index: 3; max-height: 220px; overflow-y: auto;
+    min-width: 260px; max-width: min(560px, 90%);
+    background: var(--panel); border: 1px solid var(--mk-border);
+    border-radius: 4px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    font: 12px/1.4 var(--font);
+  }
+  #codeCompl .ci {
+    padding: 4px 8px; cursor: pointer; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #codeCompl .ci .cname { color: var(--mk-green); }
+  #codeCompl .ci .csig { color: var(--mk-comment); margin-left: 8px; }
+  #codeCompl .ci.on { background: color-mix(in srgb, var(--mk-cyan) 22%, transparent); }
+  #codeCompl .ci.on .csig { color: var(--fg); }
+
+  /* the signature of the call the caret is inside */
+  #codeSig {
+    padding: 4px 10px; font: 12px/1.4 var(--font); flex-shrink: 0;
+    border-top: 1px solid var(--mk-border);
+    color: var(--mk-comment); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #codeSig b { color: var(--mk-cyan); font-weight: 600; }
+  #codeSig .arg { color: var(--mk-yellow, var(--fg)); text-decoration: underline; }
+
+  #codeLint {
+    flex-shrink: 0; max-height: 28%; overflow-y: auto; font-size: 12px;
+    border-top: 1px solid var(--mk-border);
+  }
+  #codeLint .ld {
+    display: flex; gap: 8px; align-items: baseline;
+    padding: 3px 10px; cursor: pointer;
+  }
+  #codeLint .ld:hover { background: var(--mk-hover); }
+  #codeLint .ld .lat { color: var(--mk-comment); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  #codeLint .ld .lmsg { flex: 1; }
+  #codeLint .ld.error .lic { color: var(--mk-pink); }
+  #codeLint .ld.warn .lic { color: var(--mk-orange, var(--mk-yellow)); }
+  #codeLint .ld.info .lic { color: var(--mk-cyan); }
+  #codeLint .ld .lic { flex-shrink: 0; }
+  #codeLint .lfix {
+    flex-shrink: 0; background: none; border: 1px solid var(--mk-border);
+    color: var(--mk-green); border-radius: 3px; padding: 1px 6px;
+    font: 11px var(--font); cursor: pointer;
+  }
+  #codeLint .lfix:hover { border-color: var(--mk-green); background: var(--mk-hover); }
+  #codeLint .lclean { padding: 3px 10px; color: var(--mk-green); }
+
   #codeStatus {
     padding: 6px 10px; font-size: 12px; border-top: 1px solid var(--mk-border);
     color: var(--mk-comment); max-height: 32%; overflow-y: auto; white-space: pre-wrap;
@@ -983,7 +1042,10 @@
         <div id="codeEditWrap" hidden>
           <pre id="codeEditHl"></pre>
           <textarea id="codeEdit" spellcheck="false"></textarea>
+          <div id="codeCompl" hidden></div>
         </div>
+        <div id="codeSig" hidden></div>
+        <div id="codeLint" hidden></div>
         <div id="codeStatus" hidden></div>
       </section>
     </div>
@@ -1037,9 +1099,10 @@
     </div>
   </div>
 
-<script src="widgets.js?v=7089f38e99"></script>
-<script src="imguidocs.js?v=b86a4253f9"></script>
-<script src="cpp.js?v=bd36923f34"></script>
+<script src="widgets.js?v=7fd60a3c0f"></script>
+<script src="imguidocs.js?v=50da266d44"></script>
+<script src="cpp.js?v=72609570f5"></script>
+<script src="codeintel.js?v=417c3e44ca"></script>
 <script>
 // ---------- document model ----------
 
@@ -3249,6 +3312,24 @@ function generateCode() {
       for (let k = ownFrom; k < out.length; k++) if (!owners[k]) owners[k] = node.id;
     };
 
+    // A Function container is transparent: its children are lifted into a
+    // function of their own and the call takes their place here. They keep the
+    // real parent's context, since the helper runs inside that same scope.
+    if (node.type === 'section') {
+      const fnName = 'Draw' + claimFn(node.label);
+      const start = out.length;
+      const kids = node.children || [];
+      for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, parentType, inTabbar);
+      const lines = out.splice(start);
+      const lineOwners = owners.splice(start, lines.length);
+      helpers.push({ id: node.id, fnName, lines, owners: lineOwners });
+      if (parentType === 'table') out.push(ind + 'ImGui::TableNextColumn();');
+      else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
+      out.push(ind + `${fnName}(state);`);
+      claimLines();
+      return;
+    }
+
     if (parentType === 'table') out.push(ind + 'ImGui::TableNextColumn();');
     else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
 
@@ -3292,12 +3373,36 @@ function generateCode() {
     claimLines();
   };
 
+  // Windows named by a Button's `toggles`, so their flags are declared.
+  const togglesIn = win => {
+    const out = new Set();
+    const walkKids = list => {
+      for (const n of list || []) {
+        if (n.type === 'button' && n.toggles) out.add(pascalId(n.toggles));
+        walkKids(n.children);
+      }
+    };
+    walkKids(win.children);
+    return [...out];
+  };
+
   // One struct and one function per window. That is what a window is in ImGui
   // terms, and it means a document with three panels reads as three functions
   // rather than one long one.
   const windows = (doc.children || []).filter(n => n.type === 'window');
   const sections = [];
   const usedFnNames = new Set();
+  // Lifted Function containers, in the order they were reached. Their names share
+  // the window functions' namespace, since it is all one translation unit.
+  const helpers = [];
+  const claimFn = label => {
+    const base = pascal(label, 'Section');
+    let name = base;
+    let i = 2;
+    while (usedFnNames.has(name)) name = base + i++;
+    usedFnNames.add(name);
+    return name;
+  };
 
   for (const win of windows) {
     out.length = 0;
@@ -3307,6 +3412,7 @@ function generateCode() {
     usedNames.clear();
     groupNames.clear();
     labelCount.clear();
+    helpers.length = 0;
 
     const kids = win.children || [];
     for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, 'window', false);
@@ -3322,9 +3428,32 @@ function generateCode() {
     const head = [];
     head.push(`struct ${base}State`);
     head.push('{');
+    if (win.closable) {
+      head.push(`    bool show${pascalId(win.label || 'Window')} = `
+        + `${win.openAtStart === false ? 'false' : 'true'};`);
+    }
+    // any window this one's buttons can toggle needs its flag here too
+    for (const t of togglesIn(win)) {
+      if (t === pascalId(win.label || 'Window') && win.closable) continue;
+      head.push(`    bool show${t} = true;`);
+    }
     for (const fld of fields) head.push('    ' + fld);
     head.push('};');
     head.push('');
+    // Lifted Function containers go between the struct and the window function:
+    // they take the same state by reference, so the struct has to come first.
+    const helperStart = head.length;
+    const helperOwners = [];
+    for (const h of helpers) {
+      head.push(`static void ${h.fnName}(${base}State& state)`, '{');
+      helperOwners.push(h.id, h.id);
+      for (let k = 0; k < h.lines.length; k++) {
+        head.push(h.lines[k]);
+        helperOwners.push(h.owners[k] || h.id);
+      }
+      head.push('}', '');
+      helperOwners.push(h.id, null);
+    }
     head.push(`void Draw${base}(${base}State& state)`);
     head.push('{');
     if (flags.length) head.push(`    ImGuiWindowFlags flags = ${flags.join(' | ')};`);
@@ -3340,13 +3469,33 @@ function generateCode() {
       head.push(`    ImGui::PushStyleColor(ImGuiCol_${slot}, `
         + `ImVec4(${f(c[0])}, ${f(c[1])}, ${f(c[2])}, ${f(c[3] === undefined ? 1 : c[3])}));`);
     }
-    head.push(`    ImGui::Begin(${q(win.label || 'My Panel')}${flags.length ? ', nullptr, flags' : ''});`);
-    const tail = ['    ImGui::End();'];
-    if (winCols.length) tail.push(`    ImGui::PopStyleColor(${winCols.length});`);
+    // A closable window is guarded by a visibility flag your code owns, which
+    // is also what a Button's `toggles` flips. ImGui takes it as Begin's p_open,
+    // so it draws the X and clears the flag when that is clicked.
+    const openFlag = win.closable ? 'show' + pascalId(win.label || 'Window') : null;
+    if (openFlag) {
+      head.push(`    if (${openFlag})`);
+      head.push('    {');
+    }
+    const ind2 = openFlag ? '        ' : '    ';
+    // re-indent the header lines that belong inside the guard
+    const guarded = [];
+    while (head.length && /^ {4}ImGui::(SetNextWindow|PushStyleColor)/.test(head[head.length - 1])) {
+      guarded.unshift(head.pop());
+    }
+    for (const l of guarded) head.push(openFlag ? '    ' + l : l);
+    head.push(`${ind2}ImGui::Begin(${q(win.label || 'My Panel')}`
+      + `${openFlag ? ', &' + openFlag : (flags.length ? ', nullptr' : '')}`
+      + `${flags.length ? ', flags' : ''});`);
+    const tail = [`${ind2}ImGui::End();`];
+    if (winCols.length) tail.push(`${ind2}ImGui::PopStyleColor(${winCols.length});`);
+    if (openFlag) tail.push('    }');
     tail.push('}');
+    const headOwners = head.map(() => null);
+    for (let k = 0; k < helperOwners.length; k++) headOwners[helperStart + k] = helperOwners[k];
     sections.push({
       win, head, body: out.slice(),
-      owners: head.map(() => null)
+      owners: headOwners
         .concat(Array.from({ length: out.length }, (_, i) => owners[i] || win.id), tail.map(() => null)),
       tail,
     });
@@ -4908,6 +5057,129 @@ function treeSubtreeMatches(node, term) {
     || (node.children || []).some(c => treeSubtreeMatches(c, term));
 }
 
+// ---------- reordering by drag, in the hierarchy and the templates list ----------
+// Both lists share the same shape: press a row, and once the pointer has moved
+// far enough an insertion line follows it. The threshold is what lets a plain
+// click still mean "select".
+const LIST_DRAG_SLOP = 5;
+let listDrag = null;
+let listDragMoved = false;
+
+function listIndicator() {
+  let el = document.getElementById('listline');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'listline';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function hideListIndicator() {
+  const el = document.getElementById('listline');
+  if (el) el.style.display = 'none';
+}
+
+// Which row the pointer is over, and whether it means before, after, or inside.
+function listTargetAt(host, y, selector) {
+  const rows = [...host.querySelectorAll(selector)].filter(r => r.offsetParent);
+  for (const row of rows) {
+    const r = row.getBoundingClientRect();
+    if (y < r.top || y > r.bottom) continue;
+    const third = r.height / 3;
+    const where = y < r.top + third ? 'before' : (y > r.bottom - third ? 'after' : 'into');
+    return { row, rect: r, where };
+  }
+  const last = rows[rows.length - 1];
+  return last ? { row: last, rect: last.getBoundingClientRect(), where: 'after' } : null;
+}
+
+function showListIndicator(t, indent) {
+  const el = listIndicator();
+  el.style.display = 'block';
+  el.style.left = (t.rect.left + (indent || 0)) + 'px';
+  el.style.width = (t.rect.width - (indent || 0)) + 'px';
+  if (t.where === 'into') {
+    el.classList.add('into');
+    el.style.top = t.rect.top + 'px';
+    el.style.height = t.rect.height + 'px';
+  } else {
+    el.classList.remove('into');
+    el.style.top = ((t.where === 'before' ? t.rect.top : t.rect.bottom) - 1) + 'px';
+    el.style.height = '2px';
+  }
+}
+
+function startTreeDrag(e, id) {
+  if (e.button !== 0 || e.target.tagName === 'BUTTON' || e.target.classList.contains('box')) return;
+  listDrag = { kind: 'tree', id, startX: e.clientX, startY: e.clientY };
+  listDragMoved = false;
+}
+
+function startTemplateDrag(e, index) {
+  if (e.button !== 0 || e.target.tagName === 'BUTTON') return;
+  listDrag = { kind: 'template', index, startX: e.clientX, startY: e.clientY };
+  listDragMoved = false;
+}
+
+document.addEventListener('mousemove', e => {
+  if (!listDrag) return;
+  if (!listDragMoved) {
+    if (Math.abs(e.clientX - listDrag.startX) + Math.abs(e.clientY - listDrag.startY) < LIST_DRAG_SLOP) return;
+    listDragMoved = true;
+  }
+  if (listDrag.kind === 'tree') {
+    const t = listTargetAt(document.getElementById('tree'), e.clientY, '.row');
+    listDrag.target = t;
+    if (t) showListIndicator(t, t.where === 'into' ? 0 : parseFloat(t.row.style.paddingLeft) || 0);
+    else hideListIndicator();
+  } else {
+    const t = listTargetAt(document.getElementById('tpllist'), e.clientY, '.tplrow');
+    // a template list is flat, so there is no "inside"
+    if (t && t.where === 'into') t.where = e.clientY < t.rect.top + t.rect.height / 2 ? 'before' : 'after';
+    listDrag.target = t;
+    if (t) showListIndicator(t, 0);
+    else hideListIndicator();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (!listDrag) return;
+  const d = listDrag;
+  listDrag = null;
+  hideListIndicator();
+  if (!listDragMoved || !d.target) { setTimeout(() => { listDragMoved = false; }, 0); return; }
+  if (d.kind === 'tree') {
+    const overId = d.target.row.dataset.id;
+    const over = overId && findNode(overId);
+    if (over && over.id !== d.id && !isAncestor(d.id, over.id)) {
+      if (d.target.where === 'into' && isContainer(over)) {
+        moveSelectionTo(d.id, { parentId: over.id, index: (over.children || []).length });
+      } else {
+        const parent = findParent(over.id);
+        if (parent) {
+          const at = parent.children.indexOf(over) + (d.target.where === 'after' ? 1 : 0);
+          moveSelectionTo(d.id, { parentId: parent.id, index: at });
+        }
+      }
+    }
+  } else {
+    const rows = [...document.querySelectorAll('#tpllist .tplrow')];
+    const to = rows.indexOf(d.target.row) + (d.target.where === 'after' ? 1 : 0);
+    reorderTemplate(d.index, to);
+  }
+  // clears after the click event that follows this mouseup
+  setTimeout(() => { listDragMoved = false; }, 0);
+});
+
+function reorderTemplate(from, to) {
+  if (from === to || from + 1 === to) return;
+  const [moved] = templates.splice(from, 1);
+  templates.splice(to > from ? to - 1 : to, 0, moved);
+  saveTemplates();
+  renderTemplates();
+}
+
 function renderTree() {
   const host = document.getElementById('tree');
   const term = treeFilterEl.value.trim().toLowerCase();
@@ -4921,10 +5193,14 @@ function renderTree() {
     const row = document.createElement('div');
     row.className = 'row' + (selection.has(node.id) || node.id === selectedId ? ' selected' : '');
     row.style.paddingLeft = (6 + depth * 12) + 'px';
+    row.dataset.id = node.id;
     row.onclick = e => {
+      // a drag that moved is not a click
+      if (listDragMoved) return;
       if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSelected(node.id);
       else selectId(node.id);
     };
+    if (parent) row.addEventListener('mousedown', e => startTreeDrag(e, node.id));
     row.oncontextmenu = e => {
       e.preventDefault();
       if (!selection.has(node.id)) selectId(node.id);
@@ -5022,6 +5298,8 @@ function titleCase(s) {
 const LABEL_NAMES = {
   itemw: 'Width', n: 'Components', w: 'W', h: 'H',
   args: 'Arguments', fmt: 'Format', r: 'R', g: 'G', b: 'B',
+  // a Function container's label names the generated function, not a caption
+  'section.label': 'Name',
 };
 
 // "sliderfloat" -> "SliderFloat", from the spec's own name so it matches the
@@ -5033,7 +5311,14 @@ function pascalType(type) {
 }
 
 // Property keys are camelCase identifiers; the panel shows them as words.
-function labelFor(key) {
+// A property can mean something different on one widget than everywhere else,
+// so a type-scoped entry wins over the shared one.
+function helpFor(type, key) {
+  return PROP_HELP[type + '.' + key] || PROP_HELP[key];
+}
+
+function labelFor(key, type) {
+  if (type && LABEL_NAMES[type + '.' + key]) return LABEL_NAMES[type + '.' + key];
   if (LABEL_NAMES[key]) return LABEL_NAMES[key];
   if (key.length <= 2) return key.toUpperCase();       // w, h, n
   return titleCase(String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2'));
@@ -5183,8 +5468,8 @@ function renderProps() {
   for (const def of propDefs) {
     const key = def[0];
     if (paired.has(key)) continue;
-    addField(labelFor(key), editorFor(def), changed(key),
-      changed(key) ? restoreFn(key) : null, PROP_HELP[key]);
+    addField(labelFor(key, node.type), editorFor(def), changed(key),
+      changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
   }
   for (const [a, b] of PAIRS) {
     if (!byKey[a] || !byKey[b]) continue;
@@ -5345,7 +5630,11 @@ function setCodeEditing(on) {
           + 'They are only comments here, so applying will remove them.'
         : '');
     codeEdit.focus();
+    runCodeIntel();
   } else {
+    hideCompletions();
+    lintEl.hidden = true;
+    sigEl.hidden = true;
     renderCode();
   }
 }
@@ -5425,11 +5714,256 @@ function paintCodeEditor() {
   codeEditHl.scrollLeft = codeEdit.scrollLeft;
 }
 
-codeEdit.addEventListener('input', paintCodeEditor);
+codeEdit.addEventListener('input', () => { paintCodeEditor(); scheduleCodeIntel(); });
 codeEdit.addEventListener('scroll', () => {
   codeEditHl.scrollTop = codeEdit.scrollTop;
   codeEditHl.scrollLeft = codeEdit.scrollLeft;
+  if (!complEl.hidden) placeCompletions();
 });
+
+// ---------- lint, signature hint and completion ----------
+// The point of all three is that this pane is where you hand-write C++ that has
+// to survive Apply. Everything unrecognised is preserved, so these read as
+// advice rather than as gates: nothing here blocks applying.
+
+const lintEl = document.getElementById('codeLint');
+const sigEl = document.getElementById('codeSig');
+const complEl = document.getElementById('codeCompl');
+const IMGUI_NAMES = Object.keys(IMGUI_DOC_LINES);
+let lintDiags = [];
+let intelTimer = null;
+let compl = null;          // { from, to, items, index }
+
+// Every ImGui call the parser turns into a widget, so the lint can say which
+// ones it will instead keep verbatim.
+const modelledCalls = new Set(Object.keys(parseCpp.schema || {}));
+
+function scheduleCodeIntel() {
+  clearTimeout(intelTimer);
+  intelTimer = setTimeout(runCodeIntel, 200);
+  updateCompletions();
+}
+
+function runCodeIntel() {
+  if (!codeEditing) return;
+  lintDiags = lintCpp(codeEdit.value, {
+    sigs: IMGUI_SIGS, names: IMGUI_NAMES, modelled: modelledCalls,
+  });
+  renderLint();
+  renderSignature();
+}
+
+function renderLint() {
+  lintEl.innerHTML = '';
+  lintEl.hidden = !codeEditing;
+  const errs = lintDiags.filter(d => d.level === 'error').length;
+  const warns = lintDiags.filter(d => d.level === 'warn').length;
+  applyBtn.textContent = errs ? `Apply (${errs} error${errs > 1 ? 's' : ''})` : 'Apply';
+  applyBtn.title = errs
+    ? 'Applies anyway: anything that cannot be read as a widget is kept verbatim.'
+    : 'Parse this C++ back into the document';
+  if (!lintDiags.length) {
+    const ok = document.createElement('div');
+    ok.className = 'lclean';
+    ok.textContent = 'No problems found.';
+    lintEl.appendChild(ok);
+    return;
+  }
+  const ICON = { error: '✕', warn: '!', info: 'i' };
+  for (const d of lintDiags) {
+    const row = document.createElement('div');
+    row.className = 'ld ' + d.level;
+    row.onclick = () => jumpToCodeLine(d.line);
+    const ic = document.createElement('span');
+    ic.className = 'lic';
+    ic.textContent = ICON[d.level];
+    const at = document.createElement('span');
+    at.className = 'lat';
+    at.textContent = d.line + ':' + d.col;
+    const msg = document.createElement('span');
+    msg.className = 'lmsg';
+    msg.textContent = d.msg;
+    row.append(ic, at, msg);
+    if (d.fix) {
+      const fix = document.createElement('button');
+      fix.className = 'lfix';
+      fix.textContent = d.fix.label;
+      fix.onclick = e => { e.stopPropagation(); applyLintFix(d.fix); };
+      row.appendChild(fix);
+    }
+    lintEl.appendChild(row);
+  }
+  if (lintDiags.more > 0) {
+    const more = document.createElement('div');
+    more.className = 'lclean';
+    more.textContent = `…and ${lintDiags.more} more.`;
+    lintEl.appendChild(more);
+  }
+}
+
+function applyLintFix(fix) {
+  codeEdit.focus();
+  replaceRange(fix.from, fix.to, fix.text, fix.from + fix.text.length);
+  runCodeIntel();
+}
+
+function jumpToCodeLine(line) {
+  const v = codeEdit.value;
+  let at = 0;
+  for (let i = 1; i < line; i++) {
+    const nl = v.indexOf('\n', at);
+    if (nl < 0) break;
+    at = nl + 1;
+  }
+  const end = v.indexOf('\n', at);
+  codeEdit.focus();
+  codeEdit.setSelectionRange(at, end < 0 ? v.length : end);
+  // centre the line rather than leaving it against an edge
+  const lh = lineHeightOf();
+  codeEdit.scrollTop = Math.max(0, (line - 1) * lh - codeEdit.clientHeight / 2);
+  paintCodeEditor();
+  renderSignature();
+}
+
+let metrics = null;
+function editorMetrics() {
+  if (metrics) return metrics;
+  const probe = document.createElement('span');
+  probe.textContent = '0'.repeat(40);
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:13px/1.5 var(--font)';
+  document.body.appendChild(probe);
+  const r = probe.getBoundingClientRect();
+  metrics = { charW: r.width / 40, lineH: r.height };
+  probe.remove();
+  return metrics;
+}
+const lineHeightOf = () => editorMetrics().lineH;
+
+function renderSignature() {
+  const hit = codeEditing
+    ? signatureAt(codeEdit.value, codeEdit.selectionStart, IMGUI_SIGS) : null;
+  sigEl.hidden = !hit;
+  if (!hit) return;
+  // underline the argument the caret is on, so a long list stays readable
+  const open = hit.sig.indexOf('(');
+  const head = hit.sig.slice(0, open + 1);
+  const args = splitSigArgs(hit.sig.slice(open + 1, hit.sig.lastIndexOf(')')));
+  sigEl.innerHTML = '';
+  const b = document.createElement('b');
+  b.textContent = head;
+  sigEl.appendChild(b);
+  args.forEach((a, i) => {
+    const span = document.createElement('span');
+    if (i === hit.arg) span.className = 'arg';
+    span.textContent = a + (i < args.length - 1 ? ', ' : '');
+    sigEl.appendChild(span);
+  });
+  sigEl.appendChild(document.createTextNode(')' + (hit.note ? '   // ' + hit.note : '')));
+}
+
+function splitSigArgs(text) {
+  const out = [];
+  let d = 0, start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if ('([{'.includes(c)) d++;
+    else if (')]}'.includes(c)) d--;
+    else if (c === ',' && !d) { out.push(text.slice(start, i).trim()); start = i + 1; }
+  }
+  const last = text.slice(start).trim();
+  if (last) out.push(last);
+  return out;
+}
+
+function updateCompletions() {
+  if (!codeEditing) return hideCompletions();
+  // Only after `ImGui::` or `state.` while typing. Offering something for every
+  // three-letter word would put a popup over the code constantly; Ctrl+Space is
+  // there for when you do want it on a bare word.
+  const hit = completionAt(codeEdit.value, codeEdit.selectionStart,
+    { sigs: IMGUI_SIGS, bare: false });
+  if (!hit) return hideCompletions();
+  // A caret event re-runs this, so the highlighted row has to survive it.
+  // Narrowing the word changes the span or the list, and then the top item wins.
+  const same = compl && compl.from === hit.from && compl.to === hit.to
+    && compl.items.length === hit.items.length;
+  compl = { ...hit, index: same ? compl.index : 0 };
+  renderCompletions();
+}
+
+function renderCompletions() {
+  complEl.innerHTML = '';
+  complEl.hidden = false;
+  compl.items.forEach((it, i) => {
+    const row = document.createElement('div');
+    row.className = 'ci' + (i === compl.index ? ' on' : '');
+    const n = document.createElement('span');
+    n.className = 'cname';
+    n.textContent = it.name;
+    row.appendChild(n);
+    const sig = document.createElement('span');
+    sig.className = 'csig';
+    sig.textContent = it.note || it.sig;
+    row.appendChild(sig);
+    // mousedown, not click: the editor must not lose the caret first
+    row.addEventListener('mousedown', e => { e.preventDefault(); compl.index = i; acceptCompletion(); });
+    complEl.appendChild(row);
+  });
+  placeCompletions();
+}
+
+function placeCompletions() {
+  const { charW, lineH } = editorMetrics();
+  const v = codeEdit.value;
+  const upto = v.slice(0, compl.from);
+  const line = upto.split('\n').length;
+  const col = compl.from - (upto.lastIndexOf('\n') + 1);
+  const pad = 12;
+  let x = pad + col * charW - codeEdit.scrollLeft;
+  let y = pad + line * lineH - codeEdit.scrollTop;
+  const wrapH = codeEditWrap.clientHeight;
+  complEl.style.left = Math.max(0, Math.min(x, codeEditWrap.clientWidth - 240)) + 'px';
+  // flip above the caret when there is no room below
+  if (y + complEl.offsetHeight > wrapH && y - lineH - complEl.offsetHeight > 0) {
+    complEl.style.top = (y - lineH - complEl.offsetHeight) + 'px';
+  } else {
+    complEl.style.top = Math.max(0, Math.min(y, wrapH - 40)) + 'px';
+  }
+}
+
+function hideCompletions() {
+  compl = null;
+  complEl.hidden = true;
+}
+
+function moveCompletion(delta) {
+  compl.index = (compl.index + delta + compl.items.length) % compl.items.length;
+  renderCompletions();
+  const on = complEl.querySelector('.ci.on');
+  if (on) on.scrollIntoView({ block: 'nearest' });
+}
+
+function acceptCompletion() {
+  const it = compl.items[compl.index];
+  const { from, to, kind, withPrefix } = compl;
+  hideCompletions();
+  // a function gets its parentheses too, with the caret between them
+  const text = kind === 'fn'
+    ? (withPrefix ? 'ImGui::' : '') + it.name + '()'
+    : it.name;
+  const caret = kind === 'fn' ? from + text.length - 1 : from + text.length;
+  replaceRange(from, to, text, caret);
+  renderSignature();
+}
+
+// the caret can also move without an input event
+for (const ev of ['keyup', 'click', 'focus']) {
+  codeEdit.addEventListener(ev, () => {
+    renderSignature();
+    if (compl) updateCompletions();
+  });
+}
+codeEdit.addEventListener('blur', hideCompletions);
 
 // insertText keeps the browser's own undo stack intact, which setRangeText
 // throws away. It quietly does nothing when the field isn't really focused,
@@ -5450,7 +5984,26 @@ const indentOf = line => (line.match(/^[ \t]*/) || [''])[0];
 // Returns true when it took the key, which is the signal to stop it going any
 // further. Anything it doesn't claim types normally.
 function handleCodeEditorKey(e) {
+  // Ctrl+Space asks for the picker where typing alone would not have offered it
+  if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
+    e.preventDefault();
+    const hit = completionAt(codeEdit.value, codeEdit.selectionStart,
+      { sigs: IMGUI_SIGS, bare: true });
+    if (hit) { compl = { ...hit, index: 0 }; renderCompletions(); }
+    return true;
+  }
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
+
+  // While the picker is open it owns the arrows, Enter, Tab and Escape. Escape
+  // closes the picker only: the editor stays open, which is what you want when
+  // the picker appeared while you were mid-word.
+  if (compl) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveCompletion(1); return true; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); moveCompletion(-1); return true; }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); acceptCompletion(); return true; }
+    if (e.key === 'Escape') { e.preventDefault(); hideCompletions(); return true; }
+  }
+
   if (e.key === 'Escape') { setCodeEditing(false); e.preventDefault(); return true; }
   const v = codeEdit.value;
   const s = codeEdit.selectionStart, t = codeEdit.selectionEnd;
@@ -5664,15 +6217,14 @@ function templateWidgets(t) {
 function insertTemplateAt(t, drop) {
   const kids = templateWidgets(t);
   if (!kids.length) return;
-  let at = drop;
-  const added = [];
-  for (const kid of kids) {
-    if (!insertAt(kid, at)) return;
-    added.push(kid.id);
-    const parent = findParent(kid.id);
-    at = { parentId: parent.id, index: parent.children.indexOf(kid) + 1 };
-  }
-  selectMany(added);
+  // The template lands in a Function container, so the generated code calls it
+  // rather than inlining a wall of widgets. It draws nothing of its own, so the
+  // canvas looks the same either way, and it can be ungrouped like any other.
+  const wrap = Object.assign(makeNode('section'), {
+    label: titleCase(t.name), children: kids,
+  });
+  if (!insertAt(wrap, drop)) return;
+  selectId(wrap.id);
   refresh();
 }
 
@@ -5724,6 +6276,8 @@ function renderTemplates() {
       };
       row.appendChild(del);
     }
+    row.dataset.index = String(templates.indexOf(t));
+    row.addEventListener('mousedown', e => startTemplateDrag(e, templates.indexOf(t)));
     row.oncontextmenu = e => {
       e.preventDefault();
       openContextMenu(e, [
@@ -6478,6 +7032,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=760bee6137"></script>
+<script src="engine.js?v=e6b1ceabde"></script>
 </body>
 </html>

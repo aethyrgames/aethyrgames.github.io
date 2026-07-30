@@ -32,6 +32,9 @@ const clamp = (x, lo, hi) => {
   return !Number.isFinite(v) ? lo : Math.min(hi, Math.max(lo, Math.trunc(v)));
 };
 const comps = n => clamp(n, 1, 4);
+// "Audio Settings" -> "AudioSettings", for deriving a flag name from a title
+const pascalId = t => String(t || '').replace(/[^A-Za-z0-9 ]/g, '')
+  .split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join('') || 'Window';
 const sfx = n => (n > 1 ? String(n) : '');
 const ref = (v, n) => (n > 1 ? `state.${v}` : `&state.${v}`);
 const decl = (t, v, n, init) =>
@@ -70,6 +73,8 @@ const WIDGETS = {
       ['w', 'float', 380, PX], ['h', 'float', 460, PX],
       ['noTitleBar', 'bool', false], ['noResize', 'bool', false], ['noMove', 'bool', false],
       ['noScrollbar', 'bool', false], ['noCollapse', 'bool', false], ['autoResize', 'bool', false],
+      // a closable window is one your code can hide, and ImGui gives it an X
+      ['closable', 'bool', false], ['openAtStart', 'bool', true],
     ],
   },
 
@@ -123,10 +128,15 @@ const WIDGETS = {
   // --------------------------------------------------------------- Buttons
   button: {
     name: 'Button', cat: 'Buttons',
-    props: [['label', 'text', 'Click me'], ['w', 'float', 0, PX], ['h', 'float', 0, PX]],
+    // `toggles` names a closable window; the click flips that window's flag
+    // instead of leaving a TODO, which is how one panel opens another.
+    props: [['label', 'text', 'Click me'], ['w', 'float', 0, PX], ['h', 'float', 0, PX],
+      ['toggles', 'text', '', { placeholder: 'window title' }]],
     code: (n, v, id) => [
       `if (ImGui::Button(${id}${n.w || n.h ? `, ImVec2(${f(n.w)}, ${f(n.h)})` : ''}))`,
-      `{`, `    // TODO: ${v}`, `}`,
+      `{`,
+      n.toggles ? `    show${pascalId(n.toggles)} = !show${pascalId(n.toggles)};` : `    // TODO: ${v}`,
+      `}`,
     ],
   },
   smallbutton: {
@@ -349,6 +359,15 @@ const WIDGETS = {
     name: 'Group', cat: 'Containers', container: true, props: [],
     code: () => ({ open: ['ImGui::BeginGroup();'], close: 'ImGui::EndGroup();', braced: false }),
   },
+  // A pure code-organisation wrapper: it draws nothing of its own, and the
+  // generator lifts its children into a function of their own. Saved templates
+  // land in one of these, so inserting a template reads as a call rather than a
+  // wall of inlined widgets.
+  section: {
+    name: 'Function', cat: 'Containers', container: true, transparent: true,
+    props: [['label', 'text', 'Section']],
+    code: () => ({ open: [], close: '', braced: false }),
+  },
   child: {
     name: 'Child region', cat: 'Containers', container: true,
     props: [['label', 'text', 'child'], ['w', 'float', 0, PX], ['h', 'float', 120, PX]],
@@ -478,6 +497,10 @@ const PROP_HELP = {
   noScrollbar: 'Hides the scrollbar even when the content overflows.',
   noCollapse: 'Removes the collapse arrow.',
   autoResize: 'Sizes the window to its content every frame, ignoring width and height.',
+  'section.label': 'Names the function the generated code puts these widgets in. It draws nothing itself.',
+  closable: 'Gives the window a close button, and a bool the generated code checks before drawing it.',
+  openAtStart: 'Whether a closable window is showing the first time the panel runs.',
+  toggles: 'Title of a closable window this button shows and hides. Leave it empty for a button that does something else.',
   r: 'Red, from 0 to 1.',
   g: 'Green, from 0 to 1.',
   b: 'Blue, from 0 to 1.',
