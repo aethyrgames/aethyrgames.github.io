@@ -43,6 +43,10 @@ const decl = (t, v, n, init) =>
 // unit inside the field. 0 width means "size to content" in ImGui, so the floor
 // is 0 rather than 1.
 const PX = { min: 0, unit: 'px' };
+// A POSITION may be negative: the sheet grows to cover wherever a window is put,
+// rather than the window being pushed back onto it. Sizes keep the floor, since
+// 0 means "size to content" to ImGui and below that means nothing.
+const POS = { unit: 'px' };
 // A user-facing unit for value widgets. ImGui takes it as the display format,
 // so "cm" becomes "%.3f cm" and shows up on the slider itself. Always emitted,
 // even when empty, so the parser's probe has a stable argument to attribute.
@@ -69,7 +73,7 @@ const WIDGETS = {
     name: 'Window', cat: 'Window', container: true, rootOnly: true,
     props: [
       ['label', 'text', 'My Panel'],
-      ['x', 'float', 30, PX], ['y', 'float', 30, PX],   // PX floors at 0
+      ['x', 'float', 30, POS], ['y', 'float', 30, POS],   // may be negative
       ['w', 'float', 380, PX], ['h', 'float', 460, PX],
       ['noTitleBar', 'bool', false], ['noResize', 'bool', false], ['noMove', 'bool', false],
       ['noScrollbar', 'bool', false], ['noCollapse', 'bool', false], ['autoResize', 'bool', false],

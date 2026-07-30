@@ -1164,7 +1164,7 @@
     </div>
   </div>
 
-<script src="widgets.js?v=e39a39180b"></script>
+<script src="widgets.js?v=291f0eeab6"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
 <script src="cpp.js?v=22374eb772"></script>
 <script src="codeintel.js?v=c66c48227d"></script>
@@ -2033,6 +2033,16 @@ const ghost = document.getElementById('ghost');
 const viewportEl = document.getElementById('viewport');
 const coordTip = document.getElementById('coordtip');
 let pan = { x: 0, y: 0 };
+// The world coordinate of the render surface's top-left corner. Negative when
+// content sits above or left of the origin, which is how a window at -200 gets
+// drawn at all: the surface is a positive-only pixel buffer, so instead of
+// refusing those coordinates the surface moves to cover them.
+//
+// world = surface + origin. Everything outside this file's plumbing works in
+// world coordinates: rects are converted on the way in from the engine, the
+// engine is told the offset to apply, and the canvas element is positioned so
+// world 0,0 still lands wherever the pan says it should.
+let origin = { x: 0, y: 0 };
 // Zoom is part of the same transform. Everything that positions in world
 // coordinates lives inside #viewport and so scales with it for free; the pieces
 // that don't (the rulers, the guides, the ground grid) apply the factor
@@ -2048,7 +2058,10 @@ const GRID_MINOR = 20;
 const GRID_MAJOR = 100;
 
 function applyView() {
-  viewportEl.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+  // The surface starts at `origin` in world terms, so shifting it by origin*zoom
+  // keeps world 0,0 at the pan. That is what lets the rulers and the guides go on
+  // treating screen = pan + world*zoom with no knowledge of any of this.
+  applyViewTransform();
   // the ground scrolls and scales with the world, so the grid stays fixed to it
   // rather than sliding or drifting out of step under the panel
   const minor = GRID_MINOR * zoom;
@@ -2066,6 +2079,21 @@ function applyView() {
   drawRulers();
   renderGuides();
   syncCanvasSize();
+}
+
+// The transform on its own. syncCanvasSize needs it when the origin moves, and
+// calling the whole of applyView from there would recurse.
+// World -> the viewport's local pixel space, which is the surface. Overlays live
+// inside #viewport, so a world coordinate has to lose the origin before it is
+// used as a left/top: with a negative origin they were drawn a whole sheet-step
+// away from the thing they were meant to be outlining.
+const vpX = wx => wx - origin.x;
+const vpY = wy => wy - origin.y;
+
+function applyViewTransform() {
+  const ox = pan.x + origin.x * zoom;
+  const oy = pan.y + origin.y * zoom;
+  viewportEl.style.transform = `translate(${ox}px, ${oy}px) scale(${zoom})`;
 }
 
 // kept as the old name so existing call sites read the same
@@ -2089,13 +2117,12 @@ function zoomTo(next, screenX, screenY) {
   // Deriving it from the host rect instead assumed the canvas origin sat exactly
   // at the host origin plus the pan, and the anchor drifted when it did not.
   const w = canvasPoint({ clientX: sx, clientY: sy });
-  // screen = base + pan + world * zoom, and base does not move with the pan
-  const r = canvas.getBoundingClientRect();
-  const baseX = r.left - pan.x;
-  const baseY = r.top - pan.y;
+  // The canvas element carries the origin, so screen collapses to
+  // hostLeft + pan + world * zoom. Taking the base off the canvas rect instead
+  // folded the origin in twice and the anchor drifted by a sheet step.
   zoom = z;
-  pan.x = Math.round(sx - w.x * zoom - baseX);
-  pan.y = Math.round(sy - w.y * zoom - baseY);
+  pan.x = Math.round(sx - host.left - w.x * zoom);
+  pan.y = Math.round(sy - host.top - w.y * zoom);
   applyView();
 }
 
@@ -2117,13 +2144,10 @@ function zoomToFit() {
   const pad = 24;
   const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX,
     Math.min((host.width - pad * 2) / ext.w, (host.height - pad * 2) / ext.h)));
-  const r = canvas.getBoundingClientRect();
-  const baseX = r.left - pan.x;
-  const baseY = r.top - pan.y;
   zoom = z;
   // put world 0,0 where the centred content should start
-  pan.x = Math.round(host.left + (host.width - ext.w * z) / 2 - baseX);
-  pan.y = Math.round(host.top + (host.height - ext.h * z) / 2 - baseY);
+  pan.x = Math.round((host.width - ext.w * z) / 2);
+  pan.y = Math.round((host.height - ext.h * z) / 2);
   applyView();
 }
 
@@ -2176,8 +2200,8 @@ function canvasPoint(e) {
   // caller downstream stays in world units and needs no changes.
   const r = canvas.getBoundingClientRect();
   return {
-    x: (e.clientX - r.left) / zoom,
-    y: (e.clientY - r.top) / zoom,
+    x: (e.clientX - r.left) / zoom + origin.x,
+    y: (e.clientY - r.top) / zoom + origin.y,
     inside: e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom,
   };
 }
@@ -2216,8 +2240,8 @@ function updateSelectionOverlay() {
     selbox.style.display = 'none';
   } else {
     selbox.style.display = 'block';
-    selbox.style.left = (primary.x - 2) + 'px';
-    selbox.style.top = (primary.y - 2) + 'px';
+    selbox.style.left = (vpX(primary.x) - 2) + 'px';
+    selbox.style.top = (vpY(primary.y) - 2) + 'px';
     selbox.style.width = (primary.w + 4) + 'px';
     selbox.style.height = (primary.h + 4) + 'px';
     // handles only on the axes this widget's spec actually declares, and only
@@ -2242,8 +2266,8 @@ function updateSelectionOverlay() {
     if (!r) continue;
     const d = document.createElement('div');
     d.className = 'sb';
-    d.style.left = (r.x - 2) + 'px';
-    d.style.top = (r.y - 2) + 'px';
+    d.style.left = (vpX(r.x) - 2) + 'px';
+    d.style.top = (vpY(r.y) - 2) + 'px';
     d.style.width = (r.w + 4) + 'px';
     d.style.height = (r.h + 4) + 'px';
     selboxes.appendChild(d);
@@ -2261,7 +2285,13 @@ function pollEngine() {
     // try or one abort would kill the rAF chain and spam the interval backstop
     const raw = Module.ccall('engine_get_rects', 'string', [], []);
     const payload = JSON.parse(raw);
-    latestRects = payload.rects || [];
+    // Converted here, once, so every consumer downstream stays in world units.
+    // The offset comes from the payload rather than from `origin`: the two drift
+    // by a frame whenever the sheet has just moved, and converting with the newer
+    // value made every rect jump by the difference.
+    const ox = Number(payload.ox) || 0, oy = Number(payload.oy) || 0;
+    latestRects = (payload.rects || []).map(r => (ox || oy)
+      ? { ...r, x: r.x + ox, y: r.y + oy } : r);
     engineWantsText = !!payload.wantText;
   } catch (e) {
     if (!pollEngine.reported) { pollEngine.reported = true; console.warn('[tick] ' + (e && e.stack || e)); }
@@ -2271,19 +2301,21 @@ function pollEngine() {
   updateSelectionOverlay();
 }
 
-// Dragging a window's title bar in the preview is ImGui moving its own window:
-// the document never hears about it, so the generated SetNextWindowPos kept the
-// old coordinates and a reload put the window back. Copy the final position over
-// once the drag ends, which is also the only moment worth an undo entry.
+// Dragging a window's title bar in the preview is ImGui moving its own window,
+// and the document has to follow it EVERY frame, not just at the end. The sheet's
+// origin is derived from the document, and a window is re-placed from the document
+// whenever that origin moves, so a stale document meant the re-place yanked the
+// window back to where it used to be. That fought the drag and sent the origin
+// running away as the two argued.
+//
+// Only the release is worth an undo entry, so the per-frame writes are silent.
 let wasMovingWindow = false;
 function adoptDraggedWindowPos() {
   let moving = false;
   try {
     moving = Module.ccall('engine_moving_window', 'number', [], []) === 1;
   } catch (e) { return; }
-  if (moving) { wasMovingWindow = true; return; }
-  if (!wasMovingWindow) return;
-  wasMovingWindow = false;
+  if (!moving && !wasMovingWindow) return;
   let changed = false;
   for (const win of doc.children) {
     if (win.type !== 'window') continue;
@@ -2295,7 +2327,19 @@ function adoptDraggedWindowPos() {
     win.y = y;
     changed = true;
   }
+  if (moving) {
+    wasMovingWindow = true;
+    // The engine needs the new position too. Moving the origin makes it re-place
+    // every window from its own copy of the document, so leaving that copy stale
+    // yanked the window back to where the drag started and undid it. Pushing here
+    // cannot fight the drag: the position it sends is the one ImGui already has,
+    // so nothing is re-asserted.
+    if (changed) { pushDoc(); syncCanvasSize(); renderProps(); }
+    return;
+  }
+  wasMovingWindow = false;
   if (changed) { pushHistory(); refresh(); }
+  else refresh();
 }
 
 function tick() {
@@ -2350,22 +2394,22 @@ function updateDropIndicator(drop) {
   if (!r) return;
   if (drop.pos === 'inside') {
     dropbox.style.display = 'block';
-    dropbox.style.left = (r.x + 1) + 'px';
-    dropbox.style.top = (r.y + 1) + 'px';
+    dropbox.style.left = (vpX(r.x) + 1) + 'px';
+    dropbox.style.top = (vpY(r.y) + 1) + 'px';
     dropbox.style.width = Math.max(0, r.w - 2) + 'px';
     dropbox.style.height = Math.max(0, r.h - 2) + 'px';
     return;
   }
   dropline.style.display = 'block';
   if (drop.pos === 'right') {
-    dropline.style.left = (r.x + r.w + 2) + 'px';
-    dropline.style.top = r.y + 'px';
+    dropline.style.left = (vpX(r.x) + r.w + 2) + 'px';
+    dropline.style.top = vpY(r.y) + 'px';
     dropline.style.width = '2px';
     dropline.style.height = r.h + 'px';
     return;
   }
-  dropline.style.left = r.x + 'px';
-  dropline.style.top = (drop.pos === 'above' ? r.y - 2 : r.y + r.h) + 'px';
+  dropline.style.left = vpX(r.x) + 'px';
+  dropline.style.top = (drop.pos === 'above' ? vpY(r.y) - 2 : vpY(r.y) + r.h) + 'px';
   dropline.style.width = r.w + 'px';
   dropline.style.height = '2px';
 }
@@ -2390,8 +2434,8 @@ function updateMarquee() {
   const m = marquee;
   const x = Math.min(m.x0, m.x1), y = Math.min(m.y0, m.y1);
   const w = Math.abs(m.x1 - m.x0), h = Math.abs(m.y1 - m.y0);
-  marqueeEl.style.left = x + 'px';
-  marqueeEl.style.top = y + 'px';
+  marqueeEl.style.left = vpX(x) + 'px';
+  marqueeEl.style.top = vpY(y) + 'px';
   marqueeEl.style.width = w + 'px';
   marqueeEl.style.height = h + 'px';
 
@@ -2614,8 +2658,8 @@ function beginInlineEdit(id) {
   inlineOriginal = node.label || '';
   inlineEl.value = inlineOriginal;
   inlineEl.style.display = 'block';
-  inlineEl.style.left = r.x + 'px';
-  inlineEl.style.top = r.y + 'px';
+  inlineEl.style.left = vpX(r.x) + 'px';
+  inlineEl.style.top = vpY(r.y) + 'px';
   inlineEl.style.width = Math.max(80, r.w) + 'px';
   inlineEl.style.height = Math.max(18, r.h) + 'px';
   inlineEl.focus();
@@ -2677,16 +2721,14 @@ document.addEventListener('mousemove', e => {
     if (resizing.axis.includes('W')) {
       let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 - dx));
       let x = Math.round(resizing.x0 + (resizing.w0 - w));
-      if (e.shiftKey) { const sx = Math.max(0, snap(x)); w += x - sx; x = sx; }
-      if (x < 0) { w += x; x = 0; }
+      if (e.shiftKey) { const sx = snap(x); w += x - sx; x = sx; }
       node.x = x;
       node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, w);
     }
     if (resizing.axis.includes('H')) {
       let h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 - dy));
       let y = Math.round(resizing.y0 + (resizing.h0 - h));
-      if (e.shiftKey) { const sy = Math.max(0, snap(y)); h += y - sy; y = sy; }
-      if (y < 0) { h += y; y = 0; }
+      if (e.shiftKey) { const sy = snap(y); h += y - sy; y = sy; }
       node.y = y;
       node.h = Math.max(MIN_DRAG_SIZE, h);
     }
@@ -2772,8 +2814,8 @@ document.addEventListener('mouseup', e => {
   if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly) {
     const at = canvasPoint(e);
     const node = makeNode(d.type);
-    node.x = Math.max(0, Math.round(at.x));
-    node.y = Math.max(0, Math.round(at.y));
+    node.x = Math.round(at.x);
+    node.y = Math.round(at.y);
     doc.children.push(node);
     selectId(node.id);
     refresh();
@@ -4584,19 +4626,34 @@ let cursorInside = false;
 const CANVAS_MARGIN = 240;
 const CANVAS_MAX = 4096;   // comfortably inside any WebGL texture limit
 
-function contentExtent() {
-  let w = 0, h = 0;
+// World bounds of everything on the sheet. Both edges matter now: content may
+// start left of or above the origin, and the surface has to reach it.
+function contentBounds() {
+  let minX = 0, minY = 0, maxX = 0, maxY = 0;
   for (const r of latestRects) {
-    w = Math.max(w, r.x + r.w);
-    h = Math.max(h, r.y + r.h);
+    if (r.w === 0 && r.h === 0) continue;      // a hidden closable window
+    minX = Math.min(minX, r.x);
+    minY = Math.min(minY, r.y);
+    maxX = Math.max(maxX, r.x + r.w);
+    maxY = Math.max(maxY, r.y + r.h);
   }
-  // the document may say the window is bigger than the last frame drew
+  // the document may say a window is bigger, or further out, than the last frame
+  // drew: a size typed into the inspector should grow the sheet immediately
   for (const win of doc.children) {
     if (win.type !== 'window') continue;
-    w = Math.max(w, 30 + (Number(win.w) || 0));
-    h = Math.max(h, 30 + (Number(win.h) || 0));
+    const x = Number(win.x) || 0, y = Number(win.y) || 0;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + (Number(win.w) || 0));
+    maxY = Math.max(maxY, y + (Number(win.h) || 0));
   }
-  return { w, h };
+  return { minX, minY, maxX, maxY };
+}
+
+// Kept for the callers that only care how far the content reaches.
+function contentExtent() {
+  const b = contentBounds();
+  return { w: b.maxX - Math.min(0, b.minX), h: b.maxY - Math.min(0, b.minY) };
 }
 
 // Quantised, because the size is derived from the live rects: dragging a window
@@ -4607,21 +4664,61 @@ const CANVAS_STEP = 256;
 const quantise = v => Math.ceil(v / CANVAS_STEP) * CANVAS_STEP;
 
 function syncCanvasSize() {
-  const ext = contentExtent();
+  const b = contentBounds();
   // Zoomed out, the visible box covers more world than its pixel size, so the
   // surface has to be the box divided by the zoom or the ground runs out before
   // the edge of the view.
   const visW = Math.floor(canvasHost.clientWidth / zoom);
   const visH = Math.floor(canvasHost.clientHeight / zoom);
-  const wantW = Math.max(visW, quantise(ext.w + CANVAS_MARGIN));
-  const wantH = Math.max(visH, quantise(ext.h + CANVAS_MARGIN));
+  // The origin only leaves zero when content actually needs it, so a document
+  // living in positive space renders exactly as it always did and the canvas
+  // element is not offset for nothing. While a gesture is running it keeps a
+  // whole margin of slack in hand instead, so a drag heading for negative space
+  // always has sheet ahead of it and cannot outrun the next resize.
+  // Only content that has actually reached negative space moves the origin. Giving
+  // every gesture a margin of slack up front meant a drag in positive space still
+  // shifted the sheet, and the surface was rebuilt every few frames. The cost is
+  // that the frame on which content first crosses zero can clip by a pixel or two
+  // before the next poll; anything PLACED at a negative position is covered before
+  // it is ever drawn, which is what matters.
+  const gesture = !!(drag || resizing || wasMovingWindow);
+  // Extra headroom once content is ALREADY in negative space and a gesture is
+  // running, which is the only time the sheet has to stay ahead of a moving edge.
+  // Applying it to every gesture instead churned the surface during ordinary
+  // drags in positive space.
+  // While ImGui is dragging one of its own windows it positions that window from
+  // the MOUSE, not from the document, so it can outrun a sheet that only grows
+  // after the fact. Reserving a slab of negative headroom for the duration of the
+  // drag means the pointer cannot leave the sheet in a single frame. It costs one
+  // resize when the drag starts and one when it ends, and nothing at rest.
+  const reserve = wasMovingWindow ? 1024 : 0;
+  const needX = Math.max(0, -b.minX) + (reserve ? CANVAS_MARGIN + reserve : CANVAS_MARGIN);
+  const needY = Math.max(0, -b.minY) + (reserve ? CANVAS_MARGIN + reserve : CANVAS_MARGIN);
+  let ox = (b.minX < 0 || reserve) ? -quantise(needX) : 0;
+  let oy = (b.minY < 0 || reserve) ? -quantise(needY) : 0;
+  // Never contract mid-gesture: the surface moving under a drag is a jump. This
+  // has to include an ImGui-driven window drag, where our own `drag` is null.
+  // Without it the slack came and went with the engine's moving flag, the origin
+  // oscillated between 0 and -256, and the surface was rebuilt every few frames.
+  if (gesture || marquee) {
+    ox = Math.min(ox, origin.x);
+    oy = Math.min(oy, origin.y);
+  }
+  const wantW = Math.max(visW, quantise(b.maxX - ox + CANVAS_MARGIN));
+  const wantH = Math.max(visH, quantise(b.maxY - oy + CANVAS_MARGIN));
   let w = Math.min(CANVAS_MAX, Math.max(64, wantW));
   let h = Math.min(CANVAS_MAX, Math.max(64, wantH));
   // hold the larger size while dragging or resizing, so a shrinking extent
   // mid-gesture cannot cause a resize storm
-  if (drag || resizing || marquee) {
+  if (gesture || marquee) {
     w = Math.max(w, canvas.width);
     h = Math.max(h, canvas.height);
+  }
+  const originMoved = ox !== origin.x || oy !== origin.y;
+  if (originMoved) {
+    origin.x = ox;
+    origin.y = oy;
+    if (engineReady) Module.ccall('engine_set_origin', null, ['number', 'number'], [ox, oy]);
   }
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
@@ -4630,6 +4727,8 @@ function syncCanvasSize() {
     canvas.style.height = h + 'px';
     if (engineReady) Module.ccall('engine_resize', null, ['number', 'number'], [w, h]);
   }
+  // the canvas element has to move with its origin, or world 0,0 slides
+  if (originMoved) applyViewTransform();
   drawRulers();
 }
 
@@ -7414,9 +7513,11 @@ window.__test = {
   },
   // reads the live value out of the engine, so live-mode interaction can be
   // asserted rather than eyeballed
+  // ImGui works in surface pixels; reported in world units so it can be compared
+  // with a document coordinate
   imguiMouse: () => (engineReady ? {
-    x: Module.ccall('engine_mouse_x', 'number', [], []),
-    y: Module.ccall('engine_mouse_y', 'number', [], []),
+    x: Module.ccall('engine_mouse_x', 'number', [], []) + origin.x,
+    y: Module.ccall('engine_mouse_y', 'number', [], []) + origin.y,
     w: Module.ccall('engine_display_w', 'number', [], []),
     h: Module.ccall('engine_display_h', 'number', [], []),
   } : null),
@@ -7443,6 +7544,8 @@ window.__test = {
     return clash ? (clash.help || 'refused') : null;
   },
   resetBinds: () => { resetBinds(); },
+  origin: () => ({ ...origin }),
+  bounds: () => contentBounds(),
   snapStep: () => GRID_MINOR,
   // what a click at a world point would select, so z-order can be asserted
   hitAt: (x, y) => { const h = hitTest({ x, y }); return h ? h.id : null; },
@@ -7552,6 +7655,20 @@ window.__test = {
     const r = canvas.getBoundingClientRect();
     return { x: r.left, y: r.top };
   },
+  // World coordinates to screen, live. The surface starts at `origin` in world
+  // terms and the canvas element moves with it, so a caller that adds the canvas
+  // rect to a world coordinate is wrong by exactly that offset.
+  screenAt: (wx, wy) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: r.left + (wx - origin.x) * zoom, y: r.top + (wy - origin.y) * zoom };
+  },
+  screenRect: id => {
+    const w = latestRects.find(r => r.id === id);
+    if (!w) return null;
+    const r = canvas.getBoundingClientRect();
+    return { x: r.left + (w.x - origin.x) * zoom, y: r.top + (w.y - origin.y) * zoom,
+      w: w.w * zoom, h: w.h * zoom };
+  },
   paletteButtonPos: text => {
     for (const b of document.querySelectorAll('#palette button')) {
       // the badge span is part of textContent, so match on the widget name
@@ -7603,6 +7720,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=1abe653732"></script>
+<script src="engine.js?v=a02b0e5ba9"></script>
 </body>
 </html>
