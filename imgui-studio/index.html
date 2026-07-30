@@ -2148,9 +2148,13 @@ function zoomToFit() {
   const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX,
     Math.min((host.width - pad * 2) / ext.w, (host.height - pad * 2) / ext.h)));
   zoom = z;
-  // put world 0,0 where the centred content should start
-  pan.x = Math.round((host.width - ext.w * z) / 2);
-  pan.y = Math.round((host.height - ext.h * z) / 2);
+  // Centre the content's MIDDLE, not world 0,0. The extent is a size, and
+  // using it as if it were a position dropped the -minX term, so a document
+  // reaching into negative space was fitted off the top-left by exactly
+  // minX*zoom, which is the one case the negative-space work exists for.
+  const b = contentBounds();
+  pan.x = Math.round(host.width / 2 - ((b.minX + b.maxX) / 2) * z);
+  pan.y = Math.round(host.height / 2 - ((b.minY + b.maxY) / 2) * z);
   applyView();
 }
 
@@ -2185,7 +2189,9 @@ function updateHoverStatus(e) {
   const p = canvasPoint(e);
   const hit = hitTest(p);
   const node = hit && hit.id !== 'root' ? findNode(hit.id) : (hit ? doc : null);
-  const pos = `<i>${p.x}, ${p.y}</i>`;
+  // rounded: canvasPoint divides by zoom, so at any zoom but 100% this printed
+  // a full-precision float and pushed the widget name out of the ellipsis
+  const pos = `<i>${Math.round(p.x)}, ${Math.round(p.y)}</i>`;
   if (!node) { hoverInfoEl.innerHTML = pos; return; }
   const spec = WIDGETS[node.type] || {};
   const label = node === doc ? 'Document' : (node.label || spec.name || node.type);
@@ -2735,8 +2741,11 @@ document.addEventListener('mousemove', e => {
     // Stop short of 0: that is ImGui's auto-size sentinel, so dragging onto it
     // makes the widget jump back to its natural size instead of getting small.
     // Zero stays reachable from the inspector, where it is labelled.
-    const dx = e.clientX - resizing.startX;
-    const dy = e.clientY - resizing.startY;
+    // Divided by zoom, because these are world-space fields. A client-pixel
+    // delta added straight to node.w/h/x/y made the grip run at 1/zoom: zoomed
+    // out the edge crawled behind the cursor, zoomed in it raced ahead.
+    const dx = (e.clientX - resizing.startX) / zoom;
+    const dy = (e.clientY - resizing.startY) / zoom;
     if (resizing.axis.includes('w')) {
       // whichever key this widget spells its width with
       node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
@@ -4691,7 +4700,10 @@ const guidesEl = document.getElementById('guides');
 let showRulers = true;
 let showGrid = true;
 let guides = [];        // { axis: 'x'|'y', pos }
-let cursorCanvas = { x: 0, y: 0 };
+// The pointer in WORLD coordinates. Named for the space it is in, because the
+// previous name said "canvas" while the value was surface pixels times zoom,
+// and three consumers read it as world.
+let cursorWorld = { x: 0, y: 0 };
 let cursorInside = false;
 
 // Where the pointer really is, in client pixels, tracked on the document so it
@@ -4832,8 +4844,13 @@ function syncCanvasSize() {
     ox = Math.min(ox, origin.x);
     oy = Math.min(oy, origin.y);
   }
-  const wantW = Math.max(visW, quantise(b.maxX - ox + CANVAS_MARGIN));
-  const wantH = Math.max(visH, quantise(b.maxY - oy + CANVAS_MARGIN));
+  // visW/visH are WORLD widths (the visible box divided by zoom), while
+  // everything else here is a SURFACE width measured from ox. Comparing the two
+  // directly left the sheet short by -ox on the right and bottom, which is a
+  // dead strip 512px wide where the canvas element simply is not, so
+  // canvasPoint().inside was false and clicks there did nothing at all.
+  const wantW = Math.max(visW - ox, quantise(b.maxX - ox + CANVAS_MARGIN));
+  const wantH = Math.max(visH - oy, quantise(b.maxY - oy + CANVAS_MARGIN));
   let w = Math.min(CANVAS_MAX, Math.max(64, wantW));
   let h = Math.min(CANVAS_MAX, Math.max(64, wantH));
   // hold the larger size while dragging or resizing, so a shrinking extent
@@ -4893,6 +4910,15 @@ function revealSelectedRow() {
   if (sel && sel.offsetParent) sel.scrollIntoView({ block: 'nearest' });
 }
 
+// Where the cursor marker goes on a ruler: world * zoom + pan, the same formula
+// the ticks use. Pulled out of drawRulers so a test can read the value the
+// drawing actually uses rather than re-deriving it and agreeing with itself.
+// cursorWorld is world now, so this is one multiply. It used to be handed a
+// surface*zoom value and multiply by zoom a second time.
+function rulerMarkerPos(horiz) {
+  return (horiz ? cursorWorld.x : cursorWorld.y) * zoom + (horiz ? pan.x : pan.y);
+}
+
 function drawRulers() {
   if (!showRulers) return;
   const W = canvasHost.clientWidth, H = canvasHost.clientHeight;
@@ -4950,7 +4976,7 @@ function drawRulers() {
     // cursor position marker, the measurement half of a ruler. A world
     // coordinate can be negative now, so "is the pointer here" is its own flag
     // rather than a -1 sentinel.
-    const c = (horiz ? cursorCanvas.x : cursorCanvas.y) * zoom + off;
+    const c = rulerMarkerPos(horiz);
     if (cursorInside) {
       g.strokeStyle = v('cyan');
       g.beginPath();
@@ -5009,14 +5035,22 @@ for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x'],
     const gd = { axis, pos: 0 };
     guides.push(gd);
     const move = ev => {
-      const r = canvas.getBoundingClientRect();
-      gd.pos = Math.round(axis === 'x' ? ev.clientX - r.left : ev.clientY - r.top);
+      // canvasPoint, the same conversion the existing-guide drag uses. Taking
+      // (clientX - canvasRect.left) stored surface*zoom in a field every other
+      // consumer reads as world, so a guide dropped at world 100 landed at 612
+      // and its tooltip said so.
+      const p = canvasPoint(ev);
+      gd.pos = Math.round(axis === 'x' ? p.x : p.y);
       renderGuides();
     };
     const up = ev => {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
-      const r = canvas.getBoundingClientRect();
+      // Tested against the VISIBLE box, not the surface. The canvas element now
+      // extends a slack margin past the viewport on every side, so the rulers
+      // and the docks were inside it and dropping a guide straight back on the
+      // ruler to cancel kept it instead.
+      const r = canvasHost.getBoundingClientRect();
       const inside = ev.clientX >= r.left && ev.clientX <= r.right
         && ev.clientY >= r.top && ev.clientY <= r.bottom;
       if (!inside) guides.pop();   // dropped back on the ruler: discard
@@ -5030,8 +5064,13 @@ for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x'],
 }
 
 canvasHost.addEventListener('mousemove', e => {
-  const r = canvas.getBoundingClientRect();
-  cursorCanvas = { x: Math.round(e.clientX - r.left), y: Math.round(e.clientY - r.top) };
+  // WORLD, which is what the readout and the ruler marker both mean by it.
+  // It used to hold (clientX - canvasRect.left), which is surface*zoom: neither
+  // the origin subtracted nor the zoom divided out. With the origin at 0 that
+  // was invisible at 100%; once the sheet gained standing slack the readout was
+  // 512 out at every zoom, and drawRulers multiplied it by zoom a second time.
+  const p = canvasPoint(e);
+  cursorWorld = { x: Math.round(p.x), y: Math.round(p.y) };
   cursorInside = true;
   // Space went down while the pointer was elsewhere, so nothing happened then.
   // Now that it is here and the key is still held, the peek is plainly meant.
@@ -5042,7 +5081,7 @@ canvasHost.addEventListener('mousemove', e => {
   drawRulers();
   const host = canvasHost.getBoundingClientRect();
   coordTip.style.display = 'block';
-  coordTip.textContent = cursorCanvas.x + ', ' + cursorCanvas.y;
+  coordTip.textContent = cursorWorld.x + ', ' + cursorWorld.y;
   // flip to the other side of the cursor near the edges so it stays readable
   const lx = e.clientX - host.left + 14;
   const ly = e.clientY - host.top + 16;
@@ -5309,6 +5348,9 @@ function MENUS() {
       { group: '3_over', label: 'Keyboard shortcuts', key: '?', run: () => toggleHelp() },
     ],
     help: [
+      // Ships next to index.html in the bundle, so a relative link works both on
+      // the dev server and at whatever path the site is mounted under.
+      { group: '0', label: 'Tutorial', run: () => window.open('tutorial.html', '_blank', 'noopener') },
       { group: '1', label: 'Keyboard shortcuts', key: '?', run: () => toggleHelp() },
       { group: '1', label: 'Command palette', key: 'Ctrl+K', run: () => openCmdk('all') },
       { group: '2', label: 'Dear ImGui manual', run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener') },
@@ -7721,6 +7763,14 @@ window.__test = {
     catch (e) { return false; }
   },
   armedDrag: () => armedWindowDrag,
+  cursorWorld: () => ({ ...cursorWorld }),
+  rulerMarker: horiz => rulerMarkerPos(horiz),
+  canvasCoversHost: () => {
+    const c = canvas.getBoundingClientRect();
+    const h = canvasHost.getBoundingClientRect();
+    return c.left <= h.left + 1 && c.top <= h.top + 1
+      && c.right >= h.right - 1 && c.bottom >= h.bottom - 1;
+  },
   dragState: () => (drag ? { kind: drag.kind, type: drag.type || null,
     started: !!drag.started, drop: drag.drop || null } : null),
   zoom: () => zoom,
@@ -7744,7 +7794,6 @@ window.__test = {
   treeRows: () => document.querySelectorAll('#tree .row').length,
   setTreeFilter: v => { treeFilterEl.value = v; renderTree(); },
   setFilter: v => { const f = document.getElementById('filter'); f.value = v; renderPalette(); },
-  pan: () => ({ ...pan }),
   focusSel: () => focusSelection(),
   hoverText: () => hoverInfoEl.textContent,
   resizing: () => !!resizing,
@@ -7776,7 +7825,6 @@ window.__test = {
     const clash = rebind(b, cand);
     return clash ? 'conflict:' + clash.cat : comboLabel(b);
   },
-  resetBinds: () => resetBinds(),
   applyCpp: text => {
     setCodeEditing(true);
     codeEdit.value = text;

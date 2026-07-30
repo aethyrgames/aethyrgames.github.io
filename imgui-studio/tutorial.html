@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ImGui Studio - Tutorial</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mk-bg:      #1e1e1e;
+    --mk-surface: #2d2d2d;
+    --mk-gutter:  #141414;
+    --mk-fg:      #F8F8F2;
+    --mk-comment: #75715E;
+    --mk-pink:    #F92672;
+    --mk-orange:  #FD971F;
+    --mk-yellow:  #E6DB74;
+    --mk-green:   #A6E22E;
+    --mk-cyan:    #66D9EF;
+    --mk-purple:  #AE81FF;
+    --mk-border:  #49483E;
+    --font: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 14px/1.65 var(--font);
+    background: var(--mk-bg); color: var(--mk-fg);
+  }
+  header {
+    border-bottom: 1px solid var(--mk-border); background: var(--mk-gutter);
+    padding: 14px 24px; position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  }
+  header .brand {
+    color: var(--mk-green); font-weight: 700; font-size: 15px;
+    text-shadow: 0.03em 0 0 rgba(249,38,114,.35), -0.03em 0 0 rgba(102,217,239,.35);
+  }
+  header nav { margin-left: auto; display: flex; gap: 14px; flex-wrap: wrap; }
+  a { color: var(--mk-cyan); }
+  a:hover { color: var(--mk-green); }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 24px 80px; }
+  h1 { font-size: 26px; color: var(--mk-green); margin: 32px 0 8px; }
+  h2 {
+    font-size: 19px; color: var(--mk-orange); margin: 40px 0 10px;
+    padding-top: 14px; border-top: 1px solid var(--mk-border);
+  }
+  h3 { font-size: 15px; color: var(--mk-yellow); margin: 26px 0 6px; }
+  p, li { color: var(--mk-fg); }
+  ul { padding-left: 22px; }
+  li { margin: 5px 0; }
+  code {
+    background: var(--mk-gutter); color: var(--mk-purple);
+    padding: 1px 5px; border-radius: 3px; font-size: 13px;
+  }
+  pre {
+    background: var(--mk-gutter); border: 1px solid var(--mk-border);
+    border-radius: 4px; padding: 12px 14px; overflow-x: auto; font-size: 13px;
+  }
+  pre code { background: none; padding: 0; color: var(--mk-fg); }
+  kbd {
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
+    border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px;
+    font: inherit; font-size: 12px; color: var(--mk-cyan); white-space: nowrap;
+  }
+  .note {
+    border-left: 3px solid var(--mk-comment); padding: 2px 0 2px 14px;
+    margin: 16px 0; color: #cfcfc6;
+  }
+  .note.important { border-left-color: var(--mk-pink); }
+  .lead { color: var(--mk-comment); margin-top: 4px; }
+  .toc { background: var(--mk-surface); border: 1px solid var(--mk-border);
+         border-radius: 4px; padding: 12px 16px; margin: 24px 0; }
+  .toc ul { margin: 6px 0 0; }
+  footer { border-top: 1px solid var(--mk-border); color: var(--mk-comment);
+           padding: 20px 24px; max-width: 860px; margin: 0 auto; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">ImGui Studio</span>
+  <span style="color:var(--mk-comment)">Tutorial</span>
+  <nav>
+    <a href="index.html">Open the editor</a>
+  </nav>
+</header>
+
+<main>
+
+<h1>Building Your First Layout</h1>
+<p class="lead">This page is meant as a walkthrough of ImGui Studio and how to use it. Work through it with the editor open in another tab and you'll come out the other side with a panel you can paste into a real project.</p>
+
+<p>ImGui Studio is a visual builder for <a href="https://github.com/ocornut/imgui">Dear ImGui</a> layouts. You arrange widgets on a canvas and it writes the C++ that draws them. The preview isn't a mockup, it's real Dear ImGui compiled to WebAssembly, so what you see is what your program will draw.</p>
+
+<div class="toc">
+  <strong>On this page</strong>
+  <ul>
+    <li><a href="#blocks">The Three Building Blocks</a></li>
+    <li><a href="#step1">Step 1: Start With a Window</a></li>
+    <li><a href="#step2">Step 2: Add Some Widgets</a></li>
+    <li><a href="#step3">Step 3: Arrange Them</a></li>
+    <li><a href="#step4">Step 4: Set Properties</a></li>
+    <li><a href="#step5">Step 5: Try It Out</a></li>
+    <li><a href="#step6">Step 6: Take the Code</a></li>
+    <li><a href="#further">Going Further</a></li>
+    <li><a href="#keys">Keys Worth Learning</a></li>
+    <li><a href="#saving">Saving and Sharing</a></li>
+  </ul>
+</div>
+
+<h2 id="blocks">The Three Building Blocks</h2>
+
+<p>To use ImGui Studio, you need to understand three main building blocks:</p>
+
+<ul>
+  <li>The Document - a tree of windows and widgets. This is the thing you're actually editing, and everything else is a view onto it.</li>
+  <li>The Canvas - the live preview in the middle. Real Dear ImGui draws it every frame from the Document.</li>
+  <li>The Generated Code - the C++ pane. It's regenerated from the Document as you work, and you can edit it and push your changes back the other way.</li>
+</ul>
+
+<p>The Document is the source of truth. The canvas and the code are both derived from it, so a change in either one ends up in the same place.</p>
+
+<h2 id="step1">Step 1: Start With a Window</h2>
+
+<p>Every Dear ImGui widget has to live inside a window, so that's where a document starts. Open the "Templates" panel on the left and click "Blank window", or use the "Windows" menu to add one.</p>
+
+<p>You'll see it appear on the canvas with a title bar you can drag. Drag it wherever you like. The position writes straight back into the Document, so the generated code moves with it.</p>
+
+<div class="note">
+  Note: hold <kbd>Shift</kbd> while dragging a window to snap it to the canvas grid. The grid is the one you can see, so the snap lands where you'd expect.
+</div>
+
+<h2 id="step2">Step 2: Add Some Widgets</h2>
+
+<p>There are three ways to get a widget into your window, and they're worth knowing all three because they suit different moments.</p>
+
+<ul>
+  <li>Drag it from the palette. Grab any widget in the left-hand palette and drop it on the canvas or into the hierarchy. A drop indicator shows you where it will land.</li>
+  <li>Arm a tool, then click. Press <kbd>B</kbd> and your cursor is loaded with a Button. Click on the canvas to stamp one. Press <kbd>B</kbd> again to cycle through the rest of that family (Small button, Arrow button). <kbd>V</kbd> puts you back to selecting. This is the Photoshop tool-letter pattern, so <kbd>T</kbd> is text, <kbd>C</kbd> is checkboxes, <kbd>S</kbd> is sliders, and so on.</li>
+  <li>Use the insert menu. Press <kbd>/</kbd> and type a few letters of what you want. There are 60 widget types and this is the fastest way to reach the long tail of them.</li>
+</ul>
+
+<p>Add a couple of things now, e.g., a Text, a Slider float, and two Buttons. Don't worry about where they land yet.</p>
+
+<div class="note">
+  Note: <kbd>R</kbd> stamps another of whatever you inserted last. When you're laying out a row of similar controls it saves a lot of trips to the palette.
+</div>
+
+<h2 id="step3">Step 3: Arrange Them</h2>
+
+<p>This is the part that trips people up coming from other UI builders, so it's worth slowing down on.</p>
+
+<p>Dear ImGui uses a flow layout. Widgets stack top to bottom in the order they appear in the Document, and you don't position them with x and y coordinates. There's no dragging a button to the middle of a window, because the concept doesn't exist. What you control instead is order, nesting, and joins.</p>
+
+<ul>
+  <li>Order - drag rows up and down in the hierarchy panel, or use <kbd>Ctrl</kbd>+<kbd>Up</kbd> and <kbd>Ctrl</kbd>+<kbd>Down</kbd>. This is the flow-layout equivalent of nudging something.</li>
+  <li>Joins - by default each widget starts a new line. Select one and press <kbd>J</kbd> to join it onto the same row as the widget above it. That's ImGui's <code>SameLine</code>, and it's how you build a row of buttons.</li>
+  <li>Nesting - containers hold other widgets. Select a few things and press <kbd>Ctrl</kbd>+<kbd>G</kbd> to wrap them in a Group, or drop widgets into a Child, a Collapsing header, a Tab bar, or a Table from the palette.</li>
+</ul>
+
+<p>Try it on the two Buttons you added. Select the second one and press <kbd>J</kbd>. They'll snap onto one row.</p>
+
+<div class="note important">
+  IMPORTANT: order in the hierarchy is the same thing as order on screen, tab order, and z-order. If something isn't where you want it, move it in the tree rather than looking for a position field.
+</div>
+
+<h2 id="step4">Step 4: Set Properties</h2>
+
+<p>Select a widget and the inspector on the right fills in with what you can change about it. The fields differ per widget, but a few show up nearly everywhere:</p>
+
+<ul>
+  <li>Label - the text drawn on or beside the widget. Double-click a widget on the canvas to rename it in place, or press <kbd>F2</kbd>.</li>
+  <li>Same line - the join from Step 3, as a checkbox rather than a keypress.</li>
+  <li>Item width - how wide the widget should be when it has no explicit size of its own.</li>
+  <li>Colors - per-widget overrides for any ImGui color slot. These emit as matched <code>PushStyleColor</code> and <code>PopStyleColor</code> pairs in the generated code.</li>
+</ul>
+
+<p>A window has its own set on top of that, e.g., "No resize", "No title bar", "Auto resize", and the size and position it opens at.</p>
+
+<h2 id="step5">Step 5: Try It Out</h2>
+
+<p>A layout you can't click isn't finished. Hold <kbd>Space</kbd> and the canvas goes live: sliders drag, checkboxes tick, buttons press. Let go and you're back in Edit mode with your selection intact.</p>
+
+<p>Holding is usually what you want, since you're just checking one thing. If you'd rather stay in Live mode, press <kbd>Tab</kbd> to toggle it properly.</p>
+
+<div class="note">
+  Note: the values you set while poking at Live mode are the preview's own state, not part of the Document. They won't end up in your generated code, so feel free to drag every slider to the end.
+</div>
+
+<h2 id="step6">Step 6: Take the Code</h2>
+
+<p>The C++ pane has been keeping up the whole time. What it shows is what you'd paste into a project: a state struct holding your widget values, and a draw function that emits the layout.</p>
+
+<pre><code>struct MyPanelState
+{
+    float volume = 0.0f;
+    bool muted = false;
+};
+
+void DrawMyPanel(MyPanelState&amp; state)
+{
+    ImGui::SetNextWindowPos(ImVec2(30.0f, 30.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("My Panel");
+    ImGui::SliderFloat("Volume", &amp;state.volume, 0.0f, 1.0f);
+    ImGui::Checkbox("Muted", &amp;state.muted);
+    ImGui::End();
+}</code></pre>
+
+<p>You own the struct. Keep one somewhere that outlives a frame, and call the draw function from your frame loop. The generated code doesn't own any state itself, which is what lets you drop it into an existing project without it fighting whatever you already have.</p>
+
+<p>The pane is editable, and that's not a one-way trip. Type C++ into it, press "Apply", and it parses back into the Document. Anything the tool doesn't recognise is kept verbatim rather than thrown away, so hand-written code around your windows survives a round trip.</p>
+
+<div class="note">
+  Note: Apply rewrites the Document from the text, so anything the parser can't represent will be flagged before it commits. Read the warning if you get one, since that's the tool telling you it's about to lose something.
+</div>
+
+<h2 id="further">Going Further</h2>
+
+<h3>Templates</h3>
+
+<p>The Templates panel ships eight worked examples, and they're the fastest way to see how a feature is meant to be put together. "Show and hide windows" is the one to look at if you want one panel to open another. You can save your own too: build something, then save the current document as a template and it'll be there next time.</p>
+
+<p>Clicking a template's <code>+</code> inserts it into whatever you have selected. Dragging it onto the canvas drops it where you let go.</p>
+
+<h3>Several Windows</h3>
+
+<p>A document can hold as many windows as you like, and each one becomes its own struct and its own draw function. Mark a window "Closable" and it gets a close button plus a bool your code checks before drawing it. Point a Button's "Toggles" property at that window's title and clicking it shows and hides the window.</p>
+
+<h3>Function Containers</h3>
+
+<p>If a window is getting long, wrap a run of widgets in a Function container. It draws nothing of its own, but the generator lifts its contents into a separate <code>static void</code> that takes the same state by reference, and leaves a call behind in its place. It's a way to keep the emitted code readable without changing what it draws.</p>
+
+<h3>Getting Around the Canvas</h3>
+
+<ul>
+  <li>Pan - drag with the middle mouse button, or hold <kbd>Ctrl</kbd>+<kbd>Alt</kbd> and drag with the left.</li>
+  <li>Zoom - <kbd>]</kbd> and <kbd>[</kbd>, or the control in the status bar. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> fits the whole document in view and <kbd>Shift</kbd>+<kbd>F</kbd> puts you back at the origin at 100%.</li>
+  <li>Guides - drag one out of any ruler to line things up. Double-click a guide to remove it.</li>
+</ul>
+
+<p>Windows can sit at negative coordinates, so you can spread a multi-window layout out in any direction and the sheet will follow you.</p>
+
+<h2 id="keys">Keys Worth Learning</h2>
+
+<p>Press <kbd>?</kbd> in the editor for the full list, which is searchable and always current. Every key is rebindable from the same overlay. These are the ones that pay for themselves fastest:</p>
+
+<ul>
+  <li>Space (hold) - peek at Live mode, release to snap back.</li>
+  <li>J - toggle the SameLine join on the selection.</li>
+  <li>/ - insert menu, filtered over all 60 widget types.</li>
+  <li>Ctrl+K - command palette, for anything without a dedicated key.</li>
+  <li>Enter and Esc - descend into a container, and back out of one.</li>
+  <li>Up and Down - walk between siblings. Add <kbd>Ctrl</kbd> to move the selection instead of the cursor.</li>
+  <li>Ctrl+G - wrap the selection in a Group. Add <kbd>Shift</kbd> to unwrap one.</li>
+  <li>F - centre the selection on screen when you've lost it.</li>
+  <li>Ctrl+Z - undo. Structural edits are easy to fire by accident, so this one gets used a lot.</li>
+</ul>
+
+<h2 id="saving">Saving and Sharing</h2>
+
+<p>Your work is saved in the browser as you go, and the tab strip along the top holds several projects at once with an undo stack each. Nothing is uploaded anywhere.</p>
+
+<ul>
+  <li>Export JSON - writes the whole document to a file you can check into a repo.</li>
+  <li>Import JSON - reads one back.</li>
+  <li>Share - packs the document into a link. The document travels in the URL itself, so whoever opens it gets your layout without anything being stored on a server.</li>
+</ul>
+
+<div class="note">
+  Note: because the browser is doing the saving, clearing site data for this domain clears your projects with it. Export anything you'd be sad to lose.
+</div>
+
+<h2>Where to Go Next</h2>
+
+<p>The best next step is to open a template that's close to what you're building and take it apart. Check out "Property inspector" and "Menus and dialogs" for the two shapes most tools end up needing.</p>
+
+<p>We're still iterating on this, so some corners are rougher than others. The <kbd>?</kbd> overlay renders from the same table the app dispatches on, which makes it the accurate answer whenever this page and the editor disagree.</p>
+
+</main>
+
+<footer>
+  ImGui Studio builds on <a href="https://github.com/ocornut/imgui">Dear ImGui</a> by Omar Cornut.
+  <a href="index.html">Back to the editor</a>
+</footer>
+
+</body>
+</html>
