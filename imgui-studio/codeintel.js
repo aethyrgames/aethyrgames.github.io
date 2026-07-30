@@ -214,8 +214,13 @@ function lintCpp(src, opts) {
     if (CONTROL_HEAD.test(text) || /^(else|do|try|public|private|protected|case|default)\b/.test(text)) continue;
     // a wrapped argument list or expression continues on the next line
     if (/[-+*/%&|<>=!,(?]$/.test(text)) continue;
+    // ...and a line STARTING with a continuation is the tail of the one above.
+    // Constructor initialiser lists and wrapped ternaries live here, and both
+    // were being reported as missing a semicolon.
+    if (/^([:,?.]|->|&&|\|\||\+|-)/.test(text)) continue;
     const next = (lines[i + 1] || '').trim();
     if (next.startsWith('{')) continue;                 // a definition's brace
+    if (/^([:,?.]|->|&&|\|\|)/.test(next)) continue;    // the next line continues this one
     if (!/[)\w"']$/.test(text)) continue;
     // only flag it when the brackets on this line are settled, so a call split
     // across lines is not mistaken for a statement

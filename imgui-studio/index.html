@@ -30,6 +30,7 @@
        hover wash is invisible on white */
     /* mixed from the foreground so the grid inverts with the theme */
     --mk-canvas: #101010;
+    --mk-head: #111111;      /* panel headers; setThemeVars recomputes per theme */
     --mk-grid-minor: color-mix(in srgb, var(--mk-fg) 6%, transparent);
     --mk-grid-major: color-mix(in srgb, var(--mk-fg) 13%, transparent);
 
@@ -160,7 +161,11 @@
     font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--mk-green);
     border-bottom: 1px solid var(--mk-border); cursor: grab; user-select: none;
-    flex-shrink: 0; background: color-mix(in srgb, var(--mk-fg) 9%, var(--mk-surface));
+    /* Its own slot, not a wash mixed off the surface. Mixing the foreground in
+       lightened the header on every dark theme, and it shared --mk-surface with
+       the palette buttons, so darkening one darkened the other. See
+       deriveHeadColor for how the per-theme tone and its floor are picked. */
+    flex-shrink: 0; background: var(--mk-head);
   }
   .panel-head:active { cursor: grabbing; }
   .panel-head .tw { color: var(--mk-comment); font-size: 14px; width: 12px; line-height: 1; }
@@ -227,7 +232,7 @@
   /* ---- templates ---- */
   #tpllist { overflow-y: auto; }
   .tplrow {
-    display: flex; align-items: center; gap: 6px; padding: 5px 9px;
+    display: flex; align-items: center; gap: 6px; padding: 5px 9px; user-select: none;
     border-bottom: 1px solid color-mix(in srgb, var(--mk-border) 40%, transparent); font-size: 12px;
   }
   .tplrow:hover { background: var(--mk-hover); }
@@ -425,6 +430,9 @@
   .row {
     display: flex; align-items: center; padding: 2px 8px 2px 6px; cursor: pointer; gap: 5px;
     border-left: 2px solid transparent;
+    /* a reorder drag starts on a row, and without this it selects the label
+       text of every row it passes over */
+    user-select: none;
   }
   .row:hover { background: var(--mk-hover); }
   .row.selected { background: var(--mk-surface); border-left-color: var(--mk-pink); }
@@ -1102,7 +1110,7 @@
 <script src="widgets.js?v=7fd60a3c0f"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
 <script src="cpp.js?v=72609570f5"></script>
-<script src="codeintel.js?v=417c3e44ca"></script>
+<script src="codeintel.js?v=c66c48227d"></script>
 <script>
 // ---------- document model ----------
 
@@ -1254,7 +1262,13 @@ function moveNodeTo(id, drop) {
   // removing from earlier in the same list shifts the target index down
   const d = { ...drop };
   if (parent && parent.id === drop.parentId && oldIndex >= 0 && oldIndex < drop.index) d.index -= 1;
-  insertAt(node, d);
+  // insertAt refuses some pairings outright, a window inside a widget being the
+  // one you can reach by dragging a window row onto a child in the hierarchy.
+  // The detach has already happened by then, so without putting it back the
+  // window and everything in it is gone.
+  if (!insertAt(node, d) && parent) {
+    parent.children.splice(oldIndex < 0 ? parent.children.length : oldIndex, 0, node);
+  }
   selectedId = id;
   refresh();
 }
@@ -2103,7 +2117,35 @@ function pollEngine() {
     if (!pollEngine.reported) { pollEngine.reported = true; console.warn('[tick] ' + (e && e.stack || e)); }
     latestRects = [];
   }
+  adoptDraggedWindowPos();
   updateSelectionOverlay();
+}
+
+// Dragging a window's title bar in the preview is ImGui moving its own window:
+// the document never hears about it, so the generated SetNextWindowPos kept the
+// old coordinates and a reload put the window back. Copy the final position over
+// once the drag ends, which is also the only moment worth an undo entry.
+let wasMovingWindow = false;
+function adoptDraggedWindowPos() {
+  let moving = false;
+  try {
+    moving = Module.ccall('engine_moving_window', 'number', [], []) === 1;
+  } catch (e) { return; }
+  if (moving) { wasMovingWindow = true; return; }
+  if (!wasMovingWindow) return;
+  wasMovingWindow = false;
+  let changed = false;
+  for (const win of doc.children) {
+    if (win.type !== 'window') continue;
+    const r = latestRects.find(x => x.id === win.id && x.window);
+    if (!r || (r.w === 0 && r.h === 0)) continue;      // a hidden closable window
+    const x = Math.round(r.x), y = Math.round(r.y);
+    if (x === Math.round(win.x) && y === Math.round(win.y)) continue;
+    win.x = x;
+    win.y = y;
+    changed = true;
+  }
+  if (changed) { pushHistory(); refresh(); }
 }
 
 function tick() {
@@ -3323,8 +3365,11 @@ function generateCode() {
       const lines = out.splice(start);
       const lineOwners = owners.splice(start, lines.length);
       helpers.push({ id: node.id, fnName, lines, owners: lineOwners });
-      if (parentType === 'table') out.push(ind + 'ImGui::TableNextColumn();');
-      else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
+      // No TableNextColumn for the container itself: its children each advance a
+      // cell from inside the helper, and advancing here too left an empty one.
+      if (parentType !== 'table' && node.sameline && index > 0) {
+        out.push(ind + 'ImGui::SameLine();');
+      }
       out.push(ind + `${fnName}(state);`);
       claimLines();
       return;
@@ -3812,10 +3857,34 @@ function deriveCanvasColor(bg, gutter, isDark) {
   return best;
 }
 
+// Panel headers read as a recessed band rather than another lit surface. The
+// gutter nudged a little darker gets there (#141414 -> #111111 on the default
+// theme), but two themes ship a gutter that is already almost black, and a black
+// header was the earlier complaint. So the tone has a floor, enforced here where
+// a conditional is possible, rather than in a CSS color-mix that cannot clamp.
+const HEAD_MIN_TONE = 16;
+const tone = hex => {
+  const [r, g, b] = hexToRgbBytes(hex);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+function deriveHeadColor(gutter, isDark) {
+  // a light theme's gutter already reads as a band against its panels
+  if (!isDark) return gutter;
+  let c = hexToRgbBytes(gutter).map(v => v - 3);
+  while (tone(bytesToHex(c)) < HEAD_MIN_TONE) {
+    const next = c.map(v => v + 1.5);
+    if (next.every(v => v >= 255)) break;
+    c = next;
+  }
+  return bytesToHex(c);
+}
+
 function setThemeVars(key) {
   const t = UI_THEMES[key] || UI_THEMES.doki;
   const root = document.documentElement.style;
   root.setProperty('--mk-canvas', deriveCanvasColor(t.bg, t.gutter, t.dark !== false));
+  root.setProperty('--mk-head', deriveHeadColor(t.gutter, t.dark !== false));
   for (const slot of ['bg', 'surface', 'gutter', 'fg', 'comment', 'border',
     'pink', 'orange', 'yellow', 'green', 'cyan', 'purple']) {
     root.setProperty('--mk-' + slot, t[slot]);
@@ -5116,9 +5185,14 @@ function startTreeDrag(e, id) {
   listDragMoved = false;
 }
 
-function startTemplateDrag(e, index) {
+function startTemplateDrag(e, index, tpl) {
   if (e.button !== 0 || e.target.tagName === 'BUTTON') return;
-  listDrag = { kind: 'template', index, startX: e.clientX, startY: e.clientY };
+  // One gesture, one owner. Arming a canvas drag here as well meant a drag onto
+  // the canvas ran both: the ghost and the insertion line showed together, and
+  // on release the list reordered and nothing was inserted. This starts as a
+  // reorder and is promoted to a canvas drop the moment the pointer leaves the
+  // list, which is also the only way to tell the two apart.
+  listDrag = { kind: 'template', index, tpl, startX: e.clientX, startY: e.clientY };
   listDragMoved = false;
 }
 
@@ -5134,7 +5208,23 @@ document.addEventListener('mousemove', e => {
     if (t) showListIndicator(t, t.where === 'into' ? 0 : parseFloat(t.row.style.paddingLeft) || 0);
     else hideListIndicator();
   } else {
-    const t = listTargetAt(document.getElementById('tpllist'), e.clientY, '.tplrow');
+    const host = document.getElementById('tpllist');
+    const r = host.getBoundingClientRect();
+    const outside = e.clientX < r.left || e.clientX > r.right
+      || e.clientY < r.top - 8 || e.clientY > r.bottom + 8;
+    if (outside) {
+      // hand the gesture to the canvas drop path and stop being a reorder
+      const tpl = listDrag.tpl;
+      hideListIndicator();
+      listDrag = null;
+      listDragMoved = false;
+      if (tpl) {
+        drag = { kind: 'template', tpl, started: false,
+          startX: e.clientX, startY: e.clientY, drop: null };
+      }
+      return;
+    }
+    const t = listTargetAt(host, e.clientY, '.tplrow');
     // a template list is flat, so there is no "inside"
     if (t && t.where === 'into') t.where = e.clientY < t.rect.top + t.rect.height / 2 ? 'before' : 'after';
     listDrag.target = t;
@@ -6216,7 +6306,13 @@ function templateWidgets(t) {
 
 function insertTemplateAt(t, drop) {
   const kids = templateWidgets(t);
-  if (!kids.length) return;
+  // A template holding an empty window has no widgets to insert. Saying so beats
+  // a click that looks broken; opening it as a project is what it is for.
+  if (!kids.length) {
+    flashStatus(`"${titleCase(t.name)}" has no widgets to insert. `
+      + 'Right-click it to open it as its own project.');
+    return;
+  }
   // The template lands in a Function container, so the generated code calls it
   // rather than inlining a wall of widgets. It draws nothing of its own, so the
   // canvas looks the same either way, and it can be ungrouped like any other.
@@ -6232,6 +6328,14 @@ function insertTemplate(t) {
   insertTemplateAt(t, dropSiblingAfterSelection());
 }
 
+// Into the nearest container that can hold it, walking up from the selection the
+// same way the palette does, rather than as a sibling of whatever is selected.
+function insertTemplateInHost(t) {
+  const host = insertHost('section');
+  if (!host) return;
+  insertTemplateAt(t, { parentId: host.id, index: (host.children || []).length });
+}
+
 function renderTemplates() {
   const host = document.getElementById('tpllist');
   host.innerHTML = '';
@@ -6242,26 +6346,20 @@ function renderTemplates() {
     n.className = 'tplname';
     n.textContent = titleCase(t.name);
     n.title = (t.builtin ? 'Built in. ' : '')
-      + 'Click to insert its widgets at the selection, or drag onto the canvas. '
-      + 'Use + to open it as its own project.';
-    n.onclick = () => insertTemplate(t);
-    // dragging works exactly as it does from the palette
-    n.addEventListener('mousedown', e => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      drag = { kind: 'template', tpl: t, started: false,
-        startX: e.clientX, startY: e.clientY, drop: null };
-    });
+      + 'Click to insert it into the nearest container of the selection. '
+      + 'Drag it onto the canvas to place it, or up and down this list to reorder. '
+      + 'Right-click to open it as its own project.';
+    n.onclick = () => insertTemplateInHost(t);
     row.appendChild(n);
     const count = document.createElement('span');
     count.className = 'tplcount';
     count.textContent = countNodes(t.doc.children);
     row.appendChild(count);
-    const asNew = document.createElement('button');
-    asNew.textContent = '＋';
-    asNew.title = 'Open as a new project';
-    asNew.onclick = e => { e.stopPropagation(); applyTemplate(t, true); };
-    row.appendChild(asNew);
+    const add = document.createElement('button');
+    add.textContent = '＋';
+    add.title = 'Insert into the nearest container of the selection';
+    add.onclick = e => { e.stopPropagation(); insertTemplateInHost(t); };
+    row.appendChild(add);
     if (!t.builtin) {
       const del = document.createElement('button');
       del.textContent = '✕';
@@ -6277,7 +6375,7 @@ function renderTemplates() {
       row.appendChild(del);
     }
     row.dataset.index = String(templates.indexOf(t));
-    row.addEventListener('mousedown', e => startTemplateDrag(e, templates.indexOf(t)));
+    row.addEventListener('mousedown', e => startTemplateDrag(e, templates.indexOf(t), t));
     row.oncontextmenu = e => {
       e.preventDefault();
       openContextMenu(e, [
@@ -6825,7 +6923,8 @@ window.__test = {
   inlineEditing: () => inlineId !== null,
   ctxOpen: () => document.getElementById('ctxmenu').style.display === 'block',
   handlePos: axis => {
-    const h = document.querySelector('#selbox .rh-' + axis);
+    const h = document.querySelector('#selbox .rh-' + axis)
+      || document.querySelector('#selbox .rh[data-axis="' + axis + '"]');
     if (!h || !h.offsetParent) return null;
     const r = h.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -6860,10 +6959,16 @@ window.__test = {
   projects: () => projects.map(p => ({ id: p.id, name: p.name, active: p.id === activeProject })),
   addProject: (name, d) => addProject(name, d).id,
   switchProject: id => switchProject(id),
-  templates: () => templates.map(t => ({ name: t.name, builtin: !!t.builtin, n: countNodes(t.doc.children) })),
+  // n counts every node including the window; insertable is what a click would
+  // actually add, which is the window's children and can be zero
+  templates: () => templates.map(t => ({
+    name: t.name, builtin: !!t.builtin, n: countNodes(t.doc.children),
+    insertable: templateWidgets(t).length,
+  })),
   applyTemplate: name => applyTemplate(templates.find(t => t.name === name), false),
   saveTemplate: () => saveCurrentAsTemplate(),
-  insertTemplate: name => insertTemplate(
+  // the path the UI uses: into the nearest container of the selection
+  insertTemplate: name => insertTemplateInHost(
     templates.find(t => t.name.toLowerCase() === String(name).toLowerCase())),
   shareLink: () => buildShareLink(),
   loadShare: async url => {
@@ -6879,6 +6984,12 @@ window.__test = {
     h: Module.ccall('engine_display_h', 'number', [], []),
   } : null),
   popupDepth: () => (engineReady ? Module.ccall('engine_popup_depth', 'number', [], []) : -1),
+  // the top-left-most vertex the engine drew last frame: negative means part of
+  // a window was drawn off the surface, which is what clipping looks like
+  minDraw: () => (engineReady ? {
+    x: Module.ccall('engine_min_draw_x', 'number', [], []),
+    y: Module.ccall('engine_min_draw_y', 'number', [], []),
+  } : null),
   widgetFloat: id => (engineReady
     ? Module.ccall('engine_get_float', 'number', ['string'], [id]) : null),
   widgetBool: id => (engineReady
@@ -7032,6 +7143,6 @@ document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }
 });
 </script>
-<script src="engine.js?v=e6b1ceabde"></script>
+<script src="engine.js?v=7e8a6ff9f4"></script>
 </body>
 </html>
