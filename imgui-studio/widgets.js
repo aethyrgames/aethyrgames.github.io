@@ -51,7 +51,13 @@ const POS = { unit: 'px' };
 // so "cm" becomes "%.3f cm" and shows up on the slider itself. Always emitted,
 // even when empty, so the parser's probe has a stable argument to attribute.
 const UNIT = ['unit', 'unit', '', { placeholder: 'cm, ms, %…' }];
-const fmt = (n, base) => q(n.unit ? base + ' ' + n.unit : base);
+// The unit is concatenated into a printf format, so a % in it has to be doubled
+// or it reads as a conversion spec. The placeholder above suggests "%" and the
+// shipped Settings template uses it, which produced "%.3f %". A trailing lone %
+// is not a valid conversion: musl, which the emscripten build uses, bails out of
+// printf_core and returns -1, so the slider drew truncated text instead of
+// "50.000 %". cpp.js undoubles it on the way back in.
+const fmt = (n, base) => q(n.unit ? base + ' ' + String(n.unit).replace(/%/g, '%%') : base);
 const SEC = { min: 0, unit: 's' };
 
 // ImGui sizes most items for you, and SetNextItemWidth is how you override it.
@@ -61,6 +67,24 @@ const ITEMW = ['itemw', 'float', 0, { min: 0, unit: 'px' }];
 
 const vecN = [['n', 'enum', 1, [1, 2, 3, 4]]];
 const DIRS = [['Left', 0], ['Right', 1], ['Up', 2], ['Down', 3]];
+
+// The sample data a plot starts with.
+//
+// engine/main.cpp fills its preview array with sinf(i * 0.3f), and the emitted
+// struct used to declare `float x[64] = {};`, all zeros. So the canvas drew a
+// wave and the built app drew a flat line, which is exactly the promise this
+// tool makes and breaks in one step. Emitting the same values makes the two
+// agree, and the comment says plainly that it is placeholder data.
+const PLOT_SAMPLES = () => {
+  const vals = [];
+  for (let i = 0; i < 64; i++) vals.push(Math.sin(i * 0.3).toFixed(3) + 'f');
+  const rows = [];
+  for (let i = 0; i < vals.length; i += 8) rows.push('    ' + vals.slice(i, i + 8).join(', '));
+  return rows.join(',\n');
+};
+
+const plotField = v => `float ${v}[64] = {   // sample data, replace with your own\n`
+  + `${PLOT_SAMPLES()},\n};`;
 
 const WIDGETS = {
   // ---------------------------------------------------------------- Window
@@ -79,6 +103,13 @@ const WIDGETS = {
       ['noScrollbar', 'bool', false], ['noCollapse', 'bool', false], ['autoResize', 'bool', false],
       // a closable window is one your code can hide, and ImGui gives it an X
       ['closable', 'bool', false], ['openAtStart', 'bool', true],
+      // Raw C++ emitted immediately before ImGui::Begin, which is the only
+      // place some calls work at all: SetNextWindowBgAlpha, a PushStyleVar you
+      // want to cover the window, your own SetNextWindowSizeConstraints. The
+      // parser used to compute this region and then throw it away, so writing
+      // any of them by hand and pressing Apply deleted them.
+      ['preamble', 'longtext', '',
+        { placeholder: 'C++ emitted just before ImGui::Begin' }],
     ],
   },
 
@@ -331,16 +362,25 @@ const WIDGETS = {
     ],
   },
   selectable: {
-    name: 'Selectable', cat: 'Choice', props: [ITEMW, ['label', 'text', 'Selectable']],
+    // ImGui::Selectable sizes itself from its label, its size argument and the
+    // work rect, and never reads CalcItemWidth. So this carried ITEMW for a
+    // long time, which put a width handle on the canvas and a Width field in
+    // the inspector, emitted SetNextItemWidth on both sides, and did nothing at
+    // all: the inspector read "Width 200" while the widget stayed exactly as
+    // wide as it was. Its real size argument is the fourth one, so it takes w
+    // and h like a Button does instead.
+    name: 'Selectable', cat: 'Choice',
+    props: [['label', 'text', 'Selectable'], ['w', 'float', 0, PX], ['h', 'float', 0, PX]],
     field: (n, v) => `bool ${v} = false;`,
-    code: (n, v, id) => [`ImGui::Selectable(${id}, &state.${v});`],
+    code: (n, v, id) => [`ImGui::Selectable(${id}, &state.${v}`
+      + (n.w || n.h ? `, 0, ImVec2(${f(n.w)}, ${f(n.h)})` : '') + ');'],
   },
 
   // ----------------------------------------------------------------- Plots
   plotlines: {
     name: 'Plot lines', cat: 'Plots',
     props: [['label', 'text', 'Signal'], ['w', 'float', 0, PX], ['h', 'float', 60, PX]],
-    field: (n, v) => `float ${v}[64] = {};   // fill with your samples`,
+    field: (n, v) => plotField(v),
     code: (n, v, id) => [
       `ImGui::PlotLines(${id}, state.${v}, IM_ARRAYSIZE(state.${v}), 0, nullptr, -1.0f, 1.0f, ImVec2(${f(n.w)}, ${f(n.h)}));`,
     ],
@@ -348,7 +388,7 @@ const WIDGETS = {
   plothistogram: {
     name: 'Plot histogram', cat: 'Plots',
     props: [['label', 'text', 'Buckets'], ['w', 'float', 0, PX], ['h', 'float', 60, PX]],
-    field: (n, v) => `float ${v}[64] = {};   // fill with your samples`,
+    field: (n, v) => plotField(v),
     code: (n, v, id) => [
       `ImGui::PlotHistogram(${id}, state.${v}, IM_ARRAYSIZE(state.${v}), 0, nullptr, -1.0f, 1.0f, ImVec2(${f(n.w)}, ${f(n.h)}));`,
     ],
@@ -571,6 +611,22 @@ const COLOR_SLOTS_BY_TYPE = {
   child:         ['ChildBg', 'Border', 'Text'],
   menubar:       ['MenuBarBg', 'Text'],
 };
+
+// A fresh node of a type, with every property at the spec's default. It lives
+// here rather than in index.html because it is derived entirely from the table
+// above, and because the parser and the unit tests both need the REAL one: a
+// faithful-looking copy in a test harness is a second source of truth, and the
+// whole point of this file is that there is only one.
+//
+// The id is passed in rather than taken from a counter, which is the only part
+// that was ever app state.
+function makeNodeOfType(type, id) {
+  const spec = WIDGETS[type];
+  const node = { type, id };
+  for (const [k, , d] of spec.props || []) node[k] = d;
+  if (spec.container) node.children = [];
+  return node;
+}
 
 function colorSlots(type) {
   if (COLOR_SLOTS_BY_TYPE[type]) return COLOR_SLOTS_BY_TYPE[type];

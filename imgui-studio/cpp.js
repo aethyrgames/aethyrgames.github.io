@@ -26,15 +26,47 @@ const litNum = v => {
 const litStr = v => String(v).slice(1, -1).replace(/\\(.)/g, (_, c) =>
   ({ n: '\n', r: '\r', t: '\t', '\\': '\\', '"': '"' }[c] ?? c));
 
+// One scanner for every bracket walker below.
+//
+// All four of them used to track double-quoted strings and nothing else, so a
+// brace, paren or semicolon inside a // comment counted as real. That ended a
+// container body at the comment: the comment split in half, the widgets after
+// it were reparented out of the container, and a stray closing brace was left
+// behind as its own node. Character literals bite identically, since '}' is one
+// token rather than a brace.
+//
+// Given an index, returns the index of the LAST character of the comment,
+// string or character literal starting there, so the caller's own i++ steps
+// past it. Returns -1 when nothing special starts at i.
+function skipToken(src, i, to) {
+  const c = src[i], n = src[i + 1];
+  if (c === '/' && n === '/') {
+    let j = i + 2;
+    while (j < to && src[j] !== '\n') j++;
+    return j;                                    // stops on the newline
+  }
+  if (c === '/' && n === '*') {
+    let j = i + 2;
+    while (j < to && !(src[j] === '*' && src[j + 1] === '/')) j++;
+    return Math.min(j + 1, to);                  // stops on the closing slash
+  }
+  if (c === '"' || c === "'") {
+    let j = i + 1;
+    while (j < to && src[j] !== c) { if (src[j] === '\\') j++; j++; }
+    return j;                                    // stops on the closing quote
+  }
+  return -1;
+}
+
 // takes "(a, b, c) ..." and returns "a, b, c"
 function balancedArgs(s) {
   if (s[0] !== '(') return null;
-  let d = 0, inStr = false;
+  let d = 0;
   for (let i = 0; i < s.length; i++) {
+    const j = skipToken(s, i, s.length);
+    if (j >= 0) { i = j; continue; }
     const c = s[i];
-    if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; continue; }
-    if (c === '"') inStr = true;
-    else if (c === '(') d++;
+    if (c === '(') d++;
     else if (c === ')') { d--; if (!d) return s.slice(1, i); }
   }
   return null;
@@ -42,12 +74,12 @@ function balancedArgs(s) {
 
 function splitTopLevel(s) {
   const out = [];
-  let d = 0, start = 0, inStr = false;
+  let d = 0, start = 0;
   for (let i = 0; i < s.length; i++) {
+    const j = skipToken(s, i, s.length);
+    if (j >= 0) { i = j; continue; }
     const c = s[i];
-    if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; continue; }
-    if (c === '"') inStr = true;
-    else if ('([{'.includes(c)) d++;
+    if ('([{'.includes(c)) d++;
     else if (')]}'.includes(c)) d--;
     else if (c === ',' && d === 0) { out.push(s.slice(start, i).trim()); start = i + 1; }
   }
@@ -57,24 +89,24 @@ function splitTopLevel(s) {
 }
 
 function matchBrace(src, open, to) {
-  let d = 0, inStr = false;
+  let d = 0;
   for (let i = open; i < to; i++) {
+    const j = skipToken(src, i, to);
+    if (j >= 0) { i = j; continue; }
     const c = src[i];
-    if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; continue; }
-    if (c === '"') inStr = true;
-    else if (c === '{') d++;
+    if (c === '{') d++;
     else if (c === '}') { d--; if (!d) return i; }
   }
   return -1;
 }
 
 function statementEnd(src, i, to) {
-  let d = 0, inStr = false;
+  let d = 0;
   for (let j = i; j < to; j++) {
+    const k = skipToken(src, j, to);
+    if (k >= 0) { j = k; continue; }
     const c = src[j];
-    if (inStr) { if (c === '\\') j++; else if (c === '"') inStr = false; continue; }
-    if (c === '"') inStr = true;
-    else if (c === '{') d++;
+    if (c === '{') d++;
     else if (c === '}') { d--; if (d <= 0) return j + 1; }
     else if (c === ';' && d === 0) return j + 1;
   }
@@ -85,7 +117,33 @@ function statementEnd(src, i, to) {
 // than an if-block, so their extent has to be found by counting nested pairs.
 const PAIRED = { group: ['BeginGroup', 'EndGroup'], child: ['BeginChild', 'EndChild'] };
 
+// Mirrors WINDOW_FLAGS in index.html's generator. Both directions have to agree
+// or a flag round-trips to nothing. MenuBar is not here on purpose: the
+// generator derives it from a menubar child, not from a property.
+const WINDOW_FLAG_PROPS = [
+  ['noTitleBar', 'NoTitleBar'], ['noResize', 'NoResize'], ['noMove', 'NoMove'],
+  ['noScrollbar', 'NoScrollbar'], ['noCollapse', 'NoCollapse'],
+  ['autoResize', 'AlwaysAutoResize'],
+];
+
+// Comment and string bodies blanked to spaces, lengths and offsets unchanged.
+// The pair scanners below are regexes over raw text, so skipToken cannot be
+// dropped into them the way it was into the character walkers: a mention of
+// ImGui::EndGroup() in a comment ended the container early, reparented the
+// widgets after it, and left the generator emitting an unbalanced pair.
+function blankForScan(src) {
+  const out = src.split('');
+  for (let i = 0; i < src.length; i++) {
+    const j = skipToken(src, i, src.length);
+    if (j < 0) continue;
+    for (let k = i; k <= j && k < src.length; k++) if (src[k] !== '\n') out[k] = ' ';
+    i = j;
+  }
+  return out.join('');
+}
+
 function findPairEnd(src, from, to, beginFn, endFn) {
+  src = blankForScan(src);
   const re = new RegExp('ImGui::(' + beginFn + '|' + endFn + ')\\s*\\(', 'g');
   re.lastIndex = from;
   let depth = 0, m;
@@ -240,11 +298,18 @@ function createParser(WIDGETS, makeNode, colorSlots) {
     // generator writes each as its own struct and function, so the parser
     // walks the file rather than assuming there is exactly one.
     const windows = [];
+    // Every window's collected helpers, so the ones no call site claimed can be
+    // written back out rather than deleted. See the orphan pass below.
+    const allHelpers = [];
+    // File-scope code found between two windows, which belongs to the user and
+    // has nowhere else to go. Folded into `pre` at the end.
+    const between = [];
     let cursor = 0;
     let pre = '';
     let post = '';
     let first = true;
     let lastClosable = false;
+    let lastHadColors = false;
 
     while (true) {
       const bodyStart = src.indexOf('ImGui::Begin(', cursor);
@@ -256,9 +321,20 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // the one belonging to this window and key it by member name.
       const fields = {};
       const region = src.slice(cursor, bodyStart);
+      // The window's OWN state struct, found by brace matching from the last
+      // `struct <Name>State {` rather than by slicing at the first literal `};`.
+      // The generator writes `float plot1[64] = {};` for a PlotLines, which IS
+      // a `};`, so the field scan stopped there and every member after a plot
+      // was invisible: a Progress bar below one came back at the catalog default
+      // instead of the fraction the user set.
       const structStart = region.lastIndexOf('struct ');
       if (structStart >= 0) {
-        const structEnd = region.indexOf('};', structStart);
+        const open = region.indexOf('{', structStart);
+        let d = 0, structEnd = -1;
+        for (let k = open; k >= 0 && k < region.length; k++) {
+          if (region[k] === '{') d++;
+          else if (region[k] === '}') { d--; if (!d) { structEnd = k; break; } }
+        }
         if (structEnd > 0) {
           const body = region.slice(structStart, structEnd);
           const re = /^\s*\w[\w:]*\s+(\w+)\s*(?:\[[^\]]*\])?\s*=\s*([^;]+);/gm;
@@ -292,7 +368,19 @@ function createParser(WIDGETS, makeNode, colorSlots) {
         // struct. splitHead's leftovers are per-window, so pre is taken from
         // the text ahead of that section instead.
         const upto = src.slice(0, bodyStart);
-        const m = /(^|\s)(struct\s+\w+|void\s+\w+\s*\()/.exec(upto);
+        // Anchored on the GENERATED struct, not on the first struct or free
+        // function anywhere in the file. Cutting at the first one meant a user
+        // prologue holding a type or a helper of their own was truncated at it
+        // and the rest silently vanished on the next Apply.
+        //
+        // The generator always writes `struct <Name>State` immediately before
+        // `void Draw<Name>(`, so the last such pair in the prologue is where
+        // the generated region starts. Anything that does not match that shape
+        // is the user's and stays.
+        const gen = /(^|\s)struct\s+(\w+)State\s*\r?\n?\s*\{[\s\S]*?\n\};\s*(?=[\s\S]*?\bvoid\s+Draw\2\s*\()/g;
+        let m = null, hit;
+        while ((hit = gen.exec(upto))) m = hit;
+        if (!m) m = /(^|\s)(struct\s+\w+|void\s+\w+\s*\()/.exec(upto);
         // Generated code puts the user's own lines ahead of the first struct.
         // Hand-written code has no struct at all, and then whatever splitHead
         // did not claim as the generator's is theirs.
@@ -300,12 +388,49 @@ function createParser(WIDGETS, makeNode, colorSlots) {
           ? dedent(upto.slice(0, m.index).replace(/^\s*\/\/ Generated by ImGuiStudio.*/, ''))
           : head.rest;
         first = false;
+      } else {
+        // The file-scope region BETWEEN two generated windows. pre was only ever
+        // taken for the first window and post only after the last, so this slice
+        // had no owner and a shared global or a helper written here was deleted
+        // on the first Apply, with nothing reported.
+        const gen2 = /(^|\s)struct\s+(\w+)State\s*\r?\n?\s*\{[\s\S]*?\n\};\s*(?=[\s\S]*?\bvoid\s+Draw\2\s*\()/g;
+        let m2 = null, hit2;
+        while ((hit2 = gen2.exec(region))) m2 = hit2;
+        let own = m2 ? region.slice(0, m2.index) : '';
+        // The region starts just after the PREVIOUS window's ImGui::End();, so
+        // it opens with that function's own tail: its colour pop, the closable
+        // guard's brace, and the closing brace at column 0. All of it is
+        // regenerated, so keeping any of it duplicates braces on every Apply.
+        const closeAt = own.search(/\n\}[ \t]*(\r?\n|$)/);
+        if (closeAt >= 0) own = own.slice(own.indexOf('\n', closeAt + 1) + 1);
+        // Helper definitions in here belong to the window that follows and are
+        // re-emitted from their own section nodes.
+        for (const h of Object.values(collectHelpers(region))) {
+          if (h.src) own = own.split(h.src).join('');
+        }
+        if (own.trim()) between.push(dedent(own));
       }
 
-      const inner = src.slice(src.indexOf(';', bodyStart) + 1, bodyEnd);
+      // The body starts after the WHOLE Begin call, found by matching its
+      // parentheses. Taking the first raw `;` after Begin put the start inside
+      // the call whenever an argument contained one, so a window titled
+      // "Panel; with semicolon" lost every widget in it.
+      const beginArgs = balancedArgs(src.slice(bodyStart + 'ImGui::Begin'.length));
+      const afterBegin = beginArgs === null
+        ? src.indexOf(';', bodyStart)
+        : src.indexOf(';', bodyStart + 'ImGui::Begin'.length + beginArgs.length + 2);
+      const inner = src.slice(afterBegin + 1, bodyEnd);
+      const winHelpers = collectHelpers(region);
+      allHelpers.push(winHelpers);
       const children = parse(inner, 0, inner.length, errors, newId, schema,
-        colorSlots, WIDGETS, makeNode, fields, collectHelpers(region));
+        colorSlots, WIDGETS, makeNode, fields, winHelpers);
       const win = Object.assign(makeNode('window'), { id: newId(), label, children });
+      // Whatever splitHead could not attribute to the generator, between the
+      // draw function's opening brace and Begin. It was computed and discarded,
+      // so a hand-written SetNextWindowBgAlpha was deleted on the first Apply
+      // while a PushStyleVar paired with it kept its Pop, leaving the style
+      // stack popping something never pushed.
+      if (head.rest && head.rest.trim()) win.preamble = head.rest.trim();
       if (head.colors) win.colors = head.colors;
       const size = /ImGui::SetNextWindowSize\s*\(\s*ImVec2\s*\(([^,]+),([^)]+)\)/.exec(region);
       if (size) { win.w = litNum(size[1]); win.h = litNum(size[2]); }
@@ -316,7 +441,21 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       }
       const pos = /ImGui::SetNextWindowPos\s*\(\s*ImVec2\s*\(([^,]+),([^)]+)\)/.exec(region);
       if (pos) { win.x = litNum(pos[1]); win.y = litNum(pos[2]); }
+      // The six window flags are emitted by the generator and, until now, read
+      // back by nothing: none of these names appeared anywhere in this file, so
+      // every Apply silently cleared whichever ones the user had set.
+      //
+      // MenuBar is deliberately absent from the map. The generator derives that
+      // one from the presence of a menubar child rather than from a property,
+      // so adopting it here would invent a property that does not exist.
+      const flagLine = /ImGuiWindowFlags\s+flags\s*=([^;]*);/.exec(region);
+      const beginFlags = (callArgs[2] || '');
+      const flagsText = (flagLine ? flagLine[1] : '') + ' ' + beginFlags;
+      for (const [key, name] of WINDOW_FLAG_PROPS) {
+        if (new RegExp('ImGuiWindowFlags_' + name + '\\b').test(flagsText)) win[key] = true;
+      }
       lastClosable = closable;
+      lastHadColors = !!head.colors;
       windows.push(win);
 
       cursor = src.indexOf(';', bodyEnd) + 1 || src.length;
@@ -332,7 +471,7 @@ function createParser(WIDGETS, makeNode, colorSlots) {
         errors.push({ level: 'warn', msg: 'No ImGui::Begin/End pair found; wrapped the body in a window.' });
       }
     } else {
-      post = splitTail(src.slice(cursor), lastClosable);
+      post = splitTail(src.slice(cursor), lastClosable, lastHadColors);
     }
 
     // A toggle is written as a flag name; the document stores the window title.
@@ -340,15 +479,56 @@ function createParser(WIDGETS, makeNode, colorSlots) {
     const byFlag = {};
     for (const w of windows) byFlag[pascalId(w.label)] = w.label;
     const resolve = list => {
-      for (const n of list || []) {
+      for (let k = 0; k < (list || []).length; k++) {
+        const n = list[k];
         if (n.togglesFlag !== undefined) {
-          n.toggles = byFlag[n.togglesFlag] || '';
+          const hit = byFlag[n.togglesFlag];
+          if (!hit && n.togglesSrc) {
+            // The flag names something that is not one of our windows, so the
+            // document has no way to express this button. Putting the original
+            // statement back is the whole point: it used to resolve to '' and
+            // the generator then wrote a `// TODO` where the user's code was.
+            list[k] = { type: 'rawcode', id: n.id, label: '', code: n.togglesSrc };
+            continue;
+          }
+          n.toggles = hit || '';
           delete n.togglesFlag;
+          delete n.togglesSrc;
         }
         resolve(n.children);
       }
     };
     for (const w of windows) resolve(w.children);
+
+    // A `static void X(State& state)` helper is only adopted as a Function
+    // container when its call is a bare top-level statement. Wrap that call in
+    // an if-block and the call survives as raw code while the DEFINITION was
+    // dropped on the floor, so the regenerated file called a function it never
+    // defined. Put the unclaimed ones back at file scope.
+    //
+    // The `includes` guard is what makes this idempotent: on the next Apply the
+    // definition is in `pre`, collectHelpers finds it again, and appending a
+    // second copy would grow the file on every pass.
+    const orphans = [];
+    for (const set of allHelpers) {
+      for (const h of Object.values(set)) {
+        if (h.adopted || !h.src.trim()) continue;
+        if (pre.includes(h.src) || post.includes(h.src)) continue;
+        if (orphans.includes(h.src)) continue;
+        orphans.push(h.src);
+      }
+    }
+    if (orphans.length) pre = (pre ? pre.replace(/\s+$/, '') + '\n\n' : '') + orphans.join('\n\n');
+
+    // File-scope code found between windows. It moves to the top of the file
+    // rather than staying where it was, which reorders declarations but keeps
+    // them: everything in this slice is a file-scope declaration by definition,
+    // so it still compiles, and losing it silently was the alternative.
+    for (const b of between) {
+      if (b.trim() && !pre.includes(b.trim())) {
+        pre = (pre ? pre.replace(/\s+$/, '') + '\n\n' : '') + b.trim();
+      }
+    }
 
     return { windows, pre, post, errors, nextId: idc };
   }
@@ -378,7 +558,15 @@ function collectHelpers(region) {
     const open = region.indexOf('{', m.index + m[0].length - 1);
     const end = matchBrace(region, open, region.length);
     if (end < 0) continue;
-    found[m[1]] = dedent(region.slice(open + 1, end));
+    // `src` is the WHOLE definition, kept so a helper whose call site the parser
+    // could not adopt is still written back out. Without it, a helper called
+    // from inside an if-block was silently deleted while the call survived as
+    // raw code, and the regenerated file called a function it never defined.
+    found[m[1]] = {
+      body: dedent(region.slice(open + 1, end)),
+      src: region.slice(m.index, end + 1).replace(/^\n+/, ''),
+      adopted: false,
+    };
     re.lastIndex = end;
   }
   return found;
@@ -432,6 +620,11 @@ function splitHead(text, colorSlots) {
   }
   rest = rest
     .replace(/^[ \t]*ImGuiWindowFlags\s+flags\s*=[^;]*;[ \t]*\r?\n?/m, '')
+    // A closable window is wrapped in `if (state.showX) {`, which the generator
+    // writes and re-derives from the `closable` property. Leaving it in `rest`
+    // meant it came back as the window's hand-written preamble and was emitted
+    // a second time inside the guard it already was inside.
+    .replace(/^[ \t]*if\s*\(\s*state\s*\.\s*show\w+\s*\)[ \t]*\r?\n[ \t]*\{[ \t]*\r?\n?/m, '')
     .replace(/^[ \t]*ImGui::SetNextWindowSize\s*\([^;]*\)\s*;[ \t]*\r?\n?/m, '')
     .replace(/^[ \t]*ImGui::SetNextWindowPos\s*\([^;]*\)\s*;[ \t]*\r?\n?/m, '');
   rest = rest.replace(/^[ \t]*ImGui::PushStyleColor\s*\(\s*ImGuiCol_(\w+)\s*,\s*ImVec4\s*\(([^)]*)\)\s*\)\s*;[ \t]*\n?/gm,
@@ -448,13 +641,30 @@ function splitHead(text, colorSlots) {
 // function's closing brace belong to the generator.
 // The brace to drop is the first one alone on a line, not the last one in the
 // text: the user's own code can follow the draw function.
-function splitTail(text, guarded) {
-  let rest = text
-    .replace(/^[ \t]*ImGui::PopStyleColor\s*\([^;]*\)\s*;[ \t]*\r?\n?/m, '')
-    .replace(/^[ \t]*\}[ \t]*\r?\n?/m, '');
+function splitTail(text, guarded, hadColors) {
+  // Anchored to the START of the tail, taken in the order the generator writes
+  // them. These used to be /m without /g, which matches at the start of ANY
+  // line rather than only the first: a window with no colours of its own had no
+  // pop to remove, so the regex scanned forward and deleted the first
+  // standalone PopStyleColor it found in the user's own trailing code. Their
+  // style stack came back unbalanced and the colour bled into everything drawn
+  // after it.
+  let rest = text;
+  const eat = re => {
+    const m = re.exec(rest);
+    if (m && m.index === 0) rest = rest.slice(m[0].length);
+  };
+  const blank = () => eat(/^[ \t\r\n]*/);
+  blank();
+  // Only when the window actually contributed colours. Eating it regardless
+  // deleted a hand-written pop balancing a hand-written push above Begin, and
+  // the colour then bled into everything drawn after the window.
+  if (hadColors) eat(/^[ \t]*ImGui::PopStyleColor\s*\([^;]*\)\s*;[ \t]*\r?\n?/);
+  blank();
+  eat(/^[ \t]*\}[ \t]*\r?\n?/);
   // a closable window is wrapped in `if (showX) { ... }`, so there is a second
   // brace to account for before the user's own code starts
-  if (guarded) rest = rest.replace(/^[ \t]*\}[ \t]*\r?\n?/m, '');
+  if (guarded) { blank(); eat(/^[ \t]*\}[ \t]*\r?\n?/); }
   return dedent(rest);
 }
 
@@ -463,7 +673,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
   let i = from;
   let pendingSameLine = false;
   let pendingColors = null;
-  let pendingItems = null;
+  const itemArrays = {};    // name -> { items, node } for combo/listbox lists
   let pendingItemWidth = null;   // SetNextItemWidth applies to the next widget
   let popsDue = 0;        // colour pops the widget just attached will account for
 
@@ -472,13 +682,28 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
   // The generator re-indents every line of a raw block by the block's own depth,
   // so that much has to come back off here or the code creeps right on each
   // Apply. The first line already starts at the statement, hence the skip.
-  const raw = (text, col) => {
+  const rawText = (text, col) => {
     const lines = text.replace(/\s+$/, '').split('\n');
     const body = col > 0
       ? lines.map((l, n) => (n === 0 ? l : l.replace(new RegExp('^[ \\t]{0,' + col + '}'), '')))
       : lines;
-    const t = body.join('\n');
-    if (t.trim()) out.push({ type: 'rawcode', id: newId(), label: '', code: t });
+    return body.join('\n');
+  };
+  // A SameLine or a SetNextItemWidth applies to whatever ImGui submits NEXT,
+  // and a block of code the tool does not model still counts. Only attach()
+  // consumed them, so a SameLine before unmodelled code jumped forward onto the
+  // widget after it and that widget silently moved onto the previous row.
+  const claimPending = node => {
+    if (pendingSameLine) { node.sameline = true; pendingSameLine = false; }
+    pendingItemWidth = null;
+  };
+
+  const raw = (text, col) => {
+    const t = rawText(text, col);
+    if (!t.trim()) return;
+    const node = { type: 'rawcode', id: newId(), label: '', code: t };
+    claimPending(node);
+    out.push(node);
   };
 
   // Colour pushes only belong to a widget when they look exactly like the ones
@@ -490,7 +715,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     pendingColors = null;
   };
 
-  const attach = node => {
+  const attach = (node, argsText) => {
     if (pendingSameLine) { node.sameline = true; pendingSameLine = false; }
     // SetNextItemWidth is a statement of its own, so it can't be probed as an
     // argument; it attaches to whatever widget comes next, like SameLine does.
@@ -500,10 +725,19 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       }
       pendingItemWidth = null;
     }
-    if (pendingItems && (node.type === 'combo' || node.type === 'listbox')) {
-      node.items = pendingItems;
+    // A Combo or ListBox names its array in its own arguments, so claim that
+    // one. The declaration was already emitted as raw code, so claiming it means
+    // taking that node back out.
+    if ((node.type === 'combo' || node.type === 'listbox') && argsText) {
+      for (const name of Object.keys(itemArrays)) {
+        if (!new RegExp('\\b' + name + '\\b').test(argsText)) continue;
+        const claimed = itemArrays[name];
+        node.items = claimed.items;
+        if (claimed.node) claimed.node.claimed = true;   // dropped on the way out
+        delete itemArrays[name];
+        break;
+      }
     }
-    pendingItems = null;
     if (pendingColors) {
       const slots = Object.keys(pendingColors.map);
       const mine = slots.every(k => colorSlots(node.type).includes(k));
@@ -528,9 +762,16 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     const dueNow = popsDue;
     popsDue = 0;
 
+    // Every comment survives, including one saying TODO. The generator's own
+    // TODO placeholders are only ever emitted INSIDE a button's braces
+    // (widgets.js button, smallbutton and arrowbutton), and the button branch
+    // above consumes those with the call they belong to. So a comment reaching
+    // statement level is the user's, and dropping it because it happened to
+    // contain "TODO:" deleted their note on every Apply.
     const com = rest.match(/^\/\/[^\n]*|^\/\*[\s\S]*?\*\//);
     if (com) {
-      if (!/TODO:/.test(com[0])) { flushColors(); raw(com[0], colAt(i)); }
+      flushColors();
+      raw(com[0], colAt(i));
       i += com[0].length;
       continue;
     }
@@ -557,7 +798,8 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     // helper calling another helper nests the same way it generated.
     const helperCall = helpers && rest.match(/^(\w+)\s*\(\s*state\s*(?:,[^)]*)?\)\s*;/);
     if (helperCall && helpers[helperCall[1]] !== undefined) {
-      const body = helpers[helperCall[1]];
+      helpers[helperCall[1]].adopted = true;
+      const body = helpers[helperCall[1]].body;
       const node = Object.assign(makeNode('section'), {
         id: newId(),
         label: unpascal(helperCall[1].replace(/^Draw/, '')),
@@ -577,15 +819,41 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     }
 
     // The item array a Combo/ListBox is generated with, carried to the next one.
-    const itemsDecl = rest.match(/^static\s+const\s+char\*\s*\w+\s*\[\s*\]\s*=\s*\{/);
+    // The declaration text is carried with it: this branch used to consume the
+    // statement and advance past the semicolon with no raw() fallback, so unless
+    // the very next widget was a combo or a listbox the user's array was simply
+    // deleted. attach() puts it back when nothing claims it.
+    // Keyed by the array's NAME, not by "the declaration just before this call".
+    // Position alone broke as soon as two combos declared their arrays together,
+    // which is the natural way to write them: the second declaration overwrote
+    // the first before anything claimed it, so combo A took B's list and B fell
+    // back to the catalog placeholder. The call names the array it uses, so use
+    // that. The declaration is emitted as raw code straight away and spliced
+    // back out only once a widget claims it, which keeps an unclaimed one in the
+    // position the user wrote it in.
+    const itemsDecl = rest.match(/^static\s+const\s+char\*\s*(\w+)\s*\[\s*\]\s*=\s*\{/);
     if (itemsDecl) {
       const close = src.indexOf('}', i);
       const semi = src.indexOf(';', close < 0 ? i : close);
+      const end = semi >= 0 ? semi + 1 : to;
+      flushColors();
+      // raw() drops any pending SameLine or SetNextItemWidth, because for
+      // genuinely unmodelled code they belong to the raw block. This
+      // declaration is not unmodelled: it is part of the Combo that follows, and
+      // the generator writes it BETWEEN that combo's SetNextItemWidth and the
+      // call itself. Clearing here cost the combo its width on every Apply.
+      const heldSame = pendingSameLine, heldWidth = pendingItemWidth;
+      raw(src.slice(i, end), colAt(i));
+      pendingSameLine = heldSame;
+      pendingItemWidth = heldWidth;
       if (close > 0) {
-        pendingItems = splitTopLevel(src.slice(i + itemsDecl[0].length, close))
-          .filter(s => s.startsWith('"')).map(litStr).join(', ');
+        itemArrays[itemsDecl[1]] = {
+          items: splitTopLevel(src.slice(i + itemsDecl[0].length, close))
+            .filter(s => s.startsWith('"')).map(litStr).join(', '),
+          node: out[out.length - 1],
+        };
       }
-      i = semi >= 0 ? semi + 1 : to;
+      i = end;
       continue;
     }
 
@@ -640,9 +908,10 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       const argsText = balancedArgs(rest.slice(bare[0].length - 1));
       if (pair && argsText !== null) {
         const entry = schema[bare[1]];
-        const node = entry
-          ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields)
-          : Object.assign(makeNode(type), { id: newId() });
+        // A container whose own arguments could not be read still keeps its
+        // children, so fall back to a bare node rather than losing the subtree.
+        const node = (entry && nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields))
+          || Object.assign(makeNode(type), { id: newId() });
         const bodyFrom = src.indexOf(';', i + bare[0].length + argsText.length) + 1;
         node.children = parse(src, bodyFrom, pair.callStart, errors, newId, schema,
           colorSlots, WIDGETS, makeNode, fields, helpers);
@@ -669,7 +938,8 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       if (entry && braceEnd > 0) {
         const body = src.slice(braceOpen + 1, braceEnd);
         if (entry.container) {
-          const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields);
+          const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields)
+            || Object.assign(makeNode(entry.type), { id: newId() });
           const inner = stripTrailingPop(body, fn);
           node.children = parse(inner, 0, inner.length, errors, newId, schema,
             colorSlots, WIDGETS, makeNode, fields, helpers);
@@ -682,15 +952,35 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
         // `state.showX = !state.showX;` for a window's own flag, and a bare
         // `showX = !showX;` for one borrowed from another window by reference.
         const tog = /^\s*(?:state\s*\.\s*)?(\w+)\s*=\s*!\s*(?:state\s*\.\s*)?\1\s*;\s*$/.exec(body);
-        if (tog && entry.type === 'button') {
-          const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields);
+        const togNode = tog && entry.type === 'button'
+          ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
+        if (togNode) {
+          const node = togNode;
           node.togglesFlag = tog[1].replace(/^show/, '');
+          // Carried so the flag can be un-read later. This shape is only OURS
+          // when the flag names one of the document's windows; `g_paused =
+          // !g_paused` is the user's own bool and used to be replaced by a
+          // `// TODO` comment, which is the one body shape that lost code.
+          node.togglesSrc = rawText(src.slice(start, braceEnd + 1), colAt(start));
           attach(node);
           i = braceEnd + 1;
           continue;
         }
-        if (/^\s*(\/\/[^\n]*|\/\*[\s\S]*?\*\/)?\s*$/.test(body)) {
-          attach(nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields));
+        // A body holding nothing but a comment used to be read as an empty
+        // button, and the comment was then replaced by the generator's own
+        // `// TODO: <name>` placeholder on the way back out. Only a genuinely
+        // empty body takes this path now; a commented one falls through to raw
+        // code, which keeps what the user wrote.
+        // ...but the generator writes exactly `// TODO: <name>` as the body of a
+        // button with nothing wired to it, so that one shape IS generated code
+        // and has to keep round-tripping as an empty button. Anything else the
+        // user wrote in there is theirs.
+        // Both spellings: `// TODO: x` on its own line for a braced body, and
+        // `/* TODO: x */` inline for a one-line one.
+        const emptyNode = /^\s*(\/\/ TODO: \w+\s*|\/\* TODO: \w+ \*\/\s*)?$/.test(body)
+          ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
+        if (emptyNode) {
+          attach(emptyNode);
           i = braceEnd + 1;
           continue;
         }
@@ -709,8 +999,14 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       const argsText = balancedArgs(rest.slice(call[0].length - 1));
       const entry = argsText !== null ? schema[fn] : null;
       // A call the generator knows, written the way the generator writes it.
-      if (entry && !entry.container && splitTopLevel(argsText).length === entry.argc) {
-        attach(nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields));
+      // A null back from nodeFromCall means an argument was an expression the
+      // document cannot hold, so the statement drops through to raw rather than
+      // coming back with a default standing in for the user's code.
+      const exact = entry && !entry.container
+        && splitTopLevel(argsText).length === entry.argc
+        ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
+      if (exact) {
+        attach(exact, argsText);
         const semi = src.indexOf(';', i + call[0].length + argsText.length);
         i = semi >= 0 ? semi + 1 : to;
         continue;
@@ -720,14 +1016,17 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       if (argsText !== null && (!entry || !entry.container)) {
         const aliased = nodeFromAlias(fn, argsText, newId, WIDGETS, makeNode);
         if (aliased) {
-          attach(aliased);
+          attach(aliased, argsText);
           const semi = src.indexOf(';', i + call[0].length + argsText.length);
           i = semi >= 0 ? semi + 1 : to;
           continue;
         }
-        // known function, unusual arity, no alias: still better as the widget
-        if (entry && !entry.container) {
-          attach(nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields));
+        // known function, unusual arity, no alias: still better as the widget,
+        // unless an argument was an expression this cannot represent
+        const odd = entry && !entry.container
+          ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
+        if (odd) {
+          attach(odd, argsText);
           const semi = src.indexOf(';', i + call[0].length + argsText.length);
           i = semi >= 0 ? semi + 1 : to;
           continue;
@@ -741,7 +1040,11 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     i = end;
   }
   flushColors();   // pushes with nothing after them are still the user's code
-  return out;
+  // an array declaration with no combo after it is the user's too
+  // A declaration a Combo or ListBox claimed is re-emitted from that widget, so
+  // leaving the raw copy in would duplicate it on every Apply. An unclaimed one
+  // stays exactly where the user wrote it.
+  return out.filter(n => !n.claimed);
 }
 
 // Hand-written ImGui differs from what the generator emits. The generator picks
@@ -777,7 +1080,13 @@ const CALL_ALIASES = {
   ColorEdit4:    { type: 'coloredit',      label: 0 },
   ColorPicker3:  { type: 'colorpicker',    label: 0 },
   ColorPicker4:  { type: 'colorpicker',    label: 0 },
-  ProgressBar:   { type: 'progressbar',    label: null },
+  // ProgressBar is deliberately NOT here. It used to be, with label: null, so a
+  // three-argument call (the generator's own output for a labelled bar) missed
+  // the arity test, fell to this table, and returned an all-defaults node
+  // before reading anything. Label, width and fraction were all reset by one
+  // Apply. Without an entry it falls through to nodeFromCall, which reads the
+  // size from the probed slot, the fraction from the state field, and the
+  // overlay label from the trailing literal.
   Bullet:        { type: 'bullet',         label: null },
   Spacing:       { type: 'spacing',        label: null },
   NewLine:       { type: 'newline',        label: null },
@@ -837,7 +1146,9 @@ function stripTrailingPop(body, fn) {
 // from duplicate-label dedup, and "###popup.."/"###btn.." from popup ids. A
 // user's own "##" stays, since it is legitimate ImGui label syntax.
 function stripGeneratedSuffix(s) {
-  return s.replace(/###(popup|btn)\w*$/, '').replace(/##\d+$/, '');
+  // Only the generator's own markers. `##<digits>` alone is legitimate
+  // user-authored ImGui id syntax, so stripping it truncated "Item##2".
+  return s.replace(/###(popup|btn)\w*$/, '').replace(/##dup\d+$/, '');
 }
 
 function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
@@ -847,6 +1158,9 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
   const spec = WIDGETS[entry.type];
   const propDefs = Object.fromEntries((spec.props || []).map(p => [p[0], p]));
   const given = splitTopLevel(argsText);
+  // Set when an argument was written as an expression in a slot the document can
+  // only hold a literal in. See the return at the bottom.
+  let lossy = false;
 
   const apply = (slot, rawArg) => {
     if (!slot || rawArg === undefined) return;
@@ -870,12 +1184,21 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
       // is whatever follows the conversion spec
       if (!v.startsWith('"')) return;
       const m = /^%[-+ #0-9.]*[a-zA-Z]\s*(.*)$/.exec(litStr(v));
-      node[slot.key] = m ? m[1].trim() : '';
+      // %% is how a literal % survives printf, so undouble it here. Without
+      // this the unit grows by one % on every Apply.
+      node[slot.key] = m ? m[1].trim().replace(/%%/g, '%') : '';
       return;
     }
     if (t === 'text' || t === 'items' || t === 'longtext') {
       if (v.startsWith('"')) {
         node[slot.key] = slot.key === 'label' ? stripGeneratedSuffix(litStr(v)) : litStr(v);
+      } else if (v) {
+        // The document can only hold a literal here and the caller wrote an
+        // expression. Keeping the default silently put a made-up string where
+        // their variable was: ImGui::Text(fmtBuf) came back as
+        // ImGui::Text("%s", "text") with fmtBuf gone and no warning. Refuse the
+        // node instead, so the statement survives as raw code.
+        lossy = true;
       }
     } else if (t === 'enum' && !/^[-+0-9.]/.test(v)) {
       // e.g. ImGuiDir_Right -> the option whose name matches
@@ -883,7 +1206,16 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
       const hit = (def[3] || []).find(o => Array.isArray(o) && o[0] === name);
       if (hit) node[slot.key] = hit[1];
     } else if (/^[-+0-9.]/.test(v)) {
-      node[slot.key] = litNum(v);
+      // Clamped to the range the property declares. Several emitters write a
+      // sentinel outside it: a Progress bar with w = 0 emits ImVec2(-1.0f, ...)
+      // because -1 is ImGui's "fill the available width", and reading that back
+      // literally set w = -1 in the document on the first Apply and left it
+      // there. The declared min is what the inspector already enforces.
+      const opts = def[3] || {};
+      let x = litNum(v);
+      if (typeof opts.min === 'number') x = Math.max(opts.min, x);
+      if (typeof opts.max === 'number') x = Math.min(opts.max, x);
+      node[slot.key] = x;
     }
   };
 
@@ -896,6 +1228,19 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
         && given.length > entry.args.length) {
       apply(slot, given.slice(idx).join(', '));
       return;
+    }
+    // An argument the call simply does not have. Keeping the catalog default
+    // invented content the user never wrote: ImGui::MenuItem("Quit") came back
+    // carrying the placeholder shortcut "Ctrl+O", which then appeared in their
+    // menu. A missing text argument means empty, not "whatever the palette
+    // stamps". Numbers keep their default, since an omitted optional numeric
+    // argument really does mean the function's own default.
+    if (given[idx] === undefined && slot && !slot.parts) {
+      const d = slot.key === 'label' ? ['label', 'text'] : propDefs[slot.key];
+      if (d && (d[1] === 'text' || d[1] === 'items' || d[1] === 'longtext' || d[1] === 'unit')) {
+        node[slot.key] = '';
+        return;
+      }
     }
     apply(slot, given[idx]);
   });
@@ -915,5 +1260,23 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
     const m = ref && ref.match(/&state\.(\w+)/);
     if (m) node.group = m[1];
   }
-  return node;
+
+  // The schema is probed from a DEFAULT node, so an argument the generator only
+  // emits once a property is set does not exist in the baseline and the probe
+  // never learns it. A Progress bar's overlay label is the case that surfaced
+  // this: three arguments emitted, two probed, and the third dropped. Take a
+  // trailing string literal past the probed arity as the label, when the widget
+  // has one, no probed slot already claimed it, and no slot is variadic (a
+  // variadic tail has already swallowed everything after its own position).
+  if (given.length > entry.args.length && propDefs.label) {
+    const claimed = entry.args.some(s => s && s.key === 'label');
+    const variadic = entry.args.some(s => s && propDefs[s.key]
+      && propDefs[s.key][3] && propDefs[s.key][3].rest);
+    const tail = (given[given.length - 1] || '').trim();
+    if (!claimed && !variadic && tail.startsWith('"')) {
+      node.label = stripGeneratedSuffix(litStr(tail));
+    }
+  }
+
+  return lossy ? null : node;
 }
