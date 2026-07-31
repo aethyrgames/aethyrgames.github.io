@@ -947,7 +947,16 @@
     font-family: var(--font); font-size: 11px; white-space: nowrap;
   }
   .headbtn:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
-  #apphead #modeHint { color: var(--mk-comment); font-size: 11px; }
+  /* The hint is the one thing on this bar that can afford to go. It used to
+     wrap instead of yielding, so at a narrow width it kept its own two lines
+     and pushed Share and Reset view off the right edge, where nothing scrolls
+     and they cannot be clicked. Truncate, then disappear entirely rather than
+     showing a useless stub. Same fix the palette's hover readout already has. */
+  #apphead #modeHint {
+    color: var(--mk-comment); font-size: 11px;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  @media (max-width: 900px) { #apphead #modeHint { display: none; } }
   #apphead #modeHint b { color: var(--mk-green); }
   #apphead #modeHint.livehint { color: var(--mk-pink); }
 
