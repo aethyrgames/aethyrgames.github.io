@@ -609,7 +609,13 @@ function sanitize(list, ids, atRoot) {
     const c = { type: n.type };
     // keep looking until the id really is free, or a document full of
     // duplicates would just get more duplicates
-    let cid = typeof n.id === 'string' && n.id ? n.id : '';
+    //
+    // The SHAPE matters, not just the presence. An id is interpolated into a
+    // data-node="…" attribute by highlightOwned and handed to innerHTML, and a
+    // document arrives here from an import file or a #d= share link, which are
+    // both untrusted. An id of `b"><img src=x onerror=…>` executed. Anything
+    // that is not the shape this app mints falls through to a fresh id.
+    let cid = typeof n.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(n.id) ? n.id : '';
     if (!cid || ids.has(cid)) { do { cid = 'n' + (nextId++); } while (ids.has(cid)); }
     c.id = cid;
     ids.add(cid);

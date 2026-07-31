@@ -510,7 +510,13 @@ function highlightOwned(src, owners) {
   return src.split('\n').map((line, i) => {
     const id = owners && owners[i];
     const html = highlightCpp(line);
-    return id ? `<span class="cline" data-node="${id}">${html}</span>` : html;
+    // esc() on the id as well as the code. sanitize() now refuses an id that is
+    // not the shape this app mints, so nothing hostile should reach here, but
+    // this is the sink and it goes to innerHTML: an untrusted document arrives
+    // from an import file or a #d= share link, and one that carried
+    // `b"><img src=x onerror=...>` ran. Two independent guards, because either
+    // one alone is a single edit away from being removed.
+    return id ? `<span class="cline" data-node="${esc(id)}">${html}</span>` : html;
   }).join('\n');
 }
 
