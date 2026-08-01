@@ -345,7 +345,14 @@ function generateCode() {
     // Nothing else goes here. Declaring a flag for every window this one's
     // buttons can toggle gave each toggler a private bool while the target
     // guarded on its own, so the click flipped something no one read.
-    for (const fld of fields) head.push('    ' + fld);
+    // Line by line, because a field declaration may be several. Two of the 27
+    // emitters go through plotField, whose 64-value array spans nine lines, and
+    // prefixing the whole block once indented only the first: the array's own
+    // closing `};` came out at column 0, visually identical to the struct's.
+    // It compiles either way, which is why the compile fixture never minded.
+    for (const fld of fields) {
+      for (const line of String(fld).split('\n')) head.push('    ' + line);
+    }
     head.push('};');
     head.push('');
     // Lifted Function containers go between the struct and the window function:
@@ -356,8 +363,15 @@ function generateCode() {
       // The label rides along only when the name cannot carry it: a plain
       // "Side" needs nothing, "Side2" and "read/write" do.
       const carried = unpascalLike(h.fnName.replace(/^Draw/, ''));
+      // Flattened, because this goes into a ONE-LINE comment. A label carrying
+      // a newline split the comment and left the rest of the label as a bare
+      // statement between the signature and its opening brace, which does not
+      // compile. The inspector's label field is single-line, so this only
+      // arrives through an imported project or a #d= share link — which are
+      // exactly the untrusted inputs sanitize() exists for.
+      const oneLine = String(h.fnLabel ?? '').replace(/\s+/g, ' ').trim();
       head.push(`static void ${h.fnName}(${base}State& state${curHelperParams})`
-        + (h.fnLabel && h.fnLabel !== carried ? `  // label: ${h.fnLabel}` : ''),
+        + (oneLine && oneLine !== carried ? `  // label: ${oneLine}` : ''),
         '{');
       helperOwners.push(h.id, h.id);
       for (let k = 0; k < h.lines.length; k++) {

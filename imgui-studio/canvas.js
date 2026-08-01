@@ -970,7 +970,10 @@ document.addEventListener('mousemove', e => {
     // Synthetic click sequences (test drivers, extensions) can emit buttons=0
     // moves between down and up, so only started drags cancel here; blur and
     // Escape cover the un-started case.
-    if (drag.started && e.buttons === 0) { cancelDrag(); return; }
+    // endDrag: a lost mouseup means the gesture is OVER, not that the user
+    // asked to back out of it. Routing it through cancelDrag threw away a window
+    // move that had already happened.
+    if (drag.started && e.buttons === 0) { endDrag(); return; }
     if (!drag.started) {
       if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 5) return;
       drag.started = true;
@@ -1015,8 +1018,9 @@ document.addEventListener('mouseup', e => {
     return;
   }
   if (!drag) return;
-  // A release of some other button abandons the gesture, which IS a cancel.
-  if (e.button !== 0) { cancelDrag(); return; }
+  // Abandons the drop, but does NOT undo a window move ImGui already applied.
+  // Only Escape means "put it back".
+  if (e.button !== 0) { endDrag(); return; }
   const d = drag;
   // endDrag, not cancelDrag: this is the SUCCESSFUL end of the gesture and the
   // drop is applied below. Calling the cancel path here undid the drag.
@@ -1033,7 +1037,15 @@ document.addEventListener('mouseup', e => {
   // position it was dropped at. Only a release outside the canvas has no point.
   if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly) {
     const at = canvasPoint(e);
-    if (!at.inside) { addNode(d.type); return; }
+    // The HOST rect, not at.inside. `inside` is measured against the canvas
+    // ELEMENT, a 4096px surface carrying a slab of off-screen slack whose box
+    // runs on underneath the docked panels — so a release over the palette or
+    // the inspector reported inside:true and the new window was placed at a
+    // negative coordinate, behind the panel, where it cannot be seen or grabbed.
+    const host = canvasHost.getBoundingClientRect();
+    const overCanvas = e.clientX >= host.left && e.clientX <= host.right
+      && e.clientY >= host.top && e.clientY <= host.bottom;
+    if (!overCanvas) { addNode(d.type); return; }
     const node = makeNode(d.type);
     node.x = Math.round(at.x);
     node.y = Math.round(at.y);
@@ -1050,7 +1062,8 @@ document.addEventListener('mouseup', e => {
 });
 
 window.addEventListener('blur', () => {
-  if (drag) cancelDrag();
+  // Same again: losing focus mid-drag ends the gesture, it does not revert it.
+  if (drag) endDrag();
   // A gesture interrupted by alt-tab never sees its mouseup, so it would come
   // back still following the cursor with no button held.
   if (resizing) { resizing = null; refresh(); }

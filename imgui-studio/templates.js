@@ -568,9 +568,12 @@ async function buildShareLink() {
 async function copyShareLink() {
   try {
     const url = await buildShareLink();
-    // copyText says whether it worked; only add what is specific to a link
-    await copyText(url, 'Share link');
-    if (url.length > 1800) {
+    // copyText says whether it worked; only add what is specific to a link, and
+    // only when it DID work. This ran unconditionally, so a failed clipboard
+    // write flashed "could not reach the clipboard" and was immediately painted
+    // over with "Link copied" — the one message that is definitely false.
+    const ok = await copyText(url, 'Share link');
+    if (ok && url.length > 1800) {
       flashStatus(`Link copied (${url.length} characters, `
         + 'which some chat apps will truncate).');
     }
@@ -632,6 +635,6 @@ function copyText(text, what) {
     } catch (e) { said(false); return false; }
   };
   if (!navigator.clipboard || !navigator.clipboard.writeText) return fallback();
-  return navigator.clipboard.writeText(text).then(() => said(true), fallback);
+  return navigator.clipboard.writeText(text).then(() => { said(true); return true; }, fallback);
 }
 

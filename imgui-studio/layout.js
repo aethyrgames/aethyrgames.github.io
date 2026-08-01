@@ -374,7 +374,14 @@ for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right'],
       const budget = vertical
         ? Math.max(DOCK_MIN * 2, window.innerHeight - 320)
         : Math.max(DOCK_MIN * 2, window.innerWidth - 320);
-      const room = Math.max(DOCK_MIN, budget - layout.size[other]);
+      // Only reserve for a dock that is actually RENDERED. A hidden dock still
+      // has a remembered width, so reserving it froze the splitter: with the
+      // right dock hidden the left one could shrink but not grow, while 948px of
+      // canvas sat free, and layout.size persists so the dead state survived a
+      // reload. offsetParent is null for a display:none dock, which is the same
+      // test edgeUnderCursor already uses.
+      const otherTakes = dockEl(other).offsetParent ? layout.size[other] : 0;
+      const room = Math.max(DOCK_MIN, budget - otherTakes);
       layout.size[side] = Math.max(DOCK_MIN, Math.min(Math.min(760, room), startW + delta));
       dockEl(side).style[vertical ? 'height' : 'width'] = layout.size[side] + 'px';
       syncCanvasSize();

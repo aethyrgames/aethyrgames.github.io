@@ -104,9 +104,16 @@ function insertAt(node, drop) {
     // the one just before it.
     const wins = doc.children.filter(n => n.type === 'window');
     if (!wins.length) return false;
+    // A canvas drop also names the node its indicator line was drawn on, and
+    // that is the window the user was pointing at, so it beats the index rule:
+    // a drop on the TOP third of a window carries that window's own index, and
+    // the rule below reads an index as "after", landing the widget in the
+    // window before the one under the cursor.
+    const anchor = drop.anchorId && doc.children.find(
+      n => n.type === 'window' && n.id === drop.anchorId);
     const at = doc.children.slice(0, Math.max(0, drop.index))
       .filter(n => n.type === 'window');
-    parent = at.length ? at[at.length - 1] : wins[0];
+    parent = anchor || (at.length ? at[at.length - 1] : wins[0]);
     drop = { parentId: parent.id, index: (parent.children || []).length, sameline: drop.sameline };
   }
   if (parent !== doc && node.type === 'window') return false;
@@ -775,6 +782,14 @@ const PROJECTS_KEY = 'imguistudio.projects.v1';
 let projects = [];       // { id, name, doc, nextId }
 let activeProject = null;
 let projectSeq = 1;
+// Projects closed in THIS tab. saveProjects merges back anything in the shared
+// key it does not recognise, so that two tabs stop deleting each other's work —
+// and a project this tab just closed looks exactly like a project another tab
+// just made. Without this, Close was a complete no-op: the project came back in
+// the same call that was meant to persist its removal, and Close is the only
+// way to remove one. It only has to live as long as the page, because the write
+// below drops the project from storage in that same call.
+const closedIds = new Set();
 
 // Globally unique, not just unique in this tab. It used to be a per-tab counter
 // plus the array length, so two tabs opened on the same app minted the SAME id
@@ -805,7 +820,7 @@ function saveProjects() {
     let stored = null;
     try { stored = JSON.parse(localStorage.getItem(PROJECTS_KEY) || 'null'); } catch (e) {}
     const theirs = (stored && Array.isArray(stored.projects) ? stored.projects : [])
-      .filter(p => p && p.id && p.doc && !mine.has(p.id));
+      .filter(p => p && p.id && p.doc && !mine.has(p.id) && !closedIds.has(p.id));
     const merged = projects.concat(theirs);
     // never let a stale seq hand out an id another tab already used
     const seq = Math.max(projectSeq, (stored && stored.projectSeq) || 0);
@@ -825,7 +840,8 @@ window.addEventListener('storage', e => {
   try { s = JSON.parse(e.newValue); } catch (err) { return; }
   if (!s || !Array.isArray(s.projects)) return;
   const mine = new Set(projects.map(p => p.id));
-  const fresh = s.projects.filter(p => p && p.id && p.doc && !mine.has(p.id));
+  const fresh = s.projects.filter(p => p && p.id && p.doc
+    && !mine.has(p.id) && !closedIds.has(p.id));
   if (!fresh.length) return;
   projects = projects.concat(fresh);
   projectSeq = Math.max(projectSeq, s.projectSeq || 0);
@@ -891,6 +907,7 @@ function closeProject(id) {
   if (i < 0) return;
   const go = () => {
     projects.splice(i, 1);
+    closedIds.add(id);
     if (!projects.length) {
       projects.push({ id: newProjectId(), name: 'Untitled', doc: JSON.parse(JSON.stringify(DEFAULT_DOC)), nextId: 100 });
     }
