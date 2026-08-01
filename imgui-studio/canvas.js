@@ -801,7 +801,14 @@ canvas.addEventListener('contextmenu', e => {
   }
 });
 
-function cancelDrag() {
+// The gesture is over. Clears the transient state and UNDOES NOTHING.
+//
+// This is what the mouseup path wants, and it is what `cancelDrag` used to be:
+// the name says cancel but every completed drag ends here too. Teaching the old
+// one to restore a dragged window therefore put the window back on every
+// successful drag — it followed the pointer the whole way and snapped home the
+// instant you let go.
+function endDrag() {
   drag = null;
   ghost.style.display = 'none';
   dropline.style.display = 'none';
@@ -812,20 +819,25 @@ function cancelDrag() {
   // so a title-bar press interrupted by alt-tab left the canvas armed and the
   // next click anywhere started moving that window.
   armedWindowDrag = false;
+}
 
-  // A window drag lives inside ImGui, not in `drag`, so cancelling only dropped
-  // the pending drop target and left the window wherever it had been dragged to.
-  // Escape has to put it back AND make ImGui let go, or the next frame re-places
-  // it from `mouse - grabOffset` and the restore is invisible.
-  if (winDragStart) {
-    const win = doc.children.find(n => n.id === winDragStart.id);
-    if (win) { win.x = winDragStart.x; win.y = winDragStart.y; }
-    winDragStart = null;
-    moveCancelled = true;
-    try { Module.ccall('engine_cancel_move', null, [], []); } catch (e) {}
-    pushDoc();
-    refresh();
-  }
+// Escape, and only Escape. Ends the gesture AND puts back what it moved.
+//
+// A window drag lives inside ImGui rather than in `drag`, so backing out has to
+// restore the document position and make ImGui let go as well — otherwise the
+// next frame re-places the window from `mouse - grabOffset` and the restore is
+// never visible. Gated on wasMovingWindow so a stale snapshot from an earlier
+// press cannot yank a window that is sitting still.
+function cancelDrag() {
+  endDrag();
+  if (!winDragStart || !wasMovingWindow) { winDragStart = null; return; }
+  const win = doc.children.find(n => n.id === winDragStart.id);
+  if (win) { win.x = winDragStart.x; win.y = winDragStart.y; }
+  winDragStart = null;
+  moveCancelled = true;
+  try { Module.ccall('engine_cancel_move', null, [], []); } catch (e) {}
+  pushDoc();
+  refresh();
 }
 
 // ---------- inline label editing ----------
@@ -1003,9 +1015,12 @@ document.addEventListener('mouseup', e => {
     return;
   }
   if (!drag) return;
+  // A release of some other button abandons the gesture, which IS a cancel.
   if (e.button !== 0) { cancelDrag(); return; }
   const d = drag;
-  cancelDrag();
+  // endDrag, not cancelDrag: this is the SUCCESSFUL end of the gesture and the
+  // drop is applied below. Calling the cancel path here undid the drag.
+  endDrag();
   if (!d.started) {
     if (d.kind === 'template') insertTemplate(d.tpl);
     else if (d.kind === 'palette') addNode(d.type);

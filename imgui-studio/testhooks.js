@@ -305,13 +305,29 @@ window.__test = {
     applyBtn.onclick();
     return document.getElementById('codeStatus').textContent;
   },
+  // `applied` matters as much as `same`.
+  //
+  // Apply catches a parser throw and returns WITHOUT touching the document
+  // (app/codepane.js:83, which is right — never blank the canvas on a bad
+  // parse). So a caller that only compares generated code to what it fed in is
+  // comparing a document against itself: `same` is true precisely because
+  // nothing happened. Proved with a mutation that made parseCpp throw on every
+  // call — twelve other checks went red and this one stayed green.
   roundTrip: () => {
     const before = generateCode();
     setCodeEditing(true);
     codeEdit.value = before;
     paintCodeEditor();
     applyBtn.onclick();
-    return { same: generateCode() === before, before, after: generateCode() };
+    const status = codeStatus.textContent;
+    return {
+      same: generateCode() === before,
+      // the document really was replaced, rather than kept by the error path
+      applied: !codeStatus.classList.contains('err') && /^Applied\./.test(status),
+      status,
+      before,
+      after: generateCode(),
+    };
   },
   addAll: () => {
     // one of every widget type, containers nested so the tree is exercised
