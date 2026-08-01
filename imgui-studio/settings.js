@@ -155,13 +155,17 @@ function renderKeySettings() {
     const row = setRow(b.help, k);
     row.classList.add('rebindable');
     row.onclick = e => { if (!e.target.closest('.revert')) startCapture(b); };
+    // The backdrop handler below runs on mousedown and re-renders the panel,
+    // which detaches this row before its click ever lands. It needs to know
+    // which binding a row is for so it can re-arm instead of just cancelling.
+    row.__bind = b;
     if (capturing) row.classList.add('listening');
     // only where it differs from the shipped default
     if (bindOverrides[b.id]) {
       row.insertBefore(revertButton('Restore ' + comboLabel({ ...b, ...b.def }), () => {
         delete bindOverrides[b.id];
-        Object.assign(b, { ctrl: false, alt: false, shift: undefined }, b.def);
-        try { localStorage.setItem(BINDS_KEY, JSON.stringify(bindOverrides)); } catch (e) {}
+        Object.assign(b, { key: undefined, ctrl: undefined, alt: undefined, shift: undefined }, b.def);
+        lsSet(BINDS_KEY, JSON.stringify(bindOverrides));
       }), k);
     }
     settingsBody.appendChild(row);
@@ -240,6 +244,15 @@ settingsOv.addEventListener('mousedown', e => {
     else closeSettings();
     return;
   }
+  // Clicking a DIFFERENT shortcut row re-arms it. cancelCapture re-renders the
+  // panel from scratch, so the mousedown target was gone before the click could
+  // fire and clicking a second row while one was listening armed nothing at all:
+  // the panel just went quiet and you had to click twice more.
+  const other = e.target.closest('.set-row.rebindable');
+  if (settingsCapture && other && other.__bind && !e.target.closest('.revert')) {
+    startCapture(other.__bind);
+    return;
+  }
   // clicking off a row while listening abandons the capture rather than
   // leaving it armed for the next keystroke
   if (settingsCapture && !e.target.closest('.set-row.listening')) cancelCapture();
@@ -263,8 +276,8 @@ window.addEventListener('keydown', e => {
   renderSettings();
   if (clash) {
     const hint = settingsBody.firstChild;
-    hint.textContent = comboLabel(cand) + ' is already "' + clash.help + '" under '
-      + clash.cat + '. Keys can only be shared inside one group.';
+    hint.textContent = clash.reason || (comboLabel(cand) + ' is already "' + clash.help
+      + '" under ' + clash.cat + '. Keys can only be shared inside one group.');
     hint.style.color = 'var(--mk-pink)';
   }
 }, true);
@@ -315,16 +328,27 @@ zoomLabel.textContent = Math.round(zoom * 100) + '%';
 // Ctrl+wheel zooms at the cursor, which is what every canvas tool does. A bare
 // wheel pans instead of scrolling the page, since there is nothing to scroll and
 // a trapped wheel over the canvas is worse than a useful one.
+// deltaMode 0 is pixels, 1 is lines, 2 is pages. Firefox reports lines for a
+// notched wheel, so treating the raw delta as pixels panned three pixels per
+// notch instead of about fifty.
+const WHEEL_LINE = 16;
+function wheelDelta(e) {
+  const k = e.deltaMode === 1 ? WHEEL_LINE
+    : e.deltaMode === 2 ? canvasHost.clientHeight : 1;
+  return { x: e.deltaX * k, y: e.deltaY * k };
+}
+
 canvasHost.addEventListener('wheel', e => {
   if (e.ctrlKey || e.metaKey) {
     e.preventDefault();
     zoomStep(e.deltaY < 0 ? 1 : -1, e.clientX, e.clientY);
     return;
   }
-  if (e.shiftKey) { e.preventDefault(); panBy(-e.deltaY, 0); return; }
-  if (Math.abs(e.deltaY) > 0 || Math.abs(e.deltaX) > 0) {
+  const d = wheelDelta(e);
+  if (e.shiftKey) { e.preventDefault(); panBy(-d.y, 0); return; }
+  if (Math.abs(d.y) > 0 || Math.abs(d.x) > 0) {
     e.preventDefault();
-    panBy(-e.deltaX, -e.deltaY);
+    panBy(-d.x, -d.y);
   }
 }, { passive: false });
 document.getElementById('exportBtn').onclick = () => exportProject();

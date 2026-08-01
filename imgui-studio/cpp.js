@@ -320,6 +320,9 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // The state struct carries values that never appear in a call, so read
       // the one belonging to this window and key it by member name.
       const fields = {};
+      // '::groups' rather than a plain key: `fields` is threaded down the whole
+      // parse and indexed by C++ identifier, and '::' cannot appear in one.
+      const fieldGroups = (fields['::groups'] = {});
       const region = src.slice(cursor, bodyStart);
       // The window's OWN state struct, found by brace matching from the last
       // `struct <Name>State {` rather than by slicing at the first literal `};`.
@@ -327,7 +330,15 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // a `};`, so the field scan stopped there and every member after a plot
       // was invisible: a Progress bar below one came back at the catalog default
       // instead of the fraction the user set.
-      const structStart = region.lastIndexOf('struct ');
+      // The GENERATED struct, matched by shape, not the last `struct ` in the
+      // region. A helper body lifted out of this window can declare a local
+      // struct, and that won the lastIndexOf, so no fields were read at all and
+      // every struct-backed property came back at its catalog default.
+      let structStart = -1;
+      const stRe = /(^|\s)struct\s+\w+State\s*\{/g;
+      let stHit;
+      while ((stHit = stRe.exec(region))) structStart = stHit.index + stHit[1].length;
+      if (structStart < 0) structStart = region.lastIndexOf('struct ');
       if (structStart >= 0) {
         const open = region.indexOf('{', structStart);
         let d = 0, structEnd = -1;
@@ -337,9 +348,15 @@ function createParser(WIDGETS, makeNode, colorSlots) {
         }
         if (structEnd > 0) {
           const body = region.slice(structStart, structEnd);
-          const re = /^\s*\w[\w:]*\s+(\w+)\s*(?:\[[^\]]*\])?\s*=\s*([^;]+);/gm;
+          const re = /^\s*\w[\w:]*\s+(\w+)\s*(?:\[[^\]]*\])?\s*=\s*([^;]+);[ 	]*(?:\/\/[ 	]*group:[ 	]*(.*?))?[ 	]*$/gm;
           let m;
-          while ((m = re.exec(body))) fields[m[1]] = m[2].trim();
+          while ((m = re.exec(body))) {
+            fields[m[1]] = m[2].trim();
+            // The generator hangs a radio group's real name off its declaration
+            // when the camelCased variable cannot carry it, so "Audio Mode" is
+            // not renamed to "audioMode" on the first Apply.
+            if (m[3]) fieldGroups[m[1]] = m[3];
+          }
         }
       }
 
@@ -354,7 +371,16 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // Matching a bare `&showX` only would leave openFlag as "state.showX", and
       // the `bool <name> =` lookup below would then never match, so openAtStart
       // silently fell back to true on every read.
-      const closable = /^&\s*(?:state\s*\.\s*)?\w+/.test(openArg);
+      // End-anchored, and only the shape the generator writes. A prefix test
+      // accepted any &expression, so a window the user guards with their own
+      // global had that variable silently swapped for a generated state member
+      // and their flag stopped controlling the window.
+      const closable = /^&\s*(?:state\s*\.\s*)?show\w+\s*$/.test(openArg);
+      // Anything else in the p_open slot is the user's own visibility variable.
+      // It is kept verbatim rather than being read as `closable`, which used to
+      // rebind it to a generated state member and leave their flag controlling
+      // nothing. `nullptr` is the generator's own filler when only flags follow.
+      const userOpen = !closable && openArg && openArg !== 'nullptr' ? openArg : '';
       const openFlag = closable
         ? openArg.replace(/^&\s*/, '').replace(/^state\s*\.\s*/, '')
         : null;
@@ -431,9 +457,15 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // while a PushStyleVar paired with it kept its Pop, leaving the style
       // stack popping something never pushed.
       if (head.rest && head.rest.trim()) win.preamble = head.rest.trim();
+      if (userOpen) win.pOpen = userOpen;
       if (head.colors) win.colors = head.colors;
       const size = /ImGui::SetNextWindowSize\s*\(\s*ImVec2\s*\(([^,]+),([^)]+)\)/.exec(region);
+      // No SetNextWindowSize means 0x0, which is the generator's own contract:
+      // it only writes the call when w or h is above zero, and 0 is the
+      // documented "let ImGui size it to its content". Leaving the catalog
+      // default in place reset an auto-sized window to 380x460 on one Apply.
       if (size) { win.w = litNum(size[1]); win.h = litNum(size[2]); }
+      else { win.w = 0; win.h = 0; }
       if (closable) {
         win.closable = true;
         const decl = new RegExp('bool\\s+' + openFlag + '\\s*=\\s*(true|false)').exec(region);
@@ -552,7 +584,11 @@ function collectHelpers(region) {
   const found = {};
   // A lifted helper also takes any window flags its buttons borrow, so its
   // parameter list is no longer just `state`.
-  const re = /(?:^|\n)\s*static\s+void\s+(\w+)\s*\(\s*\w+\s*&\s*state\s*(?:,[^)]*)?\)\s*\n?\s*\{/g;
+  // `(?:\/\/[^\n]*)?` because the generator hangs the container's real label off
+  // the end of this line when the function name cannot carry it. Without it the
+  // whole definition stopped being recognised as a helper, and the call site
+  // fell through to raw code.
+  const re = /(?:^|\n)\s*static\s+void\s+(\w+)\s*\(\s*\w+\s*&\s*state\s*(?:,[^)]*)?\)[ \t]*(?:\/\/[^\n]*)?\s*\n?\s*\{/g;
   let m;
   while ((m = re.exec(region))) {
     const open = region.indexOf('{', m.index + m[0].length - 1);
@@ -565,6 +601,12 @@ function collectHelpers(region) {
     found[m[1]] = {
       body: dedent(region.slice(open + 1, end)),
       src: region.slice(m.index, end + 1).replace(/^\n+/, ''),
+      // The generator writes the container's real label here when the function
+      // name cannot carry it losslessly, which is any label that pascal-ises to
+      // something unpascal cannot undo, plus every duplicate after the first.
+      // Without it, two Function containers both labelled "Side" came back as
+      // "Side" and "Side2" the first time the code was applied.
+      label: (m[0].match(/\/\/\s*label:[ \t]*(.*?)[ \t]*$/m) || [])[1] || null,
       adopted: false,
     };
     re.lastIndex = end;
@@ -802,7 +844,8 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       const body = helpers[helperCall[1]].body;
       const node = Object.assign(makeNode('section'), {
         id: newId(),
-        label: unpascal(helperCall[1].replace(/^Draw/, '')),
+        label: helpers[helperCall[1]].label
+          || unpascal(helperCall[1].replace(/^Draw/, '')),
       });
       node.children = parse(body, 0, body.length, errors, newId, schema,
         colorSlots, WIDGETS, makeNode, fields, helpers);
@@ -1014,6 +1057,40 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       // Otherwise it's hand-written: a different arity, or a function the
       // generator never emits at all. ImGui::Text("hi") lands here.
       if (argsText !== null && (!entry || !entry.container)) {
+        // The alias table reads ONE argument, the label, so it must not claim a
+        // call that carries more than that when the schema knows the function.
+        // An ordinary hand-written 4-argument SliderFloat came back with its
+        // label and every other property at the catalog default, silently
+        // replacing the user's 5..100 range with 0..1.
+        //
+        // Narrow on purpose: preferring the schema for EVERY known function
+        // also took ImGui::Text("hi"), which is exactly what the alias exists
+        // for, and turned it into a textfmt node.
+        const alias = CALL_ALIASES[fn];
+        const readsPast = alias && alias.label !== null
+          ? (alias.second !== undefined ? alias.second : alias.label) + 1 : 0;
+        const carriesMore = splitTopLevel(argsText).length > readsPast;
+        const schemaKnows = !!entry && !entry.container;
+        const odd = schemaKnows && carriesMore
+          ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
+        if (odd) {
+          attach(odd, argsText);
+          const semi = src.indexOf(';', i + call[0].length + argsText.length);
+          i = semi >= 0 ? semi + 1 : to;
+          continue;
+        }
+        // The schema looked at this call and REFUSED it, because an argument was
+        // an expression the document cannot hold. The alias must not then paper
+        // over that with a defaults-only node: an alias whose label is null
+        // reads nothing at all, so ImGui::Indent(kIndent) came back as a plain
+        // Indent and the constant was gone. Fall through to raw code.
+        if (schemaKnows && carriesMore) {
+          const rawEnd = statementEnd(src, i, to);
+          flushColors();
+          raw(src.slice(i, rawEnd), colAt(i));
+          i = rawEnd;
+          continue;
+        }
         const aliased = nodeFromAlias(fn, argsText, newId, WIDGETS, makeNode);
         if (aliased) {
           attach(aliased, argsText);
@@ -1021,10 +1098,6 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
           i = semi >= 0 ? semi + 1 : to;
           continue;
         }
-        // known function, unusual arity, no alias: still better as the widget,
-        // unless an argument was an expression this cannot represent
-        const odd = entry && !entry.container
-          ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
         if (odd) {
           attach(odd, argsText);
           const semi = src.indexOf(';', i + call[0].length + argsText.length);
@@ -1053,13 +1126,17 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
 // through to a raw-code placeholder. These are the equivalents worth reading
 // back: `label` is which argument carries the visible string.
 const CALL_ALIASES = {
-  Text:          { type: 'text',           label: 0 },
-  TextV:         { type: 'text',           label: 0 },
-  TextWrapped:   { type: 'textwrapped',    label: 0 },
-  TextDisabled:  { type: 'textdisabled',   label: 0 },
-  TextColored:   { type: 'textcolored',    label: 1 },
-  BulletText:    { type: 'bullettext',     label: 0 },
-  LabelText:     { type: 'labeltext',      label: 0, second: 1 },
+  // `fmt` marks the ones ImGui runs through vsnprintf, so their literal is a
+  // FORMAT string: "100%% done" draws as "100% done". They regenerate as
+  // TextUnformatted, which does not unescape, so the label has to be undoubled
+  // on the way in or what the user sees changes on the first Apply.
+  Text:          { type: 'text',           label: 0, fmt: true },
+  TextV:         { type: 'text',           label: 0, fmt: true },
+  TextWrapped:   { type: 'textwrapped',    label: 0, fmt: true },
+  TextDisabled:  { type: 'textdisabled',   label: 0, fmt: true },
+  TextColored:   { type: 'textcolored',    label: 1, fmt: true },
+  BulletText:    { type: 'bullettext',     label: 0, fmt: true },
+  LabelText:     { type: 'labeltext',      label: 0, second: 1, fmt: true },
   SeparatorText: { type: 'separatortext',  label: 0 },
   Button:        { type: 'button',         label: 0 },
   SmallButton:   { type: 'smallbutton',    label: 0 },
@@ -1108,9 +1185,13 @@ function nodeFromAlias(fn, argsText, newId, WIDGETS, makeNode) {
   const args = splitTopLevel(argsText);
   const raw = (args[alias.label] || '').trim();
   if (!raw.startsWith('"')) return null;
-  const text = litStr(raw);
+  let text = litStr(raw);
   // a format string with substitutions can't round-trip as a plain label
   if (/%[-+ #0-9.]*[a-zA-Z]/.test(text) && args.length > alias.label + 1) return null;
+  // ImGui runs these through vsnprintf, so "100%% done" DRAWS as "100% done".
+  // They regenerate as TextUnformatted, which does not unescape, so keeping the
+  // doubled percent changed what the user sees on the first Apply.
+  if (alias.fmt) text = text.replace(/%%/g, '%');
   const spec = WIDGETS[alias.type];
   if ((spec.props || []).some(p => p[0] === 'label')) node.label = text;
   if (alias.second !== undefined) {
@@ -1205,6 +1286,8 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
       const name = v.replace(/^\w+_/, '');
       const hit = (def[3] || []).find(o => Array.isArray(o) && o[0] === name);
       if (hit) node[slot.key] = hit[1];
+      // an enum written as something this catalog does not know
+      else if (v) lossy = true;
     } else if (/^[-+0-9.]/.test(v)) {
       // Clamped to the range the property declares. Several emitters write a
       // sentinel outside it: a Progress bar with w = 0 emits ImVec2(-1.0f, ...)
@@ -1216,6 +1299,13 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
       if (typeof opts.min === 'number') x = Math.max(opts.min, x);
       if (typeof opts.max === 'number') x = Math.min(opts.max, x);
       node[slot.key] = x;
+    } else if (v) {
+      // A number slot holding an expression: a named constant, an arithmetic
+      // expression, anything that is not a literal. Keeping the catalog default
+      // silently replaced it, so ImGui::Dummy(ImVec2(kWidth, 20)) regenerated as
+      // ImGui::Dummy(ImVec2(40.0f, 20.0f)) and kWidth was gone. Refuse the node
+      // instead and the statement survives as raw code.
+      lossy = true;
     }
   };
 
@@ -1258,7 +1348,7 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
   if (entry.type === 'radiobutton') {
     const ref = given.find(a => /&state\./.test(a));
     const m = ref && ref.match(/&state\.(\w+)/);
-    if (m) node.group = m[1];
+    if (m) node.group = ((fields && fields['::groups']) || {})[m[1]] || m[1];
   }
 
   // The schema is probed from a DEFAULT node, so an argument the generator only

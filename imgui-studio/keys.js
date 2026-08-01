@@ -65,7 +65,21 @@ function bindingConflict(entry, cand) {
   return null;
 }
 
+// Combos the browser keeps for itself. The keydown never reaches the page, so a
+// binding on one of these is dead on arrival and the shortcut lists advertise a
+// key that does nothing. Ctrl+N shipped that way; this stops the next one being
+// hand-picked from Settings.
+const RESERVED = new Set(['N', 'T', 'W']);
+function reservedByBrowser(cand) {
+  return !!cand.ctrl && !cand.alt && RESERVED.has(cand.key);
+}
+
 function rebind(entry, cand) {
+  if (reservedByBrowser(cand)) {
+    return { reason: comboLabel(cand) + ' is reserved by the browser for a new '
+      + (cand.key === 'N' ? 'window' : cand.key === 'T' ? 'tab' : 'window close')
+      + ', so the key never reaches the page. Pick another combination.' };
+  }
   const clash = bindingConflict(entry, cand);
   if (clash) return clash;
   Object.assign(entry, { key: cand.key, ctrl: !!cand.ctrl, alt: !!cand.alt, shift: !!cand.shift });
@@ -97,6 +111,14 @@ function isTextEntry(t) {
   if (t.tagName === 'TEXTAREA' || t.isContentEditable) return true;
   return t.tagName === 'INPUT'
     && t.type !== 'checkbox' && t.type !== 'radio' && t.type !== 'file' && t.type !== 'button';
+}
+
+// A field somebody is writing prose or code into, as opposed to a filter box.
+// The peek quasimode steals Space from whatever has focus as soon as the pointer
+// is over the canvas, which is right for the palette filter and wrong for the
+// C++ editor: it blurred the editor mid-word and swallowed the space.
+function isRealEditor(t) {
+  return !!t && (t === codeEdit || t.classList && t.classList.contains('longtext'));
 }
 
 // emscripten's GLFW handler preventDefaults Backspace and Tab page-wide, which
@@ -217,7 +239,10 @@ HOTBAR_KEYS.forEach((k, i) => {
   });
 });
 
-bind('global', 'Ctrl+N', { key: 'N', ctrl: true }, 'New project', 'Global',
+// Alt+N, not Ctrl+N. Chrome, Edge and Firefox all reserve Ctrl+N for a new
+// browser window and never deliver the keydown to the page, so the binding was
+// unreachable while the ? overlay, Settings and the File menu all advertised it.
+bind('global', 'Alt+N', { key: 'N', alt: true }, 'New project', 'Global',
   () => { addProject(); saveProjects(); });
 bind('global', 'Ctrl+K', { key: 'K', ctrl: true }, 'Command palette', 'Global', () => openCmdk('all'));
 bind('global', '?', { key: '?' }, 'Keyboard shortcuts', 'Global', () => toggleHelp());
@@ -229,7 +254,7 @@ window.addEventListener('keydown', e => {
   // canvas, and you typed a space instead of poking the preview. If the
   // pointer is over the canvas the user plainly means the preview, so take
   // the key and step out of the field.
-  if (isPeekKey(e) && cursorInside && isTextEntry(t)) {
+  if (isPeekKey(e) && cursorInside && isTextEntry(t) && !isRealEditor(t)) {
     t.blur();
     handleSpaceDown(e);
     return;
@@ -255,11 +280,31 @@ window.addEventListener('keydown', e => {
   if (t && t.tagName === 'INPUT' && e.key === ' ') return;
   // Space and Tab are ordinary keymap entries now, so they fall through to the
   // dispatcher below with everything else.
-  if (e.key === 'Escape' && (!cmdkEl.hidden || !helpEl.hidden)) {
-    closeOverlays();
+  // Every modal, not just the two overlays. Settings and the confirm dialog were
+  // not consulted here and neither focuses a text entry, so with one open every
+  // Edit shortcut still fired underneath: Delete removed the selected widget
+  // behind the dialog, and Escape could not close either of them.
+  // settingsOv and confirmOv are declared in settings.js, which loads after this
+  // file but long before any key can be pressed.
+  // A right-click menu owns Escape too. It had no dismissal at all, so pressing
+  // Escape left it open on screen and ran the Edit-context Escape underneath,
+  // which disarmed or ascended the selection the menu was about to act on.
+  if (e.key === 'Escape' && ctxOpen()) {
+    closeContextMenu();
     e.preventDefault();
     return;
   }
+  const modalOpen = !cmdkEl.hidden || !helpEl.hidden
+    || !settingsOv.hidden || !confirmOv.hidden;
+  if (e.key === 'Escape' && modalOpen) {
+    closeOverlays();
+    if (!settingsOv.hidden) closeSettings();
+    if (!confirmOv.hidden) confirmOv.hidden = true;
+    e.preventDefault();
+    return;
+  }
+  // and nothing else reaches the document while a modal owns the screen
+  if (modalOpen) return;
   // The mode keys go first, ahead of the guard below: an ImGui text field asking
   // for input would otherwise swallow them, and Tab is how you get back out of
   // Live mode. They used to be handled ahead of the whole keymap for the same
@@ -310,16 +355,44 @@ function bindingFor(help) {
 }
 function peekEntry() { return bindingFor('Hold to test interaction'); }
 function modeEntry() { return bindingFor('Toggle Edit and Live'); }
+
+// The live combo for a command, found by the start of its help text.
+//
+// The command palette, the menu bar, both context menus and the palette badges
+// all printed hardcoded strings — 'Ctrl+Z', 'Tab', 'F2' — so a rebind left every
+// one of them advertising a key that no longer did anything, and Ctrl+N was
+// advertised in three places while being unreachable in all of them. This is the
+// one resolver they all go through. '' when nothing matches, so a renamed
+// binding shows no badge rather than a wrong one.
+function keyFor(helpPrefix) {
+  const b = KEYMAP.find(x => x.help && x.help.startsWith(helpPrefix));
+  return b ? comboLabel(b) : '';
+}
+
+// rebind() stores a letter uppercased, which is what keyMatches compares
+// against. The three raw `e.key === b.key` compares here did not, so rebinding
+// either hold gesture to a letter produced a key that engaged and never
+// released. Same normalisation, one place.
+function eventKey(e) { return e.key && e.key.length === 1 ? e.key.toUpperCase() : e.key; }
+
 function isPeekKey(e) {
   const b = peekEntry();
-  return !!b && e.key === b.key && !!b.ctrl === (e.ctrlKey || e.metaKey) && !!b.alt === e.altKey;
+  if (!b) return false;
+  return eventKey(e) === b.key && !!b.ctrl === (e.ctrlKey || e.metaKey)
+    && !!b.alt === e.altKey && (b.shift === undefined || !!b.shift === e.shiftKey);
 }
 
 window.addEventListener('keyup', e => {
+  const k = eventKey(e);
   const mode = modeEntry();
   const peek = peekEntry();
-  if (mode && e.key === mode.key) handleTabUp();
-  else if (peek && e.key === peek.key) releaseSpace();
+  // Two separate ifs, not if/else. When both gestures are bound to the same base
+  // key with different modifiers, the else-if released whichever entry came
+  // first in KEYMAP rather than the gesture actually in flight. Both guards
+  // already no-op when their gesture is not held, so running both is safe and
+  // releases the right one.
+  if (mode && k === mode.key) handleTabUp();
+  if (peek && k === peek.key) releaseSpace();
 });
 
 // ---------- command palette and insert menu ----------
@@ -336,20 +409,20 @@ let cmdkSel = 0;
 
 function commandEntries() {
   return [
-    { label: 'Undo', k: 'Ctrl+Z', run: undo },
-    { label: 'Redo', k: 'Ctrl+Shift+Z', run: redo },
-    { label: 'Toggle Edit / Live mode', k: 'Tab', run: () => setLiveMode(editMode) },
-    { label: 'Duplicate selection', k: 'Ctrl+D', run: duplicateSelection },
-    { label: 'Delete selection', k: 'Del', run: deleteSelection },
-    { label: 'Wrap in Group', k: 'Ctrl+G', run: wrapSelection },
-    { label: 'Unwrap container', k: 'Ctrl+Shift+G', run: unwrapSelection },
-    { label: 'Toggle SameLine', k: 'J', run: toggleJoin },
-    { label: 'Repeat Insert', k: 'R', run: repeatInsert },
-    { label: 'Keyboard shortcuts', k: '?', run: toggleHelp },
+    { label: 'Undo', k: keyFor('Undo'), run: undo },
+    { label: 'Redo', k: keyFor('Redo'), run: redo },
+    { label: 'Toggle Edit / Live mode', k: keyFor('Toggle Edit and Live'), run: () => setLiveMode(editMode) },
+    { label: 'Duplicate selection', k: keyFor('Duplicate selection'), run: duplicateSelection },
+    { label: 'Delete selection', k: keyFor('Delete selection'), run: deleteSelection },
+    { label: 'Wrap in Group', k: keyFor('Wrap selection in a Group'), run: wrapSelection },
+    { label: 'Unwrap container', k: keyFor('Unwrap container'), run: unwrapSelection },
+    { label: 'Toggle SameLine', k: keyFor('Toggle the SameLine join'), run: toggleJoin },
+    { label: 'Repeat Insert', k: keyFor('Repeat the last insert'), run: repeatInsert },
+    { label: 'Keyboard shortcuts', k: keyFor('Keyboard shortcuts'), run: toggleHelp },
     { label: 'Reset to Sample', run: () => document.getElementById('resetBtn').onclick() },
     { label: 'Reset panel layout', run: () => resetPanelLayout() },
     { label: 'Export JSON', run: () => document.getElementById('exportBtn').onclick() },
-    { label: 'Copy C++', run: () => navigator.clipboard.writeText(generateCode()) },
+    { label: 'Copy C++', run: () => copyText(generateCode(), 'C++') },
   ];
 }
 
@@ -358,7 +431,8 @@ function openCmdk(mode) {
     .filter(([, s]) => !s.hidden)
     .map(([type, s]) => ({
       label: 'Insert ' + s.name,
-      k: FAMILY_OF[type] || '',
+      k: FAMILY_OF[type] ? keyFor('Arm ' + FAMILIES[FAMILY_OF[type]]
+        .map(t => WIDGETS[t].name).join(', ')) : '',
       run: () => insertNodeAt(type, dropAfterSelection()),
     }));
   cmdkItems = mode === 'insert' ? inserts : commandEntries().concat(inserts);
@@ -422,10 +496,11 @@ cmdkInput.addEventListener('keydown', e => {
 function renderHelp() {
   const term = helpInput.value.trim().toLowerCase();
   const activeCtx = new Set(['global', editMode ? 'edit' : 'live', drag ? 'drag' : null]);
-  const rows = [
-    { show: 'Space', help: 'Hold to test interaction, release to return to editing', cat: 'Global' },
-    { show: 'Tab', help: 'Toggle Edit / Live. Hold to peek Live, release to snap back.', cat: 'Global' },
-  ];
+  // No hand-written rows. Space and Tab used to be listed here as literals, so
+  // they read as fixed keys, could not be clicked to rebind, and went stale the
+  // moment either was rebound. They are ordinary Modes entries in KEYMAP now and
+  // the loop below covers them like everything else.
+  const rows = [];
   // Every binding gets its own row, labelled from its live combo. Hiding the
   // second half of a pair behind a hand-written "Up / Down" left it unlistable
   // and unrebindable, and the static label went stale the moment either half
@@ -499,8 +574,8 @@ function captureKey(e) {
   renderHelp();
   if (clash) {
     const hint = helpList.firstChild;
-    hint.textContent = comboLabel(cand) + ' is already "' + clash.help + '" under '
-      + clash.cat + '. Keys can only be shared inside one group.';
+    hint.textContent = clash.reason || (comboLabel(cand) + ' is already "' + clash.help
+      + '" under ' + clash.cat + '. Keys can only be shared inside one group.');
     hint.style.color = 'var(--mk-pink)';
   }
   return true;

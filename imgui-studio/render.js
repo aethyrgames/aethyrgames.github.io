@@ -49,8 +49,13 @@ function paletteButton(type, spec) {
   lbl.textContent = titleCase(spec.name);
   b.appendChild(lbl);
   b.dataset.type = type;
-  const fam = FAMILY_OF[type];
+  // Both badges come from the live KEYMAP entry, not from the constant that
+  // seeded it. Rebinding an arm key or a hotbar slot used to leave the palette
+  // advertising the original letter forever.
+  const fam = FAMILY_OF[type] ? keyFor('Arm ' + FAMILIES[FAMILY_OF[type]]
+    .map(t => WIDGETS[t].name).join(', ')) : '';
   const slot = hotbar.indexOf(type);
+  const slotKey = slot >= 0 ? keyFor('Arm the widget in hotbar slot ' + (slot + 1)) : '';
   const blocked = blockedReason(type);
   if (blocked) {
     b.disabled = true;
@@ -58,9 +63,9 @@ function paletteButton(type, spec) {
     b.title = blocked;
   } else {
     b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas'
-      + (fam ? '. Key: ' + fam : '') + (slot >= 0 ? '. Hotbar: ' + HOTBAR_KEYS[slot] : '');
+      + (fam ? '. Key: ' + fam : '') + (slotKey ? '. Hotbar: ' + slotKey : '');
   }
-  const badge = slot >= 0 ? HOTBAR_KEYS[slot] : fam;
+  const badge = slotKey || fam;
   if (badge) {
     const k = document.createElement('span');
     k.className = 'kbd';
@@ -174,7 +179,7 @@ const click = id => document.getElementById(id).onclick();
 function MENUS() {
   return {
     file: [
-      { group: '1_doc', label: 'New project', key: 'Ctrl+N', run: () => { addProject(); saveProjects(); } },
+      { group: '1_doc', label: 'New project', key: keyFor('New project'), run: () => { addProject(); saveProjects(); } },
       { group: '1_doc', label: 'Reset to Sample', run: () => click('resetBtn') },
       { group: '2_io', label: 'Import JSON…', run: () => click('importBtn') },
       { group: '2_io', label: 'Export JSON', run: () => click('exportBtn') },
@@ -183,7 +188,7 @@ function MENUS() {
       { group: '3_tpl', label: 'Import templates…', run: () => document.getElementById('tplImportBtn').onclick() },
       { group: '3_tpl', label: 'Export templates', run: () => exportTemplates() },
       { group: '4_share', label: 'Copy share link', run: () => click('shareBtn') },
-      { group: '4_share', label: 'Copy C++', run: () => navigator.clipboard.writeText(generateCode()) },
+      { group: '4_share', label: 'Copy C++', run: () => copyText(generateCode(), 'C++') },
       { group: '5_set', label: 'Settings…', run: () => click('settingsBtn') },
     ],
     view: [
@@ -191,9 +196,9 @@ function MENUS() {
       { group: '1_show', label: 'Rulers and guides', checked: showRulers, run: () => click('rulerBtn') },
       { group: '2_guides', label: 'Clear guides', disabled: !guides.length,
         run: () => { guides = []; renderGuides(); saveGuides(); } },
-      { group: '3_view', label: 'Focus Selection', key: 'F', disabled: !selectedId,
+      { group: '3_view', label: 'Focus Selection', key: keyFor('Focus the selection'), disabled: !selectedId,
         run: () => focusSelection() },
-      { group: '3_view', label: 'Reset View', key: 'Shift+F', run: () => resetPan() },
+      { group: '3_view', label: 'Reset View', key: keyFor('Reset the view to the origin'), run: () => resetPan() },
       { group: '4_theme', label: 'Themes…', run: () => openSettings('theme') },
     ],
     windows: [
@@ -205,15 +210,15 @@ function MENUS() {
         run: () => { p.hidden = !p.hidden; applyLayout(); },
       })),
       { group: '2_layout', label: 'Reset panel layout', run: () => resetPanelLayout() },
-      { group: '3_over', label: 'Command palette', key: 'Ctrl+K', run: () => openCmdk('all') },
-      { group: '3_over', label: 'Keyboard shortcuts', key: '?', run: () => toggleHelp() },
+      { group: '3_over', label: 'Command palette', key: keyFor('Command palette'), run: () => openCmdk('all') },
+      { group: '3_over', label: 'Keyboard shortcuts', key: keyFor('Keyboard shortcuts'), run: () => toggleHelp() },
     ],
     help: [
       // Ships next to index.html in the bundle, so a relative link works both on
       // the dev server and at whatever path the site is mounted under.
       { group: '0', label: 'Tutorial', run: () => openTutorial() },
-      { group: '1', label: 'Keyboard shortcuts', key: '?', run: () => toggleHelp() },
-      { group: '1', label: 'Command palette', key: 'Ctrl+K', run: () => openCmdk('all') },
+      { group: '1', label: 'Keyboard shortcuts', key: keyFor('Keyboard shortcuts'), run: () => toggleHelp() },
+      { group: '1', label: 'Command palette', key: keyFor('Command palette'), run: () => openCmdk('all') },
       { group: '2', label: 'Dear ImGui manual', run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener') },
     ],
   };
@@ -306,7 +311,15 @@ document.addEventListener('mousedown', e => {
 }, true);
 window.addEventListener('blur', closeMenu);
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && openMenu) { closeMenu(); e.preventDefault(); }
+  // stopImmediatePropagation, not just preventDefault. This runs in the capture
+  // phase, so without it the same Escape went on to the dispatcher and ran the
+  // Edit-context Escape as well: closing a menu also disarmed the tool or
+  // ascended out of the selection the menu was about to act on.
+  if (e.key === 'Escape' && openMenu) {
+    closeMenu();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
 }, true);
 
 // ---------- context menus ----------
@@ -362,6 +375,7 @@ function openContextMenu(e, items) {
 }
 
 function closeContextMenu() { ctxEl.style.display = 'none'; }
+function ctxOpen() { return ctxEl.style.display === 'block'; }
 document.addEventListener('mousedown', e => {
   if (ctxEl.style.display === 'block' && !ctxEl.contains(e.target)) closeContextMenu();
 }, true);
@@ -389,7 +403,13 @@ function docsItem(type) {
 function cppSnippet(node) {
   const saved = JSON.stringify(doc.children);
   const savedSel = selectedId;
-  doc.children = [JSON.parse(JSON.stringify(node))];
+  // generateCode only walks WINDOWS, so handing it a bare widget as the root
+  // produced no windows at all and every "Copy C++ snippet" returned the file
+  // header comment instead of the call. Wrap a non-window in one.
+  const clone = JSON.parse(JSON.stringify(node));
+  doc.children = clone.type === 'window'
+    ? [clone]
+    : [Object.assign(makeNode('window'), { id: 'snip', label: 'Snippet', children: [clone] })];
   const code = generateCode();
   doc.children = JSON.parse(saved);
   selectedId = savedSel;
@@ -403,7 +423,7 @@ function paletteMenu(type, isPinned) {
   const spec = WIDGETS[type];
   const sel = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
   return [
-    { group: '1_insert', order: 0, label: 'Insert After', key: 'Enter',
+    { group: '1_insert', order: 0, label: 'Insert After', key: keyFor('Descend into container'),
       run: () => insertNodeAt(type, dropSiblingAfterSelection()) },
     { group: '1_insert', order: 1, label: 'Insert Inside',
       disabled: !(sel && isContainer(sel)),
@@ -416,7 +436,7 @@ function paletteMenu(type, isPinned) {
       disabled: !isPinned && !hotbar.includes(null),
       run: () => (isPinned ? unpin(type) : pinToHotbar(type)) },
     { group: '4_copy', order: 0, label: 'Copy ImGui call',
-      run: () => navigator.clipboard.writeText(cppSnippet(makeNode(type))) },
+      run: () => copyText(cppSnippet(makeNode(type)), 'Snippet') },
     docsItem(type),
   ];
 }
@@ -429,32 +449,32 @@ function widgetMenu(node, inTree) {
   const container = isContainer(node);
   const kids = (node.children || []).length;
   return [
-    { group: '1_head', order: 0, label: 'Toggle SameLine', key: 'J',
+    { group: '1_head', order: 0, label: 'Toggle SameLine', key: keyFor('Toggle the SameLine join'),
       disabled: !parent || parent.children.indexOf(node) === 0,
       run: () => { selectId(node.id); toggleJoin(); } },
-    { group: '1_head', order: 1, label: 'Rename', key: 'F2',
+    { group: '1_head', order: 1, label: 'Rename', key: keyFor('Rename inline on the canvas'),
       disabled: !(spec.props || []).some(p => p[0] === 'label'),
       run: () => { selectId(node.id); beginInlineEdit(node.id); } },
-    { group: '2_structure', order: 0, label: 'Wrap in Group', key: 'Ctrl+G',
+    { group: '2_structure', order: 0, label: 'Wrap in Group', key: keyFor('Wrap selection in a Group'),
       run: () => { selectId(node.id); wrapSelection(); } },
-    { group: '2_structure', order: 1, label: 'Unwrap container', key: 'Ctrl+Shift+G',
+    { group: '2_structure', order: 1, label: 'Unwrap container', key: keyFor('Unwrap container'),
       disabled: !container,
       run: () => { selectId(node.id); unwrapSelection(); } },
-    { group: '3_order', order: 0, label: 'Move up', key: 'Ctrl+Up',
+    { group: '3_order', order: 0, label: 'Move up', key: keyFor('Move up among siblings'),
       run: () => { selectId(node.id); reorderSelection(-1, false); } },
-    { group: '3_order', order: 1, label: 'Move down', key: 'Ctrl+Down',
+    { group: '3_order', order: 1, label: 'Move down', key: keyFor('Move down among siblings'),
       run: () => { selectId(node.id); reorderSelection(1, false); } },
-    { group: '5_clip', order: 0, label: 'Cut', key: 'Ctrl+X',
+    { group: '5_clip', order: 0, label: 'Cut', key: keyFor('Cut subtree'),
       run: () => { selectId(node.id); cutSelection(); } },
-    { group: '5_clip', order: 1, label: 'Copy', key: 'Ctrl+C',
+    { group: '5_clip', order: 1, label: 'Copy', key: keyFor('Copy subtree'),
       run: () => { selectId(node.id); copySelection(); } },
-    { group: '5_clip', order: 2, label: 'Duplicate', key: 'Ctrl+D',
+    { group: '5_clip', order: 2, label: 'Duplicate', key: keyFor('Duplicate selection'),
       run: () => { selectId(node.id); duplicateSelection(); } },
     { group: '6_code', order: 0, label: 'Copy C++ snippet',
-      run: () => navigator.clipboard.writeText(cppSnippet(node)) },
+      run: () => copyText(cppSnippet(node), 'Snippet') },
     { group: '6_code', order: 1, label: 'Show in Code',
       run: () => { selectId(node.id); revealInCode(node.id); } },
-    { group: '1_head', order: 2, label: 'Go to', key: 'F',
+    { group: '1_head', order: 2, label: 'Go to', key: keyFor('Focus the selection'),
       run: () => { selectId(node.id); focusSelection(); } },
     inTree && container && kids
       ? { group: '7_tree', order: 0, label: 'Select children',
@@ -462,7 +482,7 @@ function widgetMenu(node, inTree) {
       : null,
     docsItem(node.type),
     { group: '9z_del', order: 0, label: container && kids ? 'Delete (keep children)' : 'Delete',
-      key: 'Del', danger: true,
+      key: keyFor('Delete selection'), danger: true,
       run: () => { selectId(node.id); container && kids ? unwrapThenDelete(node.id) : deleteSelection(); } },
     container && kids
       ? { group: '9z_del', order: 1, label: 'Delete subtree', danger: true,
@@ -473,11 +493,11 @@ function widgetMenu(node, inTree) {
 
 function backgroundMenu() {
   return [
-    { group: '1_paste', order: 0, label: 'Paste', key: 'Ctrl+V',
+    { group: '1_paste', order: 0, label: 'Paste', key: keyFor('Paste after selection'),
       disabled: !clipboardNode, run: pasteClipboard },
-    { group: '2_select', order: 0, label: 'Select all', key: 'Ctrl+A',
+    { group: '2_select', order: 0, label: 'Select all', key: keyFor('Select all siblings'),
       run: () => selectMany(doc.children.map(c => c.id)) },
-    { group: '2_select', order: 1, label: 'Deselect', key: 'Esc',
+    { group: '2_select', order: 1, label: 'Deselect', key: keyFor('Disarm, else ascend to parent'),
       run: () => { clearSelection(); refresh(); } },
     { group: '4_view', order: 0, label: (showGrid ? 'Hide' : 'Show') + ' grid',
       run: () => setGrid(!showGrid) },
@@ -486,8 +506,8 @@ function backgroundMenu() {
     { group: '4_view', order: 2, label: 'Clear guides',
       disabled: !guides.length, run: () => { guides = []; renderGuides(); saveGuides(); } },
     { group: '6_code', order: 0, label: 'Copy All C++',
-      run: () => navigator.clipboard.writeText(generateCode()) },
-    { group: '8_more', order: 0, label: 'All Commands…', key: 'Ctrl+K',
+      run: () => copyText(generateCode(), 'C++') },
+    { group: '8_more', order: 0, label: 'All Commands…', key: keyFor('Command palette'),
       run: () => openCmdk('all') },
   ];
 }
@@ -500,6 +520,17 @@ function unwrapThenDelete(id) {
   const idx = parent.children.indexOf(node);
   const kids = node.children || [];
   if (node.sameline && kids[0]) kids[0].sameline = true;
+  // Only windows may sit at the document root, and sanitize() deletes anything
+  // else there on the next load. Splicing a window's children up into the root
+  // therefore looked like it worked and silently threw the whole window away on
+  // reload. There is nowhere for them to go, so the entry does the plain delete
+  // it can actually honour and says so.
+  if (parent === doc) {
+    parent.children.splice(idx, 1);
+    selectId(parent.children[0] ? parent.children[0].id : null);
+    flashStatus('A window has no parent to keep its widgets in, so it was deleted whole.');
+    return;
+  }
   parent.children.splice(idx, 1, ...kids);
   selectId(kids[0] ? kids[0].id : parent.id);
 }
@@ -570,15 +601,29 @@ function hideListIndicator() {
 
 // Which row the pointer is over, and whether it means before, after, or inside.
 function listTargetAt(host, y, selector) {
+  // The host's VISIBLE box, not the whole scrolled list. A row scrolled out of
+  // view is still in the DOM with a real rect, so a pointer above or below the
+  // panel matched one and the insertion line was drawn against a row nobody
+  // could see.
+  const box = host.getBoundingClientRect();
+  if (y < box.top - 8 || y > box.bottom + 8) return null;
   const rows = [...host.querySelectorAll(selector)].filter(r => r.offsetParent);
   for (const row of rows) {
     const r = row.getBoundingClientRect();
+    if (r.bottom < box.top || r.top > box.bottom) continue;   // scrolled out
     if (y < r.top || y > r.bottom) continue;
     const third = r.height / 3;
     const where = y < r.top + third ? 'before' : (y > r.bottom - third ? 'after' : 'into');
     return { row, rect: r, where };
   }
-  const last = rows[rows.length - 1];
+  // Inside the panel but between rows: fall back to the last VISIBLE row. This
+  // used to fall back for any y at all, so releasing the pointer far outside
+  // the panel still reparented the widget onto the bottom row.
+  const vis = rows.filter(r => {
+    const b = r.getBoundingClientRect();
+    return b.bottom >= box.top && b.top <= box.bottom;
+  });
+  const last = vis[vis.length - 1];
   return last ? { row: last, rect: last.getBoundingClientRect(), where: 'after' } : null;
 }
 
@@ -652,8 +697,12 @@ document.addEventListener('mousemove', e => {
   }
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('mouseup', e => {
   if (!listDrag) return;
+  // The drag was armed by a LEFT press, so only a left release ends it. This
+  // took no event at all, which meant clicking any other button mid-drag
+  // committed the reparent while the left button was still held down.
+  if (e && e.button !== undefined && e.button !== 0) return;
   const d = listDrag;
   listDrag = null;
   hideListIndicator();
@@ -918,6 +967,9 @@ function renderProps() {
 
   // One editor for one property. Numeric ones honour the range and unit their
   // spec declares, so a width can't go negative and a duration says "s".
+  // marked with its prop key, so beginInlineEdit can fall back to the Label
+  // field when the preview published no rect for the widget
+  const mark = (el, key) => { if (el && el.dataset) el.dataset.prop = key; return el; };
   const editorFor = ([key, type, , opts]) => {
     if (type === 'bool') {
       const inp = document.createElement('input');
@@ -989,7 +1041,10 @@ function renderProps() {
     }
     const inp = document.createElement('input');
     inp.type = 'text';
-    inp.maxLength = 200;
+    // From the same table coerce enforces on load, so the field cannot accept
+    // more than survives a reload. It was a flat 200 here against a cap of 12
+    // for a unit, and the extra characters silently vanished on the next load.
+    inp.maxLength = TEXT_CAP[type] || 200;
     inp.value = node[key] ?? '';
     inp.placeholder = (opts && opts.placeholder) || '';
     inp.oninput = () => { node[key] = inp.value; refresh(false); };
@@ -1006,7 +1061,7 @@ function renderProps() {
   for (const def of propDefs) {
     const key = def[0];
     if (paired.has(key)) continue;
-    addField(labelFor(key, node.type), editorFor(def), changed(key),
+    addField(labelFor(key, node.type), mark(editorFor(def), key), changed(key),
       changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
   }
   for (const [a, b] of PAIRS) {

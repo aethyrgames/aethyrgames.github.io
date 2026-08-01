@@ -128,7 +128,14 @@ function applyLayout() {
     const dock = docks[p.dock] || docks.left;
     // a splitter between neighbours, so a dock's panels can be resized rather
     // than being stuck at their equal share
-    if (!p.hidden && dock.querySelector('.panel:not(.gone)')) {
+    // A collapsed panel is a title bar with nothing to resize, and
+    // startPanelResize looks its neighbour up in a list that EXCLUDES collapsed
+    // panels. Putting a splitter next to one made the two lists disagree, so a
+    // seam next to a collapsed panel resized a different pair than the one it
+    // sat between. Only expanded panels get a seam now, which is also what the
+    // seam means.
+    if (!p.hidden && !p.collapsed
+        && dock.querySelector('.panel:not(.gone):not(.collapsed)')) {
       const sp = document.createElement('div');
       sp.className = 'panelsplit' + (p.dock === 'top' || p.dock === 'bottom' ? ' vert' : '');
       sp.addEventListener('mousedown', ev => startPanelResize(ev, dock, el));
@@ -155,6 +162,10 @@ function renderPanelButtons() {
 // Drag the seam between two stacked panels to trade space between them. The
 // pair keeps its combined share, so resizing one never disturbs the rest.
 function startPanelResize(e, dock, belowEl) {
+  // left button only. Every one of these gesture starts took any button, so a
+  // right-click meant to open a context menu re-proportioned the dock on the
+  // way past and the menu opened over the result.
+  if (e.button !== 0) return;
   e.preventDefault();
   e.stopPropagation();
   const panels = [...dock.querySelectorAll('.panel:not(.gone):not(.collapsed)')];
@@ -261,7 +272,7 @@ function showDropPreview(side, key, at) {
     .map(([k]) => k);
   // insert at the cursor's slot rather than always at the end
   sharing.splice(at === undefined ? sharing.length : at, 0, key);
-  dropzone.style.display = 'block';
+  dropzone.style.display = 'flex';
   dropzone.style.left = r.left + 'px';
   dropzone.style.top = r.top + 'px';
   dropzone.style.width = r.width + 'px';
@@ -343,6 +354,7 @@ for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right'],
   const el = document.getElementById(id);
   const vertical = side === 'top' || side === 'bottom';
   el.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
     e.preventDefault();
     el.classList.add('dragging');
     const startX = vertical ? e.clientY : e.clientX;
@@ -352,7 +364,18 @@ for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right'],
       // top and left grow as the cursor moves away from the origin; the far
       // sides grow as it moves back toward it
       const delta = (side === 'left' || side === 'top') ? at - startX : startX - at;
-      layout.size[side] = Math.max(DOCK_MIN, Math.min(760, startW + delta));
+      // A flat 760 cap in isolation. The opposite dock was never consulted, so
+      // on a 1280-wide window one splitter could take 760 while the other still
+      // held its 150 minimum and the canvas was squeezed to 370 and then to
+      // nothing. clampDockSizes already knows the budget both docks share; this
+      // asks it the same question, for this axis only.
+      const other = side === 'left' ? 'right' : side === 'right' ? 'left'
+        : side === 'top' ? 'bottom' : 'top';
+      const budget = vertical
+        ? Math.max(DOCK_MIN * 2, window.innerHeight - 320)
+        : Math.max(DOCK_MIN * 2, window.innerWidth - 320);
+      const room = Math.max(DOCK_MIN, budget - layout.size[other]);
+      layout.size[side] = Math.max(DOCK_MIN, Math.min(Math.min(760, room), startW + delta));
       dockEl(side).style[vertical ? 'height' : 'width'] = layout.size[side] + 'px';
       syncCanvasSize();
     };
@@ -393,6 +416,18 @@ let guides = [];        // { axis: 'x'|'y', pos }
 // previous name said "canvas" while the value was surface pixels times zoom,
 // and three consumers read it as world.
 let cursorWorld = { x: 0, y: 0 };
+// The last screen position the pointer was seen at. cursorWorld was only
+// recomputed on mousemove, so a keyboard zoom or a Focus Selection left the
+// ruler marker and the coordinate readout pointing at a world position the
+// pointer had not been at since before the view moved.
+let lastPointer = null;
+
+function refreshCursorWorld() {
+  if (!lastPointer || !cursorInside) return;
+  const p = canvasPoint(lastPointer);
+  cursorWorld = { x: Math.round(p.x), y: Math.round(p.y) };
+  coordTip.textContent = cursorWorld.x + ', ' + cursorWorld.y;
+}
 let cursorInside = false;
 
 // Where the pointer really is, in client pixels, tracked on the document so it
@@ -440,8 +475,18 @@ const CANVAS_MAX = 4096;   // comfortably inside any WebGL texture limit
 
 // World bounds of everything on the sheet. Both edges matter now: content may
 // start left of or above the origin, and the surface has to reach it.
-function contentBounds() {
+// `tight` drops the clamp to world 0,0.
+//
+// The drawing surface genuinely has to cover the origin, so the default keeps
+// it. Zoom-to-fit does not: a document whose windows all sit at 1200,900 was
+// fitted to a box starting at 0,0, which is four times the area it needed, so
+// the content came out a quarter the size it should have been in a corner.
+function contentBounds(tight) {
   let minX = 0, minY = 0, maxX = 0, maxY = 0;
+  if (tight) {
+    minX = minY = Infinity;
+    maxX = maxY = -Infinity;
+  }
   for (const r of latestRects) {
     if (r.w === 0 && r.h === 0) continue;      // a hidden closable window
     minX = Math.min(minX, r.x);
@@ -459,12 +504,16 @@ function contentBounds() {
     maxX = Math.max(maxX, x + (Number(win.w) || 0));
     maxY = Math.max(maxY, y + (Number(win.h) || 0));
   }
+  // an empty sheet in tight mode: say so rather than returning ±Infinity
+  if (tight && !Number.isFinite(minX)) return null;
   return { minX, minY, maxX, maxY };
 }
 
 // Kept for the callers that only care how far the content reaches.
-function contentExtent() {
-  const b = contentBounds();
+function contentExtent(tight) {
+  const b = contentBounds(tight);
+  if (!b) return null;
+  if (tight) return { w: b.maxX - b.minX, h: b.maxY - b.minY };
   return { w: b.maxX - Math.min(0, b.minX), h: b.maxY - Math.min(0, b.minY) };
 }
 
@@ -484,6 +533,15 @@ function syncCanvasSize() {
   // Zoomed out, the visible box covers more world than its pixel size, so the
   // surface has to be the box divided by the zoom or the ground runs out before
   // the edge of the view.
+  // The visible box in WORLD coordinates, pan included. It used to be measured
+  // at pan zero, so panning left (a negative pan) slid world the sheet does not
+  // cover into view: a band at the right and bottom where the canvas element
+  // simply is not, so canvasPoint().inside was false and a click there did
+  // nothing. viewLeft/viewTop matter for the same reason on the other side.
+  const viewLeft = -pan.x / zoom;
+  const viewTop = -pan.y / zoom;
+  const viewRight = (canvasHost.clientWidth - pan.x) / zoom;
+  const viewBottom = (canvasHost.clientHeight - pan.y) / zoom;
   const visW = Math.floor(canvasHost.clientWidth / zoom);
   const visH = Math.floor(canvasHost.clientHeight / zoom);
   // The origin only leaves zero when content actually needs it, so a document
@@ -522,8 +580,10 @@ function syncCanvasSize() {
   // grow. By then the drag is established and a mid-drag move is safe, because
   // the pointer is re-delivered whenever the sheet shifts under it.
   const reserve = wasMovingWindow ? 1024 : 0;
-  const needX = Math.max(EDGE_SLACK, Math.max(0, -b.minX) + CANVAS_MARGIN + reserve);
-  const needY = Math.max(EDGE_SLACK, Math.max(0, -b.minY) + CANVAS_MARGIN + reserve);
+  const needX = Math.max(EDGE_SLACK,
+    Math.max(0, -b.minX, -viewLeft) + CANVAS_MARGIN + reserve);
+  const needY = Math.max(EDGE_SLACK,
+    Math.max(0, -b.minY, -viewTop) + CANVAS_MARGIN + reserve);
   let ox = -quantise(needX);
   let oy = -quantise(needY);
   // Never contract mid-gesture: the surface moving under a drag is a jump. This
@@ -539,8 +599,8 @@ function syncCanvasSize() {
   // directly left the sheet short by -ox on the right and bottom, which is a
   // dead strip 512px wide where the canvas element simply is not, so
   // canvasPoint().inside was false and clicks there did nothing at all.
-  const wantW = Math.max(visW - ox, quantise(b.maxX - ox + CANVAS_MARGIN));
-  const wantH = Math.max(visH - oy, quantise(b.maxY - oy + CANVAS_MARGIN));
+  const wantW = Math.max(visW - ox, quantise(Math.max(b.maxX, viewRight) - ox + CANVAS_MARGIN));
+  const wantH = Math.max(visH - oy, quantise(Math.max(b.maxY, viewBottom) - oy + CANVAS_MARGIN));
   let w = Math.min(CANVAS_MAX, Math.max(64, wantW));
   let h = Math.min(CANVAS_MAX, Math.max(64, wantH));
   // hold the larger size while dragging or resizing, so a shrinking extent
@@ -699,6 +759,7 @@ function renderGuides() {
     else el.style.top = (gd.pos * zoom + pan.y) + 'px';
     el.title = gd.axis + ' = ' + gd.pos + ' (drag to move, double-click to remove)';
     el.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
       const move = ev => {
@@ -732,6 +793,7 @@ function saveGuides() {
 for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x'],
   [rulerBottom, 'y'], [rulerRight, 'x']]) {
   cv.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
     e.preventDefault();
     const gd = { axis, pos: 0 };
     guides.push(gd);
@@ -770,12 +832,13 @@ canvasHost.addEventListener('mousemove', e => {
   // the origin subtracted nor the zoom divided out. With the origin at 0 that
   // was invisible at 100%; once the sheet gained standing slack the readout was
   // 512 out at every zoom, and drawRulers multiplied it by zoom a second time.
+  lastPointer = { clientX: e.clientX, clientY: e.clientY };
   const p = canvasPoint(e);
   cursorWorld = { x: Math.round(p.x), y: Math.round(p.y) };
   cursorInside = true;
   // Space went down while the pointer was elsewhere, so nothing happened then.
   // Now that it is here and the key is still held, the peek is plainly meant.
-  if (spacePhysicallyDown && !spaceHeld) {
+  if (spacePhysicallyDown && !spaceHeld && !isRealEditor(document.activeElement)) {
     if (isTextEntry(document.activeElement)) document.activeElement.blur();
     handleSpaceDown(null);
   }

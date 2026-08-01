@@ -180,6 +180,9 @@
   .panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .panel.dragging { opacity: 0.4; }
 
+  /* showDropPreview sets display:flex, so the rest of this rule applies. It
+     used to set display:block, which made flex-direction and gap inert and laid
+     the slot preview out as stacked blocks whatever edge you aimed at. */
   #dropzone {
     position: fixed; display: none; pointer-events: none; z-index: 30;
     background: color-mix(in srgb, var(--mk-cyan) 10%, transparent); border: 2px solid var(--mk-cyan);
@@ -207,6 +210,10 @@
     border-radius: var(--radius) var(--radius) 0 0;
     color: var(--mk-comment); font-size: 11px; cursor: pointer; white-space: nowrap;
     background: transparent; max-width: 220px;
+    /* without min-width the tab's automatic minimum is its min-content width,
+       so five tabs pushed the + button outside the strip, which hides its
+       scrollbar and so left it unreachable */
+    min-width: 0;   /* tabs shrink */
   }
   .ptab:hover { color: var(--mk-fg); }
   .ptab.on { color: var(--mk-green); border-color: var(--mk-green); background: var(--mk-bg); }
@@ -442,7 +449,15 @@
   .row:hover { background: var(--mk-hover); }
   .row.selected { background: var(--mk-surface); border-left-color: var(--mk-pink); }
   .row.selected .wlabel { color: var(--mk-pink); }
-  .row .wtype { color: var(--mk-cyan); font-size: 11px; opacity: 0.8; flex-shrink: 0; }
+  /* The type label yields before the row's own buttons do. It was flex-shrink:0
+     against an overflow-x:hidden panel, so at a narrow left dock it held its
+     full width and pushed the per-row move and delete buttons off the edge,
+     where nothing scrolls and they could not be reached at all. */
+  .row .wtype {
+    color: var(--mk-cyan); font-size: 11px; opacity: 0.8;
+    flex-shrink: 1; min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
   .row .wlabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
   .row .join { color: var(--mk-yellow); font-size: 12px; }
   .row .box { color: var(--mk-purple); font-size: 11px; }
@@ -680,7 +695,14 @@
   }
   #ctxmenu .mi:hover { background: var(--mk-hover); }
   #ctxmenu .mi.danger { color: var(--mk-pink); }
-  #ctxmenu .mi .k { margin-left: auto; color: var(--mk-comment); font-size: 11px; }
+  /* --mk-fg at 65%, not --mk-comment. The comment colour is tuned to recede
+     against the EDITOR background, and against the lighter popup surface it
+     fell under 4.5:1 on several shipped themes — on the one surface where the
+     text is a key you are meant to read and memorise. */
+  #ctxmenu .mi .k {
+    margin-left: auto; font-size: 11px;
+    color: color-mix(in srgb, var(--mk-fg) 82%, transparent);
+  }
   #ctxmenu .sep { height: 1px; background: var(--mk-border); margin: 4px 2px; }
   #ctxmenu .hdr {
     padding: 4px 8px 5px; color: var(--mk-comment); font-size: 11px;
@@ -714,7 +736,10 @@
   #selbox.resizable.win .rh-tl { left: -5px; top: -5px; cursor: nwse-resize; }
   #selbox.resizable.win .rh-tr { right: -5px; top: -5px; cursor: nesw-resize; }
   #selbox.resizable.win .rh-bl { left: -5px; bottom: -5px; cursor: nesw-resize; }
-  #selbox .winonly { display: none; }
+  /* :not(.win) rather than a bare descendant rule. `#selbox.resizable .rh` is
+     one id and two classes and was winning, so the five window-only grips
+     rendered on EVERY resizable widget, stacked on its top-left corner. */
+  #selbox:not(.win) .winonly { display: none; }
   #selbox.noh .rh, #selbox.now .rh-r, #selbox.now .rh-c { display: none; }
   #selbox.noh .rh-r { display: block; }
   /* a forgiving grab area around each grip, so aiming at an edge does not land
@@ -742,10 +767,18 @@
     padding: 3px 8px; font-size: 12px; color: var(--mk-fg); box-shadow: var(--shadow);
   }
 
-  #codehead { display: flex; align-items: center; border-bottom: 1px solid var(--mk-border); flex-shrink: 0; }
+  /* wrap, so a narrow code panel puts the buttons on a second line rather than
+     pushing them off the right edge where nothing scrolls and nobody can click
+     them. The dock goes down to 150px and the header wants about 290. */
+  #codehead {
+    display: flex; align-items: center; flex-wrap: wrap;
+    border-bottom: 1px solid var(--mk-border); flex-shrink: 0;
+  }
   /* Only the spacing here: the shared select rule above owns the look, and a
-     second full declaration was quietly stripping its arrow. */
-  #codehead select { margin: 4px 0 4px 8px; }
+     second full declaration was quietly stripping its arrow.
+     min-width:0 because a select's automatic minimum is its widest OPTION, so
+     without this it refuses to shrink and shoves everything after it out. */
+  #codehead select { margin: 4px 0 4px 8px; min-width: 0; }
   #codehead button {
     margin: 4px 8px; background: transparent; color: var(--mk-green);
     border: 1px solid var(--mk-green); border-radius: var(--radius);
@@ -867,6 +900,12 @@
      and vanishes at 25% */
   #selbox { border-width: calc(1px * var(--inv-zoom, 1)); }
   #selboxes .sb { border-width: calc(1px * var(--inv-zoom, 1)); }
+  /* The drop indicator and the marquee live in the same scaled viewport and were
+     left out of this, so the line you drag a widget against was half a pixel at
+     25% and an eight-pixel slab at 400%. The dropline's thickness is set in JS
+     (updateDropIndicator) and counter-scales there. */
+  #marquee { border-width: calc(1px * var(--inv-zoom, 1)); }
+  #dropbox { border-width: calc(2px * var(--inv-zoom, 1)); }
 
   #codeStatus {
     padding: 6px 10px; font-size: 12px; border-top: 1px solid var(--mk-border);
@@ -933,7 +972,10 @@
   #menupop .mi:hover { background: var(--mk-hover); }
   #menupop .mi.disabled { opacity: 0.4; cursor: default; }
   #menupop .mi.disabled:hover { background: transparent; }
-  #menupop .mi .k { margin-left: auto; color: var(--mk-comment); font-size: 11px; white-space: nowrap; }
+  #menupop .mi .k {
+    margin-left: auto; font-size: 11px; white-space: nowrap;
+    color: color-mix(in srgb, var(--mk-fg) 82%, transparent);
+  }
   /* the tick column keeps labels aligned whether or not a row is checkable */
   #menupop .mi .tick { width: 10px; color: var(--mk-green); }
   #menupop .sep { height: 1px; background: var(--mk-border); margin: 4px 2px; }
@@ -982,7 +1024,10 @@
     border-radius: var(--radius); align-items: baseline;
   }
   .ov-item.sel, .ov-item:hover { background: var(--mk-hover); }
-  .ov-item .k { margin-left: auto; color: var(--mk-comment); font-size: 11px; white-space: nowrap; }
+  .ov-item .k {
+    margin-left: auto; font-size: 11px; white-space: nowrap;
+    color: color-mix(in srgb, var(--mk-fg) 82%, transparent);
+  }
   .ov-cat {
     color: var(--mk-comment); font-size: 11px; text-transform: uppercase;
     letter-spacing: 0.07em; padding: 7px 8px 2px;
@@ -1194,22 +1239,22 @@
     </div>
   </div>
 
-<script src="widgets.js?v=dd8ad7d5d1"></script>
+<script src="widgets.js?v=fe21af24db"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=6b1720923d"></script>
+<script src="cpp.js?v=67723a501c"></script>
 <script src="codeintel.js?v=294cc56a88"></script>
-<script src="doc.js?v=d25020d3a5"></script>
-<script src="canvas.js?v=d2d33a53cb"></script>
-<script src="keys.js?v=95061e3042"></script>
-<script src="generate.js?v=0855dea5d7"></script>
-<script src="theme.js?v=d09eae5d60"></script>
-<script src="layout.js?v=d867868c60"></script>
-<script src="render.js?v=68c9f1a7ec"></script>
-<script src="codepane.js?v=cfdba059ba"></script>
-<script src="templates.js?v=de80c6b839"></script>
-<script src="settings.js?v=79aecdc3e6"></script>
-<script src="testhooks.js?v=874afbc70b"></script>
-<script src="boot.js?v=ddb694b2bf"></script>
-<script src="engine.js?v=7c7fb31695"></script>
+<script src="doc.js?v=b084f5527d"></script>
+<script src="canvas.js?v=eccdc917f5"></script>
+<script src="keys.js?v=0d906d4e43"></script>
+<script src="generate.js?v=c4a1868b84"></script>
+<script src="theme.js?v=0aaf87ef41"></script>
+<script src="layout.js?v=6a206c604e"></script>
+<script src="render.js?v=43c22ab183"></script>
+<script src="codepane.js?v=6d2013ad73"></script>
+<script src="templates.js?v=d61dab6a76"></script>
+<script src="settings.js?v=f07c6a427f"></script>
+<script src="testhooks.js?v=68a6ce3d6e"></script>
+<script src="boot.js?v=7b864eac76"></script>
+<script src="engine.js?v=3a21d765bb"></script>
 </body>
 </html>

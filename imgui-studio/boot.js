@@ -10,23 +10,22 @@
 
 loadLayout();
 buildPanels();
-try {
-  const hb = JSON.parse(localStorage.getItem(HOTBAR_KEY) || 'null');
-  if (Array.isArray(hb)) hb.forEach((t, i) => { if (i < hotbar.length) hotbar[i] = t; });
-} catch (e) {}
+const hb = lsJson(HOTBAR_KEY, null);
+if (Array.isArray(hb)) hb.forEach((t, i) => { if (i < hotbar.length) hotbar[i] = t; });
 // a bar that starts empty never gets discovered, so seed it with common widgets
 if (!hotbar.some(Boolean)) {
   ['button', 'text', 'checkbox', 'sliderfloat', 'inputtext', 'separator', 'group']
     .forEach((t, i) => { hotbar[i] = t; });
   saveHotbar();
 }
-try {
-  const g = JSON.parse(localStorage.getItem('imguistudio.guides') || '[]');
-  if (Array.isArray(g)) guides = g;
-} catch (e) {}
+const g = lsJson('imguistudio.guides', []);
+if (Array.isArray(g)) guides = g;
 renderGuides();
-setRulers(localStorage.getItem('imguistudio.rulers') !== '0');
-setGrid(localStorage.getItem('imguistudio.grid') !== '0');
+// lsGet, not localStorage.getItem. A browser that blocks storage THROWS here,
+// and a throw at the top level of this file stopped the app starting at all:
+// no palette, no projects, no first render.
+setRulers(lsGet('imguistudio.rulers') !== '0');
+setGrid(lsGet('imguistudio.grid') !== '0');
 
 renderPalette();
 loadProjects();      // adopts the old single-document save on first run

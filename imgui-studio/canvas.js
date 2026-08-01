@@ -96,6 +96,9 @@ function applyView() {
   document.documentElement.style.setProperty('--inv-zoom', String(1 / zoom));
   const pct = Math.round(zoom * 100) + '%';
   if (zoomLabel) zoomLabel.textContent = pct;
+  // The pointer has not moved but the world under it has, so the readout and the
+  // ruler marker have to be recomputed here rather than only on mousemove.
+  refreshCursorWorld();
   drawRulers();
   renderGuides();
   syncCanvasSize();
@@ -158,9 +161,12 @@ function zoomStep(dir, screenX, screenY) {
 
 // Fit the whole document in view, which is the useful counterpart to 100%.
 function zoomToFit() {
-  const ext = contentExtent();
+  // The TIGHT bounds. The plain ones are clamped to include world 0,0 because
+  // the drawing surface has to cover it, and fitting to those meant a document
+  // sitting at 1200,900 was fitted to a box four times its own size.
+  const ext = contentExtent(true);
   const host = canvasHost.getBoundingClientRect();
-  if (!ext.w || !ext.h) return;
+  if (!ext || !ext.w || !ext.h) return;
   const pad = 24;
   const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX,
     Math.min((host.width - pad * 2) / ext.w, (host.height - pad * 2) / ext.h)));
@@ -169,7 +175,7 @@ function zoomToFit() {
   // using it as if it were a position dropped the -minX term, so a document
   // reaching into negative space was fitted off the top-left by exactly
   // minX*zoom, which is the one case the negative-space work exists for.
-  const b = contentBounds();
+  const b = contentBounds(true);
   pan.x = Math.round(host.width / 2 - ((b.minX + b.maxX) / 2) * z);
   pan.y = Math.round(host.height / 2 - ((b.minY + b.maxY) / 2) * z);
   applyView();
@@ -178,7 +184,18 @@ function zoomToFit() {
 // Centre the selection in the visible area. Only useful once the document is
 // bigger than the canvas, which is exactly when you can't find things.
 function focusSelection() {
-  const r = selectedId && rectFor(selectedId);
+  let r = selectedId && rectFor(selectedId);
+  // The engine publishes an all-zero rect for a closable window hidden in Live
+  // mode. Taken at face value that converts to world 0,0 and the view jumped to
+  // the origin, which is nowhere near the window. Its document position is
+  // where it will be when it reopens, so use that instead.
+  if (r && r.w === 0 && r.h === 0) {
+    const n = findNode(selectedId);
+    r = n && n.type === 'window'
+      ? { x: Number(n.x) || 0, y: Number(n.y) || 0, w: Number(n.w) || 0, h: Number(n.h) || 0 }
+      : null;
+    if (r && !r.w && !r.h) r = null;
+  }
   if (!r) return false;
   const host = canvasHost.getBoundingClientRect();
   pan.x = Math.round(host.width / 2 - (r.x + r.w / 2) * zoom);
@@ -266,10 +283,16 @@ function updateSelectionOverlay() {
     selbox.style.display = 'none';
   } else {
     selbox.style.display = 'block';
-    selbox.style.left = (vpX(primary.x) - 2) + 'px';
-    selbox.style.top = (vpY(primary.y) - 2) + 'px';
-    selbox.style.width = (primary.w + 4) + 'px';
-    selbox.style.height = (primary.h + 4) + 'px';
+    // The inset is in WORLD units because this element lives inside the scaled
+    // viewport, while its border and grips counter-scale to screen units. A
+    // literal 2 therefore meant 8px of gap on screen at 25% and half a pixel at
+    // 400%, so the outline sat at a different distance from the widget at every
+    // zoom while the outline itself stayed 1px.
+    const inset = 2 / zoom;
+    selbox.style.left = (vpX(primary.x) - inset) + 'px';
+    selbox.style.top = (vpY(primary.y) - inset) + 'px';
+    selbox.style.width = (primary.w + inset * 2) + 'px';
+    selbox.style.height = (primary.h + inset * 2) + 'px';
     // handles only on the axes this widget's spec actually declares, and only
     // for a single selection (a sizing drag has no meaning across a set)
     const node = findNode(selectedId);
@@ -337,15 +360,33 @@ function pollEngine() {
 //
 // Only the release is worth an undo entry, so the per-frame writes are silent.
 let wasMovingWindow = false;
+// The node id of the window ImGui is moving, held for the frames after the
+// drag ends so the final position is still adopted onto the right window.
+let lastMovedId = '';
+// Set by cancelDrag: the document position has been restored and the engine
+// told to let go, so no published rect from this gesture may be adopted.
+let moveCancelled = false;
 function adoptDraggedWindowPos() {
   let moving = false;
+  let movingId = '';
   try {
     moving = Module.ccall('engine_moving_window', 'number', [], []) === 1;
+    if (moving) movingId = Module.ccall('engine_moving_window_id', 'string', [], []) || '';
   } catch (e) { return; }
   if (!moving && !wasMovingWindow) return;
+  // Escape during a drag put the window back and latched this off, so a stale
+  // published rect cannot undo the restore before the button comes up.
+  if (moveCancelled) { if (!moving) { moveCancelled = false; wasMovingWindow = false; } return; }
+  if (moving && movingId) lastMovedId = movingId;
   let changed = false;
   for (const win of doc.children) {
     if (win.type !== 'window') continue;
+    // ONLY the window ImGui is actually moving. This walked every window and
+    // wrote back whatever had been published for it, and ImGui clamps a window
+    // to keep part of it on screen: a window placed beyond the capped surface
+    // had its clamped position written over its real one every time any other
+    // window was dragged.
+    if (lastMovedId && win.id !== lastMovedId) continue;
     const r = latestRects.find(x => x.id === win.id && x.window);
     if (!r || (r.w === 0 && r.h === 0)) continue;      // a hidden closable window
     const x = Math.round(r.x), y = Math.round(r.y);
@@ -365,6 +406,8 @@ function adoptDraggedWindowPos() {
     return;
   }
   wasMovingWindow = false;
+  lastMovedId = '';
+  winDragStart = null;
   if (changed) { pushHistory(); refresh(); }
   else refresh();
 }
@@ -440,18 +483,24 @@ function computeDropTarget(p, excludeId, forceJoin) {
   }
   const parent = findParent(node.id) || doc;
   const idx = parent.children.indexOf(node);
+  // Every branch below states its `sameline` outright, true or false. insertAt
+  // treats an absent one as "no opinion" so that reordering a row in the
+  // Hierarchy stops clearing a join, and this is the path that genuinely has an
+  // opinion: the drop position IS the answer to join-or-new-line.
   if (isContainer(node) && !forceJoin) {
     // upper third inserts before the container, the rest drops inside it
     if (p.y < hit.y + hit.h / 3) {
-      return { parentId: parent.id, index: idx, anchorId: node.id, pos: 'above' };
+      return { parentId: parent.id, index: idx, sameline: false, anchorId: node.id, pos: 'above' };
     }
-    return { parentId: node.id, index: (node.children || []).length, anchorId: node.id, pos: 'inside' };
+    return { parentId: node.id, index: (node.children || []).length, sameline: false,
+      anchorId: node.id, pos: 'inside' };
   }
   if (forceJoin || p.x >= hit.x + hit.w * 0.55) {
     return { parentId: parent.id, index: idx + 1, sameline: true, anchorId: node.id, pos: 'right' };
   }
   const above = p.y < hit.y + hit.h / 2;
-  return { parentId: parent.id, index: above ? idx : idx + 1, anchorId: node.id, pos: above ? 'above' : 'below' };
+  return { parentId: parent.id, index: above ? idx : idx + 1, sameline: false,
+    anchorId: node.id, pos: above ? 'above' : 'below' };
 }
 
 function updateDropIndicator(drop) {
@@ -460,26 +509,33 @@ function updateDropIndicator(drop) {
   if (!drop) return;
   const r = rectFor(drop.anchorId);
   if (!r) return;
+  // World units, not screen pixels. This element lives inside the scaled
+  // viewport, so a literal 2 was 0.5px on screen at 25% zoom — an indicator you
+  // could not see while dragging — and an 8px slab at 400%. The selection
+  // outline already counter-scales in CSS; the thickness here is set in JS, so
+  // it has to do the same arithmetic.
+  const thick = 2 / zoom;
+  const inset = 1 / zoom;
   if (drop.pos === 'inside') {
     dropbox.style.display = 'block';
-    dropbox.style.left = (vpX(r.x) + 1) + 'px';
-    dropbox.style.top = (vpY(r.y) + 1) + 'px';
-    dropbox.style.width = Math.max(0, r.w - 2) + 'px';
-    dropbox.style.height = Math.max(0, r.h - 2) + 'px';
+    dropbox.style.left = (vpX(r.x) + inset) + 'px';
+    dropbox.style.top = (vpY(r.y) + inset) + 'px';
+    dropbox.style.width = Math.max(0, r.w - inset * 2) + 'px';
+    dropbox.style.height = Math.max(0, r.h - inset * 2) + 'px';
     return;
   }
   dropline.style.display = 'block';
   if (drop.pos === 'right') {
-    dropline.style.left = (vpX(r.x) + r.w + 2) + 'px';
+    dropline.style.left = (vpX(r.x) + r.w + thick) + 'px';
     dropline.style.top = vpY(r.y) + 'px';
-    dropline.style.width = '2px';
+    dropline.style.width = thick + 'px';
     dropline.style.height = r.h + 'px';
     return;
   }
   dropline.style.left = vpX(r.x) + 'px';
-  dropline.style.top = (drop.pos === 'above' ? vpY(r.y) - 2 : vpY(r.y) + r.h) + 'px';
+  dropline.style.top = (drop.pos === 'above' ? vpY(r.y) - thick : vpY(r.y) + r.h) + 'px';
   dropline.style.width = r.w + 'px';
-  dropline.style.height = '2px';
+  dropline.style.height = thick + 'px';
 }
 
 const marqueeEl = document.getElementById('marquee');
@@ -640,7 +696,11 @@ const setPanReady = on => canvasHost.classList.toggle('panready', !!on);
 const panModsHeld = e => (e.ctrlKey || e.metaKey) && e.altKey;
 window.addEventListener('keydown', e => setPanReady(panModsHeld(e)));
 window.addEventListener('keyup', e => setPanReady(panModsHeld(e)));
-window.addEventListener('blur', () => { setPanReady(false); spacePhysicallyDown = false; });
+window.addEventListener('blur', () => {
+  setPanReady(false);
+  spacePhysicallyDown = false;
+  armedWindowDrag = false;
+});
 
 // A window drag is the one gesture that can outrun the sheet. ImGui places the
 // window from the pointer, so it is DRAWN at the new position before the front
@@ -654,12 +714,19 @@ window.addEventListener('blur', () => { setPanReady(false); spacePhysicallyDown 
 // window (ConfigWindowsMoveFromTitleBarOnly is on), and arming on every click
 // would resize the surface twice for an ordinary selection.
 let armedWindowDrag = false;
+// Where the window was before this drag, so Escape can put it back. Taken at the
+// press: by the time ImGui reports a moving window the position has already
+// moved, and the original is gone.
+let winDragStart = null;
 const TITLE_GRAB = 30;
 canvas.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
   const p = canvasPoint(e);
-  armedWindowDrag = latestRects.some(r => r.window && (r.w > 0 || r.h > 0)
+  const grabbed = latestRects.find(r => r.window && (r.w > 0 || r.h > 0)
     && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + TITLE_GRAB);
+  armedWindowDrag = !!grabbed;
+  const gw = grabbed && doc.children.find(n => n.id === grabbed.id);
+  winDragStart = gw ? { id: gw.id, x: Number(gw.x) || 0, y: Number(gw.y) || 0 } : null;
   // Deliberately NOT syncing here. Resizing the canvas inside the mousedown
   // costs the press: glfwSetWindowSize lands between our handler and the
   // engine's, and ImGui never sees the click that starts the drag. The next
@@ -677,8 +744,10 @@ canvas.addEventListener('mousedown', e => {
   canvas.focus({ preventScroll: true });
   const p = canvasPoint(e);
   if (armed) {
-    const drop = computeDropTarget(p, null, e.shiftKey);
-    if (drop) stampArmed(drop);
+    // The click point goes through too, so an armed Window lands where it was
+    // clicked rather than being dropped only when a drop target happened to
+    // resolve. computeDropTarget returns null on empty canvas.
+    stampArmed(computeDropTarget(p, null, e.shiftKey), p);
     return;
   }
   if (e.ctrlKey || e.metaKey) { startMarquee(e, p, e.shiftKey); return; }
@@ -739,6 +808,24 @@ function cancelDrag() {
   dropbox.style.display = 'none';
   if (marquee) { marquee = null; marqueeEl.style.display = 'none'; }
   resizing = null;
+  // The armed window drag was the one piece of gesture state nothing cleared,
+  // so a title-bar press interrupted by alt-tab left the canvas armed and the
+  // next click anywhere started moving that window.
+  armedWindowDrag = false;
+
+  // A window drag lives inside ImGui, not in `drag`, so cancelling only dropped
+  // the pending drop target and left the window wherever it had been dragged to.
+  // Escape has to put it back AND make ImGui let go, or the next frame re-places
+  // it from `mouse - grabOffset` and the restore is invisible.
+  if (winDragStart) {
+    const win = doc.children.find(n => n.id === winDragStart.id);
+    if (win) { win.x = winDragStart.x; win.y = winDragStart.y; }
+    winDragStart = null;
+    moveCancelled = true;
+    try { Module.ccall('engine_cancel_move', null, [], []); } catch (e) {}
+    pushDoc();
+    refresh();
+  }
 }
 
 // ---------- inline label editing ----------
@@ -751,9 +838,28 @@ let inlineOriginal = '';
 function beginInlineEdit(id) {
   const node = findNode(id);
   const r = rectFor(id);
-  if (!node || !r || !(WIDGETS[node.type].props || []).some(p => p[0] === 'label')) return;
+  if (!node) return;
+  if (!(WIDGETS[node.type].props || []).some(p => p[0] === 'label')) {
+    flashStatus(`A ${WIDGETS[node.type].name} has no label to rename.`);
+    return;
+  }
+  // No rect means the preview did not draw it: a widget in a closed popup, a
+  // hidden window, a tab that is not selected. This used to return in silence,
+  // so F2 and the Rename menu item simply did nothing and said nothing. The
+  // inspector's Label field edits the same property and is always reachable.
+  if (!r) {
+    const host = document.querySelector('#propbody [data-prop="label"]');
+    const el = host && (host.tagName === 'INPUT' ? host : host.querySelector('input'));
+    if (el) { el.focus(); el.select(); }
+    flashStatus('That widget is not on the canvas right now, '
+      + 'so it is renamed in the inspector instead.');
+    return;
+  }
   inlineId = id;
   inlineOriginal = node.label || '';
+  // Same cap coerce applies on load. Without it a label renamed on the canvas
+  // was silently shortened the next time the document was opened.
+  inlineEl.maxLength = TEXT_CAP.text;
   inlineEl.value = inlineOriginal;
   inlineEl.style.display = 'block';
   inlineEl.style.left = vpX(r.x) + 'px';
@@ -905,15 +1011,14 @@ document.addEventListener('mouseup', e => {
     else if (d.kind === 'palette') addNode(d.type);
     return;
   }
-  if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly && !d.drop) {
-    addNode(d.type);
-    return;
-  }
-  // A window can only live at the root, so a drop computed inside another window
-  // was rejected and the drag did nothing at all. Place it at the root instead,
-  // at the point it was dropped, which is what dropping it somewhere means.
+  // One branch, not two. The `!d.drop` case used to fall through to addNode and
+  // throw the drop POINT away, and computeDropTarget returns null for empty
+  // canvas because the document root publishes no rect — so dropping a Window
+  // on empty space, which is the normal way to place one, always lost the
+  // position it was dropped at. Only a release outside the canvas has no point.
   if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly) {
     const at = canvasPoint(e);
+    if (!at.inside) { addNode(d.type); return; }
     const node = makeNode(d.type);
     node.x = Math.round(at.x);
     node.y = Math.round(at.y);
@@ -998,8 +1103,25 @@ function updateArmedUI() {
   }
 }
 
-function stampArmed(drop) {
-  insertNodeAt(armedType(), drop); // stays armed for repeated stamps
+function stampArmed(drop, at) {
+  const type = armedType();
+  if (!type) return;
+  // A rootOnly type has nowhere to go through insertNodeAt: insertAt refuses a
+  // window anywhere but the root, insertNodeAt swallowed the refusal, and the
+  // armed tool silently did nothing. The drag path already has this fallback.
+  if (WIDGETS[type] && WIDGETS[type].rootOnly) {
+    const node = makeNode(type);
+    if (at) { node.x = Math.round(at.x); node.y = Math.round(at.y); }
+    doc.children.push(node);
+    selectId(node.id);
+    refresh();
+    return;
+  }
+  if (!drop) { flashStatus('Nothing under the pointer to insert next to.'); return; }
+  // stays armed for repeated stamps
+  if (!insertNodeAt(type, drop)) {
+    flashStatus(`A ${WIDGETS[type].name} cannot go there.`);
+  }
 }
 
 // ---------- mode switching (with spring-loaded Tab) ----------
@@ -1082,7 +1204,10 @@ function releaseSpace() {
   spacePhysicallyDown = false;
   if (!spaceHeld) return;
   spaceHeld = false;
-  guidesEl.style.display = '';
+  // Back to what the Rulers toggle says, not unconditionally visible. Two owners
+  // wrote this property and the peek was the louder one, so tapping the peek key
+  // re-showed guides the user had switched off.
+  guidesEl.style.display = showRulers ? '' : 'none';
   setLiveMode(spaceWasLive);
   if (!spaceWasLive && spaceWasArmed) rearm(spaceWasArmed);
   spaceWasArmed = null;

@@ -35,13 +35,25 @@ const WINDOW_FLAGS = [
   ['noScrollbar', 'NoScrollbar'], ['noCollapse', 'NoCollapse'], ['autoResize', 'AlwaysAutoResize'],
 ];
 
+// Mirrors unpascal in app/cpp.js: what the parser reads a function name back as
+// when there is no label comment to prefer.
+function unpascalLike(name) {
+  const s = String(name || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').trim();
+  return s || 'Section';
+}
+
 function generateCode() {
   const usedNames = new Set();
   const labelCount = new Map();
+  // every id string already emitted in this window, so a minted suffix
+  // cannot collide with one the user typed by hand
+  const emittedIds = new Set();
   const fields = [];
   const fieldSeen = new Set();
   const owners = [];   // index into `out` -> node id that produced that line
-  const skipped = [];  // widgets with no valid C++ form, reported to the user
+  const skipped = [];   // widgets with no valid C++ form: Apply WILL remove them
+  const warnings = [];  // properties that will be dropped, widget otherwise fine
 
   const groupNames = new Map();
   // A counter alone isn't enough: "Value" then "Value 1" then "Value" would
@@ -72,13 +84,21 @@ function generateCode() {
   // in one group deliberately share a field.
   const imguiId = label => {
     const s = String(label ?? '');
-    const c = (labelCount.get(s) || 0) + 1;
-    labelCount.set(s, c);
+    let c = (labelCount.get(s) || 0) + 1;
     // `##dup<n>`, not `##<n>`. ImGui hides everything after `##` either way, so
     // this looks identical, but the parser has to strip the generator's own
     // suffix and cannot strip a user's: `Item##2` is legitimate ImGui id syntax
     // and was silently truncated to `Item` on the first Apply.
-    return q(c === 1 ? s : s + '##dup' + c);
+    //
+    // The result still has to be UNUSED. A user is told to write `##` to tell
+    // same-labelled widgets apart, so someone typing "Item##dup2" collided head
+    // on with the suffix this mints for the second "Item", and the two widgets
+    // shared one ImGui id: same state, same activation.
+    let out = c === 1 ? s : s + '##dup' + c;
+    while (emittedIds.has(out)) { c += 1; out = s + '##dup' + c; }
+    labelCount.set(s, c);
+    emittedIds.add(out);
+    return q(out);
   };
 
   const addField = d => {
@@ -158,12 +178,18 @@ function generateCode() {
     // real parent's context, since the helper runs inside that same scope.
     if (node.type === 'section') {
       const fnName = 'Draw' + claimFn(node.label);
+      // The label, verbatim, on the definition line. A Function container's
+      // label only survived inside the uniquified function name, so two
+      // containers both called "Side" came back as "Side" and "Side2", and any
+      // label that pascal-ises lossily ("read/write" -> "ReadWrite") came back
+      // changed. The comment is the only lossless carrier the C++ has.
+      const fnLabel = String(node.label ?? '');
       const start = out.length;
       const kids = node.children || [];
       for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, parentType, inTabbar);
       const lines = out.splice(start);
       const lineOwners = owners.splice(start, lines.length);
-      helpers.push({ id: node.id, fnName, lines, owners: lineOwners });
+      helpers.push({ id: node.id, fnName, fnLabel, lines, owners: lineOwners });
       // No TableNextColumn for the container itself: its children each advance a
       // cell from inside the helper, and advancing here too left an empty one.
       if (parentType !== 'table' && node.sameline && index > 0) {
@@ -192,9 +218,16 @@ function generateCode() {
     // that is the window declaring the flag. Report a dangling one: the body
     // falls back to a plain TODO, so Apply would otherwise drop the property
     // with nothing said.
+    //
+    // A WARNING, not a skip. `skipped` means "this widget has no valid C++ form
+    // and Apply will remove it", and the code pane says exactly that. The button
+    // emits perfectly good C++ and survives Apply intact; only the toggles name
+    // is lost. Counting it as skipped told people a widget was about to be
+    // deleted when nothing was.
     if (node.type === 'button' && node.toggles && !curToggleRef(node.toggles)) {
-      skipped.push({ type: spec.name, label: node.label || '', lost: 0,
-        reason: `toggles "${node.toggles}", which is not a closable window here` });
+      warnings.push({ type: spec.name, label: node.label || '',
+        reason: `toggles "${node.toggles}", which is not a closable window here, `
+          + 'so that name will be dropped on Apply' });
     }
     const res = spec.code ? spec.code(node, v, idStr, { toggleRef: curToggleRef }) : null;
     if (!res) { popColors(); claimLines(); return; }
@@ -266,6 +299,7 @@ function generateCode() {
     usedNames.clear();
     groupNames.clear();
     labelCount.clear();
+    emittedIds.clear();
     helpers.length = 0;
 
     // Where this window's buttons find the flags they flip. Its own flag is a
@@ -273,8 +307,15 @@ function generateCode() {
     // it arrives by reference: one bool per window, shared, rather than a
     // private copy per toggler that the owner never reads.
     const selfId = pascalId(win.label || 'Window');
+    // SORTED. togglesIn walks the document, so the parameter list came out in
+    // the order the toggling buttons happened to appear: reordering two buttons
+    // in the Hierarchy silently swapped which window each one opened, because
+    // the caller's argument list and the helper's parameter list are matched by
+    // POSITION. Sorting makes the order a property of the names instead of a
+    // property of the layout.
     const borrowed = togglesIn(win)
-      .filter(t => flagOwners.has(t) && !(t === selfId && win.closable));
+      .filter(t => flagOwners.has(t) && !(t === selfId && win.closable))
+      .sort();
     curToggleRef = title => {
       const t = pascalId(title);
       if (!flagOwners.has(t)) return null;
@@ -312,7 +353,12 @@ function generateCode() {
     const helperStart = head.length;
     const helperOwners = [];
     for (const h of helpers) {
-      head.push(`static void ${h.fnName}(${base}State& state${curHelperParams})`, '{');
+      // The label rides along only when the name cannot carry it: a plain
+      // "Side" needs nothing, "Side2" and "read/write" do.
+      const carried = unpascalLike(h.fnName.replace(/^Draw/, ''));
+      head.push(`static void ${h.fnName}(${base}State& state${curHelperParams})`
+        + (h.fnLabel && h.fnLabel !== carried ? `  // label: ${h.fnLabel}` : ''),
+        '{');
       helperOwners.push(h.id, h.id);
       for (let k = 0; k < h.lines.length; k++) {
         head.push(h.lines[k]);
@@ -341,6 +387,10 @@ function generateCode() {
     // so it draws the X and clears the flag when that is clicked.
     // The flag is a member of this window's own state, so it is `state.showX`.
     // Emitting it bare did not compile: this is a free function taking `state`.
+    // `closable` owns the flag when it is set, otherwise a p_open expression the
+    // user wrote by hand is passed through verbatim. Only `closable` gets the
+    // guard, since only a flag this code declares can be read back reliably.
+    const userOpen = String(win.pOpen || '').trim();
     const openFlag = win.closable ? `state.show${selfId}` : null;
     const ind2 = openFlag ? '        ' : '    ';
     // Take the header lines that belong inside the guard BEFORE opening it.
@@ -365,7 +415,8 @@ function generateCode() {
       if (l.trim()) head.push(ind2 + l.replace(/^\s+/, ''));
     }
     head.push(`${ind2}ImGui::Begin(${q(win.label || 'My Panel')}`
-      + `${openFlag ? ', &' + openFlag : (flags.length ? ', nullptr' : '')}`
+      + `${openFlag ? ', &' + openFlag
+        : (userOpen ? ', ' + userOpen : (flags.length ? ', nullptr' : ''))}`
       + `${flags.length ? ', flags' : ''});`);
     const tail = [`${ind2}ImGui::End();`];
     if (winCols.length) tail.push(`${ind2}ImGui::PopStyleColor(${winCols.length});`);
@@ -405,6 +456,7 @@ function generateCode() {
   }
 
   generateCode.skipped = skipped;
+  generateCode.warnings = warnings;
   // already shifted onto the final line numbering, section by section
   generateCode.owners = allOwners;
   return lines.join('\n');

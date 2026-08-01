@@ -87,19 +87,32 @@ function detach(id) {
 }
 
 // drop = { parentId, index, sameline? }
+//
+// `sameline` is three-valued on purpose. The canvas drop path decides join or
+// new-line from where the pointer landed and says so; the hierarchy drop path
+// is only reordering rows and has no opinion. Treating "absent" as "false"
+// meant dragging a joined widget up one row in the Hierarchy silently dropped
+// its SameLine, which is a document change nobody asked for.
 function insertAt(node, drop) {
   let parent = findNode(drop.parentId) || doc;
   // only a window may sit at the root, so anything else lands in one
   if (parent === doc && node.type !== 'window') {
+    // Which window, though. This used to be the LAST one unconditionally, so a
+    // root-level drop meaning "after the selected window" put the widget in a
+    // different window than the one the user had selected. The index the caller
+    // gave is a position among the root's children, so the window it names is
+    // the one just before it.
     const wins = doc.children.filter(n => n.type === 'window');
     if (!wins.length) return false;
-    parent = wins[wins.length - 1];
+    const at = doc.children.slice(0, Math.max(0, drop.index))
+      .filter(n => n.type === 'window');
+    parent = at.length ? at[at.length - 1] : wins[0];
     drop = { parentId: parent.id, index: (parent.children || []).length, sameline: drop.sameline };
   }
   if (parent !== doc && node.type === 'window') return false;
   if (!parent.children) parent.children = [];
   const i = Math.max(0, Math.min(drop.index, parent.children.length));
-  if (drop.sameline) node.sameline = true; else delete node.sameline;
+  if ('sameline' in drop) { if (drop.sameline) node.sameline = true; else delete node.sameline; }
   parent.children.splice(i, 0, node);
   return true;
 }
@@ -136,14 +149,18 @@ function addNode(type) {
   refresh();
 }
 
+// Returns whether the insert actually happened. It used to swallow the refusal,
+// so the armed-widget tool had no way to tell "inserted" from "refused" and
+// silently did nothing.
 function insertNodeAt(type, drop) {
   const node = makeNode(type);
-  if (!insertAt(node, drop)) return;
+  if (!insertAt(node, drop)) return false;
   selection.clear();
   selection.add(node.id);
   selectedId = node.id;
   lastInsertType = type;
   refresh();
+  return true;
 }
 
 function moveNodeTo(id, drop) {
@@ -162,8 +179,10 @@ function moveNodeTo(id, drop) {
   if (!insertAt(node, d) && parent) {
     parent.children.splice(oldIndex < 0 ? parent.children.length : oldIndex, 0, node);
   }
-  selectedId = id;
-  refresh();
+  // selectId, not a bare `selectedId =`. The set is what Delete and Duplicate
+  // read and the id is what the inspector reads, so writing only the id left a
+  // hierarchy drag showing one widget's properties while Delete removed others.
+  selectId(id);
 }
 
 // Dragging any member of a multi-selection takes the whole selection with it.
@@ -185,7 +204,11 @@ function moveSelectionTo(id, drop) {
   for (const n of nodes) detach(n.id);
   let at = Math.max(0, Math.min(drop.index - before, parent.children.length));
   for (const n of nodes) {
-    if (drop.sameline && n === nodes[0]) n.sameline = true;
+    // only the leading node follows the drop's join; the rest keep the joins
+    // they had to each other. Same three-valued rule as insertAt.
+    if ('sameline' in drop && n === nodes[0]) {
+      if (drop.sameline) n.sameline = true; else delete n.sameline;
+    }
     parent.children.splice(at++, 0, n);
   }
   selectMany(nodes.map(n => n.id));
@@ -218,6 +241,9 @@ const history = []; // { docStr, sel }
 let histIndex = -1;
 let lastHistAt = 0;
 let lastCoalescible = false;
+// which node the last coalescible edit was on, so two renames of DIFFERENT
+// widgets inside one second stay two undo entries
+let lastCoalesceId = null;
 
 // Only document changes create entries. Selection is carried along for restore
 // but never compared, or arrow-key browsing would flood the ring and push real
@@ -230,7 +256,11 @@ function pushHistory(coalesce) {
   // A burst only merges into an entry that was itself a coalescible edit.
   // Without that check, typing right after an insert would overwrite the
   // insert's snapshot and undo would delete the widget instead of the label.
-  if (coalesce && lastCoalescible && histIndex > 0 && now - lastHistAt < 1000) {
+  // `lastCoalesceId` as well as the clock. Coalescing on time alone merged two
+  // renames of DIFFERENT widgets into one undo entry, so one Ctrl+Z put both
+  // labels back and there was no way to undo only the second.
+  if (coalesce && lastCoalescible && lastCoalesceId === selectedId
+      && histIndex > 0 && now - lastHistAt < 1000) {
     history[histIndex] = { docStr, sel: selectedId };
   } else {
     history.push({ docStr, sel: selectedId });
@@ -238,6 +268,7 @@ function pushHistory(coalesce) {
     if (history.length > 100) { history.shift(); histIndex--; }
   }
   lastCoalescible = !!coalesce;
+  lastCoalesceId = selectedId;
   lastHistAt = now;
 }
 
@@ -456,6 +487,16 @@ function unwrapSelection() {
 function toggleJoin() {
   const node = selectedId && findNode(selectedId);
   if (!node || node === doc) return;
+  // The first child of a container has nothing to join to: ImGui::SameLine()
+  // before the first item does nothing, the inspector's own SameLine toggle is
+  // disabled there, and the tree does not draw it. Setting the flag anyway
+  // wrote something invisible that only appeared after a later reorder.
+  const parent = findParent(node.id);
+  const first = parent && (parent.children || [])[0] === node;
+  if (first && !node.sameline) {
+    flashStatus('The first widget in a container has nothing to join to.');
+    return;
+  }
   if (node.sameline) delete node.sameline;
   else node.sameline = true;
   refresh();
@@ -519,16 +560,44 @@ function pasteClipboard() {
   let payload = JSON.parse(clipboardNode);
   if (!Array.isArray(payload)) payload = [payload];   // pre-multiselect clipboards
   const drop = dropAfterSelection();
+  // A window can only live at the root, and dropAfterSelection points INSIDE the
+  // selected node, so pasting a copied window was a guaranteed refusal: nothing
+  // appeared and the selection was left pointing at ids that were never added.
+  const rootDrop = () => {
+    const sel = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
+    const top = sel ? topWindowOf(sel.id) : null;
+    const i = top ? doc.children.indexOf(top) + 1 : doc.children.length;
+    return { parentId: doc.id, index: i };
+  };
   const added = [];
+  const refused = [];
   payload.forEach((raw, i) => {
     const node = cloneWithNewIds(raw);
-    const d = { ...drop, index: drop.index + i };
+    const base = node.type === 'window' ? rootDrop() : drop;
+    const d = { ...base, index: base.index + i };
     // a joined widget stays joined through cut/copy+paste, matching Ctrl+D
     if (node.sameline) d.sameline = true;
-    insertAt(node, d);
-    added.push(node.id);
+    // insertAt still refuses some pairings. Say so rather than reporting a
+    // selection of widgets that are not in the document.
+    if (insertAt(node, d)) added.push(node.id);
+    else refused.push(node.type);
   });
-  selectMany(added);
+  if (refused.length) {
+    flashStatus(`${refused.length} item${refused.length > 1 ? 's' : ''} could not be pasted here `
+      + `(${[...new Set(refused)].join(', ')})`);
+  }
+  if (added.length) selectMany(added);
+}
+
+// The window a node ultimately sits in, or the node itself when it is one.
+function topWindowOf(id) {
+  let n = findNode(id);
+  while (n && n.type !== 'window') {
+    const p = findParent(n.id);
+    if (!p || p === doc) break;
+    n = p;
+  }
+  return n && n.type === 'window' ? n : null;
 }
 
 // Stamping repeats want siblings: with dropAfterSelection, inserting a
@@ -559,17 +628,22 @@ function computeNextId() {
   return m;
 }
 
+// How long each kind of text prop may be. The inspector reads this for its
+// field's maxLength and coerce reads it when a document is loaded, so what you
+// can type is exactly what survives a reload. A unit is a short label like cm
+// or ms that gets concatenated into a printf format and drawn on a slider,
+// which is why it is not free text; longtext is preserved source.
+const TEXT_CAP = { longtext: 20000, text: 200, items: 200, expr: 200, unit: 12 };
+
 // Imported documents are untrusted. Beyond type-checking, an enum has to be
 // checked against its option list: a stray `dir` reaches IM_ASSERT(0) inside
 // ImGui and an out-of-range `n` would emit something like InputInt5.
 function coerce(t, raw, def, opts) {
-  // preserved source, never truncated
-  if (t === 'longtext') return typeof raw === 'string' ? raw.slice(0, 20000) : def;
-  if (t === 'text' || t === 'items') return typeof raw === 'string' ? raw.slice(0, 200) : def;
-  // a C++ expression, kept as typed
-  if (t === 'expr') return typeof raw === 'string' ? raw.slice(0, 200) : def;
-  // a unit is a short label like cm or ms, not free text
-  if (t === 'unit') return typeof raw === 'string' ? raw.slice(0, 12) : def;
+  // One table, read by both ends. The inspector's text field used to cap at a
+  // flat 200 while this capped a unit at 12, so a longer unit worked in the
+  // preview and in the generated code right up until the next reload, when
+  // sanitize silently cut it back.
+  if (t in TEXT_CAP) return typeof raw === 'string' ? raw.slice(0, TEXT_CAP[t]) : def;
   if (t === 'bool') return raw === true;
   const num = Number(raw);
   if (t === 'enum') {
@@ -652,6 +726,11 @@ function asRootData(d) {
 }
 
 function applyDocData(raw, savedNextId) {
+  // End any code-editing session first. The flag is module level and none of
+  // the project verbs cleared it, so opening the editor, switching project and
+  // pressing Apply parsed text generated for the OLD document and wrote the
+  // result into the new one.
+  setCodeEditing(false);
   const d = asRootData(raw);
   nextId = Math.max(savedNextId || 0, 100, maxRawId(d.children, 100));
   const ids = new Set(['root']);
@@ -663,8 +742,16 @@ function applyDocData(raw, savedNextId) {
   if (typeof d.pre === 'string' && d.pre.trim()) doc.pre = d.pre;
   if (typeof d.post === 'string' && d.post.trim()) doc.post = d.post;
   // a whole new document re-asserts its window size, even onto a window the
-  // user had dragged to some other size
-  if (engineReady) Module.ccall('engine_reset_window_size', null, [], []);
+  // user had dragged to some other size, and starts from clean widget state:
+  // ids restart per document, so the new n7 would otherwise inherit the old n7
+  if (engineReady) {
+    Module.ccall('engine_reset_window_size', null, [], []);
+    Module.ccall('engine_reset_state', null, [], []);
+  }
+  // Same reason: the hierarchy's fold state is a set of node ids, and ids
+  // restart per document, so collapsing a container in one project folded shut
+  // whatever held that id in the next one.
+  treeCollapsed.clear();
   clearSelection();
 }
 
@@ -689,7 +776,15 @@ let projects = [];       // { id, name, doc, nextId }
 let activeProject = null;
 let projectSeq = 1;
 
-function newProjectId() { return 'p' + (projectSeq++) + '-' + projects.length; }
+// Globally unique, not just unique in this tab. It used to be a per-tab counter
+// plus the array length, so two tabs opened on the same app minted the SAME id
+// for their first new project, and any merge keyed on id would silently drop
+// one of them.
+function newProjectId() {
+  const rand = (crypto && crypto.randomUUID) ? crypto.randomUUID().slice(0, 8)
+    : Math.floor(Math.random() * 0xffffffff).toString(16);
+  return 'p' + (projectSeq++) + '-' + rand;
+}
 
 function snapshotActive() {
   const p = projects.find(x => x.id === activeProject);
@@ -698,12 +793,44 @@ function snapshotActive() {
   p.nextId = nextId;
 }
 
+// Read, merge, write. Every edit reaches this through refresh(), and it used to
+// overwrite the whole array blind: two tabs open on the app meant the last one
+// to type deleted every project the other one had made. This tab's copy still
+// wins for projects it knows about, since that is the one being edited, but a
+// project it has never seen is another tab's and is kept.
 function saveProjects() {
   snapshotActive();
   try {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify({ v: 1, projects, activeProject, projectSeq }));
+    const mine = new Set(projects.map(p => p.id));
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(PROJECTS_KEY) || 'null'); } catch (e) {}
+    const theirs = (stored && Array.isArray(stored.projects) ? stored.projects : [])
+      .filter(p => p && p.id && p.doc && !mine.has(p.id));
+    const merged = projects.concat(theirs);
+    // never let a stale seq hand out an id another tab already used
+    const seq = Math.max(projectSeq, (stored && stored.projectSeq) || 0);
+    localStorage.setItem(PROJECTS_KEY,
+      JSON.stringify({ v: 1, projects: merged, activeProject, projectSeq: seq }));
+    // adopt what we just merged in, so the tab strip shows it without a reload
+    if (theirs.length) { projects = merged; projectSeq = seq; }
   } catch (e) {}
 }
+
+// Another tab wrote the shared key. Take on any project this tab has never seen
+// and leave the active document alone: adopting someone else's edits to a
+// project being typed into here would be worse than the overwrite it replaces.
+window.addEventListener('storage', e => {
+  if (e.key !== PROJECTS_KEY || !e.newValue) return;
+  let s = null;
+  try { s = JSON.parse(e.newValue); } catch (err) { return; }
+  if (!s || !Array.isArray(s.projects)) return;
+  const mine = new Set(projects.map(p => p.id));
+  const fresh = s.projects.filter(p => p && p.id && p.doc && !mine.has(p.id));
+  if (!fresh.length) return;
+  projects = projects.concat(fresh);
+  projectSeq = Math.max(projectSeq, s.projectSeq || 0);
+  renderProjectTabs();
+});
 
 function loadProjects() {
   let s = null;

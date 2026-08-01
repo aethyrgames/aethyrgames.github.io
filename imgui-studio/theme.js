@@ -323,9 +323,9 @@ for (const [key, t] of Object.entries(THEMES)) {
   themeSel.appendChild(o);
 }
 // variables only at this point: the rulers and the engine come later
-setThemeVars(localStorage.getItem(UI_THEME_KEY) || 'doki');
+setThemeVars(lsGet(UI_THEME_KEY, 'doki') || 'doki');
 
-let currentTheme = localStorage.getItem(THEME_KEY);
+let currentTheme = lsGet(THEME_KEY);
 if (!THEMES[currentTheme]) currentTheme = 'monokai-bright';
 themeSel.value = currentTheme;
 applyTheme(currentTheme);

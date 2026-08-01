@@ -8,6 +8,32 @@
 // containers-> code(n, v, id) returns { open: [...], pop?, close?, braced? }
 //              braced containers wrap children in { } and emit `pop` inside.
 
+// localStorage, for code that has no fallback of its own.
+//
+// Accessing it THROWS, not returns null, when the browser has blocked storage
+// for the origin: an iframe with third-party cookies off, or private mode in
+// some builds. A throw at the top level of a classic script kills the rest of
+// that script, and four unguarded reads sat in boot.js and theme.js — the two
+// files that finish starting the app — so the whole thing failed to load rather
+// than losing a preference. Declared here because widgets.js is loaded first.
+function lsGet(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? (fallback === undefined ? null : fallback) : v;
+  } catch (e) {
+    return fallback === undefined ? null : fallback;
+  }
+}
+
+function lsJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; }
+  catch (e) { return fallback; }
+}
+
+function lsSet(key, value) {
+  try { localStorage.setItem(key, value); return true; } catch (e) { return false; }
+}
+
 // A C++ string literal can't span lines, so control characters have to be
 // escaped rather than passed through from a label.
 const ESCAPES = { '\\': '\\\\', '"': '\\"', '\n': '\\n', '\r': '\\r', '\t': '\\t' };
@@ -103,6 +129,12 @@ const WIDGETS = {
       ['noScrollbar', 'bool', false], ['noCollapse', 'bool', false], ['autoResize', 'bool', false],
       // a closable window is one your code can hide, and ImGui gives it an X
       ['closable', 'bool', false], ['openAtStart', 'bool', true],
+      // A visibility variable of your own, passed to Begin as p_open. Set it and
+      // the window is closable through YOUR flag rather than a generated one.
+      // The parser used to accept any `&expr` there as "closable" and silently
+      // rebind it to a fresh state member, so the variable you were actually
+      // controlling the window with stopped doing anything.
+      ['pOpen', 'expr', '', { placeholder: '&g_ShowPanel' }],
       // Raw C++ emitted immediately before ImGui::Begin, which is the only
       // place some calls work at all: SetNextWindowBgAlpha, a PushStyleVar you
       // want to cover the window, your own SetNextWindowSizeConstraints. The
@@ -212,7 +244,14 @@ const WIDGETS = {
     props: [['label', 'text', 'Option'], ['group', 'text', 'choice'], ['value', 'int', 0]],
     // every radio in a group shares one backing int
     fieldName: n => n.group || 'choice',
-    field: (n, v) => `int ${v} = 0;`,
+    // The group name rides along when the variable cannot carry it. It is the
+    // only place the name exists in the C++, and the parser recovered it by
+    // reading the camelCased variable, so "Audio Mode" came back as "audioMode"
+    // the first time the generated code was applied.
+    field: (n, v) => {
+      const g = n.group || 'choice';
+      return `int ${v} = 0;` + (g === v ? '' : `   // group: ${g}`);
+    },
     code: (n, v, id) => [`ImGui::RadioButton(${id}, &state.${v}, ${iv(n.value)});`],
   },
   progressbar: {
@@ -533,6 +572,9 @@ function itemList(s) {
 // the same explanation, which is the point of naming them consistently.
 const PROP_HELP = {
   label: 'The text ImGui shows, and the id it hashes. Two widgets with the same label in one window need "##" to tell them apart.',
+  // ImGui::ArrowButton takes a str_id and draws only the triangle, so its
+  // label is never shown. The generic help above promises the opposite.
+  'arrowbutton.label': 'The id ImGui hashes. An arrow button draws only its arrow, so this text is never shown: use it to tell two arrows apart.',
   x: 'Where the window sits, in pixels from the top-left of your viewport. Emitted as SetNextWindowPos.',
   y: 'Where the window sits, in pixels from the top-left of your viewport. Emitted as SetNextWindowPos.',
   w: 'Width in pixels. 0 lets ImGui size it to its content.',
@@ -585,7 +627,7 @@ const COLOR_SLOTS_BY_CAT = {
   Plots:      ['Text', 'FrameBg', 'PlotLines', 'PlotHistogram'],
   Layout:     ['Text', 'Border'],
   Containers: ['Text', 'ChildBg', 'Border', 'Header', 'HeaderHovered', 'HeaderActive',
-               'Tab', 'TabHovered', 'TableHeaderBg'],
+               'Tab', 'TabHovered'],
   Menus:      ['Text', 'PopupBg', 'Header', 'HeaderHovered'],
   Popups:     ['Text', 'PopupBg', 'Border', 'Button', 'ButtonHovered'],
 };
@@ -604,12 +646,24 @@ const COLOR_SLOTS_BY_TYPE = {
   bullet:        ['Text'],
   spacing:       [], newline: [], dummy: [], indent: [], unindent: [], aligntext: [],
   rawcode:       [],
-  table:         ['Text', 'TableHeaderBg', 'TableBorderStrong', 'TableRowBg'],
+  // The document root draws nothing. It fell through to the Window category and
+  // the inspector offered five swatches on it, none of which any consumer reads
+  // and all of which the save path drops.
+  root:          [],
+  // No TableHeaderBg. Neither the engine nor the generator calls
+  // TableSetupColumn/TableHeadersRow, so there is no header row for it to
+  // colour and the swatch could never change anything. The comment above this
+  // table says exactly why that is worse than not offering it.
+  table:         ['Text', 'TableBorderStrong', 'TableRowBg'],
   tabbar:        ['Tab', 'TabHovered', 'TabSelected', 'Text'],
   tabitem:       ['Tab', 'TabHovered', 'TabSelected', 'Text'],
   group:         [],            // a group draws nothing of its own
   child:         ['ChildBg', 'Border', 'Text'],
-  menubar:       ['MenuBarBg', 'Text'],
+  // No MenuBarBg. ImGui draws the bar's background inside Begin, before either
+  // consumer gets anywhere near BeginMenuBar, so pushing it around the bar
+  // changes nothing in the preview OR in the generated code. Text is all that
+  // is actually reachable here.
+  menubar:       ['Text'],
 };
 
 // A fresh node of a type, with every property at the spec's default. It lives

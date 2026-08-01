@@ -31,15 +31,25 @@ function setCodeEditing(on) {
     codeEdit.value = generateCode();
     paintCodeEditor();
     const gone = generateCode.skipped || [];
+    const warned = generateCode.warnings || [];
     const lost = gone.reduce((n, s) => n + 1 + s.lost, 0);
+    // Only a real skip is an error. A dropped PROPERTY on a widget that emits
+    // fine is worth saying and is not a widget about to be deleted, and it used
+    // to be counted as one: a Button whose `toggles` named nothing made the pane
+    // announce that a widget had no valid C++ form and would be removed.
     codeStatus.className = gone.length ? 'err' : '';
     codeStatus.textContent = 'Editing the C++. Apply parses it back into the document; '
       + 'anything not recognised as a widget is preserved verbatim and shown as a '
       + 'placeholder. Formatting inside generated blocks is normalised on the way back.'
       + (gone.length
-        ? `\nHeads up: ${lost} widget${lost > 1 ? 's' : ''} have no valid C++ form `
-          + `(${gone.map(s => s.type + ' — ' + s.reason).join('; ')}). `
-          + 'They are only comments here, so applying will remove them.'
+        ? `\nHeads up: ${lost} widget${lost > 1 ? 's' : ''} ${lost > 1 ? 'have' : 'has'} `
+          + `no valid C++ form (${gone.map(s => s.type + ' — ' + s.reason).join('; ')}). `
+          + `${lost > 1 ? 'They are' : 'It is'} only ${lost > 1 ? 'comments' : 'a comment'} `
+          + `here, so applying will remove ${lost > 1 ? 'them' : 'it'}.`
+        : '')
+      + (warned.length
+        ? '\nAlso: ' + warned.map(s => s.type
+          + (s.label ? ` "${s.label}"` : '') + ' — ' + s.reason).join('; ') + '.'
         : '');
     codeEdit.focus();
     runCodeIntel();
@@ -318,7 +328,12 @@ function renderCompletions() {
     sig.textContent = it.note || it.sig;
     row.appendChild(sig);
     // mousedown, not click: the editor must not lose the caret first
-    row.addEventListener('mousedown', e => { e.preventDefault(); compl.index = i; acceptCompletion(); });
+    row.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;      // a right-click must not rewrite the code
+      e.preventDefault();
+      compl.index = i;
+      acceptCompletion();
+    });
     complEl.appendChild(row);
   });
   placeCompletions();
@@ -510,7 +525,5 @@ function refresh(rebuildProps = true) {
 document.getElementById('filter').oninput = renderPalette;
 
 
-document.getElementById('copyBtn').onclick = () => {
-  navigator.clipboard.writeText(generateCode());
-};
+document.getElementById('copyBtn').onclick = () => copyText(generateCode(), 'C++');
 

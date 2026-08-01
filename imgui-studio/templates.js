@@ -193,20 +193,30 @@ function builtinTemplates() {
 
 let templates = [];
 
+// The ORDER as well as the custom entries. Only the custom subset was saved and
+// the list was always rebuilt builtins-first, so dragging a custom template
+// above a builtin one looked like it worked and was gone after a reload.
 function saveTemplates() {
-  try {
-    const mine = templates.filter(t => !t.builtin);
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify({ v: 1, templates: mine }));
-  } catch (e) {}
+  const mine = templates.filter(t => !t.builtin);
+  const order = templates.map(t => t.name);
+  lsSet(TEMPLATES_KEY, JSON.stringify({ v: 1, templates: mine, order }));
 }
 
 function loadTemplates() {
-  let saved = [];
-  try {
-    const s = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null');
-    if (s && Array.isArray(s.templates)) saved = s.templates.filter(t => t && t.doc);
-  } catch (e) {}
+  const s = lsJson(TEMPLATES_KEY, null);
+  const saved = (s && Array.isArray(s.templates)) ? s.templates.filter(t => t && t.doc) : [];
   templates = builtinTemplates().concat(saved);
+  // Replay the saved order over the rebuilt list. Names not in it (a builtin
+  // added since the order was saved) keep their natural position at the end,
+  // so a new builtin still shows up rather than being ordered away.
+  const order = (s && Array.isArray(s.order)) ? s.order : null;
+  if (order) {
+    const rank = new Map(order.map((n, i) => [n, i]));
+    templates = templates
+      .map((t, i) => ({ t, k: rank.has(t.name) ? rank.get(t.name) : order.length + i }))
+      .sort((a, b) => a.k - b.k)
+      .map(x => x.t);
+  }
 }
 
 function applyTemplate(t, asNew) {
@@ -261,6 +271,13 @@ function insertTemplateAt(t, drop) {
   const wins = templateWindows(t);
   const noWindow = !doc.children.some(n => n.type === 'window');
   if (wins.length > 1 || noWindow || !kids.length) {
+    // A template with no windows AND no widgets reaches here through the
+    // `!kids.length` arm, and selectId(wins[0].id) threw on the empty array.
+    // Nothing shipped is shaped like that, but a saved template can be.
+    if (!wins.length) {
+      flashStatus(`"${titleCase(t.name)}" is empty, so there was nothing to insert.`);
+      return;
+    }
     for (const w of wins) doc.children.push(w);
     selectId(wins[0].id);
     refresh();
@@ -313,7 +330,10 @@ function renderTemplates() {
       + 'Click to insert it into the nearest container of the selection. '
       + 'Drag it onto the canvas to place it, or up and down this list to reorder. '
       + 'Right-click to open it as its own project.';
-    n.onclick = () => insertTemplateInHost(t);
+    // Guarded the way the hierarchy rows are. This was a bare onclick, so an
+    // aborted reorder drag — press, move a few pixels, release on the same row —
+    // also inserted the template.
+    n.onclick = () => { if (!listDragMoved) insertTemplateInHost(t); };
     row.appendChild(n);
     const count = document.createElement('span');
     count.className = 'tplcount';
@@ -419,13 +439,44 @@ function importPayload(s) {
     return `imported ${add.length} template${add.length > 1 ? 's' : ''}`;
   }
   if (s.kind === 'everything') {
-    for (const p of (s.projects || [])) {
-      if (p && p.doc) addProject(p.name, p.doc);
+    // Validated FIRST, then applied. It used to apply projects, then templates,
+    // then bindings, so a malformed entry half way down left the app holding
+    // some of the file and none of the rest, with no way back.
+    const projs = (s.projects || []).filter(p => p && p.doc
+      && (p.doc.type === 'root' || p.doc.type === 'window'));
+    const tpls = (s.templates || []).filter(t => t && t.doc);
+    if (!projs.length && !tpls.length && !s.binds && !s.layout && !s.theme) {
+      throw new Error('that file holds nothing this app can import');
     }
-    for (const t of (s.templates || [])) {
-      if (t && t.doc) templates.push({ id: 'ti' + templates.length, name: t.name || 'Imported', doc: t.doc });
+    for (const p of projs) addProject(p.name, p.doc);
+    for (const t of tpls) {
+      templates.push({ id: 'ti' + templates.length, name: t.name || 'Imported', doc: t.doc });
     }
-    if (s.binds) { bindOverrides = s.binds; for (const b of KEYMAP) Object.assign(b, b.def, bindOverrides[b.id] || {}); }
+    if (s.binds) {
+      bindOverrides = s.binds;
+      // Modifiers cleared before the default is applied, matching resetBinds and
+      // the per-row Restore button. Without the clear, a live binding's Shift
+      // survived a default that has no Shift, so an import left a combo neither
+      // the file nor the defaults contain.
+      for (const b of KEYMAP) {
+        Object.assign(b, { key: undefined, ctrl: undefined, alt: undefined, shift: undefined },
+          b.def, bindOverrides[b.id] || {});
+      }
+      lsSet(BINDS_KEY, JSON.stringify(bindOverrides));
+    }
+    // The export writes these two and the import never read them back, so a full
+    // export-then-import round trip silently dropped both.
+    if (s.layout && s.layout.panels) {
+      layout = { panels: { ...layout.panels, ...s.layout.panels },
+        size: { ...layout.size, ...(s.layout.size || {}) } };
+      applyLayout();
+    }
+    if (s.theme && THEMES[s.theme]) {
+      currentTheme = s.theme;
+      themeSel.value = currentTheme;
+      lsSet(THEME_KEY, currentTheme);
+      applyTheme(currentTheme);
+    }
     saveTemplates();
     saveProjects();
     renderTemplates();
@@ -464,12 +515,49 @@ async function encodeShare(payload) {
   return 'z' + b64urlEncode(new Uint8Array(buf));
 }
 
+// Ceilings on a share link, because a link is untrusted input that runs at boot
+// with no click from the user.
+//
+// SHARE_MAX_CODE is the fragment itself: a real panel encodes to a few KB, and
+// copyShareLink already calls 1800 characters large.
+// SHARE_MAX_BYTES is the INFLATED size, which is the one that matters. deflate
+// reaches about 1000:1 on repetitive input, so an 87KB fragment that fits in any
+// URL inflated to 64MB, and `new Response(...).arrayBuffer()` buffered all of it
+// before a single line of validation ran. Reading the stream chunk by chunk with
+// a running budget stops it at the ceiling instead.
+const SHARE_MAX_CODE = 512 * 1024;
+const SHARE_MAX_BYTES = 8 * 1024 * 1024;
+
+async function readCapped(stream, cap) {
+  const reader = stream.getReader();
+  const parts = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > cap) {
+      reader.cancel();
+      throw new Error(`shared document is larger than ${Math.round(cap / 1048576)}MB`);
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return out;
+}
+
 async function decodeShare(code) {
+  if (code.length > SHARE_MAX_CODE) throw new Error('share link is too long');
   const bytes = b64urlDecode(code.slice(1));
-  if (code[0] === 'u') return JSON.parse(new TextDecoder().decode(bytes));
+  if (code[0] === 'u') {
+    if (bytes.length > SHARE_MAX_BYTES) throw new Error('shared document is too large');
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
   const ds = new DecompressionStream('deflate-raw');
-  const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
-  return JSON.parse(new TextDecoder().decode(buf));
+  const out = await readCapped(new Blob([bytes]).stream().pipeThrough(ds), SHARE_MAX_BYTES);
+  return JSON.parse(new TextDecoder().decode(out));
 }
 
 async function buildShareLink() {
@@ -480,10 +568,12 @@ async function buildShareLink() {
 async function copyShareLink() {
   try {
     const url = await buildShareLink();
-    await navigator.clipboard.writeText(url);
-    flashStatus(url.length > 1800
-      ? `Link copied (${url.length} characters, which some chat apps will truncate).`
-      : 'Share link copied to the clipboard.');
+    // copyText says whether it worked; only add what is specific to a link
+    await copyText(url, 'Share link');
+    if (url.length > 1800) {
+      flashStatus(`Link copied (${url.length} characters, `
+        + 'which some chat apps will truncate).');
+    }
   } catch (e) {
     flashStatus('Could not build a share link: ' + e.message);
   }
@@ -492,7 +582,9 @@ async function copyShareLink() {
 // Reads a shared document out of the fragment and opens it as its own project,
 // so following a link never overwrites what you were working on.
 async function loadSharedFromUrl() {
-  const m = /[#&]d=([A-Za-z0-9_-]+)/.exec(location.hash || '');
+  // bounded, so a multi-megabyte fragment is refused by the match rather than
+  // captured and handed on
+  const m = new RegExp('[#&]d=([A-Za-z0-9_-]{1,' + SHARE_MAX_CODE + '})').exec(location.hash || '');
   if (!m) return false;
   try {
     const payload = await decodeShare(m[1]);
@@ -513,5 +605,33 @@ function flashStatus(msg) {
   hoverInfoEl.innerHTML = esc(msg);
   clearTimeout(flashTimer);
   flashTimer = setTimeout(() => updateHoverStatus(null), 6000);
+}
+
+// One copy path, with a fallback and something said either way.
+//
+// navigator.clipboard is undefined on a non-secure origin and its write rejects
+// when the document is not focused, and every caller invoked it bare: the copy
+// failed silently and the user was left believing they had the code. The
+// execCommand fallback is deprecated but it is the only thing that works on
+// plain http, which is how this gets served from a file share or a LAN box.
+function copyText(text, what) {
+  const said = ok => flashStatus(ok
+    ? (what ? what + ' copied to the clipboard.' : 'Copied to the clipboard.')
+    : 'Could not reach the clipboard. Select the text and press Ctrl+C instead.');
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      said(ok);
+      return ok;
+    } catch (e) { said(false); return false; }
+  };
+  if (!navigator.clipboard || !navigator.clipboard.writeText) return fallback();
+  return navigator.clipboard.writeText(text).then(() => said(true), fallback);
 }
 

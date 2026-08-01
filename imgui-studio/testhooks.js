@@ -52,6 +52,9 @@ window.__test = {
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   },
   hidePanel: k => { layout.panels[k].hidden = true; applyLayout(); },
+  // A dock width without dragging its splitter, so a layout check can measure at
+  // the minimum rather than depending on a synthetic drag landing exactly there.
+  setDockSize: (side, px) => { layout.size[side] = px; applyLayout(); },
   showPanel: k => { layout.panels[k].hidden = false; applyLayout(); },
   // hidden panels are detached from the dock, not just display:none
   panelVisible: k => {
@@ -59,6 +62,9 @@ window.__test = {
     return !!(el && el.offsetParent);
   },
   ctxItems: () => [...document.querySelectorAll('#ctxmenu .mi')].map(x => x.firstChild.textContent),
+  // what "Copy C++ snippet" would put on the clipboard, without needing the
+  // clipboard permission the context menu path would
+  snippetFor: id => cppSnippet(findNode(id)),
   docsUrl: type => docsUrlFor(type),
   key: (k, mods = {}) => window.dispatchEvent(new KeyboardEvent('keydown', {
     key: k, ctrlKey: !!mods.ctrl, shiftKey: !!mods.shift, altKey: !!mods.alt, cancelable: true,
@@ -143,6 +149,16 @@ window.__test = {
     ? Module.ccall('engine_get_float', 'number', ['string'], [id]) : null),
   widgetBool: id => (engineReady
     ? Module.ccall('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
+  // Takes a raw state key, not a node id, because the keys that matter here are
+  // composed: "radio:<window id>:<group>". -1 means the key does not exist.
+  widgetInt: key => (engineReady
+    ? Module.ccall('engine_get_int', 'number', ['string'], [key]) : null),
+  // The document-replace path New, Open, templates and projects all go through.
+  loadDocData: raw => { applyDocData(JSON.parse(JSON.stringify(raw)), 100); refresh(); },
+  // Share links, so the size ceilings can be driven directly rather than by
+  // putting a hostile fragment in the address bar and reloading.
+  decodeShare: code => decodeShare(code),
+  buildShareLink: () => buildShareLink(),
   addGuideAt: (axis, pos) => { guides.push({ axis, pos }); renderGuides(); },
   clearGuides: () => { guides.length = 0; renderGuides(); saveGuides(); },
   // the whole keymap, and a rebind through the same path the settings rows use
@@ -269,7 +285,18 @@ window.__test = {
     const b = KEYMAP.find(x => x.help === help);
     if (!b) return 'missing';
     const clash = rebind(b, cand);
-    return clash ? 'conflict:' + clash.cat : comboLabel(b);
+    // a browser-reserved combo comes back with a reason and no category
+    if (clash) return clash.reason ? 'refused:reserved' : 'conflict:' + clash.cat;
+    return comboLabel(b);
+  },
+  // What the command palette actually renders, key badge and all. The badges
+  // used to be hardcoded strings, so this is the surface that has to agree with
+  // the dispatcher after a rebind.
+  commandRows: () => {
+    openCmdk('all');
+    const out = [...cmdkList.querySelectorAll('.ov-item')].map(el => el.textContent);
+    closeOverlays();
+    return out;
   },
   applyCpp: text => {
     setCodeEditing(true);
