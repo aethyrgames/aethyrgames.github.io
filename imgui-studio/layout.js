@@ -87,7 +87,7 @@ function buildPanels() {
 
     const head = document.createElement('div');
     head.className = 'panel-head';
-    head.innerHTML = '<span class="tw">▾</span><span class="ttl"></span>';
+    head.innerHTML = '<span class="tw">▾</span><h3 class="ttl"></h3>';
     head.querySelector('.ttl').textContent = el.dataset.title;
     const close = document.createElement('button');
     close.textContent = '✕';
@@ -146,8 +146,18 @@ function applyLayout() {
   clampDockSizes();
   docks.left.style.width = layout.size.left + 'px';
   docks.right.style.width = layout.size.right + 'px';
-  docks.top.style.height = layout.size.top + 'px';
-  docks.bottom.style.height = layout.size.bottom + 'px';
+  // A vertical dock collapses cleanly because each panel's own height shrinks
+  // to its header; a top/bottom dock's panels sit side by side instead, so
+  // the DOCK's height (not any one panel's) is what has to give. Left at
+  // layout.size unconditionally, a collapsed-only dock kept its full band
+  // with nothing in it below the header, and the canvas never got the space
+  // back. auto-sizes it to the header strip instead, once nothing in it is
+  // left open.
+  for (const side of ['top', 'bottom']) {
+    const inDock = entries.filter(([, p]) => !p.hidden && p.dock === side);
+    const allCollapsed = inDock.length > 0 && inDock.every(([, p]) => p.collapsed);
+    docks[side].style.height = allCollapsed ? 'auto' : layout.size[side] + 'px';
+  }
   renderPanelButtons();
   saveLayout();
   requestAnimationFrame(syncCanvasSize);
@@ -646,6 +656,14 @@ function syncCanvasSize() {
   // engine's cached cursor is now wrong. Told after the transform, never before,
   // or it maps against the rect we are in the middle of leaving.
   if (originMoved || sizeMoved) redeliverPointer();
+  // #canvashost is pan/zoom driven, not scroll driven (overflow:hidden), so it
+  // should never carry a scroll offset at all. A stray focus() on something
+  // wide enough (an inline label editor, say) can make the browser auto-scroll
+  // it anyway, and once wedged the whole view stays off by that amount even
+  // after the thing that scrolled it is gone. Zeroed every sync so nothing can
+  // make that stick.
+  canvasHost.scrollLeft = 0;
+  canvasHost.scrollTop = 0;
   drawRulers();
 }
 
@@ -706,6 +724,14 @@ function drawRulers() {
     // is something to read between the hundreds.
     const step = zoom >= 2 ? 5 : (zoom >= 0.75 ? 10 : (zoom >= 0.4 ? 20 : 50));
     const first = Math.floor(-off / zoom / step) * step;
+    // Majors are ticked every world-100 regardless of zoom, but a LABEL needs
+    // more than a tick's worth of room: a 4-digit number in the 10px mono font
+    // is about 26px wide, and at 25% zoom majors are only 25px apart on screen
+    // (100 world units * 0.25), so consecutive labels ran together into one
+    // unreadable strip. Thinning the label cadence out at low zoom, the same
+    // way `step` already thins the ticks, keeps the majors themselves lined up
+    // with the grid while giving the text room to breathe.
+    const labelStep = zoom < 0.3 ? 400 : (zoom < 0.5 ? 200 : 100);
     // What this loop actually emitted, kept for the tests. Counting ink on the
     // ruler canvas cannot see the ticks at all: the strokes use --mk-border,
     // whose red channel sits below any sane threshold, so an ink count is really
@@ -715,7 +741,8 @@ function drawRulers() {
       const p = wv * zoom + off;
       if (p < 0) continue;
       const major = wv % 100 === 0, mid = wv % 50 === 0;
-      drawn.push({ w: wv, p: Math.round(p), major });
+      const label = major && wv % labelStep === 0;
+      drawn.push({ w: wv, p: Math.round(p), major, label });
       const size = major ? 20 : (mid ? 8 : 4);
       // the bottom and right rules grow their ticks from the canvas edge, which
       // for them is the near side rather than the far one
@@ -727,7 +754,7 @@ function drawRulers() {
         g.moveTo(x0, p + 0.5); g.lineTo(x1, p + 0.5);
       }
       // labels need room, so skip the one that would run off the near edge
-      if (major && p > 12) {
+      if (label && p > 12) {
         const txt = String(wv);
         if (horiz) g.fillText(txt, p + 2, flip ? 17 : 8);
         else {
@@ -850,14 +877,21 @@ canvasHost.addEventListener('mousemove', e => {
     handleSpaceDown(null);
   }
   drawRulers();
-  const host = canvasHost.getBoundingClientRect();
-  coordTip.style.display = 'block';
-  coordTip.textContent = cursorWorld.x + ', ' + cursorWorld.y;
-  // flip to the other side of the cursor near the edges so it stays readable
-  const lx = e.clientX - host.left + 14;
-  const ly = e.clientY - host.top + 16;
-  coordTip.style.left = Math.min(lx, host.width - coordTip.offsetWidth - 4) + 'px';
-  coordTip.style.top = Math.min(ly, host.height - coordTip.offsetHeight - 4) + 'px';
+  // Live mode (sustained, or peeked by the Space handler just above) is for
+  // testing the UI, not measuring it, and the readout was sitting right on top
+  // of whichever widget was beside the cursor at its fixed 14px offset.
+  if (editMode) {
+    const host = canvasHost.getBoundingClientRect();
+    coordTip.style.display = 'block';
+    coordTip.textContent = cursorWorld.x + ', ' + cursorWorld.y;
+    // flip to the other side of the cursor near the edges so it stays readable
+    const lx = e.clientX - host.left + 14;
+    const ly = e.clientY - host.top + 16;
+    coordTip.style.left = Math.min(lx, host.width - coordTip.offsetWidth - 4) + 'px';
+    coordTip.style.top = Math.min(ly, host.height - coordTip.offsetHeight - 4) + 'px';
+  } else {
+    coordTip.style.display = 'none';
+  }
   updateHoverStatus(e);
 });
 canvasHost.addEventListener('mouseleave', () => {

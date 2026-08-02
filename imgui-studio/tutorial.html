@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ImGui Studio - Tutorial</title>
+<!-- Inline, so the tab icon ships with the bundle rather than a network
+     request: with no favicon at all, every load logged a 404 for one. Same
+     icon as index.html. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFlMWUxZSIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0E2RTIyRSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Jmd0OzwvdGV4dD48L3N2Zz4=">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -128,6 +132,7 @@
     <li><a href="#live">The Preview Is Real ImGui</a></li>
     <li><a href="#code">The Code Pane Goes Both Ways</a></li>
     <li><a href="#saving">Where Your Work Lives</a></li>
+    <li><a href="#templates">Templates Are Worked Examples</a></li>
     <li><a href="#next">Keep Going</a></li>
   </ul>
 </div>
@@ -314,14 +319,32 @@ void DrawPlayback(PlaybackState&amp; state)
   Note: because the browser does the saving, clearing site data for this domain clears your projects with it. Export anything you'd be sad to lose.
 </div>
 
+<h2 id="templates">Templates Are Worked Examples</h2>
+
+<p>The Templates panel sits at the bottom of the left dock, collapsed until you click its title. It holds eight worked examples: a blank window, a settings dialog, a toolbar over a list, a property inspector, a debug overlay, a tabbed panel, a show-and-hide pair, and a menus-and-dialogs example. Each is a small document that already works, so it's a starting point and the reference for its feature at the same time. The number on a row is how many widgets the template carries.</p>
+
+<figure>
+  <img src="img/templates-panel.png" alt="The Templates panel expanded, showing the built-in rows with a widget count on each, under the Save Current, Export, and Import buttons.">
+  <figcaption>Click a row to insert it, drag it onto the canvas to place it, right-click for the rest.</figcaption>
+</figure>
+
+<p>Click a name, or its <code>＋</code>, and the template's widgets land in the nearest container of your selection. Drag a row onto the canvas instead to put them where you drop. A template that brings whole windows ("Show and Hide Windows", "Debug Overlay") adds them at the document root whatever you had selected, since a window can't live inside another one. Those two are also the ones to read if you want one panel to open another.</p>
+
+<p>Right-click a row for the bigger moves:</p>
+
+<ul>
+  <li><strong>Apply Here</strong> replaces the current document with the template. It asks first, and <kbd>Ctrl+Z</kbd> undoes it.</li>
+  <li><strong>Open as Project</strong> puts the template in a new tab named after it and leaves your document alone.</li>
+  <li><strong>Export Template</strong> writes that one template to a JSON file, built-in or not.</li>
+</ul>
+
+<p><b class="ui">Save Current</b> at the top of the panel, or <strong>File &gt; Save as template</strong>, adds what you built to the list, named after its first window. Your own rows get a <code>✕</code> to delete, and any row drags up or down to reorder. The order survives a reload. <b class="ui">Export</b> writes your custom templates to a JSON file and <b class="ui">Import</b> reads them back, which is how a team shares one library.</p>
+
 <h2 id="next">Keep Going</h2>
 
 <p>The fastest way to learn a feature here is to open the template that uses it and pull it apart.</p>
 
 <ul>
-  <li><strong>Templates</strong> ships eight worked examples. Click a name, or its <code>＋</code>, to insert it into the nearest container that'll take it. Drag it onto the canvas to place it instead.</li>
-  <li>"Show and Hide Windows" and "Debug Overlay" bring windows of their own. They land at the document root whatever you had selected. They're also the two to read if you want one panel to open another.</li>
-  <li><strong>File &gt; Save as Template</strong> puts something you built into the same list.</li>
   <li><kbd>?</kbd> opens the shortcut list, built from the same table the app dispatches on. Click any row to rebind it.</li>
   <li><kbd>Ctrl+K</kbd> is the command palette for anything without a key. <kbd>/</kbd> opens the same picker filtered over all 60 widget types, which is how you reach the long tail.</li>
 </ul>

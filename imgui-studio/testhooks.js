@@ -74,6 +74,29 @@ window.__test = {
   isLive: () => !editMode,
   histLen: () => history.length,
   overlayOpen: () => !cmdkEl.hidden || !helpEl.hidden,
+  menuSelRow: () => {
+    const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
+    return rows[menuSel] ? rows[menuSel].textContent : null;
+  },
+  canvasKbdFocus: () => canvasHost.classList.contains('kbd-focus'),
+  preOverlayFocus: () => (preOverlayFocus ? (preOverlayFocus.id || preOverlayFocus.tagName) : null),
+  codeStatusHidden: () => document.getElementById('codeStatus').hidden,
+  // capture what the export would download, without a real file dialog
+  exportProjectPayload: () => {
+    let captured = null;
+    const orig = downloadJson;
+    downloadJson = (name, data) => { captured = data; };
+    try { exportProject(); } finally { downloadJson = orig; }
+    return captured;
+  },
+  exportEverythingPayload: () => {
+    let captured = null;
+    const orig = downloadJson;
+    downloadJson = (name, data) => { captured = data; };
+    try { exportEverything(); } finally { downloadJson = orig; }
+    return captured;
+  },
+  importPayload: s => importPayload(s),
   widgetTypes: () => Object.keys(WIDGETS).filter(k => !WIDGETS[k].hidden),
   generate: () => generateCode(),
   refresh: () => refresh(),

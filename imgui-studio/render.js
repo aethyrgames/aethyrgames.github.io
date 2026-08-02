@@ -58,8 +58,13 @@ function paletteButton(type, spec) {
   const slotKey = slot >= 0 ? keyFor('Arm the widget in hotbar slot ' + (slot + 1)) : '';
   const blocked = blockedReason(type);
   if (blocked) {
-    b.disabled = true;
+    // Not a native `disabled`: that drops the button from the tab order, so
+    // the only explanation a Tab Item or Menu button is unavailable was a
+    // hover tooltip a keyboard or screen reader user never reaches. Left
+    // focusable and clickable; the click handler below reports the reason
+    // instead of inserting.
     b.classList.add('blocked');
+    b.setAttribute('aria-disabled', 'true');
     b.title = blocked;
   } else {
     b.title = (spec.container ? 'Container. ' : '') + 'Click to append, or drag onto the canvas'
@@ -74,9 +79,22 @@ function paletteButton(type, spec) {
     b.appendChild(k);
   }
   b.addEventListener('mousedown', e => {
-    if (e.button !== 0 || b.disabled) return;
+    if (e.button !== 0 || b.disabled || blocked) return;
     e.preventDefault();
     drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
+  });
+  // A real mouse click never reaches here: it inserts through the mousedown
+  // above plus the document-level mouseup that resolves an un-moved drag.
+  // Keyboard activation (Enter/Space on a focused button) fires only a click,
+  // with no mousedown/mouseup pair, so without this a focused palette button
+  // did nothing at all. e.detail is 0 for that synthetic click and never 0 for
+  // a pointer one, which is what keeps a real drag-click from inserting twice.
+  b.addEventListener('click', e => {
+    if (e.detail !== 0 || b.disabled) return;
+    // A blocked button still reaches this handler now (see above): say why
+    // instead of silently doing nothing, the way a real click already does.
+    if (blocked) { flashStatus(blocked); return; }
+    addNode(type);
   });
   b.addEventListener('contextmenu', e => {
     e.preventDefault();
@@ -224,6 +242,18 @@ function MENUS() {
   };
 }
 
+// The keyboard's own idea of which row is current, independent of DOM focus
+// (rows are plain divs, not tab stops). Reset on every render so switching
+// menus or toggling a checkable row always starts from the top.
+let menuSel = 0;
+
+function highlightMenuRow(i) {
+  const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
+  rows.forEach(r => r.classList.remove('sel'));
+  if (rows[i]) rows[i].classList.add('sel');
+  return rows;
+}
+
 function renderMenu(name) {
   const items = (MENUS()[name] || []).filter(Boolean);
   items.sort((a, b) => (a.group || '5').localeCompare(b.group || '5') || (a.order || 0) - (b.order || 0));
@@ -241,11 +271,15 @@ function renderMenu(name) {
     if (lastGroup !== null && it.group !== lastGroup) {
       const s = document.createElement('div');
       s.className = 'sep';
+      s.setAttribute('role', 'separator');
       menuPop.appendChild(s);
     }
     lastGroup = it.group;
     const row = document.createElement('div');
     row.className = 'mi' + (it.disabled ? ' disabled' : '');
+    row.setAttribute('role', it.checked === undefined ? 'menuitem' : 'menuitemcheckbox');
+    if (it.checked !== undefined) row.setAttribute('aria-checked', String(!!it.checked));
+    if (it.disabled) row.setAttribute('aria-disabled', 'true');
     const tick = document.createElement('span');
     tick.className = 'tick';
     tick.textContent = it.checked ? '✓' : '';
@@ -276,15 +310,44 @@ function renderMenu(name) {
   menuPop.style.top = r.bottom + 'px';
   for (const b of document.querySelectorAll('.menutop')) {
     b.classList.toggle('open', b.dataset.menu === name);
+    if (b.hasAttribute('aria-haspopup')) b.setAttribute('aria-expanded', String(b.dataset.menu === name));
   }
   openMenu = name;
+  menuSel = 0;
+  highlightMenuRow(menuSel);
 }
 
 function closeMenu() {
   menuPop.style.display = 'none';
   openMenu = null;
-  for (const b of document.querySelectorAll('.menutop')) b.classList.remove('open');
+  for (const b of document.querySelectorAll('.menutop')) {
+    b.classList.remove('open');
+    if (b.hasAttribute('aria-haspopup')) b.setAttribute('aria-expanded', 'false');
+  }
 }
+
+// ArrowUp/Down move a highlighted row without needing real DOM focus (the
+// rows are plain divs), and Enter activates it. Capture phase and ahead of
+// the dispatcher: without stopping the event here, ArrowDown/Up also ran the
+// edit-context "next/previous sibling" bindings underneath the open menu.
+window.addEventListener('keydown', e => {
+  if (!openMenu) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
+    if (!rows.length) return;
+    menuSel = e.key === 'ArrowDown' ? (menuSel + 1) % rows.length : (menuSel - 1 + rows.length) % rows.length;
+    highlightMenuRow(menuSel);
+    rows[menuSel].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
+    if (!rows[menuSel]) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    rows[menuSel].onclick();
+  }
+}, true);
 
 // `[data-menu]` and not every .menutop: the Tutorial button shares the class so
 // it sits on the bar's baseline, but it opens a page rather than a menu, and
@@ -347,12 +410,14 @@ function openContextMenu(e, items) {
     if (lastGroup !== null && it.group !== lastGroup) {
       const s = document.createElement('div');
       s.className = 'sep';
+      s.setAttribute('role', 'separator');
       ctxEl.appendChild(s);
     }
     lastGroup = it.group;
     const row = document.createElement('div');
     row.className = 'mi' + (it.danger ? ' danger' : '');
-    if (it.disabled) row.style.opacity = '0.4';
+    row.setAttribute('role', 'menuitem');
+    if (it.disabled) { row.style.opacity = '0.4'; row.setAttribute('aria-disabled', 'true'); }
     const l = document.createElement('span');
     l.textContent = titleCase(it.label);
     row.appendChild(l);
@@ -634,7 +699,18 @@ function listTargetAt(host, y, selector) {
   return last ? { row: last, rect: last.getBoundingClientRect(), where: 'after' } : null;
 }
 
-function showListIndicator(t, indent) {
+// Whether a hierarchy drag would carry its SameLine join onto the row it
+// lands beside. Only true for a before/after drop: dropping INTO a container
+// starts the widget on a fresh line regardless of what it carried, the same
+// rule moveNodeTo itself applies. Pulled out on its own so it can be asserted
+// without faking the drag geometry showListIndicator needs.
+function dropJoins(draggedId, where) {
+  if (where === 'into') return false;
+  const n = findNode(draggedId);
+  return !!(n && n.sameline);
+}
+
+function showListIndicator(t, indent, joins) {
   const el = listIndicator();
   el.style.display = 'block';
   el.style.left = (t.rect.left + (indent || 0)) + 'px';
@@ -648,6 +724,32 @@ function showListIndicator(t, indent) {
     el.style.top = ((t.where === 'before' ? t.rect.top : t.rect.bottom) - 1) + 'px';
     el.style.height = '2px';
   }
+  // A join travels silently otherwise: the tree drop passes no `sameline` key
+  // (moveNodeTo keeps whatever the node already carried), so the row you're
+  // about to land on ends up merged with the one above it and the only sign
+  // was the SameLine toggle in the inspector, after the fact. Said on the
+  // indicator itself so it's not a surprise once the drop lands.
+  el.classList.toggle('joins', !!joins);
+}
+
+// How far a drag pointer near the list's own top/bottom edge should pull the
+// list's scroll position, in px. Pulled out so the ramp can be asserted
+// without a real scrollable element. Zero once the pointer is more than
+// LIST_AUTOSCROLL_MARGIN from either edge.
+const LIST_AUTOSCROLL_MARGIN = 28;
+const LIST_AUTOSCROLL_MAX = 14;
+function listAutoScrollDelta(rect, y) {
+  if (y < rect.top + LIST_AUTOSCROLL_MARGIN) {
+    return -Math.ceil((rect.top + LIST_AUTOSCROLL_MARGIN - y) / LIST_AUTOSCROLL_MARGIN * LIST_AUTOSCROLL_MAX);
+  }
+  if (y > rect.bottom - LIST_AUTOSCROLL_MARGIN) {
+    return Math.ceil((y - (rect.bottom - LIST_AUTOSCROLL_MARGIN)) / LIST_AUTOSCROLL_MARGIN * LIST_AUTOSCROLL_MAX);
+  }
+  return 0;
+}
+function autoScrollListEdge(host, y) {
+  const delta = listAutoScrollDelta(host.getBoundingClientRect(), y);
+  if (delta) host.scrollTop += delta;
 }
 
 function startTreeDrag(e, id) {
@@ -676,8 +778,10 @@ document.addEventListener('mousemove', e => {
   if (listDrag.kind === 'tree') {
     const t = listTargetAt(document.getElementById('tree'), e.clientY, '.row');
     listDrag.target = t;
-    if (t) showListIndicator(t, t.where === 'into' ? 0 : parseFloat(t.row.style.paddingLeft) || 0);
-    else hideListIndicator();
+    if (t) {
+      showListIndicator(t, t.where === 'into' ? 0 : parseFloat(t.row.style.paddingLeft) || 0,
+        dropJoins(listDrag.id, t.where));
+    } else hideListIndicator();
   } else {
     const host = document.getElementById('tpllist');
     const r = host.getBoundingClientRect();
@@ -695,6 +799,10 @@ document.addEventListener('mousemove', e => {
       }
       return;
     }
+    // A row scrolled out of the panel could never be a drop target: nothing
+    // else moved the list to bring it into view. Pull the list toward the
+    // pointer near its own top/bottom edge, the way most reorderable lists do.
+    autoScrollListEdge(host, e.clientY);
     const t = listTargetAt(host, e.clientY, '.tplrow');
     // a template list is flat, so there is no "inside"
     if (t && t.where === 'into') t.where = e.clientY < t.rect.top + t.rect.height / 2 ? 'before' : 'after';
@@ -745,9 +853,22 @@ function reorderTemplate(from, to) {
   renderTemplates();
 }
 
+// A deeply nested row's indent, capped so it cannot outgrow the panel itself.
+// Uncapped, a depth-14 row at the 150px minimum dock width pushed its own
+// move/delete buttons past the clipped edge where nothing scrolls, and even
+// at the default width the label was squeezed to nothing. 90px is left for
+// the row's own content (icons, label, buttons) at any depth.
+function treeRowIndent(depth, treeWidth) {
+  return Math.min(6 + depth * 12, Math.max(6, treeWidth - 90));
+}
+
 function renderTree() {
   const host = document.getElementById('tree');
   const term = treeFilterEl.value.trim().toLowerCase();
+  // Width is read BEFORE the clear: clientWidth forces a synchronous layout,
+  // and forcing one on an emptied #tree clamps its scrollTop to 0, which made
+  // the hierarchy jump back to the top on every repaint.
+  const treeWidth = host.clientWidth || 280;
   host.innerHTML = '';
   const emit = (node, parent, index, depth) => {
     if (term && !treeSubtreeMatches(node, term)) return;
@@ -756,9 +877,16 @@ function renderTree() {
     // a filter force-opens containers, the same way it does in the palette
     const open = term ? true : !treeCollapsed.has(node.id);
     const row = document.createElement('div');
-    row.className = 'row' + (selection.has(node.id) || node.id === selectedId ? ' selected' : '');
-    row.style.paddingLeft = (6 + depth * 12) + 'px';
+    const isSelected = selection.has(node.id) || node.id === selectedId;
+    row.className = 'row' + (isSelected ? ' selected' : '');
+    row.style.paddingLeft = treeRowIndent(depth, treeWidth) + 'px';
     row.dataset.id = node.id;
+    row.setAttribute('role', 'treeitem');
+    row.setAttribute('aria-level', String(depth + 1));
+    row.setAttribute('aria-selected', String(isSelected));
+    // aria-expanded only where there is something to expand: setting it on a
+    // leaf row is invalid and reads as a broken toggle to a screen reader.
+    if (isContainerRow) row.setAttribute('aria-expanded', String(open));
     row.onclick = e => {
       // a drag that moved is not a click
       if (listDragMoved) return;
@@ -807,9 +935,14 @@ function renderTree() {
     }
 
     if (parent) {
-      for (const [txt, fn] of [['↑', () => moveNode(node.id, -1)], ['↓', () => moveNode(node.id, 1)], ['✕', () => removeNode(node.id)]]) {
+      for (const [txt, title, fn] of [
+        ['↑', 'Move up', () => moveNode(node.id, -1)],
+        ['↓', 'Move down', () => moveNode(node.id, 1)],
+        ['✕', 'Delete', () => removeNode(node.id)],
+      ]) {
         const b = document.createElement('button');
         b.textContent = txt;
+        b.title = title;
         b.onclick = e => { e.stopPropagation(); fn(); };
         row.appendChild(b);
       }
@@ -906,6 +1039,9 @@ function renderProps() {
   // Unreal puts a small revert arrow beside anything that differs from its
   // default. It reads as "this one was touched" without needing a second
   // color, and it undoes exactly that property rather than the last action.
+  // Reset every render: the ids only have to be unique within one paint of
+  // this panel, and a fresh count keeps them short.
+  let fieldIdSeq = 0;
   const addField = (labelText, input, isSet, restore, help) => {
     const l = document.createElement('label');
     l.textContent = labelText;
@@ -914,6 +1050,17 @@ function renderProps() {
     l.title = help || labelText;
     if (help && (input.title === undefined || !input.title)) input.title = help;
     if (isSet) l.className = 'set';
+    // `input` is sometimes the real control and sometimes a wrapper around one
+    // (numwrap, colorrow, the paired w/h row): htmlFor has to name the control
+    // itself, a <span>/<div> is not labelable. Falls back to the long help
+    // text on the label's own title when there is nothing to associate with
+    // (the SameLine toggle is a bare div, not a form control at all).
+    const control = ['INPUT', 'SELECT', 'TEXTAREA'].includes(input.tagName)
+      ? input : (input.querySelector && input.querySelector('input, select, textarea'));
+    if (control && !control.id) {
+      control.id = 'prop-field-' + (fieldIdSeq++);
+      l.htmlFor = control.id;
+    }
     host.appendChild(l);
     if (restore) {
       const wrap = document.createElement('span');
@@ -982,7 +1129,7 @@ function renderProps() {
       const inp = document.createElement('input');
       inp.type = 'checkbox';
       inp.checked = !!node[key];
-      inp.onchange = () => { node[key] = inp.checked; refresh(false); };
+      inp.onchange = () => { node[key] = inp.checked; refresh(false, key); };
       return inp;
     }
     if (type === 'enum') {
@@ -995,7 +1142,7 @@ function renderProps() {
         inp.appendChild(opt);
       }
       inp.value = node[key];
-      inp.onchange = () => { node[key] = Number(inp.value); refresh(false); };
+      inp.onchange = () => { node[key] = Number(inp.value); refresh(false, key); };
       return inp;
     }
     if (type === 'int' || type === 'float') {
@@ -1009,17 +1156,24 @@ function renderProps() {
       if (meta.max !== undefined) inp.max = meta.max;
       inp.value = node[key];
       inp.oninput = () => {
+        // An emptied or unparsed field reports '' here (a type=number input
+        // sanitizes anything it can't parse down to the empty string, so
+        // Number(inp.value) would otherwise read as 0 and overwrite the last
+        // committed value while the user is mid-edit). Leave the model alone
+        // and let onblur below restore the display, so an aborted edit can't
+        // destroy the number.
+        if (inp.value === '') return;
         // int props truncate here too, so the preview and the emitted literal
         // can't disagree about a fractional entry
         let v = Number(inp.value);
-        if (!Number.isFinite(v)) v = 0;
+        if (!Number.isFinite(v)) return;
         if (type === 'int') v = Math.trunc(v);
         // clamp on the way into the model, not on the way out, so what the
         // preview draws and what the C++ says are the same number
         if (meta.min !== undefined) v = Math.max(meta.min, v);
         if (meta.max !== undefined) v = Math.min(meta.max, v);
         node[key] = v;
-        refresh(false);
+        refresh(false, key);
       };
       inp.onblur = () => { if (String(node[key]) !== inp.value) inp.value = node[key]; };
       wrap.appendChild(inp);
@@ -1043,7 +1197,7 @@ function renderProps() {
       ta.spellcheck = false;
       ta.value = node[key] ?? '';
       ta.placeholder = (opts && opts.placeholder) || '';
-      ta.oninput = () => { node[key] = ta.value; refresh(false); };
+      ta.oninput = () => { node[key] = ta.value; refresh(false, key); };
       return ta;
     }
     const inp = document.createElement('input');
@@ -1054,7 +1208,7 @@ function renderProps() {
     inp.maxLength = TEXT_CAP[type] || 200;
     inp.value = node[key] ?? '';
     inp.placeholder = (opts && opts.placeholder) || '';
-    inp.oninput = () => { node[key] = inp.value; refresh(false); };
+    inp.oninput = () => { node[key] = inp.value; refresh(false, key); };
     return inp;
   };
 
@@ -1131,7 +1285,9 @@ function renderProps() {
     inp.oninput = () => {
       if (!node.colors) node.colors = {};
       node.colors[slot] = hexToRgb(inp.value);
-      refresh(false);
+      // keyed per slot, so dragging one color swatch does not coalesce with
+      // a drag on the next one
+      refresh(false, 'color:' + slot);
     };
     row.appendChild(inp);
 
@@ -1193,4 +1349,13 @@ function renderCode() {
     if (selection.has(m.dataset.node)) m.classList.add('sel');
   }
 }
+
+// Selecting a widget already highlights and scrolls to its lines here
+// (revealInCode). This is the reverse gesture. Delegated once on the pane
+// itself, wired at load rather than inside renderCode, since renderCode
+// replaces every line's markup (and any listener on it) on each repaint.
+document.getElementById('code').addEventListener('click', e => {
+  const line = e.target.closest('.cline');
+  if (line) selectId(line.dataset.node);
+});
 

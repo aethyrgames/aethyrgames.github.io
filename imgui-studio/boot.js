@@ -12,8 +12,11 @@ loadLayout();
 buildPanels();
 const hb = lsJson(HOTBAR_KEY, null);
 if (Array.isArray(hb)) hb.forEach((t, i) => { if (i < hotbar.length) hotbar[i] = t; });
-// a bar that starts empty never gets discovered, so seed it with common widgets
-if (!hotbar.some(Boolean)) {
+// A bar that starts empty never gets discovered, so seed it with common
+// widgets on first run. Gated on the key being absent, not just on the bar
+// being empty: a user who unpins every slot on purpose saves an all-null
+// array, and without this check that reseeded on the very next reload.
+if (!Array.isArray(hb) && !hotbar.some(Boolean)) {
   ['button', 'text', 'checkbox', 'sliderfloat', 'inputtext', 'separator', 'group']
     .forEach((t, i) => { hotbar[i] = t; });
   saveHotbar();
@@ -39,6 +42,10 @@ syncCanvasSize();
 applyPan();
 // a #d= fragment opens as its own project, so a link never eats your work
 loadSharedFromUrl();
+// Pasting a share link into a tab that is already open only changes the
+// fragment, which fires no load event, so without this the link just sat
+// there unopened until the user happened to reload.
+window.addEventListener('hashchange', () => { loadSharedFromUrl(); });
 
 document.getElementById('filter').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.target.value = ''; renderPalette(); e.target.blur(); }

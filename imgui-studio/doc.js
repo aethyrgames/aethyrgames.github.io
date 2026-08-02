@@ -251,11 +251,16 @@ let lastCoalescible = false;
 // which node the last coalescible edit was on, so two renames of DIFFERENT
 // widgets inside one second stay two undo entries
 let lastCoalesceId = null;
+// ...and which PROPERTY of that node, so editing Max then Width then Label on
+// ONE widget inside one second also stays three undo entries rather than one.
+// Undefined for a coalescible edit with no property to name (there are none
+// today), which never equals a real key and so never merges with one.
+let lastCoalesceProp = null;
 
 // Only document changes create entries. Selection is carried along for restore
 // but never compared, or arrow-key browsing would flood the ring and push real
 // edits out of reach.
-function pushHistory(coalesce) {
+function pushHistory(coalesce, prop) {
   const docStr = JSON.stringify({ doc, nextId });
   if (histIndex >= 0 && history[histIndex].docStr === docStr) return;
   const now = Date.now();
@@ -267,6 +272,7 @@ function pushHistory(coalesce) {
   // renames of DIFFERENT widgets into one undo entry, so one Ctrl+Z put both
   // labels back and there was no way to undo only the second.
   if (coalesce && lastCoalescible && lastCoalesceId === selectedId
+      && lastCoalesceProp === prop
       && histIndex > 0 && now - lastHistAt < 1000) {
     history[histIndex] = { docStr, sel: selectedId };
   } else {
@@ -276,6 +282,7 @@ function pushHistory(coalesce) {
   }
   lastCoalescible = !!coalesce;
   lastCoalesceId = selectedId;
+  lastCoalesceProp = prop;
   lastHistAt = now;
 }
 
@@ -940,9 +947,12 @@ const projTabsEl = document.getElementById('projtabs');
 
 function renderProjectTabs() {
   projTabsEl.innerHTML = '';
+  projTabsEl.setAttribute('role', 'tablist');
   for (const p of projects) {
     const t = document.createElement('div');
     t.className = 'ptab' + (p.id === activeProject ? ' on' : '');
+    t.setAttribute('role', 'tab');
+    t.setAttribute('aria-selected', String(p.id === activeProject));
     const n = document.createElement('span');
     n.className = 'pname';
     n.textContent = p.name;
@@ -968,7 +978,10 @@ function renderProjectTabs() {
       input.onkeydown = ev => {
         ev.stopPropagation();
         if (ev.key === 'Enter') commit();
-        if (ev.key === 'Escape') renderProjectTabs();
+        // Re-rendering detaches this input, and a detached input fires blur,
+        // so without clearing onblur first, Escape's "never mind" committed
+        // the typed name anyway.
+        if (ev.key === 'Escape') { input.onblur = null; renderProjectTabs(); }
       };
       t.replaceChild(input, n);
       input.focus();

@@ -14,6 +14,14 @@ let latestRects = [];
 let engineWantsText = false;
 
 function pushDoc() {
+  // The wasm surface draws nothing a screen reader can see, so this is the
+  // only place the document being edited gets named for one. Runs on every
+  // document change, engine ready or not, rather than waiting on engineReady
+  // below: the label should not lag behind the tree and the properties panel.
+  const win = doc.children.find(n => n.type === 'window');
+  canvas.setAttribute('aria-label', win
+    ? 'ImGui preview: ' + (win.label || 'Window')
+    : 'ImGui preview canvas, empty');
   if (!engineReady) return;
   Module.ccall('engine_set_document', null, ['string'], [JSON.stringify(doc)]);
 }
@@ -44,6 +52,21 @@ const selbox = document.getElementById('selbox');
 const dropline = document.getElementById('dropline');
 const dropbox = document.getElementById('dropbox');
 const ghost = document.getElementById('ghost');
+
+// #canvas is the app's only tabindex element and its native focus outline is
+// off (a rectangle around a 4096px surface is not useful), so the indicator
+// has to be added back by hand. `:focus-visible` alone was tried first, but
+// Chrome does not apply its own click-vs-keyboard heuristic to a bare
+// tabindexed <canvas> the way it does to form controls: the ring showed up
+// for a mouse click too. Tracked here instead, from the same signal a real
+// browser uses: whatever kind of input happened most recently.
+let lastInputWasPointer = false;
+document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
+document.addEventListener('keydown', () => { lastInputWasPointer = false; }, true);
+canvas.addEventListener('focus', () => {
+  canvasHost.classList.toggle('kbd-focus', !lastInputWasPointer);
+});
+canvas.addEventListener('blur', () => canvasHost.classList.remove('kbd-focus'));
 
 // Panning is a transform on #viewport, and every coordinate below is read from
 // the canvas's own client rect, so nothing else has to account for it.
@@ -216,6 +239,11 @@ function resetPan() {
 const hoverInfoEl = document.getElementById('hoverInfo');
 
 function updateHoverStatus(e) {
+  // A flash message (Link copied, Nothing under the pointer, ...) owns the
+  // status line until its own timeout clears it. Without this guard the very
+  // next mousemove, or even the pointer already sitting still over the
+  // canvas, overwrote it with plain hover info before anyone could read it.
+  if (flashActive) return;
   if (!e) {
     hoverInfoEl.innerHTML = '—';
     return;
@@ -501,6 +529,16 @@ function computeDropTarget(p, excludeId, forceJoin) {
   const above = p.y < hit.y + hit.h / 2;
   return { parentId: parent.id, index: above ? idx : idx + 1, sameline: false,
     anchorId: node.id, pos: above ? 'above' : 'below' };
+}
+
+// Whether a client point sits over the canvas PANEL, distinct from
+// canvasPoint().inside: the canvas ELEMENT is a 4096px surface carrying a slab
+// of off-screen slack whose box runs on underneath the docked panels, so
+// `inside` alone reports true over the palette and the inspector too.
+function overCanvasHost(e) {
+  const host = canvasHost.getBoundingClientRect();
+  return e.clientX >= host.left && e.clientX <= host.right
+    && e.clientY >= host.top && e.clientY <= host.bottom;
 }
 
 function updateDropIndicator(drop) {
@@ -876,9 +914,19 @@ function beginInlineEdit(id) {
   inlineEl.style.display = 'block';
   inlineEl.style.left = vpX(r.x) + 'px';
   inlineEl.style.top = vpY(r.y) + 'px';
-  inlineEl.style.width = Math.max(80, r.w) + 'px';
-  inlineEl.style.height = Math.max(18, r.h) + 'px';
-  inlineEl.focus();
+  // Sized in SCREEN pixels (r.w/r.h * zoom, floored at 80x18), not world ones,
+  // because the element counter-scales in CSS (--inv-zoom): its own CSS box IS
+  // its on-screen footprint. Without the *zoom it kept the widget's WORLD size,
+  // which the counter-scale then shrank right back down at low zoom, so a wide
+  // widget at 25% opened a 20x4.75px editor with 3px text.
+  inlineEl.style.width = Math.max(80, r.w * zoom) + 'px';
+  inlineEl.style.height = Math.max(18, r.h * zoom) + 'px';
+  // preventScroll: #canvashost is overflow:hidden and pan/zoom-driven, not
+  // scroll-driven, so a plain .focus() on a wide widget's editor made the
+  // browser auto-scroll the host to reveal it. Rulers and guides read `pan`,
+  // which never changed, so everything else on screen stayed put while the
+  // content shifted out from under it, and the scroll outlived the edit.
+  inlineEl.focus({ preventScroll: true });
   inlineEl.select();
 }
 
@@ -902,7 +950,7 @@ function endInlineEdit(commit, fromBlur) {
 
 inlineEl.addEventListener('input', () => {
   const node = findNode(inlineId);
-  if (node) { node.label = inlineEl.value; refresh(false); }
+  if (node) { node.label = inlineEl.value; refresh(false, 'label'); }
 });
 inlineEl.addEventListener('keydown', e => {
   if (e.key === 'Enter') { endInlineEdit(true); e.preventDefault(); }
@@ -990,6 +1038,9 @@ document.addEventListener('mousemove', e => {
       canvasPoint(e),
       drag.kind === 'move' && !drag.dup ? drag.nodeId : null,
       e.shiftKey);
+    // No valid target under the pointer: say so on the ghost itself, mid-drag,
+    // rather than only in the silence after a release that inserts nothing.
+    ghost.classList.toggle('nodrop', !drag.drop);
     updateDropIndicator(drag.drop);
     return;
   }
@@ -1000,7 +1051,9 @@ document.addEventListener('mousemove', e => {
       ghost.style.display = 'block';
       ghost.style.left = (e.clientX + 14) + 'px';
       ghost.style.top = (e.clientY + 14) + 'px';
-      updateDropIndicator(computeDropTarget(p, null, e.shiftKey));
+      const armedDrop = computeDropTarget(p, null, e.shiftKey);
+      ghost.classList.toggle('nodrop', !armedDrop);
+      updateDropIndicator(armedDrop);
     } else {
       ghost.style.display = 'none';
       dropline.style.display = 'none';
@@ -1042,10 +1095,7 @@ document.addEventListener('mouseup', e => {
     // runs on underneath the docked panels. So a release over the palette or
     // the inspector reported inside:true and the new window was placed at a
     // negative coordinate, behind the panel, where it cannot be seen or grabbed.
-    const host = canvasHost.getBoundingClientRect();
-    const overCanvas = e.clientX >= host.left && e.clientX <= host.right
-      && e.clientY >= host.top && e.clientY <= host.bottom;
-    if (!overCanvas) { addNode(d.type); return; }
+    if (!overCanvasHost(e)) { addNode(d.type); return; }
     const node = makeNode(d.type);
     node.x = Math.round(at.x);
     node.y = Math.round(at.y);
@@ -1054,7 +1104,20 @@ document.addEventListener('mouseup', e => {
     refresh();
     return;
   }
-  if (!d.drop) return;
+  if (!d.drop) {
+    // A non-rootOnly palette widget (a Slider, say) has nowhere to land on
+    // empty canvas: it needs a container, and computeDropTarget returns null
+    // rather than inventing one. That used to be a silent no-op indistinguishable
+    // from a successful drop but for the missing widget: no insert, no history
+    // entry, no word said. The armed-letter tool already flashes this exact
+    // message for the same mistake (stampArmed, above). This brings the drag
+    // path into agreement with it. Only said when the release actually landed
+    // on the canvas, not when it was dragged back onto a panel to cancel.
+    if (d.kind === 'palette' && overCanvasHost(e)) {
+      flashStatus('Nothing under the pointer to insert next to.');
+    }
+    return;
+  }
   if (d.kind === 'template') insertTemplateAt(d.tpl, d.drop);
   else if (d.kind === 'palette') insertNodeAt(d.type, d.drop);
   else if (d.dup) duplicateTo(d.nodeId, d.drop);
@@ -1223,8 +1286,12 @@ function handleSpaceDown(e) {
   // Live mode disarms, but a peek is meant to be free: poking a widget and
   // letting go should hand back the tool you were holding.
   spaceWasArmed = armedType();
-  // guides are editing chrome, and you're holding Space to see the real thing
+  // guides are editing chrome, and you're holding Space to see the real thing.
+  // The coordinate readout is the same kind of chrome: it has no job once
+  // you're testing the UI instead of measuring it, and it was sitting right
+  // over the widget beside the cursor at the 14px offset it's drawn at.
   guidesEl.style.display = 'none';
+  coordTip.style.display = 'none';
   if (editMode) setLiveMode(true);
 }
 

@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ImGuiStudio</title>
+<!-- Inline, so the tab icon ships with the bundle rather than a network
+     request: with no favicon at all, every load logged a 404 for one. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFlMWUxZSIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0E2RTIyRSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Jmd0OzwvdGV4dD48L3N2Zz4=">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -70,7 +73,10 @@
       var(--mk-gutter);
   }
   .brand {
-    color: var(--mk-green); font-weight: 700; font-size: 14px;
+    /* --mk-green measured 2.79:1 on Solarized Light against the header bar.
+       Nudged toward --mk-fg, the same idle-chrome floor .panel-head, #codehead
+       button and .ptab.on below use, tuned so the tightest theme clears 3:1. */
+    color: color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green)); font-weight: 700; font-size: 14px;
     text-shadow: var(--glow-chroma); white-space: nowrap;
   }
   .brand::before { content: '> '; color: var(--mk-comment); }
@@ -91,8 +97,10 @@
   #midrow { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
 
   h3 {
+    /* every h3 in the app is a panel title (buildPanels mints them); measured
+       2.79:1 on Solarized Light against --mk-head, same floor as .brand */
     margin: 0; padding: 9px 10px 6px; font-size: 11px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.08em; color: var(--mk-green);
+    text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green));
     border-bottom: 1px solid var(--mk-border); flex-shrink: 0;
   }
   h3::before { content: '/* '; color: var(--mk-comment); text-transform: none; }
@@ -110,7 +118,10 @@
   #dockTop > .panel, #dockBottom > .panel {
     border-bottom: none; border-right: 1px solid var(--mk-border); min-width: 0;
   }
-  #dockTop > .panel.collapsed, #dockBottom > .panel.collapsed { flex: 0 0 auto; }
+  /* align-self: without it a collapsed panel still stretched to the dock's
+     full cross-axis height (row layout, default stretch), rendering as a
+     mostly-empty column with just a header box at the top. */
+  #dockTop > .panel.collapsed, #dockBottom > .panel.collapsed { flex: 0 0 auto; align-self: flex-start; }
   .dock:empty { display: none; }
   .dock:empty + .dockresize, .dockresize:has(+ .dock:empty) { display: none; }
   /* hidden panels stay in the DOM so their render targets keep resolving, so a
@@ -169,7 +180,11 @@
   }
   .panel-head:active { cursor: grabbing; }
   .panel-head .tw { color: var(--mk-comment); font-size: 14px; width: 12px; line-height: 1; }
-  .panel-head .ttl { flex: 1; }
+  /* The title is a real h3 now, so the generic h3 rule above fires inside the
+     header bar. Cancel its box styling here so the bar keeps its old look; the
+     ::before/::after rules below outrank the generic ones, so the comment
+     framing is not doubled. */
+  .panel-head .ttl { flex: 1; margin: 0; padding: 0; border-bottom: none; }
   .panel-head .ttl::before { content: '/* '; color: var(--mk-comment); text-transform: none; }
   .panel-head .ttl::after { content: ' */'; color: var(--mk-comment); }
   .panel-head button {
@@ -216,7 +231,12 @@
     min-width: 0;   /* tabs shrink */
   }
   .ptab:hover { color: var(--mk-fg); }
-  .ptab.on { color: var(--mk-green); border-color: var(--mk-green); background: var(--mk-bg); }
+  /* the active tab's label measured 2.97:1 on Solarized Light; same floor as .brand */
+  .ptab.on {
+    color: color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green));
+    border-color: color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green));
+    background: var(--mk-bg);
+  }
   .ptab .pname { overflow: hidden; text-overflow: ellipsis; }
   .ptab button {
     background: transparent; border: none; color: var(--mk-comment);
@@ -253,9 +273,17 @@
     background: color-mix(in srgb, var(--mk-cyan) 18%, transparent);
     border: 1px solid var(--mk-cyan); box-shadow: none;
   }
+  /* The dragged row carries SameLine and is landing beside a row rather than
+     into a container, so the join travels with it. Said on the indicator
+     itself, or the merge is a surprise once the drop lands. */
+  #listline.joins::after {
+    content: '⤷'; position: absolute; right: 2px; top: 50%;
+    transform: translateY(-50%); color: var(--mk-bg); font-size: 11px; line-height: 1;
+  }
   .tplname { flex: 1; min-width: 0; color: var(--mk-fg); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tplname:hover { color: var(--mk-cyan); }
-  .tplcount { color: var(--mk-comment); font-size: 10px; }
+  /* same --mk-comment-on-the-wrong-surface fix as #zoomctl button below */
+  .tplcount { color: color-mix(in srgb, var(--mk-fg) 90%, var(--mk-comment)); font-size: 10px; }
   .tplrow button {
     background: transparent; border: none; color: var(--mk-comment);
     cursor: pointer; font-family: var(--font); font-size: 11px; padding: 0 3px;
@@ -393,14 +421,27 @@
     padding: 4px 6px; font-family: var(--font); font-size: 12px;
   }
   .paltools input:focus { outline: none; border-color: var(--mk-cyan); }
+  /* Chrome's fixed placeholder gray never adapted to a theme: measured against
+     the field background, every shipped theme fell short of AA (worst 3.04:1,
+     best 4.35:1). Mixed toward --mk-fg rather than left at --mk-comment, tuned
+     so even the tightest theme (Solarized Light) clears 4.5:1. */
+  ::placeholder { color: color-mix(in srgb, var(--mk-fg) 98%, var(--mk-comment)); opacity: 1; }
   .paltools button {
     background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
     border-radius: var(--radius); padding: 4px 7px; cursor: pointer;
     font-family: var(--font); font-size: 11px; white-space: nowrap;
+    /* At the minimum dock width "Collapse All" (86px) outgrew its ~62px box
+       and spilled across its neighbor instead of stopping at the edge, the
+       same overflow #palette button .lbl already guards against. */
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   }
   .paltools button:hover:not(:disabled) { color: var(--mk-cyan); border-color: var(--mk-cyan); }
-  /* shown but dead rather than hidden, so the pair doesn't jump around */
-  .paltools button:disabled { opacity: 0.38; cursor: default; }
+  /* shown but dead rather than hidden, so the pair doesn't jump around.
+     --mk-comment at 0.38 opacity measured 1.36-1.9:1 against the workspace
+     background on every theme; even --mk-comment at FULL opacity falls short
+     of 3:1 on five themes (one-dark 2.32, tokyo-night 2.76, ...), so opacity
+     alone could never clear the floor. --mk-fg at 0.78 does, on all eleven. */
+  .paltools button:disabled { opacity: 0.78; color: var(--mk-fg); cursor: default; }
   .paltools.tight { margin-top: 0; flex-wrap: wrap; }
   .paltools.tight button { flex: 1 1 60px; min-width: 0; text-align: center; }
   .filterwrap { position: relative; display: flex; flex: 1; min-width: 0; }
@@ -430,12 +471,16 @@
     color: var(--mk-cyan); border-color: var(--mk-cyan);
   }
   #palette button:active { background: var(--mk-gutter); }
-  /* offered but not usable yet: the tooltip says what is missing */
+  /* offered but not usable yet: the tooltip and (on click or Enter) the status
+     line say what is missing. 0.38 measured ~1:1 on the two light themes,
+     near-invisible; 0.78 clears 3:1 everywhere. */
   #palette button.blocked {
-    opacity: 0.38; cursor: not-allowed; background: transparent;
+    opacity: 0.78; cursor: not-allowed; background: transparent;
   }
   #palette button.blocked:hover {
-    background: transparent; color: var(--mk-comment); border-color: var(--mk-border);
+    /* suppress the normal cyan hover look, but keep the same readable text
+       color the resting state uses rather than dropping to --mk-comment */
+    background: transparent; border-color: var(--mk-border);
   }
 
   #tree { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0; }
@@ -649,6 +694,16 @@
   /* Ctrl+Alt held: the next press pans rather than selects, so say so up front */
   #canvashost.panready { cursor: grab; }
   #canvashost.panready.panning { cursor: grabbing; }
+  /* #canvas itself keeps outline:none (a rectangle around a 4096px surface is
+     not useful), so the indicator lives on the host instead: an inset ring
+     that shows up for a keyboard focus arrival but not a mouse selection
+     click, the same distinction #codeEditWrap:focus-within draws for the C++
+     editor. `.kbd-focus` is toggled in canvas.js, which is the input-modality
+     signal Chrome's own :focus-visible heuristic does not apply to a bare
+     tabindexed <canvas> (it showed the ring for a mouse click too). */
+  #canvashost.kbd-focus {
+    box-shadow: inset 0 0 0 2px var(--mk-cyan);
+  }
   /* live readout pinned near the cursor, the other half of a ruler */
   #coordtip {
     position: absolute; display: none; pointer-events: none; z-index: 6;
@@ -766,6 +821,10 @@
     background: var(--mk-surface); border: 1px solid var(--mk-cyan); border-radius: var(--radius);
     padding: 3px 8px; font-size: 12px; color: var(--mk-fg); box-shadow: var(--shadow);
   }
+  /* No valid drop target under the pointer right now: say so on the ghost
+     itself, mid-drag, rather than only in the silence after a release that
+     inserts nothing. */
+  #ghost.nodrop { opacity: 0.45; border-color: var(--mk-comment); box-shadow: none; }
 
   /* wrap, so a narrow code panel puts the buttons on a second line rather than
      pushing them off the right edge where nothing scrolls and nobody can click
@@ -780,8 +839,9 @@
      without this it refuses to shrink and shoves everything after it out. */
   #codehead select { margin: 4px 0 4px 8px; min-width: 0; }
   #codehead button {
-    margin: 4px 8px; background: transparent; color: var(--mk-green);
-    border: 1px solid var(--mk-green); border-radius: var(--radius);
+    /* Edit/Copy/etc. measured 2.97:1 on Solarized Light; same floor as .brand */
+    margin: 4px 8px; background: transparent; color: color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green));
+    border: 1px solid color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green)); border-radius: var(--radius);
     padding: 4px 12px; cursor: pointer; font-size: 12px; font-family: var(--font);
     transition: background 0.15s, color 0.15s;
   }
@@ -822,7 +882,10 @@
   #codeCompl {
     position: absolute; z-index: 3; max-height: 220px; overflow-y: auto;
     min-width: 260px; max-width: min(560px, 90%);
-    background: var(--panel); border: 1px solid var(--mk-border);
+    /* --panel is defined nowhere: an undefined custom property makes the
+       declaration invalid at computed-value time, so this was always
+       transparent and the picker painted straight over the code text. */
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
     border-radius: 4px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
     font: 12px/1.4 var(--font);
   }
@@ -833,7 +896,7 @@
   #codeCompl .ci .cname { color: var(--mk-green); }
   #codeCompl .ci .csig { color: var(--mk-comment); margin-left: 8px; }
   #codeCompl .ci.on { background: color-mix(in srgb, var(--mk-cyan) 22%, transparent); }
-  #codeCompl .ci.on .csig { color: var(--fg); }
+  #codeCompl .ci.on .csig { color: var(--mk-fg); }
 
   /* the signature of the call the caret is inside */
   #codeSig {
@@ -871,7 +934,10 @@
      take. It reads as one segmented control rather than three loose buttons. */
   #zoomctl { display: inline-flex; align-items: stretch; flex-shrink: 0; }
   #zoomctl button {
-    background: transparent; color: var(--mk-comment);
+    /* --mk-comment measured 2.32-3.36:1 against the status bar on 9 of 11
+       themes. Mixed toward --mk-fg the same way the popup shortcut badges
+       were (4c51b16), tuned so the tightest theme clears 4.5:1. */
+    background: transparent; color: color-mix(in srgb, var(--mk-fg) 90%, var(--mk-comment));
     border: 1px solid var(--mk-border); border-radius: 0; margin: 0;
     padding: 1px 7px; cursor: pointer; font-family: var(--font); font-size: 11px;
     line-height: 1.5; white-space: nowrap;
@@ -896,6 +962,13 @@
      counter-scale to keep the same size on screen. Without this they are specks
      at 25% and slabs at 400%. */
   #selbox .rh { transform: scale(var(--inv-zoom, 1)); }
+  /* The inline label editor counter-scales its WHOLE box, not just a border:
+     beginInlineEdit sizes it in screen pixels (floored at 80x18) and this
+     transform cancels the ambient viewport zoom back out, so that size (and
+     its 13px text) is what actually lands on screen at any zoom instead of
+     being scaled a second time. Origin at 0,0 keeps the top-left corner, which
+     beginInlineEdit already positioned at the widget, from moving. */
+  #inlineEdit { transform: scale(var(--inv-zoom, 1)); transform-origin: 0 0; }
   /* borders scale with the viewport too, so a 1px outline turns into 4px at 400%
      and vanishes at 25% */
   #selbox { border-width: calc(1px * var(--inv-zoom, 1)); }
@@ -943,7 +1016,10 @@
      does and what people expect the moment a bar exists. */
   #menubar { display: flex; align-items: stretch; gap: 1px; height: 100%; }
   .menutop {
-    background: transparent; border: none; color: var(--mk-comment);
+    /* File/View/Windows/Help measured 2.33:1 on Solarized Light against the
+       header bar; same --mk-fg mix as the placeholder text below, which sits
+       on the same gutter background. */
+    background: transparent; border: none; color: color-mix(in srgb, var(--mk-fg) 98%, var(--mk-comment));
     font-family: var(--font); font-size: 12px; padding: 0 11px; cursor: pointer;
     border-radius: var(--radius);
   }
@@ -972,6 +1048,9 @@
   #menupop .mi:hover { background: var(--mk-hover); }
   #menupop .mi.disabled { opacity: 0.4; cursor: default; }
   #menupop .mi.disabled:hover { background: transparent; }
+  /* the row ArrowUp/Down is currently on, same look as a mouse hover since
+     there is no real DOM focus to draw a native ring around */
+  #menupop .mi.sel { background: var(--mk-hover); }
   #menupop .mi .k {
     margin-left: auto; font-size: 11px; white-space: nowrap;
     color: color-mix(in srgb, var(--mk-fg) 82%, transparent);
@@ -984,7 +1063,8 @@
     text-transform: uppercase; letter-spacing: 0.07em;
   }
   .headbtn {
-    background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
+    /* same header-bar contrast fix as .menutop, just below */
+    background: transparent; color: color-mix(in srgb, var(--mk-fg) 98%, var(--mk-comment)); border: 1px solid var(--mk-border);
     border-radius: var(--radius); padding: 3px 10px; cursor: pointer;
     font-family: var(--font); font-size: 11px; white-space: nowrap;
   }
@@ -995,7 +1075,11 @@
      and they cannot be clicked. Truncate, then disappear entirely rather than
      showing a useless stub. Same fix the palette's hover readout already has. */
   #apphead #modeHint {
-    color: var(--mk-comment); font-size: 11px;
+    /* 2.33-4.47:1 across nine themes with plain --mk-comment. Sits on
+       #apphead's gutter background, not the workspace background #zoomctl
+       button/.tplcount do, so it needs their tighter 98% mix (menutop's,
+       just above), not their 90%. */
+    color: color-mix(in srgb, var(--mk-fg) 98%, var(--mk-comment)); font-size: 11px;
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   @media (max-width: 900px) { #apphead #modeHint { display: none; } }
@@ -1040,10 +1124,10 @@
   <div id="apphead">
     <span class="brand">ImGuiStudio</span>
     <nav id="menubar">
-      <button class="menutop" data-menu="file">File</button>
-      <button class="menutop" data-menu="view">View</button>
-      <button class="menutop" data-menu="windows">Windows</button>
-      <button class="menutop" data-menu="help">Help</button>
+      <button class="menutop" data-menu="file" aria-haspopup="menu" aria-expanded="false">File</button>
+      <button class="menutop" data-menu="view" aria-haspopup="menu" aria-expanded="false">View</button>
+      <button class="menutop" data-menu="windows" aria-haspopup="menu" aria-expanded="false">Windows</button>
+      <button class="menutop" data-menu="help" aria-haspopup="menu" aria-expanded="false">Help</button>
       <!-- Filled rather than another flat menu label: it is the one entry a
            first-time visitor should find without looking, and buried inside the
            Help menu nobody did. -->
@@ -1055,7 +1139,7 @@
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
     <button class="headbtn" id="resetViewBtn" title="Recenter the canvas (Shift+F)">Reset view</button>
   </div>
-  <div id="menupop"></div>
+  <div id="menupop" role="menu"></div>
 
   <div id="workspace">
     <!-- Panels start in the DOM (not a template) so element lookups elsewhere
@@ -1089,13 +1173,18 @@
           <button id="treeCollapseAll" title="Collapse every container">Collapse All</button>
           <button id="treeExpandAll" title="Expand every container">Expand All</button>
         </div>
-        <div id="tree"></div>
+        <div id="tree" role="tree"></div>
       </section>
       <section class="panel" data-panel="properties" data-title="Properties">
-        <div id="propbody"></div>
+        <!-- tabindex so the command palette's "Focus properties" has a target
+             even when nothing is selected and the panel holds no field yet -->
+        <div id="propbody" tabindex="-1"></div>
       </section>
       <section class="panel" data-panel="templates" data-title="Templates">
-        <div class="paltools">
+        <!-- .tight: without it these three buttons stayed nowrap in an
+             overflow-hidden panel, so at the minimum dock width Export was
+             half clipped and Import sat entirely past the edge, unreachable. -->
+        <div class="paltools tight">
           <button id="tplSaveBtn" title="Save the current document as a template">Save Current</button>
           <button id="tplExportBtn" title="Export templates to a file">Export</button>
           <button id="tplImportBtn" title="Import templates from a file">Import</button>
@@ -1130,7 +1219,10 @@
           <!-- everything in canvas space lives in #viewport, so panning is one
                transform and the coordinate math below never has to know -->
           <div id="viewport">
-            <canvas id="canvas" tabindex="0"></canvas>
+            <!-- aria-label is kept current per document in canvas.js's pushDoc(),
+                 since this is the only accessible description of what the wasm
+                 surface is drawing -->
+            <canvas id="canvas" tabindex="0" role="img" aria-label="ImGui preview canvas"></canvas>
             <div id="selboxes"></div>
             <div id="selbox">
               <i class="rh rh-r" data-axis="w"></i>
@@ -1156,9 +1248,9 @@
         <div class="rulercorner" id="cornerBR"></div>
       </div>
       <div id="status">
-        <span id="hoverInfo">—</span>
+        <span id="hoverInfo" aria-live="polite">—</span>
         <span class="spacer"></span>
-        <span id="armInfo"></span>
+        <span id="armInfo" aria-live="polite"></span>
         <span id="zoomctl">
           <button class="zbtn" id="zoomOutBtn" title="Zoom out ([)">&minus;</button>
           <button id="zoomPctBtn" title="Back to 100% (click), or fit the document (Ctrl+Shift+F)">100%</button>
@@ -1186,7 +1278,7 @@
         </div>
         <div id="codeSig" hidden></div>
         <div id="codeLint" hidden></div>
-        <div id="codeStatus" hidden></div>
+        <div id="codeStatus" role="status" hidden></div>
       </section>
     </div>
     </div>
@@ -1194,7 +1286,7 @@
     <div class="dock" id="dockBottom"></div>
   </div>
 
-  <div id="settingsov" class="overlay" hidden>
+  <div id="settingsov" class="overlay" role="dialog" aria-modal="true" aria-label="Settings" hidden>
     <div class="overlay-box settings-box">
       <div class="settings-head">
         <strong>Settings</strong>
@@ -1211,7 +1303,7 @@
     </div>
   </div>
 
-  <div id="confirmov" class="overlay" hidden>
+  <div id="confirmov" class="overlay" role="dialog" aria-modal="true" aria-labelledby="confirmMsg" hidden>
     <div class="overlay-box confirm-box">
       <div id="confirmMsg"></div>
       <div class="confirm-actions">
@@ -1222,17 +1314,17 @@
   </div>
 
   <div id="dropzone"></div>
-  <div id="ctxmenu"></div>
+  <div id="ctxmenu" role="menu"></div>
 
   <div id="ghost"></div>
 
-  <div id="cmdk" class="overlay" hidden>
+  <div id="cmdk" class="overlay" role="dialog" aria-modal="true" aria-label="Command palette" hidden>
     <div class="overlay-box">
       <input type="text" id="cmdkInput" placeholder="search...">
       <div id="cmdkList" class="ov-list"></div>
     </div>
   </div>
-  <div id="helpov" class="overlay" hidden>
+  <div id="helpov" class="overlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" hidden>
     <div class="overlay-box">
       <input type="text" id="helpInput" placeholder="filter shortcuts...">
       <div id="helpList" class="ov-list"></div>
@@ -1241,20 +1333,20 @@
 
 <script src="widgets.js?v=514f9c47bb"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=dd5bb10f87"></script>
+<script src="cpp.js?v=286ef352ef"></script>
 <script src="codeintel.js?v=f0f4d02887"></script>
-<script src="doc.js?v=07595d6f15"></script>
-<script src="canvas.js?v=d5209748b7"></script>
-<script src="keys.js?v=4616c6affe"></script>
+<script src="doc.js?v=45fccb846b"></script>
+<script src="canvas.js?v=1af716bebc"></script>
+<script src="keys.js?v=c63e42566a"></script>
 <script src="generate.js?v=3564689795"></script>
 <script src="theme.js?v=41ea6ff05b"></script>
-<script src="layout.js?v=3b5888e2b2"></script>
-<script src="render.js?v=ed0054dc79"></script>
-<script src="codepane.js?v=ef834ec2b1"></script>
-<script src="templates.js?v=3d5784aaa6"></script>
-<script src="settings.js?v=9f49df64f5"></script>
-<script src="testhooks.js?v=e8641c60f2"></script>
-<script src="boot.js?v=7b864eac76"></script>
+<script src="layout.js?v=4bf96a101b"></script>
+<script src="render.js?v=701da6a606"></script>
+<script src="codepane.js?v=fe22ca6379"></script>
+<script src="templates.js?v=ebeaa2f312"></script>
+<script src="settings.js?v=bdbb011190"></script>
+<script src="testhooks.js?v=8c6cd09241"></script>
+<script src="boot.js?v=e1055b9e21"></script>
 <script src="engine.js?v=87e7f31619"></script>
 </body>
 </html>

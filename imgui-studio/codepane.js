@@ -9,6 +9,12 @@
 // ---------- editing the generated C++ ----------
 
 let codeEditing = false;
+// The C++ this editing session started from, either the last text generated
+// from the canvas or whatever a Reload just pulled in. markCodeStale and the
+// Escape guard below both compare against this rather than against the live
+// document or the live textarea: generating is what changes the document's
+// C++, typing is not, and the two must not be read as the same signal.
+let codeEditSnapshot = '';
 const parseCpp = createParser(WIDGETS, makeNode, colorSlots);
 const codeEl = document.getElementById('code');
 const codeEdit = document.getElementById('codeEdit');
@@ -29,6 +35,7 @@ function setCodeEditing(on) {
   reloadBtn.hidden = true;   // only offered once the document actually moves on
   if (on) {
     codeEdit.value = generateCode();
+    codeEditSnapshot = codeEdit.value;
     paintCodeEditor();
     const gone = generateCode.skipped || [];
     const warned = generateCode.warnings || [];
@@ -64,7 +71,12 @@ function setCodeEditing(on) {
 // Shown when the canvas moved on while the pane was open. Reloading is offered
 // because the alternative, silently overwriting the text, loses C++ edits.
 function markCodeStale() {
-  if (!codeEditing || codeEdit.value === generateCode()) return;
+  // Compares the CURRENT document against the snapshot taken when editing
+  // started, not against codeEdit.value. Comparing to codeEdit.value made the
+  // user's own typing look like a canvas change: type anything, then merely
+  // select a widget (which calls refresh() -> markCodeStale()), and the banner
+  // claimed the document had moved on when only the text field had.
+  if (!codeEditing || generateCode() === codeEditSnapshot) return;
   codeStatus.className = 'err';
   codeStatus.textContent = 'The document changed on the canvas after this C++ was '
     + 'generated. Applying replaces those changes with the text below. '
@@ -107,6 +119,11 @@ applyBtn.onclick = () => {
     + (raws ? `, ${raws} block${raws > 1 ? 's' : ''} kept as raw C++ (preserved, not executed).` : '.')
     + (notes.length ? '\n' + notes.join('\n') : '');
   setCodeEditing(false);
+  // setCodeEditing(false) just hid codeStatus along with the rest of the
+  // editing chrome, in the same tick this wrote the Apply summary into it.
+  // Show it again so the summary and any parser notes are actually readable
+  // under the read-only pane. The next edit session overwrites this text.
+  codeStatus.hidden = false;
 };
 
 function countNodes(list) {
@@ -431,7 +448,18 @@ function handleCodeEditorKey(e) {
     if (e.key === 'Escape') { e.preventDefault(); hideCompletions(); return true; }
   }
 
-  if (e.key === 'Escape') { setCodeEditing(false); e.preventDefault(); return true; }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    // A reflex Escape used to discard typed C++ with no way back. Only ask
+    // when there is actually something to lose, so closing an untouched
+    // editor still takes one keystroke.
+    if (codeEdit.value !== codeEditSnapshot) {
+      askConfirm('Discard the C++ you typed and close the editor?', () => setCodeEditing(false));
+    } else {
+      setCodeEditing(false);
+    }
+    return true;
+  }
   const v = codeEdit.value;
   const s = codeEdit.selectionStart, t = codeEdit.selectionEnd;
 
@@ -508,14 +536,17 @@ function handleCodeEditorKey(e) {
 
 // rebuildProps=false keeps focus in the inspector while typing, and doubles
 // as the history coalescing signal: bursty property edits merge into one
-// undo step, discrete operations each get their own.
-function refresh(rebuildProps = true) {
+// undo step, discrete operations each get their own. `prop` names which field
+// is bursting, so a coalescing caller only merges into an entry left by the
+// SAME field: without it, typing Max then Width on one widget inside a
+// second merged into a single undo step.
+function refresh(rebuildProps = true, prop) {
   renderTree();
   if (rebuildProps) renderProps();
   renderCode();
   pushDoc();
   saveLocal();
-  pushHistory(!rebuildProps);
+  pushHistory(!rebuildProps, prop);
   // The pane holds a snapshot taken when editing started. If the document moves
   // on underneath it, say so: Apply reads the text, so it would otherwise throw
   // away the newer canvas edits without a word.

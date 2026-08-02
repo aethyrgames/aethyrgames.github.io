@@ -15,12 +15,14 @@ let settingsCapture = null;
 let captureWas = null;   // the combo in force before listening started
 
 function openSettings(tab) {
+  rememberFocusBeforeOverlay();
   settingsTab = tab || settingsTab;
   settingsOv.hidden = false;
   renderSettings();
 }
 
 function closeSettings() {
+  const wasOpen = !settingsOv.hidden;
   // Clearing comes first and is unconditional: any path that hid the panel
   // without going through here used to leave a row armed, and reopening showed
   // it still waiting for a key.
@@ -28,6 +30,7 @@ function closeSettings() {
   settingsCapture = null;
   captureWas = null;
   settingsOv.hidden = true;
+  if (wasOpen) restorePreOverlayFocus();
 }
 
 function setRow(label, controlEl) {
@@ -83,7 +86,10 @@ function renderThemeSettings() {
 
   for (const [key, t] of Object.entries(UI_THEMES)) {
     const row = document.createElement('div');
-    row.className = 'set-row themerow' + (key === currentUiTheme ? ' on' : '');
+    const active = key === currentUiTheme;
+    row.className = 'set-row themerow' + (active ? ' on' : '');
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-pressed', String(active));
     const l = document.createElement('span');
     l.textContent = t.name;
     row.appendChild(l);
@@ -289,13 +295,19 @@ const confirmMsg = document.getElementById('confirmMsg');
 let confirmAction = null;
 
 function askConfirm(message, onYes) {
+  rememberFocusBeforeOverlay();
   confirmMsg.textContent = message;
   confirmAction = onYes;
   confirmOv.hidden = false;
   document.getElementById('confirmYes').focus();
 }
 
-function closeConfirm() { confirmOv.hidden = true; confirmAction = null; }
+function closeConfirm() {
+  const wasOpen = !confirmOv.hidden;
+  confirmOv.hidden = true;
+  confirmAction = null;
+  if (wasOpen) restorePreOverlayFocus();
+}
 document.getElementById('confirmNo').onclick = closeConfirm;
 document.getElementById('confirmYes').onclick = () => {
   const run = confirmAction;

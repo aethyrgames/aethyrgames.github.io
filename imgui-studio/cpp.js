@@ -113,6 +113,28 @@ function statementEnd(src, i, to) {
   return to;
 }
 
+// Where a widget call ends once its own semicolon is missing. `closeParen` is
+// the index of the call's closing `)`. `src.indexOf(';', closeParen)` used to
+// stand in for this everywhere a widget call attaches: with no `;` right after
+// the call, that scan ran past the whole next statement and landed on ITS
+// semicolon instead, and the caller then jumped straight there. Everything in
+// between, the next statement included, was never visited by the main loop and
+// so never even became a rawcode node: it was simply gone. Only treat the
+// semicolon as this call's own when nothing but whitespace or a comment sits
+// between the `)` and it. Otherwise stop right after the call and let the
+// normal loop pick up whatever follows, which is what keeps it as raw code
+// instead of silently deleting it.
+function advancePastCall(src, closeParen, to) {
+  let j = closeParen + 1;
+  while (j < to) {
+    const skip = skipToken(src, j, to);
+    if (skip >= 0) { j = skip + 1; continue; }
+    if (/\s/.test(src[j])) { j++; continue; }
+    break;
+  }
+  return j < to && src[j] === ';' ? j + 1 : closeParen + 1;
+}
+
 // Non-braced containers are emitted as a bare Begin/End statement pair rather
 // than an if-block, so their extent has to be found by counting nested pairs.
 const PAIRED = { group: ['BeginGroup', 'EndGroup'], child: ['BeginChild', 'EndChild'] };
@@ -1086,8 +1108,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
         ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
       if (exact) {
         attach(exact, argsText);
-        const semi = src.indexOf(';', i + call[0].length + argsText.length);
-        i = semi >= 0 ? semi + 1 : to;
+        i = advancePastCall(src, i + call[0].length + argsText.length, to);
         continue;
       }
       // Otherwise it's hand-written: a different arity, or a function the
@@ -1111,8 +1132,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
           ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
         if (odd) {
           attach(odd, argsText);
-          const semi = src.indexOf(';', i + call[0].length + argsText.length);
-          i = semi >= 0 ? semi + 1 : to;
+          i = advancePastCall(src, i + call[0].length + argsText.length, to);
           continue;
         }
         // The schema looked at this call and REFUSED it, because an argument was
@@ -1130,14 +1150,12 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
         const aliased = nodeFromAlias(fn, argsText, newId, WIDGETS, makeNode);
         if (aliased) {
           attach(aliased, argsText);
-          const semi = src.indexOf(';', i + call[0].length + argsText.length);
-          i = semi >= 0 ? semi + 1 : to;
+          i = advancePastCall(src, i + call[0].length + argsText.length, to);
           continue;
         }
         if (odd) {
           attach(odd, argsText);
-          const semi = src.indexOf(';', i + call[0].length + argsText.length);
-          i = semi >= 0 ? semi + 1 : to;
+          i = advancePastCall(src, i + call[0].length + argsText.length, to);
           continue;
         }
       }

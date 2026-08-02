@@ -397,7 +397,8 @@ function downloadJson(name, data) {
 }
 
 function exportProject() {
-  downloadJson('imguistudio-panel.json', { v: 2, kind: 'project', doc });
+  const p = projects.find(x => x.id === activeProject);
+  downloadJson('imguistudio-panel.json', { v: 2, kind: 'project', name: (p && p.name) || '', doc });
 }
 
 // Templates get their own file kind so importing one can't be mistaken for
@@ -418,6 +419,11 @@ function exportEverything() {
     layout,
     binds: bindOverrides,
     theme: currentTheme,
+    // the editor's own look, kept apart from `theme` above which is the
+    // generated-code syntax theme
+    uitheme: currentUiTheme,
+    guides,
+    hotbar,
   });
 }
 
@@ -477,6 +483,23 @@ function importPayload(s) {
       lsSet(THEME_KEY, currentTheme);
       applyTheme(currentTheme);
     }
+    // Editor UI theme, guides and the hotbar: exportEverything writes these but
+    // this branch never read them back, so a round trip restored a visibly
+    // different editor than the one exported.
+    if (s.uitheme && UI_THEMES[s.uitheme]) applyUiTheme(s.uitheme);
+    if (Array.isArray(s.guides)) {
+      guides = s.guides.filter(g => g
+        && (g.axis === 'x' || g.axis === 'y') && typeof g.pos === 'number');
+      renderGuides();
+      saveGuides();
+    }
+    if (Array.isArray(s.hotbar)) {
+      s.hotbar.forEach((t, i) => { if (i < hotbar.length) hotbar[i] = t; });
+      saveHotbar();
+      // the sibling restores repaint (applyUiTheme, renderGuides), and without
+      // this one the Pinned row kept its old count until a reload
+      renderPalette();
+    }
     saveTemplates();
     saveProjects();
     renderTemplates();
@@ -484,7 +507,10 @@ function importPayload(s) {
   }
   const d = s.doc || s;
   if (!d || (d.type !== 'root' && d.type !== 'window')) throw new Error('not an ImGuiStudio document');
-  addProject(d.label || 'Imported', d);
+  // s.name is the tab name exportProject saves; d.label only exists when the
+  // document is a lone window, which is why a project export used to come back
+  // as 'Imported' every time
+  addProject(s.name || d.label || 'Imported', d);
   saveProjects();
   return 'opened as a new project';
 }
@@ -592,9 +618,14 @@ async function loadSharedFromUrl() {
   try {
     const payload = await decodeShare(m[1]);
     if (!payload || !payload.doc || (payload.doc.type !== 'root' && payload.doc.type !== 'window')) return false;
-    addProject(payload.doc.label || 'Shared', payload.doc);
+    // A root doc carries no label of its own; its first window usually does,
+    // so two different links don't both land as an unlabeled "Shared".
+    const firstWin = payload.doc.children && payload.doc.children[0];
+    addProject(payload.doc.label || (firstWin && firstWin.label) || 'Shared', payload.doc);
     saveProjects();
-    history.replaceState(null, '', location.pathname + location.search);
+    // window.history, not the bare name: doc.js's undo ring is also called
+    // `history` and, sharing this file's global scope, shadows the browser's.
+    window.history.replaceState(null, '', location.pathname + location.search);
     flashStatus('Opened a shared document as a new project.');
     return true;
   } catch (e) {
@@ -604,10 +635,17 @@ async function loadSharedFromUrl() {
 }
 
 let flashTimer = null;
+// While a flash is showing, updateHoverStatus (canvas.js) declines to overwrite
+// it. Without this the very next mousemove over the canvas replaced the message
+// with plain hover coordinates, so anything said while the pointer was on or
+// heading across the canvas (a template inserted, a paste refusal, a share link
+// opened) lasted a few milliseconds instead of its advertised 6 seconds.
+let flashActive = false;
 function flashStatus(msg) {
   hoverInfoEl.innerHTML = esc(msg);
+  flashActive = true;
   clearTimeout(flashTimer);
-  flashTimer = setTimeout(() => updateHoverStatus(null), 6000);
+  flashTimer = setTimeout(() => { flashActive = false; updateHoverStatus(null); }, 6000);
 }
 
 // One copy path, with a fallback and something said either way.

@@ -76,8 +76,12 @@ function reservedByBrowser(cand) {
 
 function rebind(entry, cand) {
   if (reservedByBrowser(cand)) {
-    return { reason: comboLabel(cand) + ' is reserved by the browser for a new '
-      + (cand.key === 'N' ? 'window' : cand.key === 'T' ? 'tab' : 'window close')
+    // W gets its own shape: Ctrl+W closes the current TAB, not a window, and
+    // "a new window close" read as garbled English when it shared the "a new
+    // ___" template N and T use.
+    const what = cand.key === 'N' ? 'for a new window'
+      : cand.key === 'T' ? 'for a new tab' : 'for closing the tab';
+    return { reason: comboLabel(cand) + ' is reserved by the browser ' + what
       + ', so the key never reaches the page. Pick another combination.' };
   }
   const clash = bindingConflict(entry, cand);
@@ -121,6 +125,19 @@ function isRealEditor(t) {
   return !!t && (t === codeEdit || t.classList && t.classList.contains('longtext'));
 }
 
+// A real <button>/<select>/<a>: something the browser will Tab to on its own,
+// and which owns Enter and Space for its own activation rather than handing
+// them to the keymap.
+function isFocusable(t) {
+  return !!t && t.tagName && (t.tagName === 'BUTTON' || t.tagName === 'SELECT' || t.tagName === 'A');
+}
+
+// Any overlay that owns the whole screen. While one is open, Tab moves between
+// its own controls, never the mode toggle underneath it.
+function isModalOpen() {
+  return !cmdkEl.hidden || !helpEl.hidden || !settingsOv.hidden || !confirmOv.hidden;
+}
+
 // emscripten's GLFW handler preventDefaults Backspace and Tab page-wide, which
 // would make every text field uneditable. This capture listener registers
 // before engine.js loads, so it runs first and shields text-entry targets.
@@ -147,6 +164,14 @@ window.addEventListener('keydown', e => {
   if ((e.key === 'Backspace' || e.key === 'Tab') && isTextEntry(e.target)) {
     e.stopImmediatePropagation();
   }
+  // Everywhere else a real button/select/link, or an open overlay, owns Tab:
+  // without this the engine's GLFW handler preventDefaults it page-wide, and
+  // focus could never leave the body once it landed on a control. Skipped
+  // while a rebind row is armed (`capturing`/`settingsCapture`): Tab is then a
+  // candidate KEY, not navigation, and has to reach the capture listener below.
+  if (e.key === 'Tab' && (isModalOpen() || isFocusable(e.target)) && !capturing && !settingsCapture) {
+    e.stopImmediatePropagation();
+  }
 }, true);
 
 bind('drag', 'Esc', { key: 'Escape' }, 'Cancel the drag', 'Drag', () => cancelDrag());
@@ -167,6 +192,18 @@ bind('edit', 'F', { key: 'F', shift: false }, 'Focus the selection (center it on
   () => focusSelection());
 bind('edit', 'Shift+F', { key: 'F', shift: true }, 'Reset the view to the origin and 100%', 'Navigate',
   () => resetPan());
+// The Windows convention for "open the context menu without a mouse". Screen
+// coordinates from the world rect, the same conversion the canvas's own
+// overlays use, so the menu lands where the widget actually is.
+bind('edit', 'Shift+F10', { key: 'F10', shift: true }, 'Open the context menu for the selection', 'Navigate',
+  () => {
+    const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
+    const r = node && rectFor(node.id);
+    const cr = canvas.getBoundingClientRect();
+    const cx = r ? cr.left + (r.x + r.w / 2 - origin.x) * zoom : cr.left + cr.width / 2;
+    const cy = r ? cr.top + (r.y + r.h / 2 - origin.y) * zoom : cr.top + cr.height / 2;
+    openContextMenu({ clientX: cx, clientY: cy }, node ? widgetMenu(node, false) : backgroundMenu());
+  });
 // Held, not tapped, so the release has to find whichever key currently carries
 // it: peekBinding/modeBinding below look the entry up rather than comparing to a
 // literal. `run` returning nothing means it consumed the key, as usual.
@@ -175,7 +212,13 @@ bind('global', 'Space (hold)', { key: ' ' },
   e => { handleSpaceDown(e); });
 bind('global', 'Tab', { key: 'Tab' },
   'Toggle Edit and Live. Hold past ~200ms to peek Live instead', MODES_CAT,
-  e => { handleTabDown(e); });
+  e => {
+    // Anywhere but body or the canvas, Tab means "move to the next control":
+    // those two are the only places the quasimode still owns the key.
+    const a = document.activeElement;
+    if (a && a !== document.body && a !== canvas) return false;
+    handleTabDown(e);
+  });
 
 bind('edit', '] / [', { key: ']' }, 'Zoom in', 'Navigate', () => zoomStep(1));
 bind('edit', '', { key: '[' }, 'Zoom out', 'Navigate', () => zoomStep(-1));
@@ -246,6 +289,14 @@ bind('global', 'Alt+N', { key: 'N', alt: true }, 'New project', 'Global',
   () => { addProject(); saveProjects(); });
 bind('global', 'Ctrl+K', { key: 'K', ctrl: true }, 'Command palette', 'Global', () => openCmdk('all'));
 bind('global', '?', { key: '?' }, 'Keyboard shortcuts', 'Global', () => toggleHelp());
+// The autosave to localStorage has no keystroke of its own, and Ctrl+S is
+// muscle memory for exactly this tool's audience. Left unbound, the keydown
+// reached the page unclaimed and Chrome's own Save-page dialog opened over the
+// editor. Claiming the combo for the File menu's actual save action, the same
+// way the command palette's own "Export JSON" entry already runs it, means the
+// keystroke now does something instead of merely not breaking.
+bind('global', 'Ctrl+S', { key: 'S', ctrl: true }, 'Export JSON', 'Global',
+  () => document.getElementById('exportBtn').onclick());
 
 window.addEventListener('keydown', e => {
   const t = e.target;
@@ -278,6 +329,11 @@ window.addEventListener('keydown', e => {
   }
   // a focused checkbox keeps Space for its own toggle. Everything else dispatches
   if (t && t.tagName === 'INPUT' && e.key === ' ') return;
+  // A focused button keeps Enter and Space for its own click activation, the
+  // same shape as the checkbox exemption above. Without this, Enter on the
+  // File menu button ran the edit-context Navigate binding instead of opening
+  // the menu, and Space armed the hold-to-test peek instead of clicking.
+  if (t && t.tagName === 'BUTTON' && (e.key === ' ' || e.key === 'Enter')) return;
   // Space and Tab are ordinary keymap entries now, so they fall through to the
   // dispatcher below with everything else.
   // Every modal, not just the two overlays. Settings and the confirm dialog were
@@ -422,11 +478,37 @@ function commandEntries() {
     { label: 'Reset to Sample', run: () => document.getElementById('resetBtn').onclick() },
     { label: 'Reset panel layout', run: () => resetPanelLayout() },
     { label: 'Export JSON', run: () => document.getElementById('exportBtn').onclick() },
+    { label: 'Import JSON', run: () => document.getElementById('importBtn').onclick() },
+    { label: 'Save as template', run: () => saveCurrentAsTemplate() },
+    { label: 'Import templates', run: () => document.getElementById('tplImportBtn').onclick() },
+    { label: 'Export templates', run: () => exportTemplates() },
     { label: 'Copy C++', run: () => copyText(generateCode(), 'C++') },
+    { label: 'Edit C++', run: () => document.getElementById('editCodeBtn').onclick() },
+    { label: 'Apply C++', run: () => document.getElementById('applyCodeBtn').onclick() },
+    { label: 'Copy share link', run: () => document.getElementById('shareBtn').onclick() },
+    { label: 'Settings', run: () => document.getElementById('settingsBtn').onclick() },
+    { label: 'Open tutorial', run: () => openTutorial() },
+    { label: 'New project', k: keyFor('New project'), run: () => { addProject(); saveProjects(); } },
+    { label: 'Next project', run: () => {
+      const i = projects.findIndex(p => p.id === activeProject);
+      if (i >= 0 && projects.length > 1) switchProject(projects[(i + 1) % projects.length].id);
+    } },
+    { label: 'Close project', run: () => closeProject(activeProject) },
+    { label: 'Focus properties', run: () => {
+      const first = document.querySelector('#propbody input, #propbody select, #propbody textarea, #propbody button');
+      (first || document.getElementById('propbody')).focus();
+    } },
+    // One entry per panel, its own label naming what it currently offers, so
+    // searching "panel" finds a way to any of them instead of only the reset.
+    ...Object.entries(layout.panels).map(([key, p]) => ({
+      label: (p.hidden ? 'Show ' : 'Hide ') + (panelEls[key] ? panelEls[key].dataset.title : key) + ' panel',
+      run: () => { p.hidden = !p.hidden; applyLayout(); },
+    })),
   ];
 }
 
 function openCmdk(mode) {
+  rememberFocusBeforeOverlay();
   const inserts = Object.entries(WIDGETS)
     .filter(([, s]) => !s.hidden)
     .map(([type, s]) => ({
@@ -588,20 +670,52 @@ helpInput.addEventListener('keydown', e => {
   e.stopPropagation();
 });
 
+// Mirrors settings.js's own capture listener for settingsCapture. Clicking a
+// row to arm it is a real mouse click, and clicking a non-focusable div moves
+// focus to <body>, so `capturing`'s only
+// reliable route to the next keypress is the window, not helpInput's own
+// keydown handler above. Capture phase and ahead of the dispatcher, so the
+// key can't also fire as a shortcut or leak into the filter box.
+window.addEventListener('keydown', e => {
+  if (captureKey(e)) e.stopImmediatePropagation();
+}, true);
+
+// The element focus should return to once the current overlay closes.
+// Captured on open so Escape, or any other close path, puts the keyboard back
+// where the user left it instead of stranding it on body.
+let preOverlayFocus = null;
+
+function rememberFocusBeforeOverlay() {
+  const a = document.activeElement;
+  preOverlayFocus = (a && a !== document.body) ? a : null;
+}
+
+function restorePreOverlayFocus() {
+  const el = preOverlayFocus;
+  preOverlayFocus = null;
+  if (el && document.contains(el) && typeof el.focus === 'function') el.focus();
+}
+
 function toggleHelp() {
   if (helpEl.hidden) {
+    rememberFocusBeforeOverlay();
     helpEl.hidden = false;
     helpInput.value = '';
     renderHelp();
     helpInput.focus();
   } else {
     helpEl.hidden = true;
+    capturing = null;
+    restorePreOverlayFocus();
   }
 }
 
 function closeOverlays() {
+  const cmdkWasOpen = !cmdkEl.hidden;
+  const helpWasOpen = !helpEl.hidden;
   cmdkEl.hidden = true;
   helpEl.hidden = true;
+  capturing = null;
   if (typeof closeConfirm === 'function') closeConfirm();
   if (typeof closeSettings === 'function') closeSettings();
   // Focus would otherwise stay parked in the now-hidden input, and the
@@ -610,6 +724,7 @@ function closeOverlays() {
   if (document.activeElement === cmdkInput || document.activeElement === helpInput) {
     document.activeElement.blur();
   }
+  if (cmdkWasOpen || helpWasOpen) restorePreOverlayFocus();
 }
 
 cmdkEl.addEventListener('mousedown', e => { if (e.target === cmdkEl) closeOverlays(); });
