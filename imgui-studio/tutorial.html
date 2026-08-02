@@ -62,6 +62,12 @@
     border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px;
     font: inherit; font-size: 12px; color: var(--mk-cyan); white-space: nowrap;
   }
+  /* A control you CLICK, as opposed to a key you press. <kbd> means keyboard
+     input, and using it for button names both misleads a screen reader and
+     trips the check that every <kbd> on this page is a real binding. */
+  b.ui {
+    color: var(--mk-green); font-weight: 600; white-space: nowrap;
+  }
   .note {
     border-left: 3px solid var(--mk-comment); padding: 2px 0 2px 14px;
     margin: 16px 0; color: #cfcfc6;
@@ -71,6 +77,27 @@
   .toc { background: var(--mk-surface); border: 1px solid var(--mk-border);
          border-radius: 4px; padding: 12px 16px; margin: 24px 0; }
   .toc ul { margin: 6px 0 0; }
+  /* Screenshots are shown at their own size where that fits, since most are
+     crops of one panel and blowing them up only makes them blurry. */
+  figure { margin: 20px 0; }
+  figure img {
+    display: block; max-width: 100%; height: auto;
+    border: 1px solid var(--mk-border); border-radius: 4px;
+  }
+  figcaption { color: var(--mk-comment); font-size: 12px; margin-top: 6px; }
+  .shots { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .shots figure { flex: 0 1 auto; margin: 20px 0 0; max-width: 100%; }
+  /* A caption sets its figure's intrinsic width, so an unconstrained one makes
+     the figure as wide as its longest line and pushes everything beside it onto
+     the next row. Cap it near the widest panel crop and the row holds. */
+  .shots figcaption { max-width: 280px; }
+  /* code-pane.png captures the whole panel, and the panel is taller than the
+     code in it, so its lower third is blank background. Crop that off from the
+     bottom rather than scaling the code down until it can't be read. */
+  .cropbottom img {
+    width: 469px; max-width: 100%; height: 660px;
+    object-fit: cover; object-position: top;
+  }
   footer { border-top: 1px solid var(--mk-border); color: var(--mk-comment);
            padding: 20px 24px; max-width: 860px; margin: 0 auto; font-size: 13px; }
 </style>
@@ -87,194 +114,219 @@
 
 <main>
 
-<h1>Building Your First Layout</h1>
-<p class="lead">This page is meant as a walkthrough of ImGui Studio and how to use it. Work through it with the editor open in another tab and you'll come out the other side with a panel you can paste into a real project.</p>
+<h1>Ten Minutes With ImGui Studio</h1>
+<p class="lead">The parts of this tool that don't work like the tools you already know. The editor is a tab away and it opens on a panel you can take apart. Read a section, then go poke at it.</p>
 
-<p>ImGui Studio is a visual builder for <a href="https://github.com/ocornut/imgui">Dear ImGui</a> layouts. You arrange widgets on a canvas and it writes the C++ that draws them. The preview isn't a mockup, it's real Dear ImGui compiled to WebAssembly, so what you see is what your program will draw.</p>
+<p>ImGui Studio is a visual builder for <a href="https://github.com/ocornut/imgui">Dear ImGui</a> layouts. If you already write ImGui by hand you iterate fast enough as it is, with Edit and Continue or a hot-reloaded DLL. <code>ShowStyleEditor</code> covers colors. What you don't have is a document: nothing to hand to someone else, nothing to read in a diff, no way to see a whole panel without running the program. That's the gap this fills, without taking your source hostage. The C++ it writes is ordinary ImGui calls that it reads back again.</p>
 
 <div class="toc">
   <strong>On this page</strong>
   <ul>
-    <li><a href="#blocks">The Three Building Blocks</a></li>
-    <li><a href="#step1">Step 1: Start With a Window</a></li>
-    <li><a href="#step2">Step 2: Add Some Widgets</a></li>
-    <li><a href="#step3">Step 3: Arrange Them</a></li>
-    <li><a href="#step4">Step 4: Set Properties</a></li>
-    <li><a href="#step5">Step 5: Try It Out</a></li>
-    <li><a href="#step6">Step 6: Take the Code</a></li>
-    <li><a href="#further">Going Further</a></li>
-    <li><a href="#keys">Keys Worth Learning</a></li>
-    <li><a href="#saving">Saving and Sharing</a></li>
+    <li><a href="#screen">What's on Screen</a></li>
+    <li><a href="#flow">There Is No X and Y</a></li>
+    <li><a href="#props">Select It, Then Change It</a></li>
+    <li><a href="#live">The Preview Is Real ImGui</a></li>
+    <li><a href="#code">The Code Pane Goes Both Ways</a></li>
+    <li><a href="#saving">Where Your Work Lives</a></li>
+    <li><a href="#next">Keep Going</a></li>
   </ul>
 </div>
 
-<h2 id="blocks">The Three Building Blocks</h2>
+<h2 id="screen">What's on Screen</h2>
 
-<p>To use ImGui Studio, you need to understand three main building blocks:</p>
+<figure>
+  <img src="img/at-rest.png" alt="ImGui Studio on first load, with the palette, hierarchy, and properties panels down the left, the canvas in the middle, and the generated C++ on the right.">
+  <figcaption>First load. Nothing is selected yet.</figcaption>
+</figure>
+
+<p>You start on a sample panel rather than an empty sheet. There's something to change straight away.</p>
 
 <ul>
-  <li>The Document - a tree of windows and widgets. This is the thing you're actually editing, and everything else is a view onto it.</li>
-  <li>The Canvas - the live preview in the middle. Real Dear ImGui draws it every frame from the Document.</li>
-  <li>The Generated Code - the C++ pane. It's regenerated from the Document as you work, and you can edit it and push your changes back the other way.</li>
+  <li>Palette, Hierarchy, Properties, and Templates share the left dock, with Templates starting collapsed. Click any panel's title bar to fold it, or drag that bar to move the panel to another dock.</li>
+  <li>The Generated C++ pane has the right dock to itself.</li>
+  <li>Canvas in the middle, rulers around it, status bar underneath with the zoom stepper in it.</li>
+  <li>The starred Pinned section at the top of the palette is a hotbar. The number in a tile's corner arms that widget. <kbd>Ctrl</kbd>+number pins the selection into that slot.</li>
 </ul>
 
-<p>The Document is the source of truth. The canvas and the code are both derived from it, so a change in either one ends up in the same place.</p>
+<p>Only one of those is the real thing. The Document is a tree of windows and widgets. The canvas and the C++ pane are both drawn from it. Edit either one and you edited the Document, which is why they never disagree. Hold on to that and the rest of this page is mostly consequences.</p>
 
-<h2 id="step1">Step 1: Start With a Window</h2>
+<h2 id="flow">There Is No X and Y</h2>
 
-<p>Every Dear ImGui widget has to live inside a window, so that's where a document starts. Open the "Templates" panel on the left and click "Blank window". You can also add one from the palette: "Window" is the first entry, under the Window category.</p>
+<p>Dear ImGui uses a flow layout. This is the part that trips people up coming from Figma or Qt. Widgets stack top to bottom in the order they appear. A widget has no position of its own. You can't drag a Button into the middle of a window, because there's no field that would remember where you put it. What you control is order, joins, and nesting.</p>
 
-<p>You'll see it appear on the canvas with a title bar you can drag. Drag it wherever you like. The position writes straight back into the Document, so the generated code moves with it.</p>
+<p>Windows are the exception. A window has an x and a y and you drag it by its title bar, with <kbd>Shift</kbd> snapping it to the 20px grid you can see. Everything inside it flows.</p>
+
+<h3>Order</h3>
+
+<p>Drag rows up and down in the Hierarchy, use the <b class="ui">↑</b> <b class="ui">↓</b> buttons on a row, or press <kbd>Ctrl+↑</kbd> and <kbd>Ctrl+↓</kbd>. Order in the tree is order on screen, and tab order too. Drop a row onto a container to reparent it.</p>
+
+<h3>Joins</h3>
+
+<p>Every widget starts a new line unless it's joined to the one above, which is ImGui's <code>SameLine</code>. The sample panel already has one: "Enable turbo" and "Reset" share a row.</p>
+
+<div class="shots">
+  <figure>
+    <img src="img/hierarchy-tree.png" alt="The hierarchy panel showing Document, Window My Panel, and its children, with the Button Reset row highlighted.">
+    <figcaption>The Reset button selected. The <code>⤷</code> on its row means it's joined to the line above.</figcaption>
+  </figure>
+  <div style="flex:1 1 260px; min-width:260px">
+    <p>Click Reset on the canvas and press <kbd>J</kbd>. It drops onto a line of its own. Press <kbd>J</kbd> again and it snaps back up beside the checkbox.</p>
+    <p><kbd>J</kbd> on the first widget in a container does nothing, since there's no line above to join to. The status bar says so when you try.</p>
+  </div>
+</div>
+
+<h3>Nesting</h3>
+
+<p>Containers hold other widgets. Select a few things and press <kbd>Ctrl+G</kbd> to wrap them in a Group, <kbd>Ctrl+Shift+G</kbd> to unwrap. Or drag out a Child Region, a Collapsing Header, a Tab Bar, or a Table and drop widgets into it.</p>
+
+<h3>Dropping Sets All Three at Once</h3>
+
+<p>New widgets come out of the palette. Click a tile to append one to the nearest container that'll take it, or drag it onto the canvas and pick the spot yourself. The indicator under the cursor tells you what the drop will do before you let go.</p>
+
+<figure>
+  <img src="img/palette-drag.png" alt="A Button being dragged from the palette onto the canvas, with a ghost label under the cursor and a line drawn across the Speed slider.">
+  <figcaption>A Button on its way out of the palette. The line across the Speed slider is where it lands.</figcaption>
+</figure>
+
+<ul>
+  <li>A horizontal line means a new line, above or below the widget you're over.</li>
+  <li>Move into a widget's right-hand edge and the line turns vertical. That drops joined onto its row.</li>
+  <li>Hold <kbd>Shift</kbd> and anything you hover takes the join wherever the pointer sits. It's read as you move. You can add or drop it mid-drag.</li>
+  <li>A box around a container means the drop goes inside it.</li>
+</ul>
 
 <div class="note">
-  Note: hold <kbd>Shift</kbd> while dragging a window to snap it to the canvas grid. The grid is the one you can see, so the snap lands where you'd expect.
+  Note: if something isn't where you want it, move it in the tree. There is no position field to go looking for.
 </div>
 
-<h2 id="step2">Step 2: Add Some Widgets</h2>
+<h2 id="props">Select It, Then Change It</h2>
 
-<p>There are three ways to get a widget into your window, and they're worth knowing all three because they suit different moments.</p>
+<p>Click a widget on the canvas or its row in the Hierarchy. It's one selection shown three ways: the canvas outlines it, the tree highlights the row, and the C++ pane marks the lines it produced.</p>
+
+<div class="shots">
+  <figure>
+    <img src="img/widget-selected.png" alt="A button selected on the canvas, with a selection outline and small square resize handles.">
+    <figcaption>The handles show up on a widget that has a width or a height to set.</figcaption>
+  </figure>
+  <figure>
+    <img src="img/inspector-edit.png" alt="The properties panel for the selected button, with its label being changed to Confirm and the SameLine toggle switched on.">
+    <figcaption>The same button, mid-rename.</figcaption>
+  </figure>
+</div>
+
+<p>Properties sits on the left under the Hierarchy. Fields differ per widget. These are the ones worth knowing:</p>
 
 <ul>
-  <li>Drag it from the palette. Grab any widget in the left-hand palette and drop it on the canvas or into the hierarchy. A drop indicator shows you where it will land.</li>
-  <li>Arm a tool, then click. Press <kbd>B</kbd> and your cursor is loaded with a Button. Click on the canvas to stamp one. Press <kbd>B</kbd> again to cycle through the rest of that family (Small button, Arrow button). <kbd>V</kbd> puts you back to selecting. This is the Photoshop tool-letter pattern, so <kbd>T</kbd> is text, <kbd>C</kbd> is checkboxes, <kbd>S</kbd> is sliders, and so on.</li>
-  <li>Use the insert menu. Press <kbd>/</kbd> and type a few letters of what you want. There are 60 widget types and this is the fastest way to reach the long tail of them.</li>
+  <li><strong>Label</strong>, the text drawn on or beside the widget. Double-click it on the canvas, or press <kbd>F2</kbd>, to rename in place.</li>
+  <li><strong>SameLine</strong>, the join from the last section as a toggle. On a container's first widget it reads "nothing to join to" and does nothing.</li>
+  <li><strong>Size</strong> on widgets that carry a width and a height. <strong>Width</strong> is the lighter version for a widget with no size argument of its own, emitted as <code>SetNextItemWidth</code>.</li>
+  <li>A <strong>colors</strong> section at the bottom, listing the ImGui color slots that widget actually uses rather than the whole enum. Overrides come out as matched <code>PushStyleColor</code> and <code>PopStyleColor</code> pairs.</li>
 </ul>
 
-<p>Add a couple of things now, e.g., a Text, a Slider float, and two Buttons. Don't worry about where they land yet.</p>
+<p>A green dot after a field name means you've moved it off its default. The <code>⟲</code> beside it puts that one property back. Windows carry their own set on top: "No Title Bar", "No Resize", "Auto Resize", "Closable", and the size and position they open at.</p>
+
+<h2 id="live">The Preview Is Real ImGui</h2>
+
+<p>The canvas is not a picture of what ImGui would draw. It's Dear ImGui compiled to WebAssembly, drawing your document every frame with the same code your program will run.</p>
+
+<p>Hold <kbd>Space</kbd> and it goes live: sliders drag, checkboxes tick, text fields take a caret. Let go and you're back to editing with the selection you had. Press <kbd>Tab</kbd> to stay in Live mode instead.</p>
+
+<figure>
+  <img src="img/live-mode.png" alt="The app in Live mode, the header hint reading LIVE, widgets respond, and the canvas drawing the document as interactive ImGui.">
+  <figcaption>Live mode. The hint in the header swaps over while it's on.</figcaption>
+</figure>
 
 <div class="note">
-  Note: <kbd>R</kbd> stamps another of whatever you inserted last. When you're laying out a row of similar controls it saves a lot of trips to the palette.
+  Note: whatever you set while poking around is the preview's own state, not the Document. It never reaches your generated code. Drag every slider to the end.
 </div>
 
-<h2 id="step3">Step 3: Arrange Them</h2>
+<h2 id="code">The Code Pane Goes Both Ways</h2>
 
-<p>This is the part that trips people up coming from other UI builders, so it's worth slowing down on.</p>
+<p>The pane on the right regenerates as you work. What it holds is what you'd paste into a project: a state struct with your widget values in it, and a draw function that emits the layout.</p>
 
-<p>Dear ImGui uses a flow layout. Widgets stack top to bottom in the order they appear in the Document, and you don't position them with x and y coordinates. There's no dragging a button to the middle of a window, because the concept doesn't exist. What you control instead is order, nesting, and joins.</p>
+<figure class="cropbottom">
+  <img src="img/code-pane.png" alt="The generated C++ pane, showing a state struct and a draw function, with the selected button's lines marked in the gutter.">
+  <figcaption>The sample panel's C++. The marks down the left are the selected widget's lines.</figcaption>
+</figure>
 
-<ul>
-  <li>Order - drag rows up and down in the hierarchy panel, or use <kbd>Ctrl</kbd>+<kbd>Up</kbd> and <kbd>Ctrl</kbd>+<kbd>Down</kbd>. This is the flow-layout equivalent of nudging something.</li>
-  <li>Joins - by default each widget starts a new line. Select one and press <kbd>J</kbd> to join it onto the same row as the widget above it. That's ImGui's <code>SameLine</code>, and it's how you build a row of buttons.</li>
-  <li>Nesting - containers hold other widgets. Select a few things and press <kbd>Ctrl</kbd>+<kbd>G</kbd> to wrap them in a Group, or drop widgets into a Child, a Collapsing header, a Tab bar, or a Table from the palette.</li>
-</ul>
+<p>A window called Playback holding a Text, a Slider Float, and two Buttons, the second joined to the first, comes out as this:</p>
 
-<p>Try it on the two Buttons you added. Select the second one and press <kbd>J</kbd>. They'll snap onto one row.</p>
+<pre><code>// Generated by ImGuiStudio
 
-<div class="note important">
-  IMPORTANT: order in the hierarchy is the same thing as order on screen, tab order, and z-order. If something isn't where you want it, move it in the tree rather than looking for a position field.
-</div>
-
-<h2 id="step4">Step 4: Set Properties</h2>
-
-<p>Select a widget and the inspector on the right fills in with what you can change about it. The fields differ per widget, but a few show up nearly everywhere:</p>
-
-<ul>
-  <li>Label - the text drawn on or beside the widget. Double-click a widget on the canvas to rename it in place, or press <kbd>F2</kbd>.</li>
-  <li>Same line - the join from Step 3, as a checkbox rather than a keypress.</li>
-  <li>Item width - how wide the widget should be when it has no explicit size of its own.</li>
-  <li>Colors - per-widget overrides for any ImGui color slot. These emit as matched <code>PushStyleColor</code> and <code>PopStyleColor</code> pairs in the generated code.</li>
-</ul>
-
-<p>A window has its own set on top of that, e.g., "No resize", "No title bar", "Auto resize", and the size and position it opens at.</p>
-
-<h2 id="step5">Step 5: Try It Out</h2>
-
-<p>A layout you can't click isn't finished. Hold <kbd>Space</kbd> and the canvas goes live: sliders drag, checkboxes tick, buttons press. Let go and you're back in Edit mode with your selection intact.</p>
-
-<p>Holding is usually what you want, since you're just checking one thing. If you'd rather stay in Live mode, press <kbd>Tab</kbd> to toggle it properly.</p>
-
-<div class="note">
-  Note: the values you set while poking at Live mode are the preview's own state, not part of the Document. They won't end up in your generated code, so feel free to drag every slider to the end.
-</div>
-
-<h2 id="step6">Step 6: Take the Code</h2>
-
-<p>The C++ pane has been keeping up the whole time. What it shows is what you'd paste into a project: a state struct holding your widget values, and a draw function that emits the layout.</p>
-
-<pre><code>struct MyPanelState
+struct PlaybackState
 {
     float volume = 0.0f;
-    bool muted = false;
 };
 
-void DrawMyPanel(MyPanelState&amp; state)
+void DrawPlayback(PlaybackState&amp; state)
 {
     ImGui::SetNextWindowPos(ImVec2(30.0f, 30.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("My Panel");
-    ImGui::SliderFloat("Volume", &amp;state.volume, 0.0f, 1.0f);
-    ImGui::Checkbox("Muted", &amp;state.muted);
+    ImGui::SetNextWindowSize(ImVec2(380.0f, 460.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Playback");
+    ImGui::TextUnformatted("Now playing");
+    ImGui::SliderFloat("Volume", &amp;state.volume, 0.0f, 1.0f, "%.3f");
+    if (ImGui::Button("Play"))
+    {
+        // TODO: play
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Stop"))
+    {
+        // TODO: stop
+    }
     ImGui::End();
 }</code></pre>
 
-<p>You own the struct. Keep one somewhere that outlives a frame, and call the draw function from your frame loop. The generated code doesn't own any state itself, which is what lets you drop it into an existing project without it fighting whatever you already have.</p>
+<p>You own the struct. Keep one somewhere that outlives a frame and call the draw function from your frame loop. The generated code holds no state of its own, which is what lets it land in a project without fighting what's already there. <b class="ui">Copy</b> at the top of the pane takes the lot.</p>
 
-<p>The pane is editable, and that's not a one-way trip. Type C++ into it, press "Apply", and it parses back into the Document. Anything the tool doesn't recognise is kept verbatim rather than thrown away, so hand-written code around your windows survives a round trip.</p>
+<h3>And Back Again</h3>
 
-<div class="note">
-  Note: Apply rewrites the Document from the text, so anything the parser can't represent will be flagged before it commits. Read the warning if you get one, since that's the tool telling you it's about to lose something.
+<p>The pane is read-only until you say otherwise. Press <b class="ui">Edit</b> in its header and the text becomes an editor, with <b class="ui">Apply</b> and <b class="ui">Cancel</b> where <b class="ui">Edit</b> was. Type C++, press Apply, and it parses back into the Document. Cancel throws the edit away.</p>
+
+<p>No other builder does this. Nobody expects it to work. What survives a trip out and back:</p>
+
+<ul>
+  <li>Calls the tool models become widgets.</li>
+  <li>Anything it doesn't model is kept byte for byte as a Raw C++ node in the tree. It's preserved, not executed. The preview shows a placeholder for it.</li>
+  <li>Code above and below your windows is kept. A helper you wrote at the top of the file is still there afterwards.</li>
+  <li>Formatting inside generated blocks is normalized on the way back.</li>
+</ul>
+
+<div class="note important">
+  IMPORTANT: the moment you press Edit, the pane tells you what the round trip would cost. A widget with no valid C++ form, say a Tab Item outside a Tab Bar, is only a comment in the text. Applying deletes it. Read that line before you type.
 </div>
 
-<h2 id="further">Going Further</h2>
+<div class="note">
+  Note: if the canvas moves on while the pane is open, a <b class="ui">Reload</b> button appears. Applying would overwrite those newer changes with the text you're looking at. Reload pulls the current document in instead.
+</div>
 
-<h3>Templates</h3>
+<h2 id="saving">Where Your Work Lives</h2>
 
-<p>The Templates panel ships eight worked examples, and they're the fastest way to see how a feature is meant to be put together. "Show and hide windows" is the one to look at if you want one panel to open another. You can save your own too: build something, then save the current document as a template and it'll be there next time.</p>
-
-<p>Clicking a template's <code>+</code> inserts it into whatever you have selected. Dragging it onto the canvas drops it where you let go.</p>
-
-<h3>Several Windows</h3>
-
-<p>A document can hold as many windows as you like, and each one becomes its own struct and its own draw function. Mark a window "Closable" and it gets a close button plus a bool your code checks before drawing it. Point a Button's "Toggles" property at that window's title and clicking it shows and hides the window.</p>
-
-<h3>Function Containers</h3>
-
-<p>If a window is getting long, wrap a run of widgets in a Function container. It draws nothing of its own, but the generator lifts its contents into a separate <code>static void</code> that takes the same state by reference, and leaves a call behind in its place. It's a way to keep the emitted code readable without changing what it draws.</p>
-
-<h3>Getting Around the Canvas</h3>
+<p>Saved in the browser as you go, and the tab strip above the canvas holds several projects at once. Nothing is uploaded anywhere. Switching projects starts a fresh undo stack. <kbd>Ctrl+Z</kbd> can't reach back into a document you left.</p>
 
 <ul>
-  <li>Pan - drag with the middle mouse button, or hold <kbd>Ctrl</kbd>+<kbd>Alt</kbd> and drag with the left.</li>
-  <li>Zoom - <kbd>]</kbd> and <kbd>[</kbd>, or the control in the status bar. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> fits the whole document in view and <kbd>Shift</kbd>+<kbd>F</kbd> puts you back at the origin at 100%.</li>
-  <li>Guides - drag one out of any ruler to line things up. Double-click a guide to remove it.</li>
-</ul>
-
-<p>Windows can sit at negative coordinates, so you can spread a multi-window layout out in any direction and the sheet will follow you.</p>
-
-<h2 id="keys">Keys Worth Learning</h2>
-
-<p>Press <kbd>?</kbd> in the editor for the full list, which is searchable and always current. Every key is rebindable from the same overlay. These are the ones that pay for themselves fastest:</p>
-
-<ul>
-  <li>Space (hold) - peek at Live mode, release to snap back.</li>
-  <li>J - toggle the SameLine join on the selection.</li>
-  <li>/ - insert menu, filtered over all 60 widget types.</li>
-  <li>Ctrl+K - command palette, for anything without a dedicated key.</li>
-  <li>Enter and Esc - descend into a container, and back out of one.</li>
-  <li>Up and Down - walk between siblings. Add <kbd>Ctrl</kbd> to move the selection instead of the cursor.</li>
-  <li>Ctrl+G - wrap the selection in a Group. Add <kbd>Shift</kbd> to unwrap one.</li>
-  <li>F - centre the selection on screen when you've lost it.</li>
-  <li>Ctrl+Z - undo. Structural edits are easy to fire by accident, so this one gets used a lot.</li>
-</ul>
-
-<h2 id="saving">Saving and Sharing</h2>
-
-<p>Your work is saved in the browser as you go, and the tab strip along the top holds several projects at once with an undo stack each. Nothing is uploaded anywhere.</p>
-
-<ul>
-  <li>Export JSON - writes the whole document to a file you can check into a repo.</li>
-  <li>Import JSON - reads one back.</li>
-  <li>Share - packs the document into a link. The document travels in the URL itself, so whoever opens it gets your layout without anything being stored on a server.</li>
+  <li><strong>File &gt; Export JSON</strong> writes the document to a file you can commit. <strong>Import JSON</strong> reads one back.</li>
+  <li><strong>Share</strong>, top right, copies a link with the document packed into the URL. Nothing is stored on a server.</li>
+  <li><strong>File &gt; Reset to Sample</strong> puts the starting panel back. It asks before discarding what's there. <kbd>Ctrl+Z</kbd> undoes it anyway.</li>
 </ul>
 
 <div class="note">
-  Note: because the browser is doing the saving, clearing site data for this domain clears your projects with it. Export anything you'd be sad to lose.
+  Note: because the browser does the saving, clearing site data for this domain clears your projects with it. Export anything you'd be sad to lose.
 </div>
 
-<h2>Where to Go Next</h2>
+<h2 id="next">Keep Going</h2>
 
-<p>The best next step is to open a template that's close to what you're building and take it apart. Check out "Property inspector" and "Menus and dialogs" for the two shapes most tools end up needing.</p>
+<p>The fastest way to learn a feature here is to open the template that uses it and pull it apart.</p>
 
-<p>We're still iterating on this, so some corners are rougher than others. The <kbd>?</kbd> overlay renders from the same table the app dispatches on, which makes it the accurate answer whenever this page and the editor disagree.</p>
+<ul>
+  <li><strong>Templates</strong> ships eight worked examples. Click a name, or its <code>＋</code>, to insert it into the nearest container that'll take it. Drag it onto the canvas to place it instead.</li>
+  <li>"Show and Hide Windows" and "Debug Overlay" bring windows of their own. They land at the document root whatever you had selected. They're also the two to read if you want one panel to open another.</li>
+  <li><strong>File &gt; Save as Template</strong> puts something you built into the same list.</li>
+  <li><kbd>?</kbd> opens the shortcut list, built from the same table the app dispatches on. Click any row to rebind it.</li>
+  <li><kbd>Ctrl+K</kbd> is the command palette for anything without a key. <kbd>/</kbd> opens the same picker filtered over all 60 widget types, which is how you reach the long tail.</li>
+</ul>
+
+<p>Some corners are rougher than others. If the editor and this page ever disagree, the editor is right.</p>
 
 </main>
 

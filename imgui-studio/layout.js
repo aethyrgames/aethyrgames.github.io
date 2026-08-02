@@ -126,10 +126,10 @@ function applyLayout() {
     el.querySelector('.tw').textContent = p.collapsed ? '▸' : '▾';
     el.style.flexGrow = p.collapsed ? '' : String(p.grow || 1);
     const dock = docks[p.dock] || docks.left;
-    // a splitter between neighbours, so a dock's panels can be resized rather
+    // a splitter between neighbors, so a dock's panels can be resized rather
     // than being stuck at their equal share
     // A collapsed panel is a title bar with nothing to resize, and
-    // startPanelResize looks its neighbour up in a list that EXCLUDES collapsed
+    // startPanelResize looks its neighbor up in a list that EXCLUDES collapsed
     // panels. Putting a splitter next to one made the two lists disagree, so a
     // seam next to a collapsed panel resized a different pair than the one it
     // sat between. Only expanded panels get a seam now, which is also what the
@@ -199,7 +199,7 @@ function startPanelResize(e, dock, belowEl) {
 }
 
 // Drag a panel header to any edge. The zone is picked by which edge the cursor
-// is nearest, normalised so a short window's top and bottom compete fairly with
+// is nearest, normalized so a short window's top and bottom compete fairly with
 // a wide window's left and right.
 let panelDrag = null;
 const dropzone = document.getElementById('dropzone');
@@ -361,13 +361,13 @@ for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right'],
     const startW = layout.size[side];
     const move = ev => {
       const at = vertical ? ev.clientY : ev.clientX;
-      // top and left grow as the cursor moves away from the origin; the far
+      // top and left grow as the cursor moves away from the origin. The far
       // sides grow as it moves back toward it
       const delta = (side === 'left' || side === 'top') ? at - startX : startX - at;
       // A flat 760 cap in isolation. The opposite dock was never consulted, so
       // on a 1280-wide window one splitter could take 760 while the other still
       // held its 150 minimum and the canvas was squeezed to 370 and then to
-      // nothing. clampDockSizes already knows the budget both docks share; this
+      // nothing. clampDockSizes already knows the budget both docks share. This
       // asks it the same question, for this axis only.
       const other = side === 'left' ? 'right' : side === 'right' ? 'left'
         : side === 'top' ? 'bottom' : 'top';
@@ -524,12 +524,12 @@ function contentExtent(tight) {
   return { w: b.maxX - Math.min(0, b.minX), h: b.maxY - Math.min(0, b.minY) };
 }
 
-// Quantised, because the size is derived from the live rects: dragging a window
+// Quantized, because the size is derived from the live rects: dragging a window
 // changes the extent every frame, and resizing the surface every frame makes the
 // preview strobe. Rounding up to a step means the surface only changes when the
 // content crosses a boundary, and it never shrinks while a gesture is running.
 const CANVAS_STEP = 256;
-const quantise = v => Math.ceil(v / CANVAS_STEP) * CANVAS_STEP;
+const quantize = v => Math.ceil(v / CANVAS_STEP) * CANVAS_STEP;
 // Standing room to the left of and above the content. See syncCanvasSize for
 // why this is not just tidiness: it is what keeps the origin still while a
 // press is being taken.
@@ -560,7 +560,7 @@ function syncCanvasSize() {
   // every gesture a margin of slack up front meant a drag in positive space still
   // shifted the sheet, and the surface was rebuilt every few frames. The cost is
   // that the frame on which content first crosses zero can clip by a pixel or two
-  // before the next poll; anything PLACED at a negative position is covered before
+  // before the next poll. Anything PLACED at a negative position is covered before
   // it is ever drawn, which is what matters.
   const gesture = !!(drag || resizing || wasMovingWindow || wasResizingWindow
     || armedWindowDrag);
@@ -591,8 +591,8 @@ function syncCanvasSize() {
     Math.max(0, -b.minX, -viewLeft) + CANVAS_MARGIN + reserve);
   const needY = Math.max(EDGE_SLACK,
     Math.max(0, -b.minY, -viewTop) + CANVAS_MARGIN + reserve);
-  let ox = -quantise(needX);
-  let oy = -quantise(needY);
+  let ox = -quantize(needX);
+  let oy = -quantize(needY);
   // Never contract mid-gesture: the surface moving under a drag is a jump. This
   // has to include an ImGui-driven window drag, where our own `drag` is null.
   // Without it the slack came and went with the engine's moving flag, the origin
@@ -606,8 +606,8 @@ function syncCanvasSize() {
   // directly left the sheet short by -ox on the right and bottom, which is a
   // dead strip 512px wide where the canvas element simply is not, so
   // canvasPoint().inside was false and clicks there did nothing at all.
-  const wantW = Math.max(visW - ox, quantise(Math.max(b.maxX, viewRight) - ox + CANVAS_MARGIN));
-  const wantH = Math.max(visH - oy, quantise(Math.max(b.maxY, viewBottom) - oy + CANVAS_MARGIN));
+  const wantW = Math.max(visW - ox, quantize(Math.max(b.maxX, viewRight) - ox + CANVAS_MARGIN));
+  const wantH = Math.max(visH - oy, quantize(Math.max(b.maxY, viewBottom) - oy + CANVAS_MARGIN));
   let w = Math.min(CANVAS_MAX, Math.max(64, wantW));
   let h = Math.min(CANVAS_MAX, Math.max(64, wantH));
   // hold the larger size while dragging or resizing, so a shrinking extent
@@ -677,7 +677,7 @@ function rulerMarkerPos(horiz) {
 }
 
 // Per-ruler record of the ticks the last draw emitted, keyed by canvas id, so a
-// test can assert the world values rather than counting coloured pixels.
+// test can assert the world values rather than counting colored pixels.
 const lastRulerTicks = {};
 
 function drawRulers() {
@@ -760,7 +760,7 @@ function renderGuides() {
   guides.forEach((gd, i) => {
     const el = document.createElement('div');
     el.className = 'guide ' + (gd.axis === 'x' ? 'gx' : 'gy');
-    // the position is a world coordinate; the layer is the host, which does not
+    // the position is a world coordinate. The layer is the host, which does not
     // pan, so the offset is applied here and the line spans ruler to ruler
     if (gd.axis === 'x') el.style.left = (gd.pos * zoom + pan.x) + 'px';
     else el.style.top = (gd.pos * zoom + pan.y) + 'px';
@@ -837,7 +837,7 @@ canvasHost.addEventListener('mousemove', e => {
   // WORLD, which is what the readout and the ruler marker both mean by it.
   // It used to hold (clientX - canvasRect.left), which is surface*zoom: neither
   // the origin subtracted nor the zoom divided out. With the origin at 0 that
-  // was invisible at 100%; once the sheet gained standing slack the readout was
+  // was invisible at 100%. Once the sheet gained standing slack the readout was
   // 512 out at every zoom, and drawRulers multiplied it by zoom a second time.
   lastPointer = { clientX: e.clientX, clientY: e.clientY };
   const p = canvasPoint(e);

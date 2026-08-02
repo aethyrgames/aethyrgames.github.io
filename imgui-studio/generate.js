@@ -70,7 +70,7 @@ function generateCode() {
   const uniqName = (node, spec) => {
     // Radio buttons in one group deliberately share a backing variable. The
     // shared name still goes through the counter once, so an unrelated widget
-    // labelled the same can't end up declaring a second field of that name.
+    // labeled the same can't end up declaring a second field of that name.
     if (spec.fieldName) {
       const g = spec.fieldName(node);
       if (!groupNames.has(g)) groupNames.set(g, claim(camel(g, node.type)));
@@ -91,7 +91,7 @@ function generateCode() {
     // and was silently truncated to `Item` on the first Apply.
     //
     // The result still has to be UNUSED. A user is told to write `##` to tell
-    // same-labelled widgets apart, so someone typing "Item##dup2" collided head
+    // same-labeled widgets apart, so someone typing "Item##dup2" collided head
     // on with the suffix this mints for the second "Item", and the two widgets
     // shared one ImGui id: same state, same activation.
     let out = c === 1 ? s : s + '##dup' + c;
@@ -153,13 +153,13 @@ function generateCode() {
       for (let k = ownFrom; k < out.length; k++) if (!owners[k]) owners[k] = node.id;
     };
 
-    // Colour pushes wrap the whole widget, and for a container they wrap its
+    // Color pushes wrap the whole widget, and for a container they wrap its
     // Begin/End pair because values like ChildBg are read at Begin time.
     //
     // Computed HERE, above the section branch, rather than below it. It used to
-    // sit after the branch's own return, so a Function container's colours were
+    // sit after the branch's own return, so a Function container's colors were
     // silently dropped from the generated C++ while the engine pushed them for
-    // the preview: the canvas drew red, the built app drew grey, and Apply then
+    // the preview: the canvas drew red, the built app drew gray, and Apply then
     // dropped node.colors from the document for good.
     const cols = Object.entries(node.colors || {})
       .filter(([slot]) => colorSlots(node.type).includes(slot));
@@ -181,12 +181,24 @@ function generateCode() {
       // The label, verbatim, on the definition line. A Function container's
       // label only survived inside the uniquified function name, so two
       // containers both called "Side" came back as "Side" and "Side2", and any
-      // label that pascal-ises lossily ("read/write" -> "ReadWrite") came back
+      // label that pascal-izes lossily ("read/write" -> "ReadWrite") came back
       // changed. The comment is the only lossless carrier the C++ has.
       const fnLabel = String(node.label ?? '');
       const start = out.length;
       const kids = node.children || [];
-      for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, parentType, inTabbar);
+      // A menu bar is only legal directly on the window (line 140, and the
+      // window's own flags below only look at ITS DIRECT children). Passing
+      // `parentType` straight through kept a section transparent to that
+      // check too: a menu bar nested in a Function container that sits on the
+      // window saw parentType === 'window' and skipped the "must be direct"
+      // guard, so it generated a live BeginMenuBar() on a window that never
+      // got ImGuiWindowFlags_MenuBar, which returns false at runtime and
+      // drops the whole menu with no warning. `section` only makes a
+      // difference to that one check (it is the only place that reads
+      // `parentType === 'window'`). Table-cell advancement and everything
+      // else still sees the real ambient parentType through unchanged.
+      const kidParentType = parentType === 'window' ? 'section' : parentType;
+      for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, kidParentType, inTabbar);
       const lines = out.splice(start);
       const lineOwners = owners.splice(start, lines.length);
       helpers.push({ id: node.id, fnName, fnLabel, lines, owners: lineOwners });
@@ -221,7 +233,7 @@ function generateCode() {
     //
     // A WARNING, not a skip. `skipped` means "this widget has no valid C++ form
     // and Apply will remove it", and the code pane says exactly that. The button
-    // emits perfectly good C++ and survives Apply intact; only the toggles name
+    // emits perfectly good C++ and survives Apply intact. Only the toggles name
     // is lost. Counting it as skipped told people a widget was about to be
     // deleted when nothing was.
     if (node.type === 'button' && node.toggles && !curToggleRef(node.toggles)) {
@@ -367,7 +379,7 @@ function generateCode() {
       // a newline split the comment and left the rest of the label as a bare
       // statement between the signature and its opening brace, which does not
       // compile. The inspector's label field is single-line, so this only
-      // arrives through an imported project or a #d= share link — which are
+      // arrives through an imported project or a #d= share link, which are
       // exactly the untrusted inputs sanitize() exists for.
       const oneLine = String(h.fnLabel ?? '').replace(/\s+/g, ' ').trim();
       head.push(`static void ${h.fnName}(${base}State& state${curHelperParams})`
@@ -388,7 +400,7 @@ function generateCode() {
     if (win.w > 0 || win.h > 0) {
       head.push(`    ImGui::SetNextWindowSize(ImVec2(${f(win.w)}, ${f(win.h)}), ImGuiCond_FirstUseEver);`);
     }
-    // Window colours have to be pushed before Begin: WindowBg and the title-bar
+    // Window colors have to be pushed before Begin: WindowBg and the title-bar
     // slots are read while the window is being opened, not while it is filled.
     const winCols = Object.entries(win.colors || {})
       .filter(([slot]) => colorSlots('window').includes(slot));
@@ -410,7 +422,7 @@ function generateCode() {
     // Take the header lines that belong inside the guard BEFORE opening it.
     // Doing it afterwards could never match: the last line was the guard's own
     // `{`, so the loop stopped immediately and every SetNextWindowPos and
-    // PushStyleColor stayed outside. A hidden window then pushed style colours
+    // PushStyleColor stayed outside. A hidden window then pushed style colors
     // it never popped, because the matching PopStyleColor is inside, and its
     // SetNextWindowPos leaked onto whichever window opened next.
     const guarded = [];

@@ -39,17 +39,17 @@ function setCodeEditing(on) {
     // announce that a widget had no valid C++ form and would be removed.
     codeStatus.className = gone.length ? 'err' : '';
     codeStatus.textContent = 'Editing the C++. Apply parses it back into the document; '
-      + 'anything not recognised as a widget is preserved verbatim and shown as a '
-      + 'placeholder. Formatting inside generated blocks is normalised on the way back.'
+      + 'anything not recognized as a widget is preserved verbatim and shown as a '
+      + 'placeholder. Formatting inside generated blocks is normalized on the way back.'
       + (gone.length
         ? `\nHeads up: ${lost} widget${lost > 1 ? 's' : ''} ${lost > 1 ? 'have' : 'has'} `
-          + `no valid C++ form (${gone.map(s => s.type + ' — ' + s.reason).join('; ')}). `
+          + `no valid C++ form (${gone.map(s => s.type + ' - ' + s.reason).join('; ')}). `
           + `${lost > 1 ? 'They are' : 'It is'} only ${lost > 1 ? 'comments' : 'a comment'} `
           + `here, so applying will remove ${lost > 1 ? 'them' : 'it'}.`
         : '')
       + (warned.length
         ? '\nAlso: ' + warned.map(s => s.type
-          + (s.label ? ` "${s.label}"` : '') + ' — ' + s.reason).join('; ') + '.'
+          + (s.label ? ` "${s.label}"` : '') + ' - ' + s.reason).join('; ') + '.'
         : '');
     codeEdit.focus();
     runCodeIntel();
@@ -62,7 +62,7 @@ function setCodeEditing(on) {
 }
 
 // Shown when the canvas moved on while the pane was open. Reloading is offered
-// because the alternative — silently overwriting the text — loses C++ edits.
+// because the alternative, silently overwriting the text, loses C++ edits.
 function markCodeStale() {
   if (!codeEditing || codeEdit.value === generateCode()) return;
   codeStatus.className = 'err';
@@ -145,7 +145,7 @@ codeEdit.addEventListener('scroll', () => {
 
 // ---------- lint, signature hint and completion ----------
 // The point of all three is that this pane is where you hand-write C++ that has
-// to survive Apply. Everything unrecognised is preserved, so these read as
+// to survive Apply. Everything unrecognized is preserved, so these read as
 // advice rather than as gates: nothing here blocks applying.
 
 const lintEl = document.getElementById('codeLint');
@@ -182,7 +182,7 @@ function renderLint() {
   const warns = lintDiags.filter(d => d.level === 'warn').length;
   applyBtn.textContent = errs ? `Apply (${errs} error${errs > 1 ? 's' : ''})` : 'Apply';
   applyBtn.title = errs
-    ? 'Applies anyway: anything that cannot be read as a widget is kept verbatim.'
+    ? 'Applies anyway. Anything that cannot be read as a widget is kept verbatim.'
     : 'Parse this C++ back into the document';
   if (!lintDiags.length) {
     const ok = document.createElement('div');
@@ -240,7 +240,7 @@ function jumpToCodeLine(line) {
   const end = v.indexOf('\n', at);
   codeEdit.focus();
   codeEdit.setSelectionRange(at, end < 0 ? v.length : end);
-  // centre the line rather than leaving it against an edge
+  // center the line rather than leaving it against an edge
   const lh = lineHeightOf();
   codeEdit.scrollTop = Math.max(0, (line - 1) * lh - codeEdit.clientHeight / 2);
   paintCodeEditor();
@@ -300,7 +300,7 @@ function splitSigArgs(text) {
 function updateCompletions() {
   if (!codeEditing) return hideCompletions();
   // Only after `ImGui::` or `state.` while typing. Offering something for every
-  // three-letter word would put a popup over the code constantly; Ctrl+Space is
+  // three-letter word would put a popup over the code constantly. Ctrl+Space is
   // there for when you do want it on a bare word.
   const hit = completionAt(codeEdit.value, codeEdit.selectionStart,
     { sigs: IMGUI_SIGS, bare: false });

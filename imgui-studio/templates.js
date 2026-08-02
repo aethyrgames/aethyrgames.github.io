@@ -25,7 +25,7 @@ function builtinTemplates() {
   const defs = [
     ['Blank window', () => []],
 
-    // Function containers, units, per-widget width, a colour override, a modal
+    // Function containers, units, per-widget width, a color override, a modal
     ['Settings dialog', () => [
       sec('Display', [
         tn('checkbox', { label: 'Fullscreen' }),
@@ -331,7 +331,7 @@ function renderTemplates() {
       + 'Drag it onto the canvas to place it, or up and down this list to reorder. '
       + 'Right-click to open it as its own project.';
     // Guarded the way the hierarchy rows are. This was a bare onclick, so an
-    // aborted reorder drag — press, move a few pixels, release on the same row —
+    // aborted reorder drag (press, move a few pixels, release on the same row)
     // also inserted the template.
     n.onclick = () => { if (!listDragMoved) insertTemplateInHost(t); };
     row.appendChild(n);
@@ -568,10 +568,10 @@ async function buildShareLink() {
 async function copyShareLink() {
   try {
     const url = await buildShareLink();
-    // copyText says whether it worked; only add what is specific to a link, and
+    // copyText says whether it worked. Only add what is specific to a link, and
     // only when it DID work. This ran unconditionally, so a failed clipboard
     // write flashed "could not reach the clipboard" and was immediately painted
-    // over with "Link copied" — the one message that is definitely false.
+    // over with "Link copied", the one message that is definitely false.
     const ok = await copyText(url, 'Share link');
     if (ok && url.length > 1800) {
       flashStatus(`Link copied (${url.length} characters, `

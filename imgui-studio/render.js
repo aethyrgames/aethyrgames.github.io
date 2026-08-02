@@ -127,7 +127,7 @@ function renderPalette() {
     if (!open) continue;
     for (const [type, spec] of entries) host.appendChild(paletteButton(type, spec));
   }
-  // both buttons stay put; each is dead when it has nothing left to do
+  // both buttons stay put. Each is dead when it has nothing left to do
   const sections = CATEGORIES.concat(['★ Pinned']);
   palCollapseAll.disabled = !sections.some(c => paletteSectionOpen(c));
   palExpandAll.disabled = sections.every(c => paletteSectionOpen(c));
@@ -323,7 +323,7 @@ window.addEventListener('keydown', e => {
 }, true);
 
 // ---------- context menus ----------
-// Items carry a group id and an order; the renderer sorts by them and inserts a
+// Items carry a group id and an order. The renderer sorts by them and inserts a
 // separator wherever the group changes. That gives deterministic ordering,
 // automatic separators, and destructive-last for free.
 
@@ -401,7 +401,14 @@ function docsItem(type) {
 }
 
 function cppSnippet(node) {
-  const saved = JSON.stringify(doc.children);
+  // The reference, not a JSON copy: renderProps' live editors close over the
+  // actual node objects (`inp.oninput = () => { node[key] = inp.value; ... }`),
+  // so restoring through JSON.parse handed doc.children back a tree of FRESH
+  // clones. The inspector kept editing the old, now-orphaned objects, and
+  // every edit after a snippet copy was silently thrown away. Holding the
+  // reference, like templateCode in testhooks.js does, keeps the nodes the
+  // inspector is bound to the same ones that end up back in doc.children.
+  const saved = doc.children;
   const savedSel = selectedId;
   // generateCode only walks WINDOWS, so handing it a bare widget as the root
   // produced no windows at all and every "Copy C++ snippet" returned the file
@@ -411,7 +418,7 @@ function cppSnippet(node) {
     ? [clone]
     : [Object.assign(makeNode('window'), { id: 'snip', label: 'Snippet', children: [clone] })];
   const code = generateCode();
-  doc.children = JSON.parse(saved);
+  doc.children = saved;
   selectedId = savedSel;
   const body = code.split('\n');
   const a = body.findIndex(l => l.includes('ImGui::Begin('));
@@ -524,7 +531,7 @@ function unwrapThenDelete(id) {
   // else there on the next load. Splicing a window's children up into the root
   // therefore looked like it worked and silently threw the whole window away on
   // reload. There is nowhere for them to go, so the entry does the plain delete
-  // it can actually honour and says so.
+  // it can actually honor and says so.
   if (parent === doc) {
     parent.children.splice(idx, 1);
     selectId(parent.children[0] ? parent.children[0].id : null);
@@ -868,7 +875,7 @@ function pascalType(type) {
   return titleCase(spec.name).replace(/[\s-]+/g, '');
 }
 
-// Property keys are camelCase identifiers; the panel shows them as words.
+// Property keys are camelCase identifiers. The panel shows them as words.
 // A property can mean something different on one widget than everywhere else,
 // so a type-scoped entry wins over the shared one.
 function helpFor(type, key) {
@@ -898,11 +905,11 @@ function renderProps() {
 
   // Unreal puts a small revert arrow beside anything that differs from its
   // default. It reads as "this one was touched" without needing a second
-  // colour, and it undoes exactly that property rather than the last action.
+  // color, and it undoes exactly that property rather than the last action.
   const addField = (labelText, input, isSet, restore, help) => {
     const l = document.createElement('label');
     l.textContent = labelText;
-    // the name itself when there is nothing better, so an ellipsised label is
+    // the name itself when there is nothing better, so an ellipsized label is
     // still readable on hover
     l.title = help || labelText;
     if (help && (input.title === undefined || !input.title)) input.title = help;
@@ -965,7 +972,7 @@ function renderProps() {
   }
   const byKey = Object.fromEntries(propDefs.map(p => [p[0], p]));
 
-  // One editor for one property. Numeric ones honour the range and unit their
+  // One editor for one property. Numeric ones honor the range and unit their
   // spec declares, so a width can't go negative and a duration says "s".
   // marked with its prop key, so beginInlineEdit can fall back to the Label
   // field when the preview published no rect for the widget
@@ -1106,7 +1113,7 @@ function renderProps() {
       'Puts this widget on the same row as the one before it, via ImGui::SameLine().');
   }
 
-  // ---- colour overrides ----
+  // ---- color overrides ----
   const slots = colorSlots(node.type);
   if (!slots.length) return;
   const overridden = slots.filter(s => node.colors && node.colors[s]).length;
@@ -1138,7 +1145,7 @@ function renderProps() {
       const clr = document.createElement('button');
       clr.className = 'unset';
       clr.textContent = 'unset';
-      clr.title = 'Stop overriding this colour';
+      clr.title = 'Stop overriding this color';
       clr.onclick = () => {
         delete node.colors[slot];
         if (!Object.keys(node.colors).length) delete node.colors;
@@ -1177,7 +1184,7 @@ const SLOT_DEFAULTS = {
 const defaultHexFor = slot => SLOT_DEFAULTS[slot] || '#cccccc';
 
 function renderCode() {
-  // while the code pane is being edited it owns the document; regenerating
+  // while the code pane is being edited it owns the document. Regenerating
   // under the user's cursor is the two-writer race the research warns about
   if (codeEditing) return;
   document.getElementById('code').innerHTML = highlightOwned(generateCode(), generateCode.owners);

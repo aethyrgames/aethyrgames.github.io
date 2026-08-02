@@ -64,12 +64,12 @@ let origin = { x: 0, y: 0 };
 // made before the engine was ready is still delivered once it is.
 let sentOrigin = { x: 0, y: 0 };
 // Zoom is part of the same transform. Everything that positions in world
-// coordinates lives inside #viewport and so scales with it for free; the pieces
+// coordinates lives inside #viewport and so scales with it for free. The pieces
 // that don't (the rulers, the guides, the ground grid) apply the factor
 // themselves, and canvasPoint divides by it so the rest of the app keeps
 // working in world units either way.
 let zoom = 1;
-// assigned once the header control exists; applyView runs before that during init
+// assigned once the header control exists. applyView runs before that during init
 let zoomLabel = null;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
@@ -171,7 +171,7 @@ function zoomToFit() {
   const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX,
     Math.min((host.width - pad * 2) / ext.w, (host.height - pad * 2) / ext.h)));
   zoom = z;
-  // Centre the content's MIDDLE, not world 0,0. The extent is a size, and
+  // Center the content's MIDDLE, not world 0,0. The extent is a size, and
   // using it as if it were a position dropped the -minX term, so a document
   // reaching into negative space was fitted off the top-left by exactly
   // minX*zoom, which is the one case the negative-space work exists for.
@@ -181,7 +181,7 @@ function zoomToFit() {
   applyView();
 }
 
-// Centre the selection in the visible area. Only useful once the document is
+// Center the selection in the visible area. Only useful once the document is
 // bigger than the canvas, which is exactly when you can't find things.
 function focusSelection() {
   let r = selectedId && rectFor(selectedId);
@@ -510,9 +510,9 @@ function updateDropIndicator(drop) {
   const r = rectFor(drop.anchorId);
   if (!r) return;
   // World units, not screen pixels. This element lives inside the scaled
-  // viewport, so a literal 2 was 0.5px on screen at 25% zoom — an indicator you
-  // could not see while dragging — and an 8px slab at 400%. The selection
-  // outline already counter-scales in CSS; the thickness here is set in JS, so
+  // viewport, so a literal 2 was 0.5px on screen at 25% zoom (an indicator you
+  // could not see while dragging) and an 8px slab at 400%. The selection
+  // outline already counter-scales in CSS. The thickness here is set in JS, so
   // it has to do the same arithmetic.
   const thick = 2 / zoom;
   const inset = 1 / zoom;
@@ -574,7 +574,7 @@ function updateMarquee() {
     if (n === doc || n.type === 'window') return;
     const r = rectFor(n.id);
     if (!r) return;
-    // Containers only when fully enclosed; a marquee that merely clips one
+    // Containers only when fully enclosed. A marquee that merely clips one
     // descends into it and takes the children instead.
     if (isContainer(n)) { if (encloses(r)) hits.add(n.id); }
     else if (overlaps(r)) hits.add(n.id);
@@ -634,8 +634,8 @@ canvas.addEventListener('pointerup', e => {
 });
 
 // The other half of the same problem. GLFW's mouseup listener is on the canvas,
-// so a release that lands anywhere else — another element, outside the window,
-// or an alt-tab mid-drag — never reaches ImGui. It then believes the button is
+// so a release that lands anywhere else (another element, outside the window,
+// or an alt-tab mid-drag) never reaches ImGui. It then believes the button is
 // still held, and every later click is ignored, because ImGui only activates a
 // widget when the press began on it. The preview goes quietly dead.
 // Mirroring the release onto the canvas costs nothing when it is already up.
@@ -806,7 +806,7 @@ canvas.addEventListener('contextmenu', e => {
 // This is what the mouseup path wants, and it is what `cancelDrag` used to be:
 // the name says cancel but every completed drag ends here too. Teaching the old
 // one to restore a dragged window therefore put the window back on every
-// successful drag — it followed the pointer the whole way and snapped home the
+// successful drag. It followed the pointer the whole way and snapped home the
 // instant you let go.
 function endDrag() {
   drag = null;
@@ -824,7 +824,7 @@ function endDrag() {
 // Escape, and only Escape. Ends the gesture AND puts back what it moved.
 //
 // A window drag lives inside ImGui rather than in `drag`, so backing out has to
-// restore the document position and make ImGui let go as well — otherwise the
+// restore the document position and make ImGui let go as well. Otherwise the
 // next frame re-places the window from `mouse - grabOffset` and the restore is
 // never visible. Gated on wasMovingWindow so a stale snapshot from an earlier
 // press cannot yank a window that is sitting still.
@@ -841,7 +841,7 @@ function cancelDrag() {
 }
 
 // ---------- inline label editing ----------
-// Double-click, Enter or F2 to enter; Enter or click-away commits; Esc reverts.
+// Double-click, Enter or F2 to enter. Enter or click-away commits, and Esc reverts.
 // Labels are single-line, so Enter can commit without ambiguity.
 const inlineEl = document.getElementById('inlineEdit');
 let inlineId = null;
@@ -917,7 +917,7 @@ document.addEventListener('mousemove', e => {
     if (!node) { resizing = null; return; }
     // Stop short of 0: that is ImGui's auto-size sentinel, so dragging onto it
     // makes the widget jump back to its natural size instead of getting small.
-    // Zero stays reachable from the inspector, where it is labelled.
+    // Zero stays reachable from the inspector, where it is labeled.
     // Divided by zoom, because these are world-space fields. A client-pixel
     // delta added straight to node.w/h/x/y made the grip run at 1/zoom: zoomed
     // out the edge crawled behind the cursor, zoomed in it raced ahead.
@@ -951,7 +951,7 @@ document.addEventListener('mousemove', e => {
       node.y = y;
       node.h = Math.max(MIN_DRAG_SIZE, h);
     }
-    // The engine has to see every step so the preview tracks the cursor; the
+    // The engine has to see every step so the preview tracks the cursor. The
     // panels and the generated C++ can wait for the next frame, and the undo
     // entry and the save wait for mouseup.
     pushDoc();
@@ -968,7 +968,7 @@ document.addEventListener('mousemove', e => {
   if (drag) {
     // A mouseup lost to focus stealing would leave a started drag armed forever.
     // Synthetic click sequences (test drivers, extensions) can emit buttons=0
-    // moves between down and up, so only started drags cancel here; blur and
+    // moves between down and up, so only started drags cancel here. Blur and
     // Escape cover the un-started case.
     // endDrag: a lost mouseup means the gesture is OVER, not that the user
     // asked to back out of it. Routing it through cancelDrag threw away a window
@@ -1032,14 +1032,14 @@ document.addEventListener('mouseup', e => {
   }
   // One branch, not two. The `!d.drop` case used to fall through to addNode and
   // throw the drop POINT away, and computeDropTarget returns null for empty
-  // canvas because the document root publishes no rect — so dropping a Window
+  // canvas because the document root publishes no rect. Dropping a Window
   // on empty space, which is the normal way to place one, always lost the
   // position it was dropped at. Only a release outside the canvas has no point.
   if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly) {
     const at = canvasPoint(e);
     // The HOST rect, not at.inside. `inside` is measured against the canvas
     // ELEMENT, a 4096px surface carrying a slab of off-screen slack whose box
-    // runs on underneath the docked panels — so a release over the palette or
+    // runs on underneath the docked panels. So a release over the palette or
     // the inspector reported inside:true and the new window was placed at a
     // negative coordinate, behind the panel, where it cannot be seen or grabbed.
     const host = canvasHost.getBoundingClientRect();
@@ -1159,7 +1159,7 @@ function setLiveMode(live) {
   const hint = document.getElementById('modeHint');
   hint.classList.toggle('livehint', live);
   hint.innerHTML = live
-    ? '<b>LIVE</b> — widgets respond'
+    ? '<b>LIVE</b>: widgets respond'
     : 'hold <b>' + comboLabel(peekEntry() || { key: ' ' }) + '</b> to test interaction';
   if (live) disarm();
   if (engineReady) Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);

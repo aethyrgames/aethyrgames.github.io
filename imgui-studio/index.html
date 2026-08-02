@@ -8,10 +8,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Every UI colour goes through these twelve slots plus four neutrals, so a
+  /* Every UI color goes through these twelve slots plus four neutrals, so a
      theme is a table of values rather than a stylesheet. Doki (Monokai, ported
      from dougfessler.com) is written here so the app has a look before any
-     script runs; UI_THEMES in the script takes over from there. */
+     script runs. UI_THEMES in the script takes over from there. */
   :root {
     --mk-bg:      #1e1e1e;
     --mk-surface: #2d2d2d;
@@ -30,7 +30,7 @@
        hover wash is invisible on white */
     /* mixed from the foreground so the grid inverts with the theme */
     --mk-canvas: #101010;
-    --mk-head: #111111;      /* panel headers; setThemeVars recomputes per theme */
+    --mk-head: #111111;      /* panel headers, recomputed per theme by setThemeVars */
     --mk-grid-minor: color-mix(in srgb, var(--mk-fg) 6%, transparent);
     --mk-grid-major: color-mix(in srgb, var(--mk-fg) 13%, transparent);
 
@@ -283,7 +283,7 @@
   }
   .set-row .spacer { flex: 1; }
   /* A key chip should look like a key: raised off the row, readable, and using
-     the theme's own foreground rather than its comment grey. */
+     the theme's own foreground rather than its comment gray. */
   .set-row .k {
     color: var(--mk-fg); font-size: 11px; font-weight: 600;
     background: color-mix(in srgb, var(--mk-fg) 12%, var(--mk-gutter));
@@ -313,7 +313,7 @@
   }
   .revert:hover { color: var(--mk-cyan); }
   /* Selects get the theme rather than the platform: native ones ignore the
-     colour scheme entirely and look pasted on. */
+     color scheme entirely and look pasted on. */
   #settingsBody select, .paltools select, #codehead select, #propbody select {
     -webkit-appearance: none; appearance: none;
     background-color: var(--mk-gutter); color: var(--mk-fg);
@@ -468,7 +468,7 @@
   .row button:hover { color: var(--mk-fg); }
 
   /* The column is sized to the longest label, so these do not wrap. Anything
-     longer that turns up later ellipsises rather than silently going to two
+     longer that turns up later ellipsizes rather than silently going to two
      lines, and the full text is on the tooltip. */
   #propbody label {
     color: var(--mk-comment); font-size: 12px; line-height: 1.25;
@@ -495,7 +495,7 @@
   #propbody .empty { grid-column: 1 / -1; color: var(--mk-comment); padding: 6px 0; }
   #propbody .empty::before { content: '// '; }
 
-  /* ---- properties: sections, a real toggle, readable colour rows ---- */
+  /* ---- properties: sections, a real toggle, readable color rows ---- */
   .prophead {
     grid-column: 1 / -1; display: flex; align-items: center; gap: 6px;
     margin: 10px 0 2px; color: var(--mk-green); font-size: 10px;
@@ -541,7 +541,7 @@
   .numwrap:has(.unit) input { padding-right: 26px; }
 
   .colorrow { display: flex; align-items: center; gap: 6px; }
-  /* the swatch is the control, so the colour fills it edge to edge and the
+  /* the swatch is the control, so the color fills it edge to edge and the
      border is the only chrome */
   .colorrow input[type=color] {
     width: 28px; height: 20px; padding: 0; border: 1px solid var(--mk-border);
@@ -574,8 +574,8 @@
   }
   #propbody .revert:hover { color: var(--mk-cyan); }
 
-  /* The native checkbox only honours accent-color, which leaves its box the
-     platform's grey on every theme. Drawn from scratch it can match. */
+  /* The native checkbox only honors accent-color, which leaves its box the
+     platform's gray on every theme. Drawn from scratch it can match. */
   input[type=checkbox] {
     -webkit-appearance: none; appearance: none; margin: 0;
     width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;
@@ -591,9 +591,9 @@
   }
   input[type=checkbox]:focus-visible { outline: 1px solid var(--mk-cyan); outline-offset: 1px; }
 
-  /* the old toolbar row is gone; its actions live in the menu bar now */
+  /* the old toolbar row is gone. Its actions live in the menu bar now */
 
-  /* Rulers frame the canvas; the canvas itself fills whatever is left, and the
+  /* Rulers frame the canvas. The canvas itself fills whatever is left, and the
      wasm surface is resized to match rather than being a fixed box. */
   /* minmax(0, 1fr), not 1fr: a bare fr track floors at its content's min-content
      width, which is the canvas's explicit pixel size, so shrinking the window
@@ -625,7 +625,7 @@
   #rulerRight { border-left: 1px solid var(--mk-border); cursor: ew-resize; }
   /* The ground and the grid are painted here rather than by the engine. A
      repeating background has no edges, so the grid carries on for as far as you
-     can pan; the wasm surface only ever covered the visible box. Tinting from
+     can pan. The wasm surface only ever covered the visible box. Tinting from
      --mk-fg means it inverts with the theme for free: light lines on a dark
      ground, dark lines on a light one. */
   #canvashost {
@@ -639,9 +639,9 @@
     background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
   }
   #canvashost.nogrid { background-image: none; }
-  /* origin at the top-left, not the default centre: the pan is a world offset
+  /* origin at the top-left, not the default center: the pan is a world offset
      and the zoom has to scale about the same corner, or content slides sideways
-     as it scales and no anchor maths can hold a point still */
+     as it scales and no anchor math can hold a point still */
   #viewport { position: absolute; inset: 0; will-change: transform; transform-origin: 0 0; }
   /* transparent, so the ground above shows through everywhere the panel isn't */
   #canvas { background: transparent; outline: none; display: block; }
@@ -695,10 +695,10 @@
   }
   #ctxmenu .mi:hover { background: var(--mk-hover); }
   #ctxmenu .mi.danger { color: var(--mk-pink); }
-  /* --mk-fg at 65%, not --mk-comment. The comment colour is tuned to recede
+  /* --mk-fg at 65%, not --mk-comment. The comment color is tuned to recede
      against the EDITOR background, and against the lighter popup surface it
-     fell under 4.5:1 on several shipped themes — on the one surface where the
-     text is a key you are meant to read and memorise. */
+     fell under 4.5:1 on several shipped themes. That is the one surface where
+     the text is a key you are meant to read and memorize. */
   #ctxmenu .mi .k {
     margin-left: auto; font-size: 11px;
     color: color-mix(in srgb, var(--mk-fg) 82%, transparent);
@@ -796,7 +796,7 @@
   }
   /* Highlighting while editing: a highlighted <pre> sits under a transparent
      <textarea>. Both use identical metrics so the glyphs line up exactly, and
-     the textarea keeps real caret, selection, undo and IME behaviour. */
+     the textarea keeps real caret, selection, undo and IME behavior. */
   #codeEditWrap { flex: 1; position: relative; min-height: 0; overflow: hidden; }
   #codeEditHl, #codeEdit {
     position: absolute; inset: 0; margin: 0; padding: 12px;
@@ -876,13 +876,13 @@
     padding: 1px 7px; cursor: pointer; font-family: var(--font); font-size: 11px;
     line-height: 1.5; white-space: nowrap;
   }
-  /* Neighbours overlap by their shared border rather than one of them dropping
+  /* Neighbors overlap by their shared border rather than one of them dropping
      it. Removing the left border left the middle and right buttons with only
-     three sides lit on hover, since there was no left edge to colour. */
+     three sides lit on hover, since there was no left edge to color. */
   #zoomctl button + button { margin-left: -1px; }
   #zoomctl button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
   #zoomctl button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-  /* the hovered one draws its whole outline over its neighbour's edge */
+  /* the hovered one draws its whole outline over its neighbor's edge */
   #zoomctl button:hover {
     color: var(--mk-cyan); border-color: var(--mk-cyan);
     position: relative; z-index: 1;
@@ -938,7 +938,7 @@
   #palette button.armedbtn { color: var(--mk-green); border-color: var(--mk-green); }
 
   /* ---- menu bar ---- */
-  /* Desktop-menu behaviour: a click opens, and once something is open, hover
+  /* Desktop-menu behavior: a click opens, and once something is open, hover
      moves between menus without another click. That is what every OS menu bar
      does and what people expect the moment a bar exists. */
   #menubar { display: flex; align-items: stretch; gap: 1px; height: 100%; }
@@ -1053,7 +1053,7 @@
     <span class="spacer"></span>
     <span id="modeHint">hold <b>Space</b> to test interaction</span><!-- key filled in from the binding -->
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
-    <button class="headbtn" id="resetViewBtn" title="Recentre the canvas (Shift+F)">Reset view</button>
+    <button class="headbtn" id="resetViewBtn" title="Recenter the canvas (Shift+F)">Reset view</button>
   </div>
   <div id="menupop"></div>
 
@@ -1128,7 +1128,7 @@
         <canvas class="ruler" id="rulerLeft"></canvas>
         <div id="canvashost">
           <!-- everything in canvas space lives in #viewport, so panning is one
-               transform and the coordinate maths below never has to know -->
+               transform and the coordinate math below never has to know -->
           <div id="viewport">
             <canvas id="canvas" tabindex="0"></canvas>
             <div id="selboxes"></div>
@@ -1239,22 +1239,22 @@
     </div>
   </div>
 
-<script src="widgets.js?v=fe21af24db"></script>
+<script src="widgets.js?v=514f9c47bb"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=f43a68143e"></script>
-<script src="codeintel.js?v=294cc56a88"></script>
-<script src="doc.js?v=1a7a31fd6c"></script>
-<script src="canvas.js?v=62025b45d7"></script>
-<script src="keys.js?v=0d906d4e43"></script>
-<script src="generate.js?v=e4997480c7"></script>
-<script src="theme.js?v=0aaf87ef41"></script>
-<script src="layout.js?v=5d2d3a1eaa"></script>
-<script src="render.js?v=43c22ab183"></script>
-<script src="codepane.js?v=6d2013ad73"></script>
-<script src="templates.js?v=8e4cb1ee8d"></script>
-<script src="settings.js?v=f07c6a427f"></script>
-<script src="testhooks.js?v=af10d682fd"></script>
+<script src="cpp.js?v=dd5bb10f87"></script>
+<script src="codeintel.js?v=f0f4d02887"></script>
+<script src="doc.js?v=07595d6f15"></script>
+<script src="canvas.js?v=d5209748b7"></script>
+<script src="keys.js?v=4616c6affe"></script>
+<script src="generate.js?v=3564689795"></script>
+<script src="theme.js?v=41ea6ff05b"></script>
+<script src="layout.js?v=3b5888e2b2"></script>
+<script src="render.js?v=ed0054dc79"></script>
+<script src="codepane.js?v=ef834ec2b1"></script>
+<script src="templates.js?v=3d5784aaa6"></script>
+<script src="settings.js?v=9f49df64f5"></script>
+<script src="testhooks.js?v=e8641c60f2"></script>
 <script src="boot.js?v=7b864eac76"></script>
-<script src="engine.js?v=3a21d765bb"></script>
+<script src="engine.js?v=87e7f31619"></script>
 </body>
 </html>

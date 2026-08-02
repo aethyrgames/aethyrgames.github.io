@@ -87,7 +87,7 @@ window.__test = {
   projects: () => projects.map(p => ({ id: p.id, name: p.name, active: p.id === activeProject })),
   addProject: (name, d) => addProject(name, d).id,
   switchProject: id => switchProject(id),
-  // n counts every node including the window; insertable is what a click would
+  // n counts every node including the window. insertable is what a click would
   // actually add, which is the window's children and can be zero
   templates: () => templates.map(t => ({
     name: t.name, builtin: !!t.builtin, n: countNodes(t.doc.children),
@@ -130,7 +130,7 @@ window.__test = {
   },
   // reads the live value out of the engine, so live-mode interaction can be
   // asserted rather than eyeballed
-  // ImGui works in surface pixels; reported in world units so it can be compared
+  // ImGui works in surface pixels. Reported in world units so it can be compared
   // with a document coordinate
   imguiMouse: () => (engineReady ? {
     x: Module.ccall('engine_mouse_x', 'number', [], []) + origin.x,
@@ -162,8 +162,14 @@ window.__test = {
   addGuideAt: (axis, pos) => { guides.push({ axis, pos }); renderGuides(); },
   clearGuides: () => { guides.length = 0; renderGuides(); saveGuides(); },
   // the whole keymap, and a rebind through the same path the settings rows use
+  // `label` is the app's OWN comboLabel, not a reconstruction. The tutorial
+  // check used to rebuild the chord string from the raw fields with its own
+  // glyph table, which said 'Up' where KEY_GLYPHS says '↑'. So a page quoting
+  // exactly what the user sees on screen was reported as teaching a key that
+  // does not exist. A mirror that drifts is the defect this suite exists for.
   keymap: () => KEYMAP.map(b => ({ id: b.id, ctx: b.ctx, cat: b.cat, help: b.help,
-    key: b.key, ctrl: !!b.ctrl, alt: !!b.alt, shift: !!b.shift })),
+    key: b.key, ctrl: !!b.ctrl, alt: !!b.alt, shift: !!b.shift,
+    label: comboLabel(b) })),
   // Press every binding in the table through the real dispatcher, with each
   // run() swapped for a recorder so nothing actually happens. What this proves
   // is ROUTING: a binding that sits in the table and can never fire, because
@@ -185,8 +191,8 @@ window.__test = {
         // Lower-cased, because that is what an unshifted letter key actually
         // delivers. rebind() stores letters uppercased, so dispatching b.key
         // verbatim compares 'J' against 'J' and sails past keyMatches' case
-        // normalisation without ever exercising it. The whole defect class this
-        // probe exists for is a key that normalises on the way in and not on the
+        // normalization without ever exercising it. The whole defect class this
+        // probe exists for is a key that normalizes on the way in and not on the
         // way out, and sending the canonical form cannot see it.
         const asTyped = b.key.length === 1 ? b.key.toLowerCase() : b.key;
         for (let i = 0; i < Math.max(1, claimants) && !row.fired; i++) {
@@ -308,11 +314,11 @@ window.__test = {
   // `applied` matters as much as `same`.
   //
   // Apply catches a parser throw and returns WITHOUT touching the document
-  // (app/codepane.js:83, which is right — never blank the canvas on a bad
-  // parse). So a caller that only compares generated code to what it fed in is
-  // comparing a document against itself: `same` is true precisely because
+  // (app/codepane.js:83, which is right, since blanking the canvas on a bad
+  // parse would be worse). So a caller that only compares generated code to
+  // what it fed in is comparing a document against itself. `same` is true because
   // nothing happened. Proved with a mutation that made parseCpp throw on every
-  // call — twelve other checks went red and this one stayed green.
+  // call. Twelve other checks went red and this one stayed green.
   roundTrip: () => {
     const before = generateCode();
     setCodeEditing(true);

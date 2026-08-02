@@ -55,7 +55,7 @@ function ctxOverlaps(a, b) {
 }
 
 // Two bindings may share a key when their contexts overlap AND they sit in the
-// same category — then the key cycles between them. Sharing across categories
+// same category. The key then cycles between them. Sharing across categories
 // is refused: the same key meaning unrelated things is the confusing case.
 function bindingConflict(entry, cand) {
   for (const b of KEYMAP) {
@@ -67,7 +67,7 @@ function bindingConflict(entry, cand) {
 
 // Combos the browser keeps for itself. The keydown never reaches the page, so a
 // binding on one of these is dead on arrival and the shortcut lists advertise a
-// key that does nothing. Ctrl+N shipped that way; this stops the next one being
+// key that does nothing. Ctrl+N shipped that way. This stops the next one being
 // hand-picked from Settings.
 const RESERVED = new Set(['N', 'T', 'W']);
 function reservedByBrowser(cand) {
@@ -124,7 +124,7 @@ function isRealEditor(t) {
 // emscripten's GLFW handler preventDefaults Backspace and Tab page-wide, which
 // would make every text field uneditable. This capture listener registers
 // before engine.js loads, so it runs first and shields text-entry targets.
-// Default actions (the actual typing) still happen; only later listeners stop.
+// Default actions (the actual typing) still happen. Only later listeners stop.
 // Registered ahead of everything else: while a shortcut row is listening,
 // Escape cancels that and nothing else. It used to race the overlay handlers
 // and sometimes closed the whole panel instead.
@@ -163,7 +163,7 @@ bind('edit', 'Esc', { key: 'Escape' }, 'Disarm, else ascend to parent, else dese
   if (armed) { disarm(); return; }
   ascend();
 });
-bind('edit', 'F', { key: 'F', shift: false }, 'Focus the selection (centre it on screen)', 'Navigate',
+bind('edit', 'F', { key: 'F', shift: false }, 'Focus the selection (center it on screen)', 'Navigate',
   () => focusSelection());
 bind('edit', 'Shift+F', { key: 'F', shift: true }, 'Reset the view to the origin and 100%', 'Navigate',
   () => resetPan());
@@ -276,7 +276,7 @@ window.addEventListener('keydown', e => {
     }
     return;
   }
-  // a focused checkbox keeps Space for its own toggle; everything else dispatches
+  // a focused checkbox keeps Space for its own toggle. Everything else dispatches
   if (t && t.tagName === 'INPUT' && e.key === ' ') return;
   // Space and Tab are ordinary keymap entries now, so they fall through to the
   // dispatcher below with everything else.
@@ -325,7 +325,7 @@ window.addEventListener('keydown', e => {
     const matches = KEYMAP.filter(b => b.ctx === ctx && keyMatches(e, b));
     if (!matches.length) continue;
     // Several bindings may legitimately share a key within one category, so
-    // repeated presses cycle through them; a lone binding behaves as before.
+    // repeated presses cycle through them. A lone binding behaves as before.
     if (matches.length > 1) {
       const sig = ctx + '|' + comboLabel(matches[0]);
       const now = Date.now();
@@ -359,7 +359,7 @@ function modeEntry() { return bindingFor('Toggle Edit and Live'); }
 // The live combo for a command, found by the start of its help text.
 //
 // The command palette, the menu bar, both context menus and the palette badges
-// all printed hardcoded strings — 'Ctrl+Z', 'Tab', 'F2' — so a rebind left every
+// all printed hardcoded strings ('Ctrl+Z', 'Tab', 'F2'), so a rebind left every
 // one of them advertising a key that no longer did anything, and Ctrl+N was
 // advertised in three places while being unreachable in all of them. This is the
 // one resolver they all go through. '' when nothing matches, so a renamed
@@ -372,7 +372,7 @@ function keyFor(helpPrefix) {
 // rebind() stores a letter uppercased, which is what keyMatches compares
 // against. The three raw `e.key === b.key` compares here did not, so rebinding
 // either hold gesture to a letter produced a key that engaged and never
-// released. Same normalisation, one place.
+// released. Same normalization, one place.
 function eventKey(e) { return e.key && e.key.length === 1 ? e.key.toUpperCase() : e.key; }
 
 function isPeekKey(e) {
@@ -501,7 +501,7 @@ function renderHelp() {
   // moment either was rebound. They are ordinary Modes entries in KEYMAP now and
   // the loop below covers them like everything else.
   const rows = [];
-  // Every binding gets its own row, labelled from its live combo. Hiding the
+  // Every binding gets its own row, labeled from its live combo. Hiding the
   // second half of a pair behind a hand-written "Up / Down" left it unlistable
   // and unrebindable, and the static label went stale the moment either half
   // was rebound.

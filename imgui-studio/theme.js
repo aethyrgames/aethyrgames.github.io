@@ -7,7 +7,7 @@
 
 // ---------- highlight themes ----------
 // Token slots: com str kw type const num support supfn macro fn cls param op field.
-// "Doki" is ported from the user's ReSharper Dark .icls (Rider scheme); its
+// "Doki" is ported from the user's ReSharper Dark .icls (Rider scheme). Its
 // values were confirmed against Rider screenshots by sampling pixels.
 // Themes with no distinct member color use their foreground for `field`.
 const THEMES = {
@@ -86,7 +86,7 @@ const THEMES = {
 // ---------- UI themes ----------
 // The chrome, not the code pane: those are separate settings because you may
 // well want a dark editor around a light snippet, or the reverse. Each theme
-// fills the same twelve colour slots plus the four neutrals, and `dark: false`
+// fills the same twelve color slots plus the four neutrals, and `dark: false`
 // flips the neutral washes so hover and veil stay visible on a light ground.
 
 const UI_THEME_KEY = 'imguistudio.uitheme';
@@ -102,7 +102,7 @@ const UI_THEMES = {
   // aethyr.gg's "Arcane Terminal": cyan is the primary presence, magenta is
   // disruption, violet is depth, ember is the rare warm anomaly. Values taken
   // from that site's own :root, with two tints derived to fill slots its
-  // four-colour palette doesn't cover.
+  // four-color palette doesn't cover.
   aethyr: {
     name: 'Aethyr (Arcane Terminal)',
     bg: '#0b0c1a', surface: '#1c1f3a', gutter: '#070710', fg: '#e8ecff',
@@ -302,7 +302,7 @@ function applyTheme(key) {
     'c-macro': t.macro, 'c-fn': t.fn, 'c-class': t.cls, 'c-param': t.param, 'c-op': t.op,
     'c-field': t.field || t.fg,
   };
-  // the edit layer is the same highlighter, so it takes the same colours
+  // the edit layer is the same highlighter, so it takes the same colors
   const rules = [
     '#code, #codeEditHl { background: ' + t.bg + '; color: ' + t.fg + '; }',
     '#codeEditWrap { background: ' + t.bg + '; }',

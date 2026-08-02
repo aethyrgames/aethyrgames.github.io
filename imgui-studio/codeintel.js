@@ -6,7 +6,7 @@
 // looks for the mistakes that actually happen when you hand-edit this file:
 // brackets that never close, a missing semicolon, a misspelled ImGui call, and a
 // Text() whose format string is a variable. Anything it can't explain is left
-// alone rather than guessed at, since Apply preserves unrecognised code anyway.
+// alone rather than guessed at, since Apply preserves unrecognized code anyway.
 
 const LINT_MAX = 60;
 
@@ -273,7 +273,7 @@ function lintCpp(src, opts) {
   // ---- statements that look like they lost a semicolon ----
 
   // The innermost brace still open at line i, described by the text that
-  // introduced it. An enum body and an aggregate initialiser are LISTS: their
+  // introduced it. An enum body and an aggregate initializer are LISTS: their
   // last entry carries no semicolon and never should. A function body is a
   // BLOCK, where a statement before the closing brace really is missing one.
   // Without this distinction the heuristic flagged the last enumerator and the
@@ -322,7 +322,7 @@ function lintCpp(src, opts) {
     // a wrapped argument list or expression continues on the next line
     if (/[-+*/%&|<>=!,(?]$/.test(text)) continue;
     // ...and a line STARTING with a continuation is the tail of the one above.
-    // Constructor initialiser lists and wrapped ternaries live here, and both
+    // Constructor initializer lists and wrapped ternaries live here, and both
     // were being reported as missing a semicolon. The arithmetic, stream and
     // comparison operators are here because a wrapped expression continuing
     // with any of them had its HEAD line reported and a semicolon inserted in
@@ -342,7 +342,7 @@ function lintCpp(src, opts) {
     if (/^(struct|class|namespace|enum|template|using|typedef|return)\b/.test(text)) {
       if (!/^return\b/.test(text)) continue;
     }
-    // the last entry of an enum body or an aggregate initialiser, which is
+    // the last entry of an enum body or an aggregate initializer, which is
     // complete as written. `struct` and `class` are NOT lists: their members do
     // end in semicolons, so a member without one is a real error.
     if (next.startsWith('}')) {
@@ -396,14 +396,14 @@ function lintCpp(src, opts) {
 const LEVEL_ORDER = { error: 0, warn: 1, info: 2 };
 
 // Calls the generator writes as scaffolding rather than as a widget of its own,
-// so pointing them out as "not modelled" would be noise.
+// so pointing them out as "not modeled" would be noise.
 const STRUCTURAL = new Set(['Begin', 'End', 'SetNextWindowPos', 'SetNextWindowSize',
   'PushStyleColor', 'PopStyleColor', 'SetNextItemWidth', 'SameLine',
   'TableNextColumn', 'TableNextRow', 'EndChild', 'EndGroup', 'EndTable',
   'EndTabBar', 'EndTabItem', 'EndMenu', 'EndMenuBar', 'EndCombo', 'EndListBox',
   'EndPopup', 'EndTooltip', 'TreePop', 'PopID', 'PushID',
   // The generator writes these itself for every Popup and Modal, and the parser
-  // rebuilds the widget from them. Calling them "not modelled" told the user
+  // rebuilds the widget from them. Calling them "not modeled" told the user
   // their own popup would come back as a raw C++ block, which is the opposite
   // of what happens.
   'OpenPopup', 'CloseCurrentPopup', 'BeginPopup', 'BeginPopupModal',

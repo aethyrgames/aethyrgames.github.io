@@ -89,7 +89,7 @@ function detach(id) {
 // drop = { parentId, index, sameline? }
 //
 // `sameline` is three-valued on purpose. The canvas drop path decides join or
-// new-line from where the pointer landed and says so; the hierarchy drop path
+// new-line from where the pointer landed and says so. The hierarchy drop path
 // is only reordering rows and has no opinion. Treating "absent" as "false"
 // meant dragging a joined widget up one row in the Hierarchy silently dropped
 // its SameLine, which is a document change nobody asked for.
@@ -211,7 +211,7 @@ function moveSelectionTo(id, drop) {
   for (const n of nodes) detach(n.id);
   let at = Math.max(0, Math.min(drop.index - before, parent.children.length));
   for (const n of nodes) {
-    // only the leading node follows the drop's join; the rest keep the joins
+    // only the leading node follows the drop's join. The rest keep the joins
     // they had to each other. Same three-valued rule as insertAt.
     if ('sameline' in drop && n === nodes[0]) {
       if (drop.sameline) n.sameline = true; else delete n.sameline;
@@ -291,7 +291,16 @@ function resetHistory() {
 function restoreSnapshot(entry) {
   const s = JSON.parse(entry.docStr);
   doc.children = s.doc.children;
-  for (const [k] of WIDGETS.window.props) doc[k] = s.doc[k];
+  // The root's own fields, not the window's: `doc` is a root, and the
+  // WIDGETS.window.props loop this replaced was leftover from when doc was a
+  // window. It copied fifteen window keys (label/x/y/w/h/...) onto a root that
+  // has none of them, and never touched `pre`/`post`, which are the root's
+  // actual fields. Apply is the only writer of those two (codepane.js), and it
+  // calls refresh() -> pushHistory(), so hand-written file-scope C++ set via
+  // Apply was silently destroyed by an Undo that landed on a snapshot from
+  // before it existed.
+  if (typeof s.doc.pre === 'string') doc.pre = s.doc.pre; else delete doc.pre;
+  if (typeof s.doc.post === 'string') doc.post = s.doc.post; else delete doc.post;
   nextId = s.nextId;
   selectedId = entry.sel;
   if (selectedId && selectedId !== 'root' && !findNode(selectedId)) selectedId = null;
@@ -363,7 +372,7 @@ function selectedNodes() {
   return out;
 }
 
-// With a single window the widgets are what you are navigating; the window
+// With a single window the widgets are what you are navigating. The window
 // itself is scaffolding. Descend through it so the arrows land where expected.
 function navRoot() {
   const wins = doc.children.filter(n => n.type === 'window');
@@ -421,7 +430,7 @@ function dropAfterSelection() {
   return { parentId: r.id, index: r.children.length };
 }
 
-// The structure verbs are bound and labelled as selection verbs, so they act on
+// The structure verbs are bound and labeled as selection verbs, so they act on
 // the whole selection. Grouping by parent first keeps each list's splices
 // independent, which is what lets a selection spanning containers work at all.
 function byParent(nodes) {
@@ -639,7 +648,7 @@ function computeNextId() {
 // field's maxLength and coerce reads it when a document is loaded, so what you
 // can type is exactly what survives a reload. A unit is a short label like cm
 // or ms that gets concatenated into a printf format and drawn on a slider,
-// which is why it is not free text; longtext is preserved source.
+// which is why it is not free text. longtext is preserved source.
 const TEXT_CAP = { longtext: 20000, text: 200, items: 200, expr: 200, unit: 12 };
 
 // Imported documents are untrusted. Beyond type-checking, an enum has to be
@@ -662,7 +671,7 @@ function coerce(t, raw, def, opts) {
 }
 
 // Keep only the slots this widget type actually reads, as four finite 0..1
-// floats. Anything else would push a colour the engine can't map.
+// floats. Anything else would push a color the engine can't map.
 function sanitizeColors(type, raw) {
   if (!raw || typeof raw !== 'object') return null;
   const allowed = colorSlots(type);
@@ -683,7 +692,7 @@ function sanitize(list, ids, atRoot) {
   for (const n of list) {
     if (!n || typeof n !== 'object' || typeof n.type !== 'string') continue;
     const spec = WIDGETS[n.type];
-    // a window is only meaningful at the root; anywhere else it is dropped
+    // a window is only meaningful at the root. Anywhere else it is dropped
     if (!spec || n.type === 'root') continue;
     if (n.type === 'window' && !atRoot) continue;
     if (n.type !== 'window' && atRoot) continue;
@@ -783,8 +792,8 @@ let projects = [];       // { id, name, doc, nextId }
 let activeProject = null;
 let projectSeq = 1;
 // Projects closed in THIS tab. saveProjects merges back anything in the shared
-// key it does not recognise, so that two tabs stop deleting each other's work —
-// and a project this tab just closed looks exactly like a project another tab
+// key it does not recognize, so that two tabs stop deleting each other's work.
+// A project this tab just closed looks exactly like a project another tab
 // just made. Without this, Close was a complete no-op: the project came back in
 // the same call that was meant to persist its removal, and Close is the only
 // way to remove one. It only has to live as long as the page, because the write

@@ -13,8 +13,8 @@
 // Accessing it THROWS, not returns null, when the browser has blocked storage
 // for the origin: an iframe with third-party cookies off, or private mode in
 // some builds. A throw at the top level of a classic script kills the rest of
-// that script, and four unguarded reads sat in boot.js and theme.js — the two
-// files that finish starting the app — so the whole thing failed to load rather
+// that script, and four unguarded reads sat in boot.js and theme.js, the two
+// files that finish starting the app, so the whole thing failed to load rather
 // than losing a preference. Declared here because widgets.js is loaded first.
 function lsGet(key, fallback) {
   try {
@@ -87,7 +87,7 @@ const fmt = (n, base) => q(n.unit ? base + ' ' + String(n.unit).replace(/%/g, '%
 const SEC = { min: 0, unit: 's' };
 
 // ImGui sizes most items for you, and SetNextItemWidth is how you override it.
-// Widgets that take an explicit size argument use that instead; this covers the
+// Widgets that take an explicit size argument use that instead. This covers the
 // rest, so nearly everything can be resized on the canvas.
 const ITEMW = ['itemw', 'float', 0, { min: 0, unit: 'px' }];
 
@@ -198,7 +198,7 @@ const WIDGETS = {
   // --------------------------------------------------------------- Buttons
   button: {
     name: 'Button', cat: 'Buttons',
-    // `toggles` names a closable window; the click flips that window's flag
+    // `toggles` names a closable window. The click flips that window's flag
     // instead of leaving a TODO, which is how one panel opens another.
     //
     // The generator resolves the name to an expression, because only it knows
@@ -255,7 +255,7 @@ const WIDGETS = {
     code: (n, v, id) => [`ImGui::RadioButton(${id}, &state.${v}, ${iv(n.value)});`],
   },
   progressbar: {
-    // An empty label keeps ImGui's default "40%" overlay; setting one replaces it.
+    // An empty label keeps ImGui's default "40%" overlay. Setting one replaces it.
     name: 'Progress bar', cat: 'Buttons',
     props: [['label', 'text', ''], ['fraction', 'float', 0.4], ['w', 'float', 0, PX]],
     field: (n, v) => `float ${v} = ${f(n.fraction)};`,
@@ -459,7 +459,7 @@ const WIDGETS = {
     name: 'Group', cat: 'Containers', container: true, props: [],
     code: () => ({ open: ['ImGui::BeginGroup();'], close: 'ImGui::EndGroup();', braced: false }),
   },
-  // A pure code-organisation wrapper: it draws nothing of its own, and the
+  // A pure code-organization wrapper: it draws nothing of its own, and the
   // generator lifts its children into a function of their own. Saved templates
   // land in one of these, so inserting a template reads as a call rather than a
   // wall of inlined widgets.
@@ -519,7 +519,7 @@ const WIDGETS = {
     code: (n, v, id) => [`ImGui::MenuItem(${id}, ${q(n.shortcut)}, &state.${v});`],
   },
 
-  // Holds C++ the parser recognised as valid but doesn't model as a widget.
+  // Holds C++ the parser recognized as valid but doesn't model as a widget.
   // Kept byte-for-byte and re-emitted verbatim so a round trip never loses it.
   rawcode: {
     name: 'Raw C++', cat: 'Layout', hidden: true,
@@ -568,13 +568,13 @@ function itemList(s) {
 }
 
 // What each property is for, in a sentence, because a tooltip is prose rather
-// than a label. Keyed by property name; every widget that uses the name gets
+// than a label. Keyed by property name. Every widget that uses the name gets
 // the same explanation, which is the point of naming them consistently.
 const PROP_HELP = {
   label: 'The text ImGui shows, and the id it hashes. Two widgets with the same label in one window need "##" to tell them apart.',
   // ImGui::ArrowButton takes a str_id and draws only the triangle, so its
   // label is never shown. The generic help above promises the opposite.
-  'arrowbutton.label': 'The id ImGui hashes. An arrow button draws only its arrow, so this text is never shown: use it to tell two arrows apart.',
+  'arrowbutton.label': 'The id ImGui hashes. An arrow button draws only its arrow, so this text is never shown. Use it to tell two arrows apart.',
   x: 'Where the window sits, in pixels from the top-left of your viewport. Emitted as SetNextWindowPos.',
   y: 'Where the window sits, in pixels from the top-left of your viewport. Emitted as SetNextWindowPos.',
   w: 'Width in pixels. 0 lets ImGui size it to its content.',
@@ -612,8 +612,8 @@ const PROP_HELP = {
 const CATEGORIES = ['Window', 'Text', 'Buttons', 'Input', 'Sliders', 'Drags', 'Color',
   'Choice', 'Plots', 'Layout', 'Containers', 'Menus', 'Popups'];
 
-// Colour slots offered per category. Offering an ImGuiCol_ a widget never reads
-// would let someone set a colour and see nothing change, which costs more trust
+// Color slots offered per category. Offering an ImGuiCol_ a widget never reads
+// would let someone set a color and see nothing change, which costs more trust
 // than the missing option would. Curated per category rather than exhaustive.
 const COLOR_SLOTS_BY_CAT = {
   Window:     ['Text', 'WindowBg', 'TitleBg', 'TitleBgActive', 'Border'],
@@ -632,14 +632,14 @@ const COLOR_SLOTS_BY_CAT = {
   Popups:     ['Text', 'PopupBg', 'Border', 'Button', 'ButtonHovered'],
 };
 
-// Per-type corrections where the category answer would offer a colour the
+// Per-type corrections where the category answer would offer a color the
 // widget never reads. A swatch that does nothing costs more trust than a
 // missing one, because the preview-matches-code promise is the whole product.
 const COLOR_SLOTS_BY_TYPE = {
   separator:     ['Separator'],
   separatortext: ['Separator', 'Text'],
   textdisabled:  ['TextDisabled'],
-  textcolored:   [],            // its colour is the r/g/b properties
+  textcolored:   [],            // its color is the r/g/b properties
   progressbar:   ['PlotHistogram', 'FrameBg', 'Text'],
   plotlines:     ['PlotLines', 'FrameBg', 'Text'],
   plothistogram: ['PlotHistogram', 'FrameBg', 'Text'],
@@ -652,7 +652,7 @@ const COLOR_SLOTS_BY_TYPE = {
   root:          [],
   // No TableHeaderBg. Neither the engine nor the generator calls
   // TableSetupColumn/TableHeadersRow, so there is no header row for it to
-  // colour and the swatch could never change anything. The comment above this
+  // color and the swatch could never change anything. The comment above this
   // table says exactly why that is worse than not offering it.
   table:         ['Text', 'TableBorderStrong', 'TableRowBg'],
   tabbar:        ['Tab', 'TabHovered', 'TabSelected', 'Text'],

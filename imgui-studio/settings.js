@@ -133,7 +133,7 @@ function renderKeySettings() {
   const hint = document.createElement('div');
   hint.className = 'ov-cat' + (settingsCapture ? ' listening' : '');
   hint.textContent = settingsCapture
-    ? 'listening for a key — ' + settingsCapture.help + '  ·  Esc cancels'
+    ? 'listening for a key: ' + settingsCapture.help + '  ·  Esc cancels'
     : 'click a shortcut to rebind it';
   settingsBody.appendChild(hint);
 
@@ -157,7 +157,7 @@ function renderKeySettings() {
     row.onclick = e => { if (!e.target.closest('.revert')) startCapture(b); };
     // The backdrop handler below runs on mousedown and re-renders the panel,
     // which detaches this row before its click ever lands. It needs to know
-    // which binding a row is for so it can re-arm instead of just cancelling.
+    // which binding a row is for so it can re-arm instead of just canceling.
     row.__bind = b;
     if (capturing) row.classList.add('listening');
     // only where it differs from the shipped default
@@ -174,7 +174,7 @@ function renderKeySettings() {
     settingsButton('reset all', () => { resetBinds(); renderSettings(); })));
 }
 
-// Remember what the key was before listening started, so cancelling puts it
+// Remember what the key was before listening started, so canceling puts it
 // back rather than leaving whatever the row happened to show.
 function startCapture(entry) {
   settingsCapture = entry;
@@ -206,7 +206,7 @@ function renderViewSettings() {
   settingsBody.appendChild(setRow(titleCase('Panel layout'),
     settingsButton('Reset', () => { resetPanelLayout(); renderSettings(); })));
   settingsBody.appendChild(setRow(titleCase('View position'),
-    settingsButton('Recentre', () => { resetPan(); })));
+    settingsButton('Recenter', () => { resetPan(); })));
   const sel = document.createElement('select');
   sel.className = 'k';
   for (const [key, t] of Object.entries(THEMES)) {
