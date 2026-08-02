@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ImGui Studio - Templates</title>
+<!-- Inline, so the tab icon ships with the bundle rather than a network
+     request: with no favicon at all, every load logged a 404 for one. Same
+     icon as index.html. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFlMWUxZSIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0E2RTIyRSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Jmd0OzwvdGV4dD48L3N2Zz4=">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mk-bg:      #1e1e1e;
+    --mk-surface: #2d2d2d;
+    --mk-gutter:  #141414;
+    --mk-fg:      #F8F8F2;
+    --mk-comment: #75715E;
+    --mk-pink:    #F92672;
+    --mk-orange:  #FD971F;
+    --mk-yellow:  #E6DB74;
+    --mk-green:   #A6E22E;
+    --mk-cyan:    #66D9EF;
+    --mk-purple:  #AE81FF;
+    --mk-border:  #49483E;
+    --font: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 14px/1.65 var(--font);
+    background: var(--mk-bg); color: var(--mk-fg);
+  }
+  header {
+    border-bottom: 1px solid var(--mk-border); background: var(--mk-gutter);
+    padding: 14px 24px; position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  }
+  header .brand {
+    color: var(--mk-green); font-weight: 700; font-size: 15px;
+    text-shadow: 0.03em 0 0 rgba(249,38,114,.35), -0.03em 0 0 rgba(102,217,239,.35);
+  }
+  header nav { margin-left: auto; display: flex; gap: 14px; flex-wrap: wrap; }
+  a { color: var(--mk-cyan); }
+  a:hover { color: var(--mk-green); }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 24px 80px; }
+  h1 { font-size: 26px; color: var(--mk-green); margin: 32px 0 8px; }
+  h2 {
+    font-size: 19px; color: var(--mk-orange); margin: 40px 0 10px;
+    padding-top: 14px; border-top: 1px solid var(--mk-border);
+  }
+  h3 { font-size: 15px; color: var(--mk-yellow); margin: 26px 0 6px; }
+  p, li { color: var(--mk-fg); }
+  ul { padding-left: 22px; }
+  li { margin: 5px 0; }
+  code {
+    background: var(--mk-gutter); color: var(--mk-purple);
+    padding: 1px 5px; border-radius: 3px; font-size: 13px;
+  }
+  pre {
+    background: var(--mk-gutter); border: 1px solid var(--mk-border);
+    border-radius: 4px; padding: 12px 14px; overflow-x: auto; font-size: 13px;
+  }
+  pre code { background: none; padding: 0; color: var(--mk-fg); }
+  kbd {
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
+    border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px;
+    font: inherit; font-size: 12px; color: var(--mk-cyan); white-space: nowrap;
+  }
+  /* A control you CLICK, as opposed to a key you press. <kbd> means keyboard
+     input, and using it for button names both misleads a screen reader and
+     reads wrong to anyone using one. */
+  b.ui { color: var(--mk-green); font-weight: 600; white-space: nowrap; }
+  .note {
+    border-left: 3px solid var(--mk-comment); padding: 2px 0 2px 14px;
+    margin: 16px 0; color: #cfcfc6;
+  }
+  .note.important { border-left-color: var(--mk-pink); }
+  .lead { color: var(--mk-comment); margin-top: 4px; }
+  .toc { background: var(--mk-surface); border: 1px solid var(--mk-border);
+         border-radius: 4px; padding: 12px 16px; margin: 24px 0; }
+  .toc ul { margin: 6px 0 0; }
+  table { border-collapse: collapse; margin: 18px 0; width: 100%; }
+  th, td {
+    border: 1px solid var(--mk-border); padding: 6px 10px;
+    text-align: left; vertical-align: top; font-size: 13px;
+  }
+  th { color: var(--mk-yellow); font-weight: 700; }
+  /* A wide table on a narrow window scrolls inside its own box rather than
+     pushing the whole page sideways. */
+  .scroller { overflow-x: auto; }
+  footer { border-top: 1px solid var(--mk-border); color: var(--mk-comment);
+           padding: 20px 24px; max-width: 860px; margin: 0 auto; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">ImGui Studio</span>
+  <span style="color:var(--mk-comment)">Templates</span>
+  <nav>
+    <a href="tutorial.html">Tutorial</a>
+    <a href="index.html">Open the editor</a>
+  </nav>
+</header>
+
+<main>
+
+<h1>Templates, and the Categories They Live In</h1>
+<p class="lead">The Templates panel is the second thing most people click and the last thing anyone reads about. This page is the whole of it: what a template is, what the shipped ones are for, and how to file your own.</p>
+
+<div class="toc">
+  <strong>On this page</strong>
+  <ul>
+    <li><a href="#what">What a Template Is</a></li>
+    <li><a href="#cats">Categories</a></li>
+    <li><a href="#examples">The Examples</a></li>
+    <li><a href="#gallery">The Widget Gallery</a></li>
+    <li><a href="#yours">Saving Your Own</a></li>
+    <li><a href="#files">Files, Sharing and Storage</a></li>
+  </ul>
+</div>
+
+<h2 id="what">What a Template Is</h2>
+
+<p>A template is a document you keep around to stamp out again. A project is the thing you're working on. That's the whole distinction, and it's why the two live in separate panels: closing a project asks you first, and a template just sits there until you use it.</p>
+
+<p>There are four ways to spend one, and they do genuinely different things.</p>
+
+<div class="scroller">
+<table>
+  <tr><th>Gesture</th><th>What happens</th></tr>
+  <tr>
+    <td>Click the name, or the <b class="ui">＋</b> button</td>
+    <td>Inserts its widgets into the nearest container that can hold them, walking up from whatever you have selected. They arrive wrapped in a Function container named after the template, so the generated C++ calls a function instead of inlining a wall of widgets. Ungroup it like any other container if you'd rather have the widgets loose.</td>
+  </tr>
+  <tr>
+    <td>Drag it onto the canvas</td>
+    <td>The same insert, aimed at the drop point rather than at the selection. The drop indicator shows where it will land.</td>
+  </tr>
+  <tr>
+    <td>Right-click, <b class="ui">Apply Here</b></td>
+    <td>Replaces the whole document with the template. It asks first when there's anything to lose, and <kbd>Ctrl+Z</kbd> puts it back.</td>
+  </tr>
+  <tr>
+    <td>Right-click, <b class="ui">Open as Project</b></td>
+    <td>Opens it as a new project tab, leaving what you were doing alone. This is the safe one.</td>
+  </tr>
+</table>
+</div>
+
+<p>A template that carries several windows brings all of them, as windows, rather than folding them into one container. Debug Overlay is the example to look at: its button opens a second window by title, so a version that arrived as a single container would point at nothing.</p>
+
+<div class="note">Inserting into a document with no window at all adds the template's own window instead of refusing. That's why Blank Window works as the first thing a new user clicks.</div>
+
+<h2 id="cats">Categories</h2>
+
+<p>Every template is filed under a category, and the panel draws one folding section per category. Click a section header to fold it. The fold state is remembered per category, and it's kept apart from the palette's own sections, so folding Text in the palette doesn't fold anything here.</p>
+
+<p>Three categories ship with the app:</p>
+
+<ul>
+  <li><b class="ui">Examples</b> holds the eight worked examples. Each one is a real panel built to show a specific feature working.</li>
+  <li><b class="ui">Widget Gallery</b> holds the twelve specimen sheets, one per widget category.</li>
+  <li><b class="ui">Yours</b> is where anything you save or import lands.</li>
+</ul>
+
+<p>A category is just a name, so you aren't limited to those three. There are two ways to change where a template sits:</p>
+
+<ul>
+  <li>Drag the row into another section. A drop lands it in that category at the position you dropped it, which is the same gesture that reorders within a section.</li>
+  <li>Right-click it. The menu carries a <b class="ui">Move to</b> entry for every other category that currently exists, plus <b class="ui">New Category…</b>, which turns the row into a text field. <kbd>Enter</kbd> commits and <kbd>Esc</kbd> means never mind.</li>
+</ul>
+
+<p>Categories with nothing in them stop being sections. Invent one, move your last template out of it, and it's gone. The shipped three always sort first and in the order above, and anything you invent sorts alphabetically after them.</p>
+
+<div class="note important">Filing works on the built-in templates too, and it sticks. Categories are replayed by template name on load, the same way the panel's manual ordering is, so a built-in you moved into Yours is still there after a reload rather than snapping back to where it shipped.</div>
+
+<h2 id="examples">The Examples</h2>
+
+<p>Eight worked examples, each one an argument for a feature you might not have found:</p>
+
+<div class="scroller">
+<table>
+  <tr><th>Template</th><th>What it's showing</th></tr>
+  <tr><td>Blank Window</td><td>A window and nothing else. The starting point.</td></tr>
+  <tr><td>Settings Dialog</td><td>Function containers, units on sliders, per-widget width, a color override on one button, and a modal.</td></tr>
+  <tr><td>Toolbar and List</td><td>A SameLine run, a popup menu, and Text with format arguments fed by real fields.</td></tr>
+  <tr><td>Property Inspector</td><td>A table, because a flow layout can't keep labels and fields in two aligned columns.</td></tr>
+  <tr><td>Debug Overlay</td><td>Two windows, one of which the other shows and hides. Also plots and a window background color.</td></tr>
+  <tr><td>Tabbed Panel</td><td>A tab bar, and a child region that scrolls on its own.</td></tr>
+  <tr><td>Show and Hide Windows</td><td>The show and hide mechanism by itself, wired up three ways.</td></tr>
+  <tr><td>Menus and Dialogs</td><td>A menu bar with nested menus, a tooltip hung off the item before it, and a modal.</td></tr>
+</table>
+</div>
+
+<h2 id="gallery">The Widget Gallery</h2>
+
+<p>Twelve templates, one per widget category, holding one of every widget in the catalog between them. All 60 widget types appear somewhere in there, and a unit check asserts exactly that, so a widget added to the catalog without a home in the gallery turns the test suite red.</p>
+
+<p>These are specimens rather than scenes. Everything sits at its catalog default with a plain label, so what you see is what the widget does before anyone has done anything to it. Insert one, click a widget in it, and the Properties panel tells you what you can change. The Code pane tells you what it compiles to.</p>
+
+<p>Two of them are shaped by rules ImGui itself enforces. Menus is a whole window rather than a list of widgets, because a menu bar is only legal directly on a window that carries the MenuBar flag. Containers nests a Text widget inside each container it shows, because an empty container has nothing to draw and would look like the template forgot it.</p>
+
+<div class="note">The gallery is also the fastest way to answer "does this tool support X". Fold Examples, open Widget Gallery, and read the twelve names.</div>
+
+<h2 id="yours">Saving Your Own</h2>
+
+<p><b class="ui">File → Save as Template</b> takes the whole document, including every window in it, and files it under Yours. The name comes from the first window's title, with a number appended if that name is taken.</p>
+
+<p>Your own templates carry a <b class="ui">✕</b> on their row and a <b class="ui">Delete</b> entry in the context menu. The built-in ones don't, because they're rebuilt from source on every load and deleting one would only last until the next reload.</p>
+
+<p>Drag a row up or down to reorder it. Manual order is saved by name and replayed on load, so a template you dragged to the top of a section stays at the top. A built-in added by a later version of the app that isn't in your saved order keeps its natural position rather than being ordered away.</p>
+
+<h2 id="files">Files, Sharing and Storage</h2>
+
+<p>Templates live in your browser's local storage, under the same origin as the editor. Only your own are stored: the built-ins are rebuilt from the app's source each load, and what's saved for them is where you filed them and where you dragged them.</p>
+
+<ul>
+  <li><b class="ui">Export</b> in the panel's toolbar writes every custom template to one JSON file, categories included.</li>
+  <li>Right-click a single template and choose <b class="ui">Export Template</b> to write just that one.</li>
+  <li><b class="ui">Import</b> reads either file back. Imported names that collide get a number appended rather than overwriting what you have.</li>
+  <li><b class="ui">File → Export Everything</b> carries templates along with your projects, panel layout, themes, guides and the hotbar. That's the one to use when you're moving to another machine.</li>
+</ul>
+
+<p>Template files have a kind of their own, so importing a template file can't be mistaken for opening a document. Drop the wrong file on the app and it tells you what it was instead of quietly doing nothing.</p>
+
+<p class="note">Share links carry a document, not a template. To hand someone a template, export it and send the file, or send them a share link and let them use <b class="ui">File → Save as Template</b> on what arrives.</p>
+
+</main>
+
+<footer>
+  ImGui Studio builds on <a href="https://github.com/ocornut/imgui">Dear ImGui</a> by Omar Cornut.
+  <a href="index.html">Back to the editor</a>
+</footer>
+
+</body>
+</html>

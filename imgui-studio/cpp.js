@@ -997,7 +997,13 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     }
 
     // A popup's trigger button. The popup container that follows owns it.
-    const trigger = rest.match(/^if\s*\(\s*ImGui::Button\s*\(\s*"Open [^"]*"\s*\)\s*\)\s*\n?\s*ImGui::OpenPopup\s*\([^;]*\)\s*;/);
+    //
+    // Both brace styles. The generator emits the braced one now, and the two
+    // arms are spelled out rather than making the braces optional around the
+    // statement: an optional trailing `}` with no opening one would eat the
+    // brace closing whatever block this call happens to sit in.
+    const trigger = rest.match(
+      /^if\s*\(\s*ImGui::Button\s*\(\s*"Open [^"]*"\s*\)\s*\)\s*(?:\{\s*ImGui::OpenPopup\s*\([^;]*\)\s*;\s*\}|ImGui::OpenPopup\s*\([^;]*\)\s*;)/);
     if (trigger) { i += trigger[0].length; continue; }
 
     // Bare Begin/End pair: Group and Child region.
@@ -1272,7 +1278,9 @@ function stripTrailingPop(body, fn) {
   // would be re-parsed as a widget and duplicated on every apply.
   if (pop) out = out.replace(new RegExp('ImGui::' + pop + '\\s*\\(\\s*\\)\\s*;?\\s*$'), '');
   if (fn === 'BeginPopupModal') {
-    out = out.replace(/if\s*\(\s*ImGui::Button\s*\(\s*"Close"\s*\)\s*\)\s*\n?\s*ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?\s*$/, '');
+    // braced or not, for the same reason the trigger above reads both
+    out = out.replace(
+      /if\s*\(\s*ImGui::Button\s*\(\s*"Close"\s*\)\s*\)\s*(?:\{\s*ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?\s*\}|ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?)\s*$/, '');
   }
   return out;
 }

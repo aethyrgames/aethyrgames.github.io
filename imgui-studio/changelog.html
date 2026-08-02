@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ImGui Studio - Changelog</title>
+<!-- Inline, so the tab icon ships with the bundle rather than a network
+     request: with no favicon at all, every load logged a 404 for one. Same
+     icon as index.html. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFlMWUxZSIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0E2RTIyRSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Jmd0OzwvdGV4dD48L3N2Zz4=">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mk-bg:      #1e1e1e;
+    --mk-surface: #2d2d2d;
+    --mk-gutter:  #141414;
+    --mk-fg:      #F8F8F2;
+    --mk-comment: #75715E;
+    --mk-pink:    #F92672;
+    --mk-orange:  #FD971F;
+    --mk-yellow:  #E6DB74;
+    --mk-green:   #A6E22E;
+    --mk-cyan:    #66D9EF;
+    --mk-purple:  #AE81FF;
+    --mk-border:  #49483E;
+    --font: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 14px/1.65 var(--font);
+    background: var(--mk-bg); color: var(--mk-fg);
+  }
+  header {
+    border-bottom: 1px solid var(--mk-border); background: var(--mk-gutter);
+    padding: 14px 24px; position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  }
+  header .brand {
+    color: var(--mk-green); font-weight: 700; font-size: 15px;
+    text-shadow: 0.03em 0 0 rgba(249,38,114,.35), -0.03em 0 0 rgba(102,217,239,.35);
+  }
+  header nav { margin-left: auto; display: flex; gap: 14px; flex-wrap: wrap; }
+  a { color: var(--mk-cyan); }
+  a:hover { color: var(--mk-green); }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 24px 80px; }
+  h1 { font-size: 26px; color: var(--mk-green); margin: 32px 0 8px; }
+  /* The version heading carries the number a check reads, so its shape is
+     load-bearing: "## <version> - <date>" in one line, newest first. */
+  h2 {
+    font-size: 19px; color: var(--mk-orange); margin: 40px 0 10px;
+    padding-top: 14px; border-top: 1px solid var(--mk-border);
+  }
+  h2 .date { color: var(--mk-comment); font-size: 13px; font-weight: 400; }
+  h3 { font-size: 15px; color: var(--mk-yellow); margin: 22px 0 6px; }
+  p, li { color: var(--mk-fg); }
+  ul { padding-left: 22px; }
+  li { margin: 5px 0; }
+  code {
+    background: var(--mk-gutter); color: var(--mk-purple);
+    padding: 1px 5px; border-radius: 3px; font-size: 13px;
+  }
+  kbd {
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
+    border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px;
+    font: inherit; font-size: 12px; color: var(--mk-cyan); white-space: nowrap;
+  }
+  b.ui { color: var(--mk-green); font-weight: 600; white-space: nowrap; }
+  .lead { color: var(--mk-comment); margin-top: 4px; }
+  .note {
+    border-left: 3px solid var(--mk-comment); padding: 2px 0 2px 14px;
+    margin: 16px 0; color: #cfcfc6;
+  }
+  footer { border-top: 1px solid var(--mk-border); color: var(--mk-comment);
+           padding: 20px 24px; max-width: 860px; margin: 0 auto; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">ImGui Studio</span>
+  <span style="color:var(--mk-comment)">Changelog</span>
+  <nav>
+    <a href="tutorial.html">Tutorial</a>
+    <a href="templates.html">Templates</a>
+    <a href="index.html">Open the editor</a>
+  </nav>
+</header>
+
+<main>
+
+<h1>Changelog</h1>
+<p class="lead">Newest first. The version in the editor's header links here, and a unit check ties the three numbers together: this page, that header, and <code>package.json</code>.</p>
+
+<h2 id="v0-2-0">0.2.0 <span class="date">2026-08-02</span></h2>
+
+<h3>The canvas remembers where you were</h3>
+<ul>
+  <li>Pan and zoom are saved with the project instead of being thrown away. A reload comes back where you left it, and each project tab keeps its own position rather than every switch resetting to the origin.</li>
+  <li>Share links and both export files carry the view, but only when it isn't the plain 0,0 at 100% the app opens at anyway. A panel designed out in negative space now opens on the panel rather than on empty ground.</li>
+  <li>A view arriving from a link or a file is range-checked before it's applied, so a corrupt one can't strand the canvas somewhere with nothing on it.</li>
+</ul>
+
+<h3>Templates have categories</h3>
+<ul>
+  <li>The Templates panel draws one folding section per category. The eight worked examples are filed under Examples, and anything you save lands in Yours.</li>
+  <li>Twelve new templates under Widget Gallery, one per widget category, holding one of every type in the catalog between them. A unit check asserts that coverage, so a new widget can't end up with no example anywhere.</li>
+  <li>File a template by dragging it into another section, or from its right-click menu. <b class="ui">New Category…</b> makes one up. Categories stick across a reload, built-in templates included.</li>
+  <li>A new <a href="templates.html">templates page</a>, in the Help menu, documenting the lot.</li>
+</ul>
+
+<h3>Fixes</h3>
+<ul>
+  <li>Opening a menu with the mouse no longer arrives with its first entry already highlighted. That highlight is the keyboard cursor and it was being set on every open, so File sat with New Project lit and nothing took it off. Opened from the keyboard it still starts on the first row, so <kbd>Enter</kbd> has something to run.</li>
+  <li>Alt+Tab away from the editor and back no longer paints a cyan focus ring around the canvas. The browser re-focuses the canvas when the window returns, with no input behind it, and the ring was being recomputed from the Alt keystroke.</li>
+  <li>The preview window can no longer be resized by ImGui's own edge or corner grip while you're editing. Nothing carried that size into the document except from the bottom-right corner of an explicitly sized window, so edge drags and auto-sized windows snapped back and the gesture read as ignored. The selection handles do write to the document. In interactive mode the grip is live, and leaving interactive mode puts the size back to what the document says.</li>
+</ul>
+
+<h3>Generated code</h3>
+<ul>
+  <li>Every condition the generator emits is braced now. A popup's trigger and a modal's Close button were the last three one-liners without braces. The parser reads both forms, since hand-written code arrives either way.</li>
+</ul>
+
+<h2 id="v0-1-0">0.1.0 <span class="date">2026-07-29</span></h2>
+<p>The first build. A visual builder for Dear ImGui layouts that generates C++ and reads it back:</p>
+<ul>
+  <li>A canvas running the real Dear ImGui compiled to WebAssembly, not a mock of it, with an edit mode and a hold-to-test interactive mode.</li>
+  <li>The full widget catalog, a property inspector, a hierarchy, multi-select, marquee selection, inline label editing, guides, rulers and a world origin that reaches into negative coordinates.</li>
+  <li>A code pane that goes both ways: the generated C++ round-trips back into the document, so hand-written edits survive.</li>
+  <li>Projects, templates, JSON import and export, share links that carry a document in the URL, rebindable keys, a command palette, and themes for the editor and the generated code.</li>
+</ul>
+
+<div class="note">Versions before 0.2.0 predate this page, so 0.1.0 is summarized rather than itemized. The commit history is the record for that stretch.</div>
+
+</main>
+
+<footer>
+  ImGui Studio builds on <a href="https://github.com/ocornut/imgui">Dear ImGui</a> by Omar Cornut.
+  <a href="index.html">Back to the editor</a>
+</footer>
+
+</body>
+</html>

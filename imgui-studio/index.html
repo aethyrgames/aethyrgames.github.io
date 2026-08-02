@@ -80,6 +80,19 @@
     text-shadow: var(--glow-chroma); white-space: nowrap;
   }
   .brand::before { content: '> '; color: var(--mk-comment); }
+  /* Same header-bar contrast fix as .menutop and .headbtn: --mk-comment alone
+     measures under 3:1 against the gutter on the lighter themes. */
+  .ver {
+    color: color-mix(in srgb, var(--mk-fg) 98%, var(--mk-comment));
+    font-size: 11px; text-decoration: none; white-space: nowrap;
+    padding: 2px 5px; border-radius: var(--radius);
+  }
+  .ver:hover { color: var(--mk-cyan); background: var(--mk-hover); }
+  .ver:focus-visible { outline: 2px solid var(--mk-fg); outline-offset: 2px; }
+  /* First thing off the bar when it runs out of room, like the mode hint. The
+     changelog is in the Help menu too, so nothing becomes unreachable. Without
+     this the header overflowed at 640px, which is a check this suite runs. */
+  @media (max-width: 760px) { #apphead .ver { display: none; } }
   .tagline { color: var(--mk-comment); font-size: 12px; }
   #apphead .spacer { flex: 1; }
   .sitelink {
@@ -1123,6 +1136,12 @@
 <body>
   <div id="apphead">
     <span class="brand">ImGuiStudio</span>
+    <!-- The number is hand-written and a unit check compares it against
+         package.json and against the newest entry in changelog.html, so the
+         three cannot drift. There is no build step that could stamp it: the
+         bundle is index.html with the script srcs rewritten. -->
+    <a class="ver" id="versionLink" href="changelog.html" target="_blank" rel="noopener"
+      title="What changed in this version">v0.2.0</a>
     <nav id="menubar">
       <button class="menutop" data-menu="file" aria-haspopup="menu" aria-expanded="false">File</button>
       <button class="menutop" data-menu="view" aria-haspopup="menu" aria-expanded="false">View</button>
@@ -1331,22 +1350,22 @@
     </div>
   </div>
 
-<script src="widgets.js?v=514f9c47bb"></script>
+<script src="widgets.js?v=1876c4a164"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=286ef352ef"></script>
+<script src="cpp.js?v=cb322c33cd"></script>
 <script src="codeintel.js?v=f0f4d02887"></script>
-<script src="doc.js?v=45fccb846b"></script>
-<script src="canvas.js?v=1af716bebc"></script>
+<script src="doc.js?v=6fdb8897ef"></script>
+<script src="canvas.js?v=15b81a4aef"></script>
 <script src="keys.js?v=c63e42566a"></script>
 <script src="generate.js?v=3564689795"></script>
 <script src="theme.js?v=41ea6ff05b"></script>
 <script src="layout.js?v=4bf96a101b"></script>
-<script src="render.js?v=701da6a606"></script>
+<script src="render.js?v=3e83e0d774"></script>
 <script src="codepane.js?v=fe22ca6379"></script>
-<script src="templates.js?v=ebeaa2f312"></script>
+<script src="templates.js?v=b3ab946968"></script>
 <script src="settings.js?v=bdbb011190"></script>
-<script src="testhooks.js?v=8c6cd09241"></script>
+<script src="testhooks.js?v=a985eac7bb"></script>
 <script src="boot.js?v=e1055b9e21"></script>
-<script src="engine.js?v=87e7f31619"></script>
+<script src="engine.js?v=9a7a345376"></script>
 </body>
 </html>

@@ -61,12 +61,39 @@ const ghost = document.getElementById('ghost');
 // for a mouse click too. Tracked here instead, from the same signal a real
 // browser uses: whatever kind of input happened most recently.
 let lastInputWasPointer = false;
-document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
-document.addEventListener('keydown', () => { lastInputWasPointer = false; }, true);
+document.addEventListener('pointerdown', () => {
+  lastInputWasPointer = true;
+  windowReturning = false;
+}, true);
+document.addEventListener('keydown', () => {
+  lastInputWasPointer = false;
+  windowReturning = false;
+}, true);
+
+// Alt+Tab away and back and the canvas fires `focus` again with no new input
+// behind it, because the browser re-focuses whatever was already the active
+// element when the window comes back. Alt is a keydown, so `lastInputWasPointer`
+// was false by then and the ring came up on a canvas the user had clicked into
+// with the mouse: a cyan border appearing out of nowhere on a window switch.
+//
+// A focus arriving that way carries no modality signal at all, so the honest
+// thing is to leave the ring exactly as the user last earned it rather than
+// recompute it from a keystroke that was aimed at the window manager.
+let windowReturning = false;
+window.addEventListener('blur', () => { windowReturning = true; });
 canvas.addEventListener('focus', () => {
+  if (windowReturning) { windowReturning = false; return; }
   canvasHost.classList.toggle('kbd-focus', !lastInputWasPointer);
 });
-canvas.addEventListener('blur', () => canvasHost.classList.remove('kbd-focus'));
+canvas.addEventListener('blur', () => {
+  // An application switch blurs the element too, and the element's blur and the
+  // window's arrive in either order depending on the browser, so both signals
+  // are read: the flag when the window went first, hasFocus() when the element
+  // did. Either way the ring is left as it is, because the user is coming back
+  // to this canvas and did not leave it.
+  if (windowReturning || !document.hasFocus()) { windowReturning = true; return; }
+  canvasHost.classList.remove('kbd-focus');
+});
 
 // Panning is a transform on #viewport, and every coordinate below is read from
 // the canvas's own client rect, so nothing else has to account for it.
@@ -94,8 +121,11 @@ let sentOrigin = { x: 0, y: 0 };
 let zoom = 1;
 // assigned once the header control exists. applyView runs before that during init
 let zoomLabel = null;
-const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 4;
+// The same two numbers sanitizeView clamps a restored view to (widgets.js).
+// Aliased rather than repeated: a project reopened at a zoom the ladder here
+// refuses would be a view the user could see but not step out of.
+const ZOOM_MIN = VIEW_ZOOM_MIN;
+const ZOOM_MAX = VIEW_ZOOM_MAX;
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
 const GRID_MINOR = 20;
 const GRID_MAJOR = 100;
@@ -125,6 +155,9 @@ function applyView() {
   drawRulers();
   renderGuides();
   syncCanvasSize();
+  // every pan, zoom and reset ends up here, so this is the one place the view
+  // has to be written down from
+  scheduleViewSave();
 }
 
 // The transform on its own. syncCanvasSize needs it when the origin moves, and
@@ -228,10 +261,59 @@ function focusSelection() {
 }
 
 function resetPan() {
-  pan = { x: 0, y: 0 };
-  zoom = 1;
+  pan = { x: DEFAULT_VIEW.x, y: DEFAULT_VIEW.y };
+  zoom = DEFAULT_VIEW.zoom;
   applyView();
 }
+
+// ---- the view belongs to the project ---------------------------------------
+// Pan and zoom used to live only in this file, so a reload put you back at the
+// origin at 100% however far you had scrolled, and switching project tabs threw
+// the position away on purpose. doc.js keeps what getView returns on the
+// project record and hands it back through setView. These two calls are the
+// whole seam between the canvas and the store.
+
+function getView() {
+  return { x: pan.x, y: pan.y, zoom };
+}
+
+function setView(v) {
+  const s = sanitizeView(v);
+  pan = { x: s.x, y: s.y };
+  zoom = s.zoom;
+  applyView();
+}
+
+// A pan is a stream of mousemoves and saveProjects serializes every open
+// document, so the write is debounced rather than run per frame.
+//
+// Belt to a pair of braces, and knowingly so: refresh() reaches saveProjects on
+// its own often enough that a pan is usually on disk without this. Measured,
+// not assumed -- removing this call and running the whole browser suite changed
+// nothing. It stays because "the view is saved when it changes" should not be a
+// side effect of some unrelated path happening to run, and because the one case
+// it does own (pan, then reload before anything else touches the document) is
+// exactly the gesture this feature exists for.
+let viewSaveTimer = null;
+
+function scheduleViewSave() {
+  // Nothing to hang a view on until loadProjects has run, and a save this early
+  // would write activeProject: null over the stored one, which is how a reload
+  // would come back on the wrong project tab.
+  if (typeof saveProjects !== 'function' || !activeProject) return;
+  clearTimeout(viewSaveTimer);
+  viewSaveTimer = setTimeout(flushViewSave, 300);
+}
+
+// The gesture this whole seam exists for is usually followed by the very reload
+// that would lose the last 300ms of it, so the page leaving flushes the timer
+// rather than dropping it.
+function flushViewSave() {
+  clearTimeout(viewSaveTimer);
+  viewSaveTimer = null;
+  if (typeof saveProjects === 'function' && activeProject) saveProjects();
+}
+window.addEventListener('pagehide', flushViewSave);
 
 // The footer used to repeat the engine state, which never changes after load.
 // It now reads out whatever is under the cursor, which is the thing you
@@ -375,7 +457,7 @@ function pollEngine() {
     latestRects = [];
   }
   adoptDraggedWindowPos();
-  adoptResizedWindowSize();
+  trackResizingWindow();
   updateSelectionOverlay();
 }
 
@@ -440,45 +522,31 @@ function adoptDraggedWindowPos() {
   else refresh();
 }
 
-// The same problem as adoptDraggedWindowPos, for the other gesture. Dragging a
-// window's own grip or border resizes it in the preview, and nothing told the
-// document: the inspector kept reading the old size, the generated
-// SetNextWindowSize kept emitting it, and the size vanished on the next reload
-// or the moment any size field was touched.
+// The size counterpart to adoptDraggedWindowPos is a tracker now, not an adopt.
 //
-// Only windows the document has already given an explicit size are adopted. A
-// window sized 0 is auto-sized, so its published size is ImGui's choice rather
-// than the user's, and writing that back would silently convert it into a fixed
-// one on the first frame it was ever drawn.
+// It used to write the published size back into the document. That worked for
+// the corner of an explicitly sized window and for nothing else: an auto-sized
+// window was skipped by design (its published size is ImGui's choice, not the
+// user's, and adopting it would silently freeze it), and a LEFT or TOP edge
+// drag moves the window as it resizes, which this never adopted, so the window
+// jumped back to its document position the next time anything re-placed it.
+// That is the "it doesn't track the new size" this replaces.
+//
+// So the grip is off in edit mode (engine/main.cpp adds NoResize while
+// g_EditMode) and the selection handles are the one way to size a window while
+// editing, which they do by writing the document directly. In interactive mode
+// the grip is live and deliberately NOT adopted: what you stretch in there is
+// something you are trying out, and engine_set_edit_mode puts the size back on
+// the way out.
+//
+// The flag stays because the SHEET still needs it. A window growing under a
+// live grip can outrun a surface that only grows after the fact, so layout.js
+// keeps a margin of headroom in hand while the gesture runs.
 let wasResizingWindow = false;
-function adoptResizedWindowSize() {
-  let resizingWin = false;
+function trackResizingWindow() {
   try {
-    resizingWin = Module.ccall('engine_resizing_window', 'number', [], []) === 1;
-  } catch (e) { return; }
-  if (!resizingWin && !wasResizingWindow) return;
-  let changed = false;
-  for (const win of doc.children) {
-    if (win.type !== 'window') continue;
-    if (!(Number(win.w) > 0) || !(Number(win.h) > 0)) continue;   // auto-sized
-    const r = latestRects.find(x => x.id === win.id && x.window);
-    if (!r || (r.w === 0 && r.h === 0)) continue;                 // hidden
-    const w = Math.round(r.w), h = Math.round(r.h);
-    if (w === Math.round(win.w) && h === Math.round(win.h)) continue;
-    win.w = w;
-    win.h = h;
-    changed = true;
-  }
-  if (resizingWin) {
-    wasResizingWindow = true;
-    // Pushed every frame so the engine's copy keeps up, exactly as the move
-    // path does. It cannot fight the drag: the size sent is the one ImGui just
-    // produced, so the re-apply is a no-op.
-    if (changed) { pushDoc(); syncCanvasSize(); renderProps(); }
-    return;
-  }
-  wasResizingWindow = false;
-  if (changed) { pushHistory(); refresh(); }
+    wasResizingWindow = Module.ccall('engine_resizing_window', 'number', [], []) === 1;
+  } catch (e) { wasResizingWindow = false; }
 }
 
 function tick() {

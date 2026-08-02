@@ -235,17 +235,25 @@ function MENUS() {
       // Ships next to index.html in the bundle, so a relative link works both on
       // the dev server and at whatever path the site is mounted under.
       { group: '0', label: 'Tutorial', run: () => openTutorial() },
+      { group: '0', label: 'Templates guide', run: () => openPage('templates.html') },
       { group: '1', label: 'Keyboard shortcuts', key: keyFor('Keyboard shortcuts'), run: () => toggleHelp() },
       { group: '1', label: 'Command palette', key: keyFor('Command palette'), run: () => openCmdk('all') },
       { group: '2', label: 'Dear ImGui manual', run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener') },
+      { group: '3', label: 'Changelog', run: () => openPage('changelog.html') },
     ],
   };
 }
 
 // The keyboard's own idea of which row is current, independent of DOM focus
-// (rows are plain divs, not tab stops). Reset on every render so switching
-// menus or toggling a checkable row always starts from the top.
-let menuSel = 0;
+// (rows are plain divs, not tab stops).
+//
+// -1 is "no row", and it is where a menu opened with the mouse starts. It used
+// to start at 0, so every menu opened with a highlight already sitting on its
+// first entry: New Project under File, Background Grid under View. A highlight
+// nobody put there reads as "this is the one Enter will run", and since the
+// pointer is never on that row on the way in, nothing took it off again.
+// highlightMenuRow(-1) clears the class and adds it to nothing.
+let menuSel = -1;
 
 function highlightMenuRow(i) {
   const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
@@ -254,7 +262,10 @@ function highlightMenuRow(i) {
   return rows;
 }
 
-function renderMenu(name) {
+// `sel` is the row the highlight starts on: 0 when the menu was opened from the
+// keyboard, so Enter has something to run without an ArrowDown first, and -1
+// (the default) for every other way in.
+function renderMenu(name, sel) {
   const items = (MENUS()[name] || []).filter(Boolean);
   items.sort((a, b) => (a.group || '5').localeCompare(b.group || '5') || (a.order || 0) - (b.order || 0));
   menuPop.innerHTML = '';
@@ -298,7 +309,9 @@ function renderMenu(name) {
         // checkable rows stay open, so you can flip two without re-opening
         if (it.checked === undefined) closeMenu();
         it.run();
-        if (it.checked !== undefined && openMenu) renderMenu(openMenu);
+        // the re-render keeps the highlight where the keyboard left it, rather
+        // than throwing it back to the top of a menu you are part way down
+        if (it.checked !== undefined && openMenu) renderMenu(openMenu, menuSel);
       };
     }
     menuPop.appendChild(row);
@@ -313,7 +326,7 @@ function renderMenu(name) {
     if (b.hasAttribute('aria-haspopup')) b.setAttribute('aria-expanded', String(b.dataset.menu === name));
   }
   openMenu = name;
-  menuSel = 0;
+  menuSel = Number.isInteger(sel) ? sel : -1;
   highlightMenuRow(menuSel);
 }
 
@@ -355,8 +368,12 @@ window.addEventListener('keydown', e => {
 for (const b of document.querySelectorAll('.menutop[data-menu]')) {
   b.onclick = e => {
     e.stopPropagation();
+    // detail is 0 when the click came from Enter or Space on the focused
+    // button, and 1+ when a real pointer produced it. That is the only signal
+    // separating the two, and it decides whether the menu opens with its first
+    // row highlighted or with nothing highlighted at all.
     if (openMenu === b.dataset.menu) closeMenu();
-    else renderMenu(b.dataset.menu);
+    else renderMenu(b.dataset.menu, e.detail === 0 ? 0 : -1);
   };
   // once one is open, sliding across the bar moves between them
   b.onmouseenter = () => { if (openMenu && openMenu !== b.dataset.menu) renderMenu(b.dataset.menu); };
@@ -364,7 +381,13 @@ for (const b of document.querySelectorAll('.menutop[data-menu]')) {
 
 // One path for both entry points, so the Help menu row and the bar button
 // cannot drift apart and a test that covers one covers the other.
-function openTutorial() { window.open('tutorial.html', '_blank', 'noopener'); }
+//
+// Relative, so a page opens from the dev server and from whatever path the
+// bundle is mounted under. build_site.ps1 copies each of these out of app/, and
+// a page added here without being added there is a Help entry that 404s in
+// production and resolves fine locally, which is the worst way round.
+function openPage(name) { window.open(name, '_blank', 'noopener'); }
+function openTutorial() { openPage('tutorial.html'); }
 const tutorialTopBtn = document.getElementById('tutorialTopBtn');
 if (tutorialTopBtn) {
   tutorialTopBtn.onclick = e => { e.stopPropagation(); closeMenu(); openTutorial(); };
@@ -837,18 +860,39 @@ document.addEventListener('mouseup', e => {
       }
     }
   } else {
-    const rows = [...document.querySelectorAll('#tpllist .tplrow')];
-    const to = rows.indexOf(d.target.row) + (d.target.where === 'after' ? 1 : 0);
-    reorderTemplate(d.index, to);
+    // The row's OWN index, not its position among the rows on screen. Those
+    // agreed while the list was one flat run and stop agreeing the moment a
+    // category is folded: the hidden rows still count in the array the drop is
+    // about to rewrite.
+    const to = Number(d.target.row.dataset.index) + (d.target.where === 'after' ? 1 : 0);
+    reorderTemplate(d.index, to, d.target.row.dataset.cat);
   }
   // clears after the click event that follows this mouseup
   setTimeout(() => { listDragMoved = false; }, 0);
 });
 
-function reorderTemplate(from, to) {
-  if (from === to || from + 1 === to) return;
-  const [moved] = templates.splice(from, 1);
-  templates.splice(to > from ? to - 1 : to, 0, moved);
+// Both indices are into the GROUPED list the panel draws, which is why this
+// writes that list back over `templates` rather than splicing the array in
+// place: after a drop the array order and the screen order have to be the same
+// sequence again, or the next drop lands somewhere else entirely.
+//
+// Dropping into another category's section files it there. That is the whole
+// categorize-by-dragging gesture, and it is why a drop that does not move the
+// row is still worth doing when the category under it differs.
+function reorderTemplate(from, to, cat) {
+  const list = orderedTemplates();
+  const moved = list[from];
+  if (!moved) return;
+  const refiling = cat && cat !== templateCat(moved);
+  if ((from === to || from + 1 === to) && !refiling) return;
+  list.splice(from, 1);
+  list.splice(to > from ? to - 1 : to, 0, moved);
+  if (refiling) {
+    moved.cat = cat;
+    tplCatOpen[cat] = true;
+    saveTplCats();
+  }
+  templates = list;
   saveTemplates();
   renderTemplates();
 }

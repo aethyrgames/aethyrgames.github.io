@@ -822,6 +822,10 @@ function snapshotActive() {
   if (!p) return;
   p.doc = JSON.parse(JSON.stringify(doc));
   p.nextId = nextId;
+  // Where this project is scrolled to, saved by the same call that saves its
+  // document. Every persist path runs through here, so the canvas position
+  // cannot fall out of step with the widgets it is a view of.
+  p.view = getView();
 }
 
 // Read, merge, write. Every edit reaches this through refresh(), and it used to
@@ -881,11 +885,16 @@ function loadProjects() {
       name: 'Untitled',
       doc: JSON.parse(JSON.stringify(doc)),
       nextId,
+      view: { ...DEFAULT_VIEW },
     }];
     activeProject = projects[0].id;
   }
   const active = projects.find(p => p.id === activeProject);
   applyDocData(active.doc, active.nextId);
+  // The saved canvas position, which is what makes a reload land where you left
+  // off. A project stored by an older build carries no view and sanitizeView
+  // hands back the default, so nothing has to be migrated.
+  setView(active.view);
 }
 
 function switchProject(id) {
@@ -896,22 +905,29 @@ function switchProject(id) {
   activeProject = id;
   applyDocData(p.doc, p.nextId);
   resetHistory();
-  resetPan();
+  // This used to be resetPan(), which is why coming back to a tab you had
+  // scrolled somewhere always started again at the origin.
+  setView(p.view);
   refresh();
   renderProjectTabs();
 }
 
-function addProject(name, docData) {
+function addProject(name, docData, view) {
   snapshotActive();
   const p = {
     id: newProjectId(),
     name: name || 'Untitled ' + (projects.length + 1),
     doc: docData ? JSON.parse(JSON.stringify(docData)) : JSON.parse(JSON.stringify(DEFAULT_DOC)),
     nextId: 100,
+    // A document that arrives carrying a view of its own (a share link, an
+    // imported file) opens on it. Everything else opens at the origin instead
+    // of inheriting wherever the last project happened to be scrolled.
+    view: sanitizeView(view),
   };
   projects.push(p);
   activeProject = p.id;
   applyDocData(p.doc, p.nextId);
+  setView(p.view);
   resetHistory();
   refresh();
   renderProjectTabs();
@@ -925,12 +941,14 @@ function closeProject(id) {
     projects.splice(i, 1);
     closedIds.add(id);
     if (!projects.length) {
-      projects.push({ id: newProjectId(), name: 'Untitled', doc: JSON.parse(JSON.stringify(DEFAULT_DOC)), nextId: 100 });
+      projects.push({ id: newProjectId(), name: 'Untitled', doc: JSON.parse(JSON.stringify(DEFAULT_DOC)),
+        nextId: 100, view: { ...DEFAULT_VIEW } });
     }
     if (activeProject === id) {
       activeProject = projects[Math.min(i, projects.length - 1)].id;
       const p = projects.find(x => x.id === activeProject);
       applyDocData(p.doc, p.nextId);
+      setView(p.view);
       resetHistory();
       refresh();
     }
