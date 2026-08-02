@@ -1,0 +1,123 @@
+ImGuiStudio License
+Copyright (c) 2026 defessler. All rights reserved.
+
+This is a source-available license, not an open source one. You may use
+ImGuiStudio freely, and everything you build with it is yours. What you may not
+do is hand out copies of ImGuiStudio itself.
+
+Read "the Software" below as ImGuiStudio's own source, its build scripts, its
+documentation, and its compiled output. It does not mean the Third-Party
+Components listed in section 6, which carry their own licenses and are not
+restricted by this one.
+
+
+1. What You May Do
+
+You may, at no charge and without asking:
+
+  a. Run the Software, hosted or locally, for any purpose. That includes
+     commercial, internal, and educational use, by a person or an organisation,
+     with no seat limit.
+
+  b. Keep copies for your own use. Your browser has to download the app to run
+     it, and a local clone or a private fork on your own machines or your
+     organisation's private infrastructure is fine.
+
+  c. Modify your own copies however you like, and run what you modify under the
+     terms above.
+
+  d. Read the source, study it, and learn from it.
+
+
+2. Your Output Is Yours
+
+The C++ that ImGuiStudio generates, the documents you build, and anything you
+export from it belong entirely to you. This license places no condition of any
+kind on that output. No attribution, no share-alike, no notice, no royalty. Use
+it in closed source, in a product you sell, anywhere.
+
+This section survives termination of the rest of the license, so code you have
+already generated stays unencumbered no matter what happens to your right to run
+the Software.
+
+
+3. What You May Not Do
+
+Without prior written permission from the copyright holder, you may not:
+
+  a. Redistribute the Software, in source or compiled form, in whole or in
+     substantial part. That covers publishing it, sharing it, bundling it inside
+     another product, and uploading it to a package registry or an app store.
+
+  b. Host a public instance of the Software, or offer it to third parties as a
+     service, whether or not you charge for it. Running it privately for
+     yourself or inside your own organisation is not hosting a public instance.
+
+  c. Sell, rent, lease, sublicense, or otherwise transfer the Software or any
+     right in it.
+
+  d. Publish a derivative work of the Software. Private modifications under
+     section 1(c) are fine. Handing them to anyone else is not.
+
+  e. Remove, alter, or obscure this license, the copyright notice, or the
+     Third-Party Notices file from any copy you hold.
+
+Nothing here restricts rights you have under applicable law that cannot be
+waived by contract, such as a statutory right to make a backup or to
+decompile for interoperability.
+
+
+4. Contributions
+
+If you send a contribution to this project, you grant the copyright holder a
+perpetual, worldwide, irrevocable, royalty-free right to use, modify, and
+license it as part of the Software. You keep your own copyright in it. If you
+are not able to grant that, please say so instead of sending the contribution.
+
+
+5. No Warranty, and No Liability
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+ImGuiStudio generates code that you are responsible for reviewing before you
+ship it. It is a tool, not a warranty of correctness.
+
+
+6. Third-Party Components
+
+ImGuiStudio is built on and ships compiled copies of software written by other
+people, under their own licenses. Those licenses are permissive and they grant
+you rights directly, from their authors, which section 3 above does not and
+cannot take away. Full license texts are in THIRD-PARTY-NOTICES.md.
+
+  - Dear ImGui, by Omar Cornut, MIT License. Compiled into app/engine.js and
+     vendored as a submodule at engine/imgui.
+  - JSON for Modern C++, by Niels Lohmann, MIT License. Vendored at
+     engine/json.hpp and compiled into app/engine.js.
+  - Emscripten runtime support code, by the Emscripten authors, MIT License.
+     Emitted into app/engine.js by the compiler.
+
+If you want the parts of app/engine.js that are Dear ImGui, JSON for Modern C++,
+or Emscripten, take them from their upstream projects under their own terms
+rather than from here.
+
+
+7. Termination
+
+This license ends automatically if you breach section 3 and do not put it right
+within 30 days of being told about it. Section 2 survives, as stated there, and
+so do sections 5 and 6.
+
+
+8. Asking for Something Else
+
+If you want to do something this license does not allow, ask. Contact
+defessler@gmail.com. A different arrangement is usually possible and the answer
+is not automatically no.
