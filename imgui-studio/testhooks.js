@@ -285,6 +285,8 @@ window.__test = {
   // a screen point in world coordinates, the conversion every gesture uses
   pointAt: (x, y) => canvasPoint({ clientX: x, clientY: y }),
   gridOn: () => showGrid,
+  // the step Shift snaps to, from the app rather than typed into a check twice
+  gridStep: () => GRID_MINOR,
   rulersOn: () => showRulers,
   menu: name => renderMenu(name),
   closeMenu: () => closeMenu(),

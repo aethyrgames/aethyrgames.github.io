@@ -742,6 +742,13 @@ for (const h of selbox.querySelectorAll('.rh')) {
       x0: Number(node.x) || 0,
       y0: Number(node.y) || 0,
       h0: Number(node.h) || (r ? Math.round(r.h) : 0),
+      // Where the far edge sits in WORLD terms, which is what a Shift-snap on
+      // the right or bottom edge has to land on the grid. A window has its own
+      // x and y, a widget in a flow layout does not: its position is whatever
+      // the layout gave it, so it comes off the published rect. Captured once
+      // at drag start for the same reason w0 is, since the row reflows.
+      left0: r ? r.x : (Number(node.x) || 0),
+      top0: r ? r.y : (Number(node.y) || 0),
     };
   });
 }
@@ -1058,12 +1065,35 @@ document.addEventListener('mousemove', e => {
     // out the edge crawled behind the cursor, zoomed in it raced ahead.
     const dx = (e.clientX - resizing.startX) / zoom;
     const dy = (e.clientY - resizing.startY) / zoom;
+    // Shift lands the edge you are DRAGGING on the grid you can see, which is
+    // what it already meant on the left and top edges below and what it means
+    // on a window title-bar drag. Only those two branches had it, and they are
+    // the two a plain widget never gets: its selection box carries a right
+    // edge, a bottom edge and the corner between them, so holding Shift while
+    // resizing a widget did nothing at all.
+    //
+    // The size takes up the difference, since the near edge is not moving.
+    const snapFar = (near, size) => {
+      let s = Math.round((near + size) / GRID_MINOR) * GRID_MINOR - near;
+      // A snap that lands under the floor goes to the next line up rather than
+      // being clamped back off the grid.
+      while (s < MIN_DRAG_SIZE) { s += GRID_MINOR; }
+      // Rounded, because a widget's near edge comes from the engine and can sit
+      // on a fraction. The field is what the generated C++ carries, and a width
+      // of 137.4062 there to put an edge a rounding error closer to a grid line
+      // is a bad trade.
+      return Math.round(s);
+    };
     if (resizing.axis.includes('w')) {
       // whichever key this widget spells its width with
-      node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
+      let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
+      if (e.shiftKey) { w = snapFar(resizing.left0, w); }
+      node[resizing.wkey] = w;
     }
     if (resizing.axis.includes('h')) {
-      node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
+      let h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
+      if (e.shiftKey) { h = snapFar(resizing.top0, h); }
+      node.h = h;
     }
     // a left or top edge grows the other way, so the node moves as it sizes
     // A left or top edge grows the other way, so the node moves as it sizes.
