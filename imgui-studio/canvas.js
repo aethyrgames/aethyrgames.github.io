@@ -58,32 +58,51 @@ const ghost = document.getElementById('ghost');
 // has to be added back by hand. `:focus-visible` alone was tried first, but
 // Chrome does not apply its own click-vs-keyboard heuristic to a bare
 // tabindexed <canvas> the way it does to form controls: the ring showed up
-// for a mouse click too. Tracked here instead, from the same signal a real
-// browser uses: whatever kind of input happened most recently.
-let lastInputWasPointer = false;
-document.addEventListener('pointerdown', () => {
-  lastInputWasPointer = true;
+// for a mouse click too.
+//
+// The signal is "did the keyboard NAVIGATE here", not "was the last input a
+// key". Those two agree on a click and on a Tab, and disagree everywhere the
+// app hands focus back to the canvas ITSELF: endInlineEdit after a rename,
+// restorePreOverlayFocus after an overlay closes. Each is a programmatic
+// focus() one keystroke after a keydown, and reading that keydown drew a ring
+// on a canvas the user had reached by double-clicking. That shipped twice, as
+// an Alt+Tab and then as a rename, which is what a rule this indirect earns.
+//
+// So only a Tab arms it, and every other keydown and every pointerdown clears
+// it. Nothing needs to spend it on arrival: each of the app's own focus() calls
+// sits behind an Escape, an Enter, an F2 or a click, so the flag is already
+// false by the time the focus event lands.
+//
+// On WINDOW, not document, and this file is loaded before keys.js on purpose.
+// keys.js hands Tab to whatever control has focus by calling
+// stopImmediatePropagation from its own window-capture listener, and that stops
+// document-level capture listeners dead. Sitting on document, this never saw
+// the one key it cares about. The first version of this check pressed Shift
+// instead of Tab, which nothing swallows, so it passed while Tab was invisible.
+let focusFromTab = false;
+window.addEventListener('pointerdown', () => {
+  focusFromTab = false;
   windowReturning = false;
 }, true);
-document.addEventListener('keydown', () => {
-  lastInputWasPointer = false;
+window.addEventListener('keydown', e => {
+  focusFromTab = e.key === 'Tab';
   windowReturning = false;
 }, true);
 
 // Alt+Tab away and back and the canvas fires `focus` again with no new input
 // behind it, because the browser re-focuses whatever was already the active
-// element when the window comes back. Alt is a keydown, so `lastInputWasPointer`
-// was false by then and the ring came up on a canvas the user had clicked into
-// with the mouse: a cyan border appearing out of nowhere on a window switch.
+// element when the window comes back.
 //
-// A focus arriving that way carries no modality signal at all, so the honest
-// thing is to leave the ring exactly as the user last earned it rather than
-// recompute it from a keystroke that was aimed at the window manager.
+// A focus arriving that way carries no modality signal at all, so the ring is
+// left exactly as the user last earned it rather than recomputed. This still
+// matters under the Tab rule above, and in the opposite direction to the bug
+// that prompted it: without it, a ring earned by tabbing in would be cleared by
+// a trip to another application and back.
 let windowReturning = false;
 window.addEventListener('blur', () => { windowReturning = true; });
 canvas.addEventListener('focus', () => {
   if (windowReturning) { windowReturning = false; return; }
-  canvasHost.classList.toggle('kbd-focus', !lastInputWasPointer);
+  canvasHost.classList.toggle('kbd-focus', focusFromTab);
 });
 canvas.addEventListener('blur', () => {
   // An application switch blurs the element too, and the element's blur and the

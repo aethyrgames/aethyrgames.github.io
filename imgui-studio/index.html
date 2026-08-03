@@ -711,9 +711,11 @@
      not useful), so the indicator lives on the host instead: an inset ring
      that shows up for a keyboard focus arrival but not a mouse selection
      click, the same distinction #codeEditWrap:focus-within draws for the C++
-     editor. `.kbd-focus` is toggled in canvas.js, which is the input-modality
-     signal Chrome's own :focus-visible heuristic does not apply to a bare
-     tabindexed <canvas> (it showed the ring for a mouse click too). */
+     editor. `.kbd-focus` is toggled in canvas.js, which is where the arrival is
+     judged: Chrome does not apply its own :focus-visible heuristic to a bare
+     tabindexed <canvas> (it showed the ring for a mouse click too). Only a Tab
+     that navigates here turns it on. A focus() the app performs itself, ending
+     a rename or closing an overlay, deliberately does not. */
   #canvashost.kbd-focus {
     box-shadow: inset 0 0 0 2px var(--mk-cyan);
   }
@@ -1355,7 +1357,7 @@
 <script src="cpp.js?v=cb322c33cd"></script>
 <script src="codeintel.js?v=f0f4d02887"></script>
 <script src="doc.js?v=6fdb8897ef"></script>
-<script src="canvas.js?v=15b81a4aef"></script>
+<script src="canvas.js?v=54961a88cb"></script>
 <script src="keys.js?v=c63e42566a"></script>
 <script src="generate.js?v=3564689795"></script>
 <script src="theme.js?v=41ea6ff05b"></script>
