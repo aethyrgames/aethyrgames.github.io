@@ -98,6 +98,15 @@ function slateEmitWidget(node, ctx) {
   const lines = [`SNew(${cls})`];
   for (const el of spec.emit(node, ctx) || []) lines.push(el);
 
+  // Chain calls the tool does not model, carried verbatim on the node (the
+  // parser collects them, the inspector edits them). Emitted after the
+  // modelled calls, so a generated-parsed-generated cycle is stable.
+  if (node.props.extraCode) {
+    for (const line of String(node.props.extraCode).split('\n')) {
+      if (line.trim()) lines.push(line);
+    }
+  }
+
   // A widget with a default slot it fills itself, e.g. SCheckBox's label.
   if (spec.defaultSlot) {
     const inner = spec.defaultSlot(node, ctx);

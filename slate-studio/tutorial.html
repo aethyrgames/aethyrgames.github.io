@@ -220,7 +220,7 @@ void OpenStudioWindows()
 </ul>
 
 <div class="note important">
-  IMPORTANT: a call the tool doesn't model is dropped on Apply, and the status line under the pane says exactly what was dropped. Read it before you move on. The imgui side of this tool preserves unmodelled code as raw blocks. The slate side doesn't yet.
+  IMPORTANT: a chain call the tool doesn't model (a <code>.ToolTipText</code>, say) is kept verbatim on its widget and re-emitted after the modelled calls. You can see and edit it in the Properties panel under "Extra Code". A widget CLASS the tool doesn't know is still dropped on Apply, and the status line under the pane says exactly what happened either way. Read it before you move on.
 </div>
 
 <h2 id="saving">Where Your Work Lives</h2>

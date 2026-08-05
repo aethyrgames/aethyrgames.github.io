@@ -325,7 +325,13 @@ function createSlateParser(catalog) {
         if (name === null || args === null) { S.note('malformed method call'); break; }
         const fn = methods[name];
         if (fn) { fn(node, args, msg => S.note(msg)); touched.add(name); }
-        else S.note(`.${name}() is not modelled on ${base} and was dropped`);
+        else {
+          // Not modelled, so keep it VERBATIM instead of eating it. It lands
+          // on the node as extraCode, the generator re-emits it after the
+          // modelled calls, and the inspector shows it under Extra Code.
+          node.extraCode = (node.extraCode ? node.extraCode + '\n' : '') + `.${name}(${args})`;
+          S.note(`.${name}() on ${base} is not modelled; kept verbatim as Extra Code`);
+        }
         continue;
       }
 

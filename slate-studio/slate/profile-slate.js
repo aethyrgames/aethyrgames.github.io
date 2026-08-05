@@ -34,12 +34,19 @@ function slateBuildCatalog() {
     // Normalise here so the catalog file keeps its own shape and the shell
     // sees the one it renders: the un-normalised form killed the palette
     // walk at the first enum and exactly 14 of 21 chips survived.
-    const props = (spec.props || []).concat(SLATE_SLOT_PROPS).map(row => {
-      if (row[1] === 'enum' && row[3] && !Array.isArray(row[3]) && Array.isArray(row[3].values)) {
-        return [row[0], row[1], row[2], row[3].values];
-      }
-      return row;
-    });
+    //
+    // extraCode rides on every widget: the chain calls the parser meets and
+    // does not model, kept verbatim and re-emitted after the modelled ones.
+    // It is an ordinary longtext prop so the inspector can show and edit it,
+    // the same ethos as the imgui page's Raw C++ nodes at chain-call grain.
+    const props = (spec.props || []).concat(SLATE_SLOT_PROPS)
+      .concat([['extraCode', 'longtext', '']])
+      .map(row => {
+        if (row[1] === 'enum' && row[3] && !Array.isArray(row[3]) && Array.isArray(row[3].values)) {
+          return [row[0], row[1], row[2], row[3].values];
+        }
+        return row;
+      });
     out[type] = Object.assign({}, spec, { props });
   }
   // SWindow, mirroring the shell's expectations of a window node: label and

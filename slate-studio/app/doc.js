@@ -661,8 +661,16 @@ function coerce(t, raw, def, opts) {
   if (t === 'bool') return raw === true;
   const num = Number(raw);
   if (t === 'enum') {
-    const allowed = (opts || []).map(o => Number(Array.isArray(o) ? o[1] : o));
-    return allowed.includes(num) ? num : def;
+    // Two enum shapes share this branch: imgui's are numeric indices, the
+    // slate catalog's are strings ('fill', 'Center', 'int32'). The numeric
+    // coercion alone turned every string member into NaN, silently, on every
+    // sanitize: the demo's fill spacer died at LOAD, the generated code
+    // emitted AutoHeight for it, and the round trip stayed byte-identical
+    // because both sides were consistently wrong.
+    const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+    if (vals.includes(raw)) return raw;
+    const allowed = vals.map(Number);
+    return Number.isFinite(num) && allowed.includes(num) ? num : def;
   }
   if (!Number.isFinite(num)) return def;
   return t === 'int' ? Math.trunc(num) : num;
