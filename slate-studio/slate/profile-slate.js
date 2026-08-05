@@ -204,6 +204,12 @@ const PROFILE = {
     return this._parser;
   },
 
+  // One value that resolves everywhere the page mounts: in a checkout the
+  // page's <base> is ../app/, so this lands on slate-studio/tutorial.html;
+  // deployed there is no base, the page sits at slate-studio/, and the same
+  // ../slate-studio/ hop lands on the copy the bundle ships at its root.
+  tutorialUrl: '../slate-studio/tutorial.html',
+
   // A call, not a reference, matching the imgui profile: the builder returns
   // fresh objects so an applied template cannot mutate the master copies.
   get templates() {

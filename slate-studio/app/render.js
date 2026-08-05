@@ -364,7 +364,9 @@ for (const b of document.querySelectorAll('.menutop[data-menu]')) {
 
 // One path for both entry points, so the Help menu row and the bar button
 // cannot drift apart and a test that covers one covers the other.
-function openTutorial() { window.open('tutorial.html', '_blank', 'noopener'); }
+// The profile's page, because each studio teaches its own layout model. The
+// bare-name fallback is the imgui page's own tutorial beside index.html.
+function openTutorial() { window.open(PROFILE.tutorialUrl || 'tutorial.html', '_blank', 'noopener'); }
 const tutorialTopBtn = document.getElementById('tutorialTopBtn');
 if (tutorialTopBtn) {
   tutorialTopBtn.onclick = e => { e.stopPropagation(); closeMenu(); openTutorial(); };

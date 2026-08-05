@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slate Studio - Tutorial</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFlMWUxZSIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iI0E2RTIyRSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Jmd0OzwvdGV4dD48L3N2Zz4=">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mk-bg:      #1e1e1e;
+    --mk-surface: #2d2d2d;
+    --mk-gutter:  #141414;
+    --mk-fg:      #F8F8F2;
+    --mk-comment: #75715E;
+    --mk-pink:    #F92672;
+    --mk-orange:  #FD971F;
+    --mk-yellow:  #E6DB74;
+    --mk-green:   #A6E22E;
+    --mk-cyan:    #66D9EF;
+    --mk-purple:  #AE81FF;
+    --mk-border:  #49483E;
+    --font: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 14px/1.65 var(--font);
+    background: var(--mk-bg); color: var(--mk-fg);
+  }
+  header {
+    border-bottom: 1px solid var(--mk-border); background: var(--mk-gutter);
+    padding: 14px 24px; position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  }
+  header .brand {
+    color: var(--mk-green); font-weight: 700; font-size: 15px;
+    text-shadow: 0.03em 0 0 rgba(249,38,114,.35), -0.03em 0 0 rgba(102,217,239,.35);
+  }
+  header nav { margin-left: auto; display: flex; gap: 14px; flex-wrap: wrap; }
+  a { color: var(--mk-cyan); }
+  a:hover { color: var(--mk-green); }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 24px 80px; }
+  h1 { font-size: 26px; color: var(--mk-green); margin: 32px 0 8px; }
+  h2 {
+    font-size: 19px; color: var(--mk-orange); margin: 40px 0 10px;
+    padding-top: 14px; border-top: 1px solid var(--mk-border);
+  }
+  h3 { font-size: 15px; color: var(--mk-yellow); margin: 26px 0 6px; }
+  p, li { color: var(--mk-fg); }
+  ul { padding-left: 22px; }
+  li { margin: 5px 0; }
+  code {
+    background: var(--mk-gutter); color: var(--mk-purple);
+    padding: 1px 5px; border-radius: 3px; font-size: 13px;
+  }
+  pre {
+    background: var(--mk-gutter); border: 1px solid var(--mk-border);
+    border-radius: 4px; padding: 12px 14px; overflow-x: auto; font-size: 13px;
+  }
+  pre code { background: none; padding: 0; color: var(--mk-fg); }
+  kbd {
+    background: var(--mk-surface); border: 1px solid var(--mk-border);
+    border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px;
+    font: inherit; font-size: 12px; color: var(--mk-cyan); white-space: nowrap;
+  }
+  b.ui {
+    color: var(--mk-green); font-weight: 600; white-space: nowrap;
+  }
+  .note {
+    border-left: 3px solid var(--mk-comment); padding: 2px 0 2px 14px;
+    margin: 16px 0; color: #cfcfc6;
+  }
+  .note.important { border-left-color: var(--mk-pink); }
+  .lead { color: var(--mk-comment); margin-top: 4px; }
+  .toc { background: var(--mk-surface); border: 1px solid var(--mk-border);
+         border-radius: 4px; padding: 12px 16px; margin: 24px 0; }
+  .toc ul { margin: 6px 0 0; }
+  footer { border-top: 1px solid var(--mk-border); color: var(--mk-comment);
+           padding: 20px 24px; max-width: 860px; margin: 0 auto; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">Slate Studio</span>
+  <span style="color:var(--mk-comment)">Tutorial</span>
+  <nav>
+    <a href="index.html">Open the editor</a>
+  </nav>
+</header>
+
+<main>
+
+<h1>Ten Minutes With Slate Studio</h1>
+<p class="lead">The parts of this tool that don't work like the tools you already know. The editor is a tab away and it opens on a panel you can take apart. Read a section, then go poke at it.</p>
+
+<p>Slate Studio is a visual builder for Unreal Engine <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/slate-user-interface-programming-framework-for-unreal-engine">Slate</a> layouts. If you write Slate by hand you already know the loop: edit the widget chain, compile, launch, look, repeat. The declarative syntax is pleasant to read and slow to iterate on, because every look costs a compile. This tool draws your layout with the real thing while you edit, and the C++ it writes is an ordinary <code>SCompoundWidget</code> that it reads back again.</p>
+
+<div class="toc">
+  <strong>On this page</strong>
+  <ul>
+    <li><a href="#screen">What's on Screen</a></li>
+    <li><a href="#slots">Widgets Live in Slots</a></li>
+    <li><a href="#props">Select It, Then Change It</a></li>
+    <li><a href="#live">The Preview Is Real Slate</a></li>
+    <li><a href="#code">The Code Pane Goes Both Ways</a></li>
+    <li><a href="#saving">Where Your Work Lives</a></li>
+    <li><a href="#templates">Templates Are Worked Examples</a></li>
+    <li><a href="#next">Keep Going</a></li>
+  </ul>
+</div>
+
+<h2 id="screen">What's on Screen</h2>
+
+<p>You start on a sample panel rather than an empty sheet. There's something to change straight away.</p>
+
+<ul>
+  <li>Palette, Hierarchy, Properties, and Templates share the left dock, with Templates starting collapsed. Click any panel's title bar to fold it, or drag that bar to move the panel to another dock.</li>
+  <li>The Generated C++ pane has the right dock to itself.</li>
+  <li>Canvas in the middle, rulers around it, status bar underneath with the zoom stepper in it.</li>
+</ul>
+
+<p>Only one of those is the real thing. The Document is a tree of windows and widgets. The canvas and the C++ pane are both drawn from it. Edit either one and you edited the Document, which is why they never disagree. Hold on to that and the rest of this page is mostly consequences.</p>
+
+<h2 id="slots">Widgets Live in Slots</h2>
+
+<p>Slate is a box-and-slot layout. A panel like <code>SVerticalBox</code> owns a list of slots, each slot holds one child, and the slot (not the child) decides how much room that child gets. This is the part that trips people up coming from Figma, and it's also what makes a Slate layout resize properly for free. A widget has no position of its own. What you control is order, nesting, and slot rules.</p>
+
+<p>Windows are the exception. A window has an x and a y and you drag it by its title bar, with <kbd>Shift</kbd> snapping it to the grid. Everything inside it flows.</p>
+
+<h3>Order and Nesting</h3>
+
+<p>Drag rows up and down in the Hierarchy, use the <b class="ui">↑</b> <b class="ui">↓</b> buttons on a row, or press <kbd>Ctrl+↑</kbd> and <kbd>Ctrl+↓</kbd>. Order in the tree is order on screen. Drop a row onto a container to reparent it. The panels are the containers: Vertical Box and Horizontal Box stack their children, Overlay layers them, and Border and Box wrap a single child.</p>
+
+<h3>Slot Rules</h3>
+
+<p>Every widget carries its slot's settings as ordinary properties, so you edit them in the Properties panel like anything else:</p>
+
+<ul>
+  <li>Slot Size - "auto" gives the child exactly the room it asks for, which is <code>AutoHeight()</code> in the code. "fill" hands it a share of whatever is left, which is <code>FillHeight(weight)</code>, and the weight sets the share.</li>
+  <li>Slot H Align and Slot V Align - where the child sits inside its slot when the slot is bigger than the child.</li>
+  <li>Slot padding - space around the child, one value per edge.</li>
+</ul>
+
+<p>The sample panel uses a fill-sized Spacer to push its buttons to the bottom, which is the idiom you'll reach for constantly. There's no anchor or dock setting to hunt for. A spacer with a fill slot is how Slate spells "push everything after me to the far edge".</p>
+
+<h3>Dropping a Widget</h3>
+
+<p>New widgets come out of the palette. Click a tile to append one to the nearest container that'll take it, or drag it onto the canvas and pick the spot yourself. The indicator under the cursor tells you what the drop will do before you let go: a horizontal line inserts above or below the widget you're over, and a box around a container means the drop goes inside it.</p>
+
+<h2 id="props">Select It, Then Change It</h2>
+
+<p>Click a widget on the canvas or its row in the Hierarchy. It's one selection shown three ways: the canvas outlines it, the tree highlights the row, and the C++ pane marks the lines it produced.</p>
+
+<p>Properties sits on the left under the Hierarchy. Fields differ per widget, and every widget gets the slot rules from the last section on top of its own. A green dot after a field name means you've moved it off its default. The <code>⟲</code> beside it puts that one property back.</p>
+
+<p>Windows carry their own set: the title, and the position and size they open at. You can also just drag the window by its title bar and resize it by its corner grip. The document keeps up either way.</p>
+
+<h2 id="live">The Preview Is Real Slate</h2>
+
+<p>The canvas is not a picture of what Slate would draw. It's Unreal Engine 5.8's SlateCore and Slate modules compiled to WebAssembly, laying out and painting your document with the same code the engine runs, Starship styling included. If a font measures differently or a border insets by 2px, that's the engine telling you, not an approximation guessing.</p>
+
+<p>Hold <kbd>Space</kbd> and the preview goes live: buttons press, checkboxes tick, sliders drag. Let go and you're back to editing with the selection you had. Press <kbd>Tab</kbd> to stay in Live mode instead.</p>
+
+<div class="note">
+  Note: whatever you set while poking around is the preview's own state, not the Document. It never reaches your generated code.
+</div>
+
+<h2 id="code">The Code Pane Goes Both Ways</h2>
+
+<p>The pane on the right regenerates as you work. Each window becomes its own <code>SCompoundWidget</code> class, which is how UE code actually ships: you write the widget, and something else (a window, a tab spawner, another panel) owns where it goes. The window's title, size, and position ride in a <code>// Window:</code> comment, since the C++ itself has no place for them.</p>
+
+<p>The sample panel's headline and a save button come out like this:</p>
+
+<pre><code>// Window: "Account Settings" 380x300 at 30,30
+void SAccountSettings::Construct(const FArguments&amp; InArgs)
+{
+    ChildSlot
+    [
+        SNew(SVerticalBox)
+        + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(STextBlock)
+                .Text(LOCTEXT("Account_Settings", "Account Settings"))
+                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+            ]
+        + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SButton)
+                .Text(LOCTEXT("Save", "Save"))
+                .OnClicked(this, &amp;SAccountSettings::OnSave)
+            ]
+    ];
+}</code></pre>
+
+<p>Every user-facing string is a <code>LOCTEXT</code>, so the file carries its own <code>LOCTEXT_NAMESPACE</code> pair and localizes like the rest of your project. A widget with a handler gets a member declared and defined for it, with the right delegate shape: an <code>OnClicked</code> returns <code>FReply</code>, an <code>OnCheckStateChanged</code> takes the new state. <b class="ui">Copy</b> at the top of the pane takes the lot.</p>
+
+<h3>And Back Again</h3>
+
+<p>The pane is read-only until you say otherwise. Press <b class="ui">Edit</b> in its header and the text becomes an editor, with <b class="ui">Apply</b> and <b class="ui">Cancel</b> where <b class="ui">Edit</b> was. Type C++, press Apply, and it parses back into the Document. Cancel throws the edit away. What survives a trip out and back:</p>
+
+<ul>
+  <li>Every property the generator writes, slot rules included, and the window frames in their comments.</li>
+  <li>Handler names. The member bodies are regenerated from them, so a body you filled in belongs in your project, not in the pane.</li>
+  <li>Formatting inside generated blocks is normalized on the way back.</li>
+</ul>
+
+<div class="note important">
+  IMPORTANT: a call the tool doesn't model is dropped on Apply, and the status line under the pane says exactly what was dropped. Read it before you move on. The imgui side of this tool preserves unmodelled code as raw blocks. The slate side doesn't yet.
+</div>
+
+<h2 id="saving">Where Your Work Lives</h2>
+
+<p>Saved in the browser as you go, and the tab strip above the canvas holds several projects at once. Nothing is uploaded anywhere. Switching projects starts a fresh undo stack. <kbd>Ctrl+Z</kbd> can't reach back into a document you left.</p>
+
+<ul>
+  <li><strong>File &gt; Export JSON</strong> writes the document to a file you can commit. <strong>Import JSON</strong> reads one back.</li>
+  <li><strong>Share</strong>, top right, copies a link with the document packed into the URL. Nothing is stored on a server.</li>
+  <li><strong>File &gt; Reset to Sample</strong> puts the starting panel back. It asks before discarding what's there. <kbd>Ctrl+Z</kbd> undoes it anyway.</li>
+</ul>
+
+<div class="note">
+  Note: because the browser does the saving, clearing site data for this domain clears your projects with it. Export anything you'd be sad to lose. The slate and imgui pages keep separate storage, so work on one never touches the other.
+</div>
+
+<h2 id="templates">Templates Are Worked Examples</h2>
+
+<p>The Templates panel sits at the bottom of the left dock, collapsed until you click its title. It holds five worked examples: a blank window, a login form, a settings panel, an about dialog, and a status card. Each is a small document that already works, so it's a starting point and the reference for its feature at the same time. The login form shows the fill-spacer idiom, the about dialog is mostly slot alignment, and the status card nests Border, Box, and Overlay three deep.</p>
+
+<p>Click a name, or its <code>＋</code>, and the template's widgets land in the nearest container of your selection. Drag a row onto the canvas instead to put them where you drop. Right-click a row for the bigger moves: <strong>Apply Here</strong> replaces the current document (it asks first), and <strong>Open as Project</strong> puts the template in a new tab and leaves your document alone.</p>
+
+<p><b class="ui">Save Current</b> at the top of the panel adds what you built to the list, named after its first window. <b class="ui">Export</b> writes your custom templates to a JSON file and <b class="ui">Import</b> reads them back, which is how a team shares one library.</p>
+
+<h2 id="next">Keep Going</h2>
+
+<p>The fastest way to learn a feature here is to open the template that uses it and pull it apart.</p>
+
+<ul>
+  <li><kbd>?</kbd> opens the shortcut list, built from the same table the app dispatches on. Click any row to rebind it.</li>
+  <li><kbd>Ctrl+K</kbd> is the command palette for anything without a key. <kbd>/</kbd> opens the same picker filtered over the widget types.</li>
+</ul>
+
+<p>Some corners are rougher than others. If the editor and this page ever disagree, the editor is right.</p>
+
+</main>
+
+<footer>
+  Slate Studio builds on <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/slate-user-interface-programming-framework-for-unreal-engine">Slate</a>, part of Unreal Engine by Epic Games.
+  <a href="index.html">Back to the editor</a>
+</footer>
+
+</body>
+</html>
