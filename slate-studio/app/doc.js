@@ -658,7 +658,12 @@ function coerce(t, raw, def, opts) {
   // preview and in the generated code right up until the next reload, when
   // sanitize silently cut it back.
   if (t in TEXT_CAP) return typeof raw === 'string' ? raw.slice(0, TEXT_CAP[t]) : def;
-  if (t === 'bool') return raw === true;
+  // Honor the default when the value is simply absent: `raw === true` turned
+  // every missing default-true bool (the slate spin box's enableWheel) into
+  // false on sanitize, which the palette sweep caught as a round trip that
+  // gained an .EnableWheel(false) out of nowhere. imgui never noticed
+  // because its bools all default false.
+  if (t === 'bool') return typeof raw === 'boolean' ? raw : def === true;
   const num = Number(raw);
   if (t === 'enum') {
     // Two enum shapes share this branch: imgui's are numeric indices, the

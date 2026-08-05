@@ -402,6 +402,160 @@ const SLATE_WIDGETS = {
   },
 };
 
+// ---- The second wave, researched against what the wasm module already
+// compiles: every class below has its .o in slate-wasm/build/link-objects.rsp,
+// so the preview costs a BuildNode case and no new engine units. ------------
+
+SLATE_WIDGETS.multilinetextbox = {
+  cls: 'SMultiLineEditableTextBox', header: 'Widgets/Input/SMultiLineEditableTextBox.h', module: 'Slate',
+  cat: 'Input', name: 'Multi-line Text Box',
+  props: [
+    ['text', 'text', ''],
+    ['hintText', 'text', 'Type here'],
+    ['autoWrap', 'bool', true],
+  ],
+  emit(n, ctx) {
+    const out = [];
+    if (n.props.text) out.push(`.Text(${ctx.text(n.props.text)})`);
+    if (n.props.hintText) out.push(`.HintText(${ctx.text(n.props.hintText)})`);
+    if (n.props.autoWrap) out.push('.AutoWrapText(true)');
+    return out;
+  },
+};
+
+SLATE_WIDGETS.textcombobox = {
+  cls: 'STextComboBox', header: 'Widgets/Input/STextComboBox.h', module: 'Slate',
+  cat: 'Input', name: 'Text Combo Box',
+  props: [
+    ['items', 'items', 'Option A, Option B, Option C'],
+    ['selectedIndex', 'int', 0],
+  ],
+  // The options array is a static local ahead of ChildSlot, so the whole
+  // widget stays inside the one function the pane shows and the parser can
+  // read the items back out of it.
+  preLines(n, ctx) {
+    const items = String(n.props.items || '').split(',').map(s => s.trim()).filter(Boolean);
+    const list = items.map(s => `MakeShared<FString>(TEXT("${slateEscape(s)}"))`).join(', ');
+    return [`static TArray<TSharedPtr<FString>> Options${n.id} { ${list} };`];
+  },
+  emit(n) {
+    const items = String(n.props.items || '').split(',').map(s => s.trim()).filter(Boolean);
+    const sel = Math.max(0, Math.min(items.length - 1, Math.trunc(n.props.selectedIndex || 0)));
+    const out = [`.OptionsSource(&Options${n.id})`];
+    if (items.length) out.push(`.InitiallySelectedItem(Options${n.id}[${sel}])`);
+    return out;
+  },
+};
+
+SLATE_WIDGETS.colorblock = {
+  cls: 'SColorBlock', header: 'Widgets/Colors/SColorBlock.h', module: 'Slate',
+  cat: 'Display', name: 'Color Block',
+  props: [
+    ['color', 'color', '#4488ffff'],
+    ['sizeX', 'float', 40], ['sizeY', 'float', 16],
+  ],
+  emit(n, ctx) {
+    // SColorBlock's Color is a bare FLinearColor attribute, not FSlateColor.
+    return [
+      `.Color(${ctx.linear(n.props.color)})`,
+      `.Size(FVector2D(${ctx.f(n.props.sizeX)}, ${ctx.f(n.props.sizeY)}))`,
+    ];
+  },
+};
+
+SLATE_WIDGETS.spinningimage = {
+  cls: 'SSpinningImage', header: 'Widgets/Images/SSpinningImage.h', module: 'Slate',
+  cat: 'Display', name: 'Spinning Image',
+  props: [['brush', 'text', 'Icons.Help'], ['period', 'float', 1]],
+  emit(n, ctx) {
+    const out = [`.Image(FAppStyle::Get().GetBrush("${n.props.brush}"))`];
+    if (n.props.period !== 1) out.push(`.Period(${ctx.f(n.props.period)})`);
+    return out;
+  },
+};
+
+SLATE_WIDGETS.scrollbox = {
+  cls: 'SScrollBox', header: 'Widgets/Layout/SScrollBox.h', module: 'Slate',
+  cat: 'Panel', name: 'Scroll Box',
+  // axis 'z': scroll box slots carry padding and alignment but no fill,
+  // the same emission shape as SOverlay's.
+  container: true, slotted: true, axis: 'z', slotType: 'SScrollBox::FSlot',
+  props: [['orientation', 'enum', 'Vertical', { values: ['Vertical', 'Horizontal'] }]],
+  emit(n) {
+    return n.props.orientation === 'Horizontal' ? ['.Orientation(Orient_Horizontal)'] : [];
+  },
+};
+
+SLATE_WIDGETS.wrapbox = {
+  cls: 'SWrapBox', header: 'Widgets/Layout/SWrapBox.h', module: 'Slate',
+  cat: 'Panel', name: 'Wrap Box',
+  container: true, slotted: true, axis: 'z', slotType: 'SWrapBox::FSlot',
+  props: [['innerSlotPadding', 'float', 0]],
+  emit(n, ctx) {
+    // UseAllottedSize is what makes a wrap box wrap at its arranged width
+    // instead of never wrapping at all; emitted always because the studio's
+    // layout model has no other honest reading.
+    const out = ['.UseAllottedSize(true)'];
+    if (n.props.innerSlotPadding > 0) {
+      out.push(`.InnerSlotPadding(FVector2D(${ctx.f(n.props.innerSlotPadding)}, ${ctx.f(n.props.innerSlotPadding)}))`);
+    }
+    return out;
+  },
+};
+
+SLATE_WIDGETS.widgetswitcher = {
+  cls: 'SWidgetSwitcher', header: 'Widgets/Layout/SWidgetSwitcher.h', module: 'Slate',
+  cat: 'Panel', name: 'Widget Switcher',
+  container: true, slotted: true, axis: 'z', slotType: 'SWidgetSwitcher::FSlot',
+  props: [['activeIndex', 'int', 0]],
+  emit(n) { return [`.WidgetIndex(${Math.max(0, Math.trunc(n.props.activeIndex || 0))})`]; },
+};
+
+SLATE_WIDGETS.splitter = {
+  cls: 'SSplitter', header: 'Widgets/Layout/SSplitter.h', module: 'Slate',
+  cat: 'Panel', name: 'Splitter',
+  // Splitter slots take a proportional .Value and nothing else; slotValue
+  // routes the child's slot weight there instead of the fill/align set.
+  container: true, slotted: true, slotValue: true, slotType: 'SSplitter::FSlot',
+  props: [['orientation', 'enum', 'Horizontal', { values: ['Horizontal', 'Vertical'] }]],
+  emit(n) {
+    return n.props.orientation === 'Vertical' ? ['.Orientation(Orient_Vertical)'] : [];
+  },
+};
+
+SLATE_WIDGETS.scalebox = {
+  cls: 'SScaleBox', header: 'Widgets/Layout/SScaleBox.h', module: 'Slate',
+  cat: 'Panel', name: 'Scale Box',
+  container: true, single: true,
+  props: [
+    ['stretch', 'enum', 'ScaleToFit',
+      { values: ['None', 'Fill', 'ScaleToFit', 'ScaleToFill', 'UserSpecified'] }],
+    ['userScale', 'float', 1],
+  ],
+  emit(n, ctx) {
+    const out = [`.Stretch(EStretch::${n.props.stretch})`];
+    if (n.props.stretch === 'UserSpecified') out.push(`.UserSpecifiedScale(${ctx.f(n.props.userScale)})`);
+    return out;
+  },
+};
+
+SLATE_WIDGETS.expandablearea = {
+  cls: 'SExpandableArea', header: 'Widgets/Layout/SExpandableArea.h', module: 'Slate',
+  cat: 'Panel', name: 'Expandable Area',
+  // Body content is a NAMED slot, which childSlotMethod spells out; a bare
+  // [ ] does not compile against SExpandableArea.
+  container: true, single: true, childSlotMethod: 'BodyContent',
+  props: [
+    ['areaTitle', 'text', 'Details'],
+    ['initiallyCollapsed', 'bool', false],
+  ],
+  emit(n, ctx) {
+    const out = [`.AreaTitle(${ctx.text(n.props.areaTitle)})`];
+    if (n.props.initiallyCollapsed) out.push('.InitiallyCollapsed(true)');
+    return out;
+  },
+};
+
 // A block of Slate the tool carries verbatim: the parser wraps any SNew of a
 // class it does not model in one of these, the generator re-emits the code
 // untouched, and the preview draws a neutral placeholder. Hidden from the

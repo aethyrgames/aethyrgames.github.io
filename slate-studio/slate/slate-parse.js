@@ -178,6 +178,52 @@ function createSlateParser(catalog) {
       MinDesiredWidth: F('minDesiredWidth'), MinDesiredHeight: F('minDesiredHeight'),
     },
     verticalbox: {}, horizontalbox: {}, overlay: {},
+    multilinetextbox: {
+      Text: T('text'), HintText: T('hintText'), AutoWrapText: B('autoWrap'),
+    },
+    textcombobox: {
+      // items are recovered from the static options array the generator
+      // writes ahead of ChildSlot; the chain only names it
+      OptionsSource: (n, a, note, ctx) => {
+        const m = /&\s*(\w+)/.exec(a);
+        if (m && ctx && ctx.statics && ctx.statics[m[1]] !== undefined) n.items = ctx.statics[m[1]];
+        else note('OptionsSource does not name a static options array the parser can see');
+      },
+      InitiallySelectedItem: (n, a) => {
+        const m = /\[\s*(\d+)\s*\]/.exec(a);
+        if (m) n.selectedIndex = Number(m[1]);
+      },
+    },
+    colorblock: {
+      Color: C('color'),
+      Size: (n, a) => { const v = vec2(a); if (v) { n.sizeX = v[0]; n.sizeY = v[1]; } },
+    },
+    spinningimage: {
+      Image: (n, a, note) => {
+        const b = brushName(a);
+        if (b !== null) n.brush = b; else note('only FAppStyle brushes are modelled');
+      },
+      Period: F('period'),
+    },
+    scrollbox: {
+      Orientation: (n, a) => { if (/Horizontal/.test(a)) n.orientation = 'Horizontal'; },
+    },
+    wrapbox: {
+      UseAllottedSize: () => {},
+      InnerSlotPadding: (n, a) => { const v = vec2(a); if (v) n.innerSlotPadding = v[0]; },
+    },
+    widgetswitcher: { WidgetIndex: I('activeIndex') },
+    splitter: {
+      Orientation: (n, a) => { if (/Vertical/.test(a)) n.orientation = 'Vertical'; },
+    },
+    scalebox: { Stretch: qualEnum('stretch'), UserSpecifiedScale: F('userScale') },
+    expandablearea: {
+      AreaTitle: T('areaTitle'),
+      InitiallyCollapsed: B('initiallyCollapsed'),
+      // the named slot: the method itself is a no-op, the bracket after it
+      // is the single child the container branch already handles
+      BodyContent: () => {},
+    },
   };
 
   // Methods whose ABSENCE from the chain is itself a value: the emitters
@@ -189,6 +235,7 @@ function createSlateParser(catalog) {
     progressbar: { Percent: ['percent', -1] },
     editabletextbox: { MinDesiredWidth: ['minDesiredWidth', 0], HintText: ['hintText', ''] },
     searchbox: { HintText: ['hintText', ''] },
+    multilinetextbox: { HintText: ['hintText', ''], AutoWrapText: ['autoWrap', false] },
   };
 
   // ---- scanner ------------------------------------------------------------
@@ -264,6 +311,9 @@ function createSlateParser(catalog) {
   }
 
   const SLOT_MODS = {
+    // SSplitter's proportional slot: the weight carries it, and the
+    // generator's slotValue path reads the weight back out
+    Value: (n, a) => { n.slotWeight = num(a); },
     AutoHeight: n => { n.slotSize = 'auto'; },
     AutoWidth: n => { n.slotSize = 'auto'; },
     FillHeight: (n, a) => { n.slotSize = 'fill'; n.slotWeight = num(a); },
@@ -282,7 +332,7 @@ function createSlateParser(catalog) {
     },
   };
 
-  function parseWidgetExpr(S, aliases) {
+  function parseWidgetExpr(S, aliases, statics) {
     skipWs(S);
     const at = S.pos;
     if (readIdent(S) !== 'SNew') {
@@ -335,7 +385,7 @@ function createSlateParser(catalog) {
         const args = readBalanced(S, '(', ')');
         if (name === null || args === null) { S.note('malformed method call'); break; }
         const fn = methods[name];
-        if (fn) { fn(node, args, msg => S.note(msg)); touched.add(name); }
+        if (fn) { fn(node, args, msg => S.note(msg), { statics }); touched.add(name); }
         else {
           // Not modelled, so keep it VERBATIM instead of eating it. It lands
           // on the node as extraCode, the generator re-emits it after the
@@ -369,14 +419,14 @@ function createSlateParser(catalog) {
         skipWs(S);
         if (S.src[S.pos] !== '[') { S.note('a slot with no [ content ]'); continue; }
         const inner = readBalanced(S, '[', ']');
-        const child = parseWindowBody(inner, S.errors, aliases, false);
+        const child = parseWindowBody(inner, S.errors, aliases, false, statics);
         if (child) { Object.assign(child, slotProps); node.children.push(child); }
         continue;
       }
 
       if (c === '[') {
         const inner = readBalanced(S, '[', ']');
-        const child = parseWindowBody(inner, S.errors, aliases, false);
+        const child = parseWindowBody(inner, S.errors, aliases, false, statics);
         if (!child) continue;
         if (type === 'checkbox' && child.type === 'textblock') {
           // The default slot holding the label, folded back to the label prop
@@ -404,9 +454,9 @@ function createSlateParser(catalog) {
 
   // Parses one expression out of a source fragment (a Construct body or a
   // bracket's content) and returns the node.
-  function parseWindowBody(src, errors, aliases, isRoot) {
+  function parseWindowBody(src, errors, aliases, isRoot, statics) {
     const S = makeState(src, errors);
-    const node = parseWidgetExpr(S, aliases);
+    const node = parseWidgetExpr(S, aliases, statics);
     skipWs(S);
     if (node && S.pos < S.len && isRoot) {
       errors.push({ msg: 'extra code after the root expression was dropped' });
@@ -453,12 +503,19 @@ function createSlateParser(catalog) {
       if (body === null) { errors.push({ msg: `${cls}::Construct has an unclosed body` }); continue; }
       const cs = body.indexOf('ChildSlot');
       if (cs < 0) { errors.push({ msg: `${cls}::Construct has no ChildSlot; the window was dropped` }); continue; }
+      // The statements ahead of ChildSlot: a combo box's static options
+      // array lives there, and its OptionsSource resolves against this map.
+      const statics = {};
+      for (const sm of body.matchAll(/static\s+TArray<TSharedPtr<FString>>\s+(\w+)\s*\{([^;]*)\};/g)) {
+        const items = [...sm[2].matchAll(/TEXT\(\s*"((?:[^"\\]|\\.)*)"\s*\)/g)].map(x => unescapeStr(x[1]));
+        statics[sm[1]] = items.join(', ');
+      }
       const B = makeState(body, errors);
       B.pos = cs + 'ChildSlot'.length;
       skipWs(B);
       if (B.src[B.pos] !== '[') { errors.push({ msg: `${cls}: nothing inside ChildSlot` }); continue; }
       const expr = readBalanced(B, '[', ']');
-      const root = parseWindowBody(expr, errors, aliases, true);
+      const root = parseWindowBody(expr, errors, aliases, true, statics);
 
       // The generator wraps every window's children in one synthetic
       // SVerticalBox; unwrap exactly that so Apply does not nest a new box
