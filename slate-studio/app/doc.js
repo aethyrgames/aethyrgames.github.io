@@ -462,7 +462,10 @@ function reorderSelection(delta, extreme) {
   refresh();
 }
 
-function wrapSelection() {
+function wrapSelection(type) {
+  // Which container a bare wrap makes is profile knowledge: imgui's Group,
+  // slate's Vertical Box, or whatever the Wrap With menu asked for.
+  const wrapType = type || PROFILE.wrapDefault || 'group';
   const nodes = selectedNodes().filter(n => n !== doc);
   if (!nodes.length) return;
   let last = null;
@@ -470,7 +473,7 @@ function wrapSelection() {
     const list = parent.children;
     const idx = group.map(n => list.indexOf(n)).sort((a, b) => a - b);
     const at = idx[0];
-    const grp = makeNode('group');
+    const grp = makeNode(wrapType);
     // the join belongs to whatever comes first, which is now the group
     if (group[0].sameline) { grp.sameline = true; delete group[0].sameline; }
     for (let k = idx.length - 1; k >= 0; k--) list.splice(idx[k], 1);
@@ -665,7 +668,7 @@ function coerce(t, raw, def, opts) {
   // because its bools all default false.
   if (t === 'bool') return typeof raw === 'boolean' ? raw : def === true;
   const num = Number(raw);
-  if (t === 'enum') {
+  if (t === 'enum' || t === 'align') {
     // Two enum shapes share this branch: imgui's are numeric indices, the
     // slate catalog's are strings ('fill', 'Center', 'int32'). The numeric
     // coercion alone turned every string member into NaN, silently, on every

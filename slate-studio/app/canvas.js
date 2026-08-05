@@ -237,6 +237,22 @@ function resetPan() {
 // It now reads out whatever is under the cursor, which is the thing you
 // actually want while you are pointing at something.
 const hoverInfoEl = document.getElementById('hoverInfo');
+const hoverboxEl = document.getElementById('hoverbox');
+
+// UMG's hover cue: a dashed box around whatever the pointer is over, quiet
+// next to the solid selection outline and absent the moment a gesture runs.
+function updateHoverBox(hit) {
+  if (!hit || hit.id === 'root' || !editMode || drag || resizing || marquee
+      || selection.has(hit.id) || hit.id === selectedId) {
+    hoverboxEl.style.display = 'none';
+    return;
+  }
+  hoverboxEl.style.display = 'block';
+  hoverboxEl.style.left = vpX(hit.x) + 'px';
+  hoverboxEl.style.top = vpY(hit.y) + 'px';
+  hoverboxEl.style.width = hit.w + 'px';
+  hoverboxEl.style.height = hit.h + 'px';
+}
 
 function updateHoverStatus(e) {
   // A flash message (Link copied, Nothing under the pointer, ...) owns the
@@ -246,10 +262,12 @@ function updateHoverStatus(e) {
   if (flashActive) return;
   if (!e) {
     hoverInfoEl.innerHTML = '—';
+    updateHoverBox(null);
     return;
   }
   const p = canvasPoint(e);
   const hit = hitTest(p);
+  updateHoverBox(hit);
   const node = hit && hit.id !== 'root' ? findNode(hit.id) : (hit ? doc : null);
   // rounded: canvasPoint divides by zoom, so at any zoom but 100% this printed
   // a full-precision float and pushed the widget name out of the ellipsis

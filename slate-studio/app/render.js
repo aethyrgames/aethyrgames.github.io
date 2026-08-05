@@ -533,8 +533,17 @@ function widgetMenu(node, inTree) {
     { group: '1_head', order: 1, label: 'Rename', key: keyFor('Rename inline on the canvas'),
       disabled: !(spec.props || []).some(p => p[0] === 'label'),
       run: () => { selectId(node.id); beginInlineEdit(node.id); } },
-    { group: '2_structure', order: 0, label: 'Wrap in Group', key: keyFor('Wrap selection in a Group'),
-      run: () => { selectId(node.id); wrapSelection(); } },
+    // UMG's Wrap With: one item per container the profile nominates, so a
+    // widget wraps into a Border or a Scroll Box in one click. Without the
+    // hook the imgui page keeps its single Wrap in Group.
+    ...(PROFILE.wrapContainers
+      ? PROFILE.wrapContainers.map((t, i) => ({
+          group: '2_structure', order: i / 100,
+          label: `Wrap in ${(PROFILE.catalog[t] || {}).name || t}`,
+          key: i === 0 ? keyFor('Wrap selection in a Group') : undefined,
+          run: () => { selectId(node.id); wrapSelection(t); } }))
+      : [{ group: '2_structure', order: 0, label: 'Wrap in Group', key: keyFor('Wrap selection in a Group'),
+          run: () => { selectId(node.id); wrapSelection(); } }]),
     { group: '2_structure', order: 1, label: 'Unwrap container', key: keyFor('Unwrap container'),
       disabled: !container,
       run: () => { selectId(node.id); unwrapSelection(); } },
@@ -941,6 +950,21 @@ function renderTree() {
     }
 
     if (parent) {
+      // UMG's per-row visibility eye, present only when the profile models a
+      // visibility prop. A hidden widget dims its row, the same signal UMG
+      // sends, and the property round-trips as real code.
+      const visProp = PROFILE.visibilityProp;
+      if (visProp && node.type !== 'window'
+          && (PROFILE.catalog[node.type].props || []).some(p => p[0] === visProp)) {
+        const hidden = node[visProp] === false;
+        if (hidden) row.classList.add('dimrow');
+        const eye = document.createElement('button');
+        eye.textContent = hidden ? '◡' : '👁';
+        eye.className = 'eye';
+        eye.title = hidden ? 'Hidden (Visibility: Collapsed). Click to show.' : 'Visible. Click to hide.';
+        eye.onclick = e => { e.stopPropagation(); node[visProp] = hidden; refresh(); };
+        row.appendChild(eye);
+      }
       for (const [txt, title, fn] of [
         ['↑', 'Move up', () => moveNode(node.id, -1)],
         ['↓', 'Move down', () => moveNode(node.id, 1)],
@@ -1111,11 +1135,20 @@ function renderProps() {
   host.appendChild(ident);
 
   const propDefs = spec.props || [];
+  // The profile can mark a family of props as SLOT rules (UMG's shape: the
+  // slot section renders first, named after the parent panel that owns the
+  // slot). Without the hook every prop is the widget's own, the imgui page's
+  // shape, and nothing changes.
+  const slotPrefix = PROFILE.slotPropPrefix || null;
+  const slotDefs = slotPrefix && node !== doc
+    ? propDefs.filter(p => p[0].startsWith(slotPrefix)) : [];
+  const ownDefs = slotDefs.length
+    ? propDefs.filter(p => !p[0].startsWith(slotPrefix)) : propDefs;
   // A widget with no properties of its own (Separator, Spacing, Bullet) had a
   // PROPERTIES heading over nothing at all. Say so instead of ruling off an
   // empty space, and keep the heading only when there is something under it.
   if (propDefs.length) {
-    addHead(node === doc ? titleCase('document') : titleCase('properties'));
+    if (!slotDefs.length) addHead(node === doc ? titleCase('document') : titleCase('properties'));
   } else {
     const none = document.createElement('div');
     none.className = 'empty';
@@ -1148,8 +1181,36 @@ function renderProps() {
         inp.appendChild(opt);
       }
       inp.value = node[key];
-      inp.onchange = () => { node[key] = Number(inp.value); refresh(false, key); };
+      // assign the DECLARED option value, whatever its type: Number() here
+      // turned every slate string enum picked from a dropdown into NaN,
+      // the third face of the numeric-enum assumption
+      inp.onchange = () => {
+        const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+        const v = vals.find(x => String(x) === inp.value);
+        node[key] = v !== undefined ? v : inp.value;
+        refresh(false, key);
+      };
       return inp;
+    }
+    // UMG's alignment control: one segmented row of toggle buttons instead
+    // of a dropdown, because alignment is picked constantly and a dropdown
+    // costs two clicks and hides the current state.
+    if (type === 'align') {
+      const row = document.createElement('span');
+      row.className = 'alignrow';
+      const GLYPH = { Fill: '⬌', Left: '⇤', Right: '⇥', Center: '↔', Top: '⇡', Bottom: '⇣' };
+      const V = { Fill: '⬍', Center: '↕' };
+      const vertical = (opts || []).includes('Top');
+      for (const o of opts || []) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'alignseg' + (node[key] === o ? ' on' : '');
+        b.textContent = (vertical && V[o]) || GLYPH[o] || o[0];
+        b.title = o;
+        b.onclick = () => { node[key] = o; refresh(false, key); };
+        row.appendChild(b);
+      }
+      return row;
     }
     if (type === 'int' || type === 'float') {
       const meta = (opts && typeof opts === 'object' && !Array.isArray(opts)) ? opts : {};
@@ -1225,12 +1286,26 @@ function renderProps() {
     if (byKey[a] && byKey[b]) { paired.add(a); paired.add(b); }
   }
 
-  for (const def of propDefs) {
-    const key = def[0];
-    if (paired.has(key)) continue;
-    addField(labelFor(key, node.type), mark(editorFor(def), key), changed(key),
-      changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
+  const renderDefs = list => {
+    for (const def of list) {
+      const key = def[0];
+      if (paired.has(key)) continue;
+      addField(labelFor(key, node.type), mark(editorFor(def), key), changed(key),
+        changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
+    }
+  };
+  if (slotDefs.length) {
+    // named for the panel that OWNS the slot, the way UMG says
+    // "Slot (Vertical Box Slot)": slot rules belong to the parent in the
+    // code, to the child in the editor, and the header is where both truths
+    // fit in one line
+    const parent = findParent(node.id);
+    const pSpec = parent && parent !== doc && PROFILE.catalog[parent.type];
+    addHead(pSpec && pSpec.name ? `Slot (${pSpec.name} Slot)` : 'Slot');
+    renderDefs(slotDefs);
+    addHead(titleCase('properties'));
   }
+  renderDefs(ownDefs);
   for (const [a, b] of PAIRS) {
     if (!byKey[a] || !byKey[b]) continue;
     const row = document.createElement('div');

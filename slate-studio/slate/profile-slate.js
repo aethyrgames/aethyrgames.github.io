@@ -20,8 +20,9 @@
 const SLATE_SLOT_PROPS = [
   ['slotSize', 'enum', 'auto', { values: ['auto', 'fill'] }],
   ['slotWeight', 'float', 1],
-  ['slotHAlign', 'enum', 'Fill', { values: ['Fill', 'Left', 'Center', 'Right'] }],
-  ['slotVAlign', 'enum', 'Fill', { values: ['Fill', 'Top', 'Center', 'Bottom'] }],
+  // 'align', not 'enum': the shell renders these as UMG's segmented buttons
+  ['slotHAlign', 'align', 'Fill', { values: ['Fill', 'Left', 'Center', 'Right'] }],
+  ['slotVAlign', 'align', 'Fill', { values: ['Fill', 'Top', 'Center', 'Bottom'] }],
   ['slotPadL', 'float', 0], ['slotPadT', 'float', 0],
   ['slotPadR', 'float', 0], ['slotPadB', 'float', 0],
 ];
@@ -40,9 +41,10 @@ function slateBuildCatalog() {
     // It is an ordinary longtext prop so the inspector can show and edit it,
     // the same ethos as the imgui page's Raw C++ nodes at chain-call grain.
     const props = (spec.props || []).concat(SLATE_SLOT_PROPS)
-      .concat([['extraCode', 'longtext', '']])
+      .concat([['visible', 'bool', true], ['extraCode', 'longtext', '']])
       .map(row => {
-        if (row[1] === 'enum' && row[3] && !Array.isArray(row[3]) && Array.isArray(row[3].values)) {
+        if ((row[1] === 'enum' || row[1] === 'align')
+            && row[3] && !Array.isArray(row[3]) && Array.isArray(row[3].values)) {
           return [row[0], row[1], row[2], row[3].values];
         }
         return row;
@@ -127,6 +129,14 @@ const PROFILE = {
   id: 'slate',
 
   storagePrefix: 'slatestudio',
+
+  // UMG-designer surface hooks the shell reads when present: slot props
+  // group under a parent-named Slot section, the hierarchy grows a
+  // visibility eye per row, and Wrap With offers these containers.
+  slotPropPrefix: 'slot',
+  visibilityProp: 'visible',
+  wrapDefault: 'verticalbox',
+  wrapContainers: ['verticalbox', 'horizontalbox', 'border', 'box', 'scrollbox', 'overlay', 'scalebox', 'expandablearea'],
 
   // Arm-key families over the slate catalog. Small on purpose: a family is
   // a mnemonic, not a taxonomy, and every type here exists in the catalog,

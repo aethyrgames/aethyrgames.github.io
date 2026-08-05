@@ -1,4 +1,4 @@
-<!-- GENERATED from app/index.html (e6a40e3cf1743b54) by scripts/gen_slate_page.mjs. Do not edit. -->
+<!-- GENERATED from app/index.html (e22cffc87a884325) by scripts/gen_slate_page.mjs. Do not edit. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -766,6 +766,24 @@
     text-transform: uppercase; letter-spacing: 0.07em;
   }
 
+  /* UMG's hover cue: a quiet dashed box under the pointer, distinct from
+     the solid selection outline, gone the moment a gesture starts */
+  #hoverbox {
+    position: absolute; display: none; pointer-events: none;
+    border: 1px dashed color-mix(in srgb, var(--mk-cyan) 55%, transparent);
+  }
+  /* segmented alignment control (UMG's alignment buttons) */
+  .alignrow { display: inline-flex; gap: 0; }
+  .alignrow .alignseg {
+    padding: 2px 8px; border: 1px solid var(--mk-border); background: var(--mk-surface);
+    color: var(--mk-comment); cursor: pointer; font: inherit; line-height: 1.2;
+  }
+  .alignrow .alignseg + .alignseg { border-left: none; }
+  .alignrow .alignseg.on { color: var(--mk-bg); background: var(--mk-cyan); border-color: var(--mk-cyan); }
+  .alignrow .alignseg:hover:not(.on) { color: var(--mk-fg); }
+  /* hierarchy visibility eye; a hidden widget dims its whole row */
+  #tree .row .eye { opacity: 0.75; }
+  #tree .row.dimrow .wtype, #tree .row.dimrow .wlabel { opacity: 0.45; }
   #selbox {
     position: absolute; display: none; pointer-events: none;
     border: 1px solid var(--mk-cyan);
@@ -1238,6 +1256,7 @@
             </div>
             <div id="dropbox"></div>
             <div id="dropline"></div>
+            <div id="hoverbox"></div>
             <div id="marquee"></div>
             <input id="inlineEdit" type="text" spellcheck="false">
           </div>
@@ -1335,21 +1354,21 @@
 
 <script src="slate/slate-widgets.js?v=e9853e12cf"></script>
 <script src="slate/slate-layout.js?v=cce51f5ae8"></script>
-<script src="slate/slate-generate.js?v=603929878e"></script>
-<script src="slate/slate-parse.js?v=8490edf115"></script>
+<script src="slate/slate-generate.js?v=e41878358d"></script>
+<script src="slate/slate-parse.js?v=f61a95b71e"></script>
 <script src="slate/slate-templates.js?v=b8370978e9"></script>
-<script src="slate/profile-slate.js?v=04e414e662"></script>
+<script src="slate/profile-slate.js?v=d1aa9ce07e"></script>
 <script src="app/widgets.js?v=66c62e3d00"></script>
 <script src="app/imguidocs.js?v=50da266d44"></script>
 <script src="app/cpp.js?v=7fdfde3a59"></script>
 <script src="app/codeintel.js?v=1140d40c85"></script>
-<script src="app/doc.js?v=abb8d2c35e"></script>
-<script src="app/canvas.js?v=d2d98f7a19"></script>
+<script src="app/doc.js?v=27c40fed33"></script>
+<script src="app/canvas.js?v=d1c556e856"></script>
 <script src="app/keys.js?v=0a8eda7da9"></script>
 <script src="app/generate.js?v=3564689795"></script>
 <script src="app/theme.js?v=cd182fd16a"></script>
 <script src="app/layout.js?v=55d9721eba"></script>
-<script src="app/render.js?v=33689a9ab8"></script>
+<script src="app/render.js?v=a942a0738b"></script>
 <script src="app/codepane.js?v=45f6669b1d"></script>
 <script src="app/templates.js?v=c7c8a32efc"></script>
 <script src="app/settings.js?v=bdbb011190"></script>

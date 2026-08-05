@@ -385,6 +385,13 @@ function createSlateParser(catalog) {
         const args = readBalanced(S, '(', ')');
         if (name === null || args === null) { S.note('malformed method call'); break; }
         const fn = methods[name];
+        // Visibility is modelled centrally, matching the central emit: any
+        // collapsed/hidden spelling reads back as visible false.
+        if (name === 'Visibility') {
+          node.visible = !/Collapsed|Hidden/.test(args);
+          touched.add(name);
+          continue;
+        }
         if (fn) { fn(node, args, msg => S.note(msg), { statics }); touched.add(name); }
         else {
           // Not modelled, so keep it VERBATIM instead of eating it. It lands

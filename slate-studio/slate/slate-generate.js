@@ -117,6 +117,10 @@ function slateEmitWidget(node, ctx) {
   const lines = [`SNew(${cls})`];
   for (const el of spec.emit(node, ctx) || []) lines.push(el);
 
+  // Visibility is modelled centrally: every widget carries `visible`, and
+  // false is the only value that emits, as UMG's Collapsed.
+  if (node.props.visible === false) lines.push('.Visibility(EVisibility::Collapsed)');
+
   // Chain calls the tool does not model, carried verbatim on the node (the
   // parser collects them, the inspector edits them). Emitted after the
   // modelled calls, so a generated-parsed-generated cycle is stable.
