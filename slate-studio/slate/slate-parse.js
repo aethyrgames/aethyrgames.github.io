@@ -421,8 +421,10 @@ function createSlateParser(catalog) {
       });
     }
 
-    const windows = [];
-    let wi = 0;
+    // Every Construct block: a class name and the children parsed out of its
+    // ChildSlot expression. Which WINDOW each class belongs to is decided
+    // below, by the opener when there is one.
+    const constructs = [];
     for (const cm of text.matchAll(/void\s+(\w+)\s*::\s*Construct\s*\([^)]*\)/g)) {
       const cls = cm[1];
       const S = makeState(text, errors);
@@ -441,13 +443,6 @@ function createSlateParser(catalog) {
       const expr = readBalanced(B, '[', ']');
       const root = parseWindowBody(expr, errors, aliases, true);
 
-      // The frame comment nearest above this Construct, if any.
-      const meta = metas.filter(x => x.at < cm.index).pop()
-        || { label: cls.replace(/^S/, ''), w: 380, h: 300, x: 30, y: 30 };
-      // consume it so two Constructs cannot share one comment
-      const mi = metas.indexOf(meta);
-      if (mi >= 0) metas.splice(mi, 1);
-
       // The generator wraps every window's children in one synthetic
       // SVerticalBox; unwrap exactly that so Apply does not nest a new box
       // per round trip. A hand-written non-verticalbox root stays as the
@@ -455,17 +450,72 @@ function createSlateParser(catalog) {
       let children = [];
       if (root && root.type === 'verticalbox') children = root.children || [];
       else if (root) children = [root];
+      constructs.push({ cls, children, at: cm.index, claimed: false });
+    }
 
-      windows.push({
-        type: 'window', id: 'w' + (++wi),
-        label: meta.label, x: meta.x, y: meta.y, w: meta.w, h: meta.h,
-        children,
-      });
+    // The document root: SNew(SWindow) chains carrying each frame in real
+    // code (Title, ClientSize, ScreenPosition, and the hosted class in the
+    // content bracket). The frames used to ride in // Window: comments, kept
+    // below as the fallback for files from before the root was code.
+    const openerWins = [];
+    for (const m of text.matchAll(/SNew\s*\(\s*SWindow\s*\)/g)) {
+      const S = makeState(text, errors);
+      S.pos = m.index + m[0].length;
+      const frame = { label: null, w: 380, h: 300, x: 30, y: 30, cls: null };
+      for (;;) {
+        skipWs(S);
+        if (S.src[S.pos] === '.') {
+          S.pos++;
+          const name = readIdent(S);
+          skipWs(S);
+          const args = readBalanced(S, '(', ')') || '';
+          if (name === 'Title') { const v = loctext(args); if (v !== null) frame.label = v; }
+          else if (name === 'ClientSize') { const v = vec2(args); if (v) { frame.w = Math.round(v[0]); frame.h = Math.round(v[1]); } }
+          else if (name === 'ScreenPosition') { const v = vec2(args); if (v) { frame.x = Math.round(v[0]); frame.y = Math.round(v[1]); } }
+          continue;
+        }
+        if (S.src[S.pos] === '[') {
+          const inner = readBalanced(S, '[', ']') || '';
+          const hosted = /SNew\s*\(\s*(\w+)/.exec(inner);
+          if (hosted) frame.cls = hosted[1];
+          continue;
+        }
+        break;
+      }
+      openerWins.push(frame);
+    }
+
+    const windows = [];
+    let wi = 0;
+    const pushWindow = (frame, children) => windows.push({
+      type: 'window', id: 'w' + (++wi),
+      label: frame.label, x: frame.x, y: frame.y, w: frame.w, h: frame.h,
+      children,
+    });
+
+    for (const f of openerWins) {
+      const c = f.cls && constructs.find(x => x.cls === f.cls && !x.claimed);
+      if (c) c.claimed = true;
+      else if (f.cls) errors.push({ msg: `the opener hosts SNew(${f.cls}) but no ${f.cls}::Construct exists; the window opens empty` });
+      pushWindow({ ...f, label: f.label !== null ? f.label : (f.cls || 'Window').replace(/^S/, '') },
+        c ? c.children : []);
+    }
+
+    // Constructs no opener claimed: the legacy comment path, so a file from
+    // before the root was code (or a hand-added class) still lands.
+    for (const c of constructs) {
+      if (c.claimed) continue;
+      const meta = metas.filter(x => x.at < c.at).pop()
+        || { label: c.cls.replace(/^S/, ''), w: 380, h: 300, x: 30, y: 30 };
+      const mi = metas.indexOf(meta);
+      if (mi >= 0) metas.splice(mi, 1);
+      pushWindow(meta, c.children);
     }
 
     if (!windows.length) {
       throw new Error('no SWidget::Construct block found. The pane expects the '
-        + 'generated shape: a // Window comment and a Construct with a ChildSlot.');
+        + 'generated shape: Construct with a ChildSlot, and OpenStudioWindows '
+        + 'creating the SWindows.');
     }
 
     return { windows, nextId, errors };

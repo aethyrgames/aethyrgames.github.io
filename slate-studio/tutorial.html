@@ -168,12 +168,11 @@
 
 <h2 id="code">The Code Pane Goes Both Ways</h2>
 
-<p>The pane on the right regenerates as you work. Each window becomes its own <code>SCompoundWidget</code> class, which is how UE code actually ships: you write the widget, and something else (a window, a tab spawner, another panel) owns where it goes. The window's title, size, and position ride in a <code>// Window:</code> comment, since the C++ itself has no place for them.</p>
+<p>The pane on the right regenerates as you work, and it holds the whole document, root included. Each window becomes its own <code>SCompoundWidget</code> class, which is how UE code actually ships: you write the widget, and something else owns where it goes. That something else is in the file too: <code>OpenStudioWindows()</code> at the end creates each <code>SWindow</code> with its title, size, and position, hosts the class inside it, and hands it to the application.</p>
 
 <p>The sample panel's headline and a save button come out like this:</p>
 
-<pre><code>// Window: "Account Settings" 380x300 at 30,30
-void SAccountSettings::Construct(const FArguments&amp; InArgs)
+<pre><code>void SAccountSettings::Construct(const FArguments&amp; InArgs)
 {
     ChildSlot
     [
@@ -193,6 +192,19 @@ void SAccountSettings::Construct(const FArguments&amp; InArgs)
                 .OnClicked(this, &amp;SAccountSettings::OnSave)
             ]
     ];
+}
+
+void OpenStudioWindows()
+{
+    TSharedRef&lt;SWindow&gt; AccountSettingsWindow = SNew(SWindow)
+        .Title(LOCTEXT("Account_Settings_2", "Account Settings"))
+        .ClientSize(FVector2D(380.f, 300.f))
+        .ScreenPosition(FVector2D(30.f, 30.f))
+        .AutoCenter(EAutoCenter::None)
+        [
+            SNew(SAccountSettings)
+        ];
+    FSlateApplication::Get().AddWindow(AccountSettingsWindow);
 }</code></pre>
 
 <p>Every user-facing string is a <code>LOCTEXT</code>, so the file carries its own <code>LOCTEXT_NAMESPACE</code> pair and localizes like the rest of your project. A widget with a handler gets a member declared and defined for it, with the right delegate shape: an <code>OnClicked</code> returns <code>FReply</code>, an <code>OnCheckStateChanged</code> takes the new state. <b class="ui">Copy</b> at the top of the pane takes the lot.</p>
@@ -202,7 +214,7 @@ void SAccountSettings::Construct(const FArguments&amp; InArgs)
 <p>The pane is read-only until you say otherwise. Press <b class="ui">Edit</b> in its header and the text becomes an editor, with <b class="ui">Apply</b> and <b class="ui">Cancel</b> where <b class="ui">Edit</b> was. Type C++, press Apply, and it parses back into the Document. Cancel throws the edit away. What survives a trip out and back:</p>
 
 <ul>
-  <li>Every property the generator writes, slot rules included, and the window frames in their comments.</li>
+  <li>Every property the generator writes, slot rules included, and the window frames in the opener. Move a <code>.ScreenPosition</code> in the text and the window moves on the canvas.</li>
   <li>Handler names. The member bodies are regenerated from them, so a body you filled in belongs in your project, not in the pane.</li>
   <li>Formatting inside generated blocks is normalized on the way back.</li>
 </ul>
