@@ -452,7 +452,11 @@ window.addEventListener('blur', closeContextMenu);
 // ImGui function and open its declaration (and doc comment) in the pinned
 // header. Falls back to the manual only when the function can't be resolved.
 function docsUrlFor(type) {
-  const entry = Object.entries(PROFILE.parser.schema || {}).find(([, e]) => e.type === type);
+  // The profile's own resolver when it has one: each page links its own
+  // framework's docs. The imgui-shaped fallback below reads imgui.h line
+  // numbers, which mean nothing on the slate page.
+  if (PROFILE.docsUrl) return PROFILE.docsUrl(type);
+  const entry = Object.entries((PROFILE.parser && PROFILE.parser.schema) || {}).find(([, e]) => e.type === type);
   const line = entry && PROFILE.docs.lines[entry[0]];
   return line
     ? `https://github.com/ocornut/imgui/blob/${PROFILE.docs.tag}/imgui.h#L${line}`

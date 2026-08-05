@@ -230,6 +230,19 @@ const PROFILE = {
     get names() { return null; },
   },
 
+  // Each widget's page in Epic's API reference, derived from the module and
+  // header the catalog already records: API/Runtime/<module>/<header sans
+  // .h>. Verified against the live site for Slate and SlateCore classes. A
+  // type with no class (Raw Slate) gets the framework overview.
+  docsUrl(type) {
+    const spec = this.catalog[type];
+    if (spec && spec.cls && spec.header && spec.module) {
+      return 'https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/'
+        + spec.module + '/' + spec.header.replace(/\.h$/, '');
+    }
+    return 'https://dev.epicgames.com/documentation/en-us/unreal-engine/slate-user-interface-programming-framework-for-unreal-engine';
+  },
+
   // The engine adapter over the slate wasm module (W3). The shell speaks the
   // imgui-shaped contract in PROFILE-CONTRACT.md; this maps it onto the
   // Studio_* exports of slate-wasm's studio-probe module. The id translation
