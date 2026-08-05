@@ -53,6 +53,17 @@
   .node.sel { background: #3a3222; border-left-color: var(--sel); }
   .node .cls { color: var(--type); }
   .node .lbl { color: var(--dim); margin-left: 6px; }
+  #centre { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #stage-tabs {
+    display: flex; align-items: center; gap: 2px; padding: 4px 8px;
+    border-bottom: 1px solid var(--edge); background: var(--panel); flex: none;
+  }
+  #stage-tabs button {
+    background: #1b1d20; border: 1px solid var(--edge); color: var(--dim);
+    border-radius: 3px; padding: 3px 10px; font: inherit; font-size: 11px; cursor: pointer;
+  }
+  #stage-tabs button[aria-pressed="true"] { background: #313640; color: var(--ink); border-color: #47505e; }
+  #pstatus { color: var(--num); font-size: 11px; margin-left: 10px; }
   #stage {
     flex: 1; position: relative; overflow: auto; min-width: 0;
     background:
@@ -60,6 +71,19 @@
       linear-gradient(#24262a 1px, transparent 1px) 0 0 / 24px 24px, var(--bg);
   }
   #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #realstage {
+    flex: 1; overflow: auto; min-width: 0; display: flex;
+    align-items: flex-start; justify-content: center; padding: 18px;
+    background:
+      linear-gradient(90deg, #24262a 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(#24262a 1px, transparent 1px) 0 0 / 24px 24px, var(--bg);
+  }
+  #realwrap { position: relative; flex: none; }
+  #rcv { display: block; background: #000; border: 1px solid var(--edge); border-radius: 4px; }
+  #overlay {
+    position: absolute; pointer-events: none; border: 1.5px solid var(--sel);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.5);
+  }
   aside {
     width: 460px; flex: none; border-left: 1px solid var(--edge);
     display: flex; flex-direction: column; background: var(--panel); min-height: 0;
@@ -113,8 +137,8 @@
 <header>
   <h1>Slate Studio</h1>
   <span class="note">
-    The canvas is a <b>model of Slate</b>, not Slate. Layout follows LayoutUtils.h
-    and SBoxPanel.cpp; text metrics are the browser's, so they drift.
+    The Model canvas is a <b>sketch of Slate</b>: instant, but its text metrics drift.
+    <b>Real Slate</b> renders the same document with the engine itself, compiled to wasm.
   </span>
 </header>
 
@@ -132,7 +156,20 @@
     </div>
     <div id="tree"></div>
   </nav>
-  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="centre">
+    <div id="stage-tabs">
+      <button data-view="model" aria-pressed="true" title="the instant 2D sketch">Model</button>
+      <button data-view="real" aria-pressed="false" title="the document rendered by the engine">Real Slate</button>
+      <span id="pstatus"></span>
+    </div>
+    <div id="stage"><canvas id="cv"></canvas></div>
+    <div id="realstage" hidden>
+      <div id="realwrap">
+        <canvas id="rcv" width="640" height="520"></canvas>
+        <div id="overlay" hidden></div>
+      </div>
+    </div>
+  </div>
   <aside>
     <div class="tabs" role="tablist">
       <button role="tab" data-pane="cpp" aria-selected="true">SGeneratedPanel.cpp</button>
@@ -155,6 +192,7 @@
 <script src="slate-doc.js?v=061db0183a"></script>
 <script src="slate-layout.js?v=cce51f5ae8"></script>
 <script src="slate-generate.js?v=1d315e7dc6"></script>
-<script src="slate-app.js?v=736af523a9"></script>
+<script src="slate-preview.js?v=f643f0318c"></script>
+<script src="slate-app.js?v=edc3e815c5"></script>
 </body>
 </html>

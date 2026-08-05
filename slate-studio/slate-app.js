@@ -146,6 +146,13 @@ function slateDraw() {
   document.getElementById('wsize').textContent = slateWin.w + 'x' + slateWin.h;
   document.getElementById('wcount').textContent = String(slateRects.length);
   slateCv._origin = { x: originX, y: originY };
+
+  // Every edit path already funnels through slateDraw, so this one line is the
+  // whole model-to-engine coupling: the real preview re-renders whatever the
+  // document now says, debounced on its side.
+  if (typeof SlatePreview !== 'undefined') {
+    SlatePreview.sync(slateDoc, slateWin, slateSelected ? slateSelected.id : -1);
+  }
 }
 
 // One pass with a single alternation, so a keyword inside a string or a comment
@@ -411,6 +418,29 @@ function slateBoot() {
     else if (e.key === 'ArrowDown' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); slateDoMove(1); }
   });
 
+  // The real-Slate preview pane. Selection flows both ways: clicking the
+  // engine's canvas hit-tests in Slate and selects the studio node, and the
+  // studio's selection draws the engine-side overlay from Slate's geometry.
+  SlatePreview.init({
+    canvas: document.getElementById('rcv'),
+    overlay: document.getElementById('overlay'),
+    status: document.getElementById('pstatus'),
+    onSelect: id => {
+      slateSelected = slateFindById(slateDoc, id);
+      slateApply();
+    },
+  });
+  document.getElementById('stage-tabs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-view]');
+    if (!b) return;
+    const real = b.dataset.view === 'real';
+    document.getElementById('stage').hidden = real;
+    document.getElementById('realstage').hidden = !real;
+    document.querySelectorAll('#stage-tabs button').forEach(o =>
+      o.setAttribute('aria-pressed', String(o === b)));
+    if (real) slateDraw();
+  });
+
   window.addEventListener('resize', slateDraw);
   slateApply();
 
@@ -438,6 +468,13 @@ function slateBoot() {
     wrap: type => !!slateDoWrap(type),
     status: () => slateStatus,
     reset: () => { slateDoc = slateDemoDoc(); slateSelected = null; slateApply(); },
+    // The engine-preview surface, for gates that drive the real renderer.
+    preview: {
+      ready: () => SlatePreview.ready(),
+      geom: id => SlatePreview.geom(id),
+      hitTest: (x, y) => SlatePreview.hitTest(x, y),
+      frames: () => SlatePreview.frames(),
+    },
     ready: true,
   };
 }
