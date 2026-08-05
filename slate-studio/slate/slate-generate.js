@@ -74,6 +74,13 @@ function slateIndent(lines, by) {
 // Returns an array of lines with no leading indentation. The caller decides where
 // it sits, which is what makes this composable at any depth.
 function slateEmitWidget(node, ctx) {
+  // Raw Slate: the code IS the emission, verbatim. Before the header add,
+  // because a raw block has no header of its own and any class it uses is
+  // the author's include to supply.
+  if (node.type === 'rawwidget') {
+    const code = String(node.props.code || '').split('\n').filter(l => l.trim());
+    return code.length ? code : ['SNullWidget::NullWidget'];
+  }
   const spec = SLATE_WIDGETS[node.type];
   if (!spec) return [`// unknown widget type: ${node.type}`];
   ctx.headers.add(spec.header);

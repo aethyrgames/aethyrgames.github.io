@@ -220,7 +220,7 @@ void OpenStudioWindows()
 </ul>
 
 <div class="note important">
-  IMPORTANT: a chain call the tool doesn't model (a <code>.ToolTipText</code>, say) is kept verbatim on its widget and re-emitted after the modelled calls. You can see and edit it in the Properties panel under "Extra Code". A widget CLASS the tool doesn't know is still dropped on Apply, and the status line under the pane says exactly what happened either way. Read it before you move on.
+  Note: nothing you type is thrown away. A chain call the tool doesn't model (a <code>.ToolTipText</code>, say) is kept verbatim on its widget, re-emitted after the modelled calls, and editable in the Properties panel under "Extra Code". A widget CLASS the tool doesn't know is kept whole as a Raw Slate block: the code stays byte for byte, the preview marks the spot with a placeholder, and any include it needs is yours to supply in your project. The status line under the pane says what was kept either way.
 </div>
 
 <h2 id="saving">Where Your Work Lives</h2>

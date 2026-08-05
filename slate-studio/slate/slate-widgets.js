@@ -402,6 +402,18 @@ const SLATE_WIDGETS = {
   },
 };
 
+// A block of Slate the tool carries verbatim: the parser wraps any SNew of a
+// class it does not model in one of these, the generator re-emits the code
+// untouched, and the preview draws a neutral placeholder. Hidden from the
+// palette, the same convention as the imgui page's Raw C++ node; the code
+// pane and the inspector are how one is made and edited.
+SLATE_WIDGETS.rawwidget = {
+  cls: null, header: null, module: null,
+  cat: 'Layout', name: 'Raw Slate', hidden: true,
+  props: [['code', 'longtext', '']],
+  emit() { return []; },
+};
+
 // The document's slot vocabulary. A slot is a property of the CHILD as the
 // designer sees it, but it belongs to the parent panel in the emitted code, which
 // is the single biggest structural difference from the ImGui generator.

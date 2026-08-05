@@ -302,9 +302,20 @@ function createSlateParser(catalog) {
     const base = cm ? cm[1] : clsText;
     const type = byCls[base];
     if (!type) {
-      S.note(`SNew(${base}) is not in the catalog; the widget was dropped`);
+      // A class the tool does not model: keep the WHOLE expression verbatim
+      // as a Raw Slate node, chain and children included. Dedented by the
+      // shallowest continuation line so that emit-at-depth then parse again
+      // captures the identical text, or the block would gain a level of
+      // indentation per round trip.
       skipWidgetExpr(S);
-      return null;
+      const lines = S.src.slice(at, S.pos).split('\n');
+      const indents = lines.slice(1).filter(l => l.trim())
+        .map(l => /^[ \t]*/.exec(l)[0].length);
+      const cut = indents.length ? Math.min(...indents) : 0;
+      const code = [lines[0].trim(), ...lines.slice(1).map(l => l.slice(cut))]
+        .join('\n').trimEnd();
+      S.note(`SNew(${base}) is not modelled; kept as a Raw Slate block`);
+      return { type: 'rawwidget', code };
     }
     const spec = catalog[type];
     const node = { type };
