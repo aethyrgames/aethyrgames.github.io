@@ -30,6 +30,22 @@ function pushDoc() {
   PROFILE.engine.call('engine_set_document', null, ['string'], [JSON.stringify(doc)]);
 }
 
+// The engine has to see every STEP of a gesture, but not every EVENT. A mouse
+// reporting at 1000Hz fires mousemove far faster than the display refreshes,
+// and each one shipped the whole document as JSON and had the engine rebuild
+// its widget tree from scratch. On the slate engine a rebuild tears the tree
+// down and puts it back, which reads as a blink while you drag. One push per
+// animation frame is every step a screen can actually show. Safe to coalesce
+// because pushDoc always sends the CURRENT document, never a captured one, so
+// a late frame cannot deliver a stale position. paintDuringGesture has
+// throttled the panels this way all along; the engine was the one path left
+// running uncoalesced.
+let docFrame = 0;
+function pushDocSoon() {
+  if (docFrame) return;
+  docFrame = requestAnimationFrame(() => { docFrame = 0; pushDoc(); });
+}
+
 // What the shell does the moment its engine is alive, whichever engine that
 // is. HOW an engine boots is profile knowledge (imgui assembles the global
 // emscripten Module, slate loads its module and starts the Slate frame
@@ -65,8 +81,26 @@ const ghost = document.getElementById('ghost');
 // for a mouse click too. Tracked here instead, from the same signal a real
 // browser uses: whatever kind of input happened most recently.
 let lastInputWasPointer = false;
-document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
-document.addEventListener('keydown', () => { lastInputWasPointer = false; }, true);
+// pointerdown AND mousedown, and both clear the ring outright rather than only
+// setting the flag. Alt+click was reaching focus with the flag still false and
+// lighting the ring around the whole canvas.
+const sawPointer = () => {
+  lastInputWasPointer = true;
+  canvasHost.classList.remove('kbd-focus');
+};
+document.addEventListener('pointerdown', sawPointer, true);
+document.addEventListener('mousedown', sawPointer, true);
+// A bare modifier is not keyboard NAVIGATION. Holding Alt, Ctrl, Shift or Meta
+// before a click used to count as keyboard input, so the click that followed
+// was treated as a keyboard focus arrival and drew the ring. This is the same
+// exception Chrome's own :focus-visible heuristic makes, and it is the whole
+// bug: the modifier is pressed on the way to a mouse gesture, not instead of
+// one. Ctrl+Alt+click is this app's pan gesture, so it hit the common case.
+const MODIFIER_KEYS = new Set(['Alt', 'Control', 'Shift', 'Meta', 'AltGraph', 'CapsLock']);
+document.addEventListener('keydown', e => {
+  if (MODIFIER_KEYS.has(e.key)) return;
+  lastInputWasPointer = false;
+}, true);
 canvas.addEventListener('focus', () => {
   canvasHost.classList.toggle('kbd-focus', !lastInputWasPointer);
 });
@@ -1049,7 +1083,7 @@ document.addEventListener('mousemove', e => {
     // The engine has to see every step so the preview tracks the cursor. The
     // panels and the generated C++ can wait for the next frame, and the undo
     // entry and the save wait for mouseup.
-    pushDoc();
+    pushDocSoon();
     paintDuringGesture(true);
     return;
   }
@@ -1088,7 +1122,7 @@ document.addEventListener('mousemove', e => {
       win.y = ny;
       // The engine sees every step so the preview tracks the cursor; the undo
       // entry and the save wait for mouseup, exactly as the resize path does.
-      pushDoc();
+      pushDocSoon();
       paintDuringGesture(true);
       return;
     }

@@ -1,4 +1,4 @@
-<!-- GENERATED from app/index.html (126cf498b6b5ecab) by scripts/gen_slate_page.mjs. Do not edit. -->
+<!-- GENERATED from app/index.html (74b4f3099fd9239e) by scripts/gen_slate_page.mjs. Do not edit. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -671,7 +671,18 @@
      frame closes instead of showing four different joins. */
   .rulercorner { background: var(--mk-canvas); }
   #canvasarea > .rulercorner:nth-of-type(1) { border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
-  .ruler { display: block; background: var(--mk-canvas); }
+  /* border-box and filling the cell, both load-bearing. A <canvas> has an
+     intrinsic size, which stops a grid item stretching, so a 20px bitmap plus a
+     1px rule made the element 21px in a 20px track. The top and left rules then
+     drew one pixel past the corner cells' and the frame's top and left edges
+     were visibly broken at both ends, while bottom and right looked fine
+     because their rule sits on the cell's START edge where the overflow lands
+     outside the visible join. drawRulers sizes the bitmap from clientWidth /
+     clientHeight so the ticks stay 1:1 with the content box and do not blur. */
+  .ruler {
+    display: block; background: var(--mk-canvas);
+    box-sizing: border-box; width: 100%; height: 100%;
+  }
   #rulerCorner { border-right: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
   #cornerTR { border-left: 1px solid var(--mk-border); border-bottom: 1px solid var(--mk-border); }
   #cornerBL { border-right: 1px solid var(--mk-border); border-top: 1px solid var(--mk-border); }
@@ -1374,11 +1385,11 @@
 <script src="app/cpp.js?v=7fdfde3a59"></script>
 <script src="app/codeintel.js?v=1140d40c85"></script>
 <script src="app/doc.js?v=5e8121616d"></script>
-<script src="app/canvas.js?v=da89a10f95"></script>
+<script src="app/canvas.js?v=a0cb5c983c"></script>
 <script src="app/keys.js?v=0a8eda7da9"></script>
 <script src="app/generate.js?v=b3750ec656"></script>
 <script src="app/theme.js?v=cd182fd16a"></script>
-<script src="app/layout.js?v=55d9721eba"></script>
+<script src="app/layout.js?v=c709fffafe"></script>
 <script src="app/render.js?v=5e79b55e5f"></script>
 <script src="app/codepane.js?v=45f6669b1d"></script>
 <script src="app/templates.js?v=c7c8a32efc"></script>
