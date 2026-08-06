@@ -282,6 +282,23 @@ const PROFILE = {
     _origin: { x: 0, y: 0 },
 
     boot(opts) {
+      // SDL's emscripten backend installs a document-level keydown listener
+      // and calls preventDefault on everything it sees, so the browser's own
+      // keys stopped working on this page and only this page: F5 reloaded the
+      // imgui studio and did nothing here. Measured, not guessed -- a keydown
+      // for F5 came back defaultPrevented true on slate and false on imgui.
+      //
+      // Registered on WINDOW in the capture phase before the module script is
+      // even added, so it runs ahead of anything SDL attaches to the document
+      // and stops that listener from seeing these keys at all. It does not
+      // preventDefault, which is the whole point: the browser gets to do its
+      // own job. The shell binds none of these, so nothing else loses out.
+      const RESERVED = new Set(['F5', 'F11', 'F12']);
+      window.addEventListener('keydown', e => {
+        const reload = (e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R');
+        if (RESERVED.has(e.key) || reload) e.stopImmediatePropagation();
+      }, true);
+
       // A checkout serves the module from slate-wasm/web; the deployed bundle
       // ships it under engine/ and says so with one global the build injects.
       const base = window.SLATE_ENGINE_BASE || '../slate-wasm/web/';

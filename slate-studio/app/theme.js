@@ -302,16 +302,18 @@ function applyTheme(key) {
     'c-macro': t.macro, 'c-fn': t.fn, 'c-class': t.cls, 'c-param': t.param, 'c-op': t.op,
     'c-field': t.field || t.fg,
   };
-  // the edit layer is the same highlighter, so it takes the same colors
   const rules = [
-    '#code, #codeEditHl { background: ' + t.bg + '; color: ' + t.fg + '; }',
-    '#codeEditWrap { background: ' + t.bg + '; }',
-    '#codeEdit { caret-color: ' + t.fg + '; }',
+    '#code { background: ' + t.bg + '; color: ' + t.fg + '; }',
   ];
   for (const [cls, col] of Object.entries(slots)) {
-    rules.push('#code .' + cls + ', #codeEditHl .' + cls
+    rules.push('#code .' + cls
       + ' { color: ' + col + '; font-style: ' + (it.has(cls) ? 'italic' : 'normal') + '; }');
   }
+  // The edit layer is the same highlighter, so it takes the same colors, but
+  // which elements it paints them onto is the editor implementation's business
+  // and not this file's. Asked for through the seam rather than written here,
+  // so swapping the editor does not mean editing the theme.
+  rules.push(...editorThemeRules(t, slots, it));
   document.getElementById('themeStyle').textContent = rules.join('\n');
 }
 

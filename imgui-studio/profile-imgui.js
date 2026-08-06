@@ -37,7 +37,21 @@ const PROFILE = {
   get categories() { return CATEGORIES; },
 
   get families() { return FAMILIES; },
-  get familyOf() { return FAMILY_OF; },
+  // Built here from FAMILIES rather than read as a global. It used to be a
+  // const in canvas.js, so the PROFILE depended on a name the shell happened
+  // to declare, and removing that const from the shell took the imgui page's
+  // whole boot down with a ReferenceError the moment anything asked for a
+  // badge. Lazy and cached, the same shape the slate profile uses.
+  _familyOf: null,
+  get familyOf() {
+    if (!this._familyOf) {
+      this._familyOf = {};
+      for (const [letter, types] of Object.entries(FAMILIES)) {
+        for (const t of types) this._familyOf[t] = letter;
+      }
+    }
+    return this._familyOf;
+  },
 
   // The fresh-document literal, moved here from doc.js when the slate page
   // booted showing the imgui demo: the shell must not know what a new

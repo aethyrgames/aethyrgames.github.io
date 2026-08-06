@@ -340,8 +340,7 @@ window.__test = {
   },
   applyCpp: text => {
     setCodeEditing(true);
-    codeEdit.value = text;
-    paintCodeEditor();
+    EDITOR.setValue(text);
     applyBtn.onclick();
     return document.getElementById('codeStatus').textContent;
   },
@@ -356,8 +355,7 @@ window.__test = {
   roundTrip: () => {
     const before = PROFILE.generate();
     setCodeEditing(true);
-    codeEdit.value = before;
-    paintCodeEditor();
+    EDITOR.setValue(before);
     applyBtn.onclick();
     const status = codeStatus.textContent;
     return {

@@ -59,6 +59,8 @@ refresh();
 // the loaded document is the undo floor
 pushHistory();
 syncCanvasSize();
+// Before applyPan, which is what actually moves the sheet.
+restoreView();
 applyPan();
 // a #d= fragment opens as its own project, so a link never eats your work
 loadSharedFromUrl();

@@ -249,7 +249,11 @@ function MENUS() {
 // The keyboard's own idea of which row is current, independent of DOM focus
 // (rows are plain divs, not tab stops). Reset on every render so switching
 // menus or toggling a checkable row always starts from the top.
-let menuSel = 0;
+// -1, not 0. A menu opens with NOTHING selected: the highlight is a keyboard
+// cursor, and painting it on the first row the moment the menu appears reads
+// as "this item is armed" to anyone using a mouse. Arrow keys bring it into
+// existence, which is the only time it means anything.
+let menuSel = -1;
 
 function highlightMenuRow(i) {
   const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
@@ -317,7 +321,7 @@ function renderMenu(name) {
     if (b.hasAttribute('aria-haspopup')) b.setAttribute('aria-expanded', String(b.dataset.menu === name));
   }
   openMenu = name;
-  menuSel = 0;
+  menuSel = -1;
   highlightMenuRow(menuSel);
 }
 
@@ -341,7 +345,9 @@ window.addEventListener('keydown', e => {
     e.stopImmediatePropagation();
     const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
     if (!rows.length) return;
-    menuSel = e.key === 'ArrowDown' ? (menuSel + 1) % rows.length : (menuSel - 1 + rows.length) % rows.length;
+    menuSel = e.key === 'ArrowDown'
+      ? (menuSel + 1) % rows.length
+      : (menuSel <= 0 ? rows.length - 1 : menuSel - 1);
     highlightMenuRow(menuSel);
     rows[menuSel].scrollIntoView({ block: 'nearest' });
   } else if (e.key === 'Enter') {
@@ -382,7 +388,13 @@ if (tutorialTopBtn) {
 const appVerEl = document.getElementById('appVer');
 if (appVerEl && typeof STUDIO_VERSION !== 'undefined') appVerEl.textContent = `v${STUDIO_VERSION}`;
 document.addEventListener('mousedown', e => {
-  if (openMenu && !menuPop.contains(e.target) && !e.target.closest('.menutop')) closeMenu();
+  if (!openMenu) return;
+  // e.target is not always an Element: a synthetic event dispatched on the
+  // document itself has no closest(), and the TypeError killed the handler
+  // and left the menu open. Anything that is not an element is outside the
+  // menu by definition, so it closes.
+  const el = e.target instanceof Element ? e.target : null;
+  if (!el || (!menuPop.contains(el) && !el.closest('.menutop'))) closeMenu();
 }, true);
 window.addEventListener('blur', closeMenu);
 window.addEventListener('keydown', e => {
@@ -1173,7 +1185,7 @@ function renderProps() {
   // marked with its prop key, so beginInlineEdit can fall back to the Label
   // field when the preview published no rect for the widget
   const mark = (el, key) => { if (el && el.dataset) el.dataset.prop = key; return el; };
-  const editorFor = ([key, type, , opts]) => {
+  const editorFor = ([key, type, def, opts]) => {
     if (type === 'bool') {
       const inp = document.createElement('input');
       inp.type = 'checkbox';
@@ -1288,7 +1300,33 @@ function renderProps() {
     inp.maxLength = kindCap(type);
     inp.value = node[key] ?? '';
     inp.placeholder = (opts && opts.placeholder) || '';
-    inp.oninput = () => { node[key] = inp.value; refresh(false, key); };
+    // What survives a reload is what coerce keeps, and this field is the one
+    // editor that produces values coerce can REJECT rather than merely clamp:
+    // a handler name with a space in it, a colour that is not six or eight hex
+    // digits. Typed, it worked all session and vanished on the next load, with
+    // nothing anywhere saying so. The field marks itself while the value is
+    // one coerce would throw away, and settles to the kept value on blur, so
+    // what you are looking at is always what a reload would give you back.
+    const kept = v => coerce(type, v, def, opts);
+    const markValidity = () => inp.classList.toggle('badvalue', kept(inp.value) !== inp.value);
+    markValidity();
+    // A rejected value never reaches the document. Writing it and letting blur
+    // coerce it meant typing something invalid and clicking away REPLACED a
+    // good handler with the catalog default, which is a worse answer than
+    // either keeping the text or keeping the old value.
+    inp.oninput = () => {
+      markValidity();
+      if (kept(inp.value) !== inp.value) return;
+      node[key] = inp.value;
+      refresh(false, key);
+    };
+    // Leaving the field with text the document never accepted: show what the
+    // document actually holds, rather than a value that only exists on screen.
+    inp.onblur = () => {
+      if (kept(inp.value) === inp.value) return;
+      inp.value = node[key] ?? '';
+      markValidity();
+    };
     return inp;
   };
 

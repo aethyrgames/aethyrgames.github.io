@@ -1,10 +1,14 @@
-// The generated-C++ pane: applying an edit back into the document, the editing
-// surface itself, and the lint, signature hint and completion picker that
-// app/codeintel.js computes.
+// The generated-C++ pane: applying an edit back into the document, and the
+// lint, signature hint and completion picker drawn around the editing surface.
 //
 // One of the classic scripts index.html loads in order. They share a single
 // global scope, so a name declared in an earlier one is visible here, and the
 // load order in index.html is the dependency order.
+//
+// Two seams and nothing under them. This file used to hold the textarea and
+// call app/cpp.js and app/codeintel.js by name; now it asks LANG what the text
+// means and EDITOR what the user is doing to it, and neither answer tells it
+// what either is made of. See app/editor-api.js and app/lang-api.js.
 
 // ---------- editing the generated C++ ----------
 
@@ -12,20 +16,34 @@ let codeEditing = false;
 // The C++ this editing session started from, either the last text generated
 // from the canvas or whatever a Reload just pulled in. markCodeStale and the
 // Escape guard below both compare against this rather than against the live
-// document or the live textarea: generating is what changes the document's
-// C++, typing is not, and the two must not be read as the same signal.
+// editor text: generating is what changes the document's C++, typing is not,
+// and the two must not be read as the same signal.
 let codeEditSnapshot = '';
 // The parser is assembled by the PROFILE, not here: which factory builds it
 // and from which catalog is exactly the kind of knowledge W1 moved out of the
-// shell. This file only asks PROFILE.parser, and a profile without one means
-// the Edit flow is absent, not broken.
+// shell. This file only asks LANG, and a language that cannot parse means the
+// Edit flow is absent, not broken.
 const codeEl = document.getElementById('code');
-const codeEdit = document.getElementById('codeEdit');
 const codeStatus = document.getElementById('codeStatus');
 const editBtn = document.getElementById('editCodeBtn');
 const applyBtn = document.getElementById('applyCodeBtn');
 const cancelBtn = document.getElementById('cancelCodeBtn');
 const reloadBtn = document.getElementById('reloadCodeBtn');
+
+// The language service for this page, and the editing surface mounted in the
+// pane's own box. Both are created here and never reached around: everything
+// below talks offsets and text.
+const LANG = createLanguage(PROFILE.id);
+const codeEditorHost = document.getElementById('codeEditWrap');
+const EDITOR = createEditor({
+  host: codeEditorHost,
+  initialValue: '',
+  highlight: text => LANG.highlight(text),
+  onChange: () => { scheduleCodeIntel(); scheduleLivePreview(); },
+  onCursor: () => { renderSignature(); if (compl) updateCompletions(); },
+  onScroll: () => { if (!complEl.hidden) placeCompletions(); },
+  onBlur: () => hideCompletions(),
+});
 
 let livePreviewTimer = 0;
 function setCodeEditing(on) {
@@ -37,16 +55,15 @@ function setCodeEditing(on) {
   // noticed the timer outliving its editor.
   if (!on && livePreviewTimer) { clearTimeout(livePreviewTimer); livePreviewTimer = 0; }
   codeEl.hidden = on;
-  document.getElementById('codeEditWrap').hidden = !on;
+  codeEditorHost.hidden = !on;
   codeStatus.hidden = !on;
   editBtn.hidden = on;
   applyBtn.hidden = !on;
   cancelBtn.hidden = !on;
   reloadBtn.hidden = true;   // only offered once the document actually moves on
   if (on) {
-    codeEdit.value = PROFILE.generate();
-    codeEditSnapshot = codeEdit.value;
-    paintCodeEditor();
+    EDITOR.setValue(PROFILE.generate());
+    codeEditSnapshot = EDITOR.getValue();
     const gone = generateCode.skipped || [];
     const warned = generateCode.warnings || [];
     const lost = gone.reduce((n, s) => n + 1 + s.lost, 0);
@@ -68,7 +85,7 @@ function setCodeEditing(on) {
         ? '\nAlso: ' + warned.map(s => s.type
           + (s.label ? ` "${s.label}"` : '') + ' - ' + s.reason).join('; ') + '.'
         : '');
-    codeEdit.focus();
+    EDITOR.focus();
     runCodeIntel();
   } else {
     hideCompletions();
@@ -82,7 +99,7 @@ function setCodeEditing(on) {
 // because the alternative, silently overwriting the text, loses C++ edits.
 function markCodeStale() {
   // Compares the CURRENT document against the snapshot taken when editing
-  // started, not against codeEdit.value. Comparing to codeEdit.value made the
+  // started, not against the editor's text. Comparing to the editor made the
   // user's own typing look like a canvas change: type anything, then merely
   // select a widget (which calls refresh() -> markCodeStale()), and the banner
   // claimed the document had moved on when only the text field had.
@@ -101,7 +118,7 @@ cancelBtn.onclick = () => setCodeEditing(false);
 applyBtn.onclick = () => {
   let result;
   try {
-    result = PROFILE.parser(codeEdit.value, nextId);
+    result = LANG.parse(EDITOR.getValue(), nextId);
   } catch (err) {
     // never blank the canvas on a parse failure: keep the last good document
     codeStatus.className = 'err';
@@ -148,20 +165,7 @@ function countType(list, type) {
   return n;
 }
 
-// ---------- the C++ editor ----------
-// Enough of an IDE to be usable: highlighting under the caret, Tab that
-// indents instead of leaving the field, and indentation that follows braces.
-
-const codeEditHl = document.getElementById('codeEditHl');
-const codeEditWrap = document.getElementById('codeEditWrap');
-const INDENT = '    ';
-
-function paintCodeEditor() {
-  // trailing newline keeps the last line's box alive so the two layers agree
-  codeEditHl.innerHTML = highlightCpp(codeEdit.value) + '\n';
-  codeEditHl.scrollTop = codeEdit.scrollTop;
-  codeEditHl.scrollLeft = codeEdit.scrollLeft;
-}
+// ---------- the live preview ----------
 
 // Live preview while typing. Only a CLEAN parse touches the document, so a
 // half-typed line leaves the last good preview standing instead of blanking
@@ -173,13 +177,13 @@ function paintCodeEditor() {
 // nothing else, so Apply remains the commit and undo still steps by edit
 // rather than by character.
 function scheduleLivePreview() {
-  if (!PROFILE.parser) return;
+  if (!LANG.canParse) return;
   if (livePreviewTimer) clearTimeout(livePreviewTimer);
   livePreviewTimer = setTimeout(() => {
     livePreviewTimer = 0;
     if (!codeEditing) return;
     let result;
-    try { result = PROFILE.parser(codeEdit.value, nextId); } catch (err) { return; }
+    try { result = LANG.parse(EDITOR.getValue(), nextId); } catch (err) { return; }
     if (!result || !Array.isArray(result.windows) || !result.windows.length) return;
     const ids = new Set(['root']);
     const cleaned = sanitize(result.windows, ids, true);
@@ -192,16 +196,6 @@ function scheduleLivePreview() {
     pushDoc();
   }, 250);
 }
-codeEdit.addEventListener('input', () => {
-  paintCodeEditor();
-  scheduleCodeIntel();
-  scheduleLivePreview();
-});
-codeEdit.addEventListener('scroll', () => {
-  codeEditHl.scrollTop = codeEdit.scrollTop;
-  codeEditHl.scrollLeft = codeEdit.scrollLeft;
-  if (!complEl.hidden) placeCompletions();
-});
 
 // ---------- lint, signature hint and completion ----------
 // The point of all three is that this pane is where you hand-write C++ that has
@@ -211,19 +205,13 @@ codeEdit.addEventListener('scroll', () => {
 const lintEl = document.getElementById('codeLint');
 const sigEl = document.getElementById('codeSig');
 const complEl = document.getElementById('codeCompl');
-// The name list is PROFILE.docs.names now: deriving it from the doc map is
-// profile knowledge (which map, which casing), and it was the second
-// derivation W1 found living in the shell after the parser assembly.
 let lintDiags = [];
 let intelTimer = null;
 let compl = null;          // { from, to, items, index }
 
-// Every ImGui call the parser turns into a widget, so the lint can say which
-// ones it will instead keep verbatim.
-const modelledCalls = new Set(Object.keys((PROFILE.parser && PROFILE.parser.schema) || {}));
-// A profile without a parser has no Edit flow, which the contract calls a
-// missing feature rather than an error. The button follows the profile.
-if (!PROFILE.parser && editBtn) editBtn.hidden = true;
+// A language that cannot parse has no Edit flow, which the contract calls a
+// missing feature rather than an error. The button follows the language.
+if (!LANG.canParse && editBtn) editBtn.hidden = true;
 
 function scheduleCodeIntel() {
   clearTimeout(intelTimer);
@@ -233,18 +221,28 @@ function scheduleCodeIntel() {
 
 function runCodeIntel() {
   if (!codeEditing) return;
-  lintDiags = lintCpp(codeEdit.value, {
-    sigs: PROFILE.docs.sigs, names: PROFILE.docs.names, modelled: modelledCalls,
-  });
+  lintDiags = LANG.diagnostics(EDITOR.getValue());
+  EDITOR.setDiagnostics(lintDiags);
   renderLint();
   renderSignature();
 }
 
+// The seam speaks offsets, and the problem list shows "12:5". This is the one
+// place that has to agree with the text about where a line begins, which is
+// exactly why it is not spread across the pane, the editor and the language.
+function lineColAt(text, offset) {
+  const head = text.slice(0, Math.max(0, offset));
+  return { line: head.split('\n').length, col: offset - (head.lastIndexOf('\n') + 1) + 1 };
+}
+
+const DIAG_CLASS = { error: 'error', warning: 'warn', info: 'info' };
+const DIAG_ICON = { error: '✕', warning: '!', info: 'i' };
+
 function renderLint() {
   lintEl.innerHTML = '';
   lintEl.hidden = !codeEditing;
-  const errs = lintDiags.filter(d => d.level === 'error').length;
-  const warns = lintDiags.filter(d => d.level === 'warn').length;
+  const text = EDITOR.getValue();
+  const errs = lintDiags.filter(d => d.severity === 'error').length;
   applyBtn.textContent = errs ? `Apply (${errs} error${errs > 1 ? 's' : ''})` : 'Apply';
   applyBtn.title = errs
     ? 'Applies anyway. Anything that cannot be read as a widget is kept verbatim.'
@@ -256,20 +254,20 @@ function renderLint() {
     lintEl.appendChild(ok);
     return;
   }
-  const ICON = { error: '✕', warn: '!', info: 'i' };
   for (const d of lintDiags) {
+    const where = lineColAt(text, d.from);
     const row = document.createElement('div');
-    row.className = 'ld ' + d.level;
-    row.onclick = () => jumpToCodeLine(d.line);
+    row.className = 'ld ' + (DIAG_CLASS[d.severity] || 'info');
+    row.onclick = () => jumpToCodeOffset(d.from);
     const ic = document.createElement('span');
     ic.className = 'lic';
-    ic.textContent = ICON[d.level];
+    ic.textContent = DIAG_ICON[d.severity] || 'i';
     const at = document.createElement('span');
     at.className = 'lat';
-    at.textContent = d.line + ':' + d.col;
+    at.textContent = where.line + ':' + where.col;
     const msg = document.createElement('span');
     msg.className = 'lmsg';
-    msg.textContent = d.msg;
+    msg.textContent = d.message;
     row.append(ic, at, msg);
     if (d.fix) {
       const fix = document.createElement('button');
@@ -289,46 +287,26 @@ function renderLint() {
 }
 
 function applyLintFix(fix) {
-  codeEdit.focus();
-  replaceRange(fix.from, fix.to, fix.text, fix.from + fix.text.length);
+  EDITOR.focus();
+  EDITOR.replaceRange(fix.from, fix.to, fix.text, fix.from + fix.text.length);
   runCodeIntel();
 }
 
-function jumpToCodeLine(line) {
-  const v = codeEdit.value;
-  let at = 0;
-  for (let i = 1; i < line; i++) {
-    const nl = v.indexOf('\n', at);
-    if (nl < 0) break;
-    at = nl + 1;
-  }
+// Select the whole line the offset falls on and centre it, so clicking a
+// problem in the list puts you on the code that caused it.
+function jumpToCodeOffset(offset) {
+  const v = EDITOR.getValue();
+  const at = v.lastIndexOf('\n', Math.max(0, offset - 1)) + 1;
   const end = v.indexOf('\n', at);
-  codeEdit.focus();
-  codeEdit.setSelectionRange(at, end < 0 ? v.length : end);
-  // center the line rather than leaving it against an edge
-  const lh = lineHeightOf();
-  codeEdit.scrollTop = Math.max(0, (line - 1) * lh - codeEdit.clientHeight / 2);
-  paintCodeEditor();
+  EDITOR.focus();
+  EDITOR.setCursorOffset(at, end < 0 ? v.length : end);
+  EDITOR.revealOffset(at);
   renderSignature();
 }
 
-let metrics = null;
-function editorMetrics() {
-  if (metrics) return metrics;
-  const probe = document.createElement('span');
-  probe.textContent = '0'.repeat(40);
-  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:13px/1.5 var(--font)';
-  document.body.appendChild(probe);
-  const r = probe.getBoundingClientRect();
-  metrics = { charW: r.width / 40, lineH: r.height };
-  probe.remove();
-  return metrics;
-}
-const lineHeightOf = () => editorMetrics().lineH;
-
 function renderSignature() {
   const hit = codeEditing
-    ? signatureAt(codeEdit.value, codeEdit.selectionStart, PROFILE.docs.sigs) : null;
+    ? LANG.signature(EDITOR.getValue(), EDITOR.getCursorOffset()) : null;
   sigEl.hidden = !hit;
   if (!hit) return;
   // underline the argument the caret is on, so a long list stays readable
@@ -367,8 +345,7 @@ function updateCompletions() {
   // Only after `ImGui::` or `state.` while typing. Offering something for every
   // three-letter word would put a popup over the code constantly. Ctrl+Space is
   // there for when you do want it on a bare word.
-  const hit = completionAt(codeEdit.value, codeEdit.selectionStart,
-    { sigs: PROFILE.docs.sigs, bare: false });
+  const hit = LANG.completions(EDITOR.getValue(), EDITOR.getCursorOffset(), { bare: false });
   if (!hit) return hideCompletions();
   // A caret event re-runs this, so the highlighted row has to survive it.
   // Narrowing the word changes the span or the list, and then the top item wins.
@@ -405,21 +382,14 @@ function renderCompletions() {
 }
 
 function placeCompletions() {
-  const { charW, lineH } = editorMetrics();
-  const v = codeEdit.value;
-  const upto = v.slice(0, compl.from);
-  const line = upto.split('\n').length;
-  const col = compl.from - (upto.lastIndexOf('\n') + 1);
-  const pad = 12;
-  let x = pad + col * charW - codeEdit.scrollLeft;
-  let y = pad + line * lineH - codeEdit.scrollTop;
-  const wrapH = codeEditWrap.clientHeight;
-  complEl.style.left = Math.max(0, Math.min(x, codeEditWrap.clientWidth - 240)) + 'px';
+  const at = EDITOR.coordsAtOffset(compl.from);
+  const view = EDITOR.viewport();
+  complEl.style.left = Math.max(0, Math.min(at.x, view.width - 240)) + 'px';
   // flip above the caret when there is no room below
-  if (y + complEl.offsetHeight > wrapH && y - lineH - complEl.offsetHeight > 0) {
-    complEl.style.top = (y - lineH - complEl.offsetHeight) + 'px';
+  if (at.bottom + complEl.offsetHeight > view.height && at.top - complEl.offsetHeight > 0) {
+    complEl.style.top = (at.top - complEl.offsetHeight) + 'px';
   } else {
-    complEl.style.top = Math.max(0, Math.min(y, wrapH - 40)) + 'px';
+    complEl.style.top = Math.max(0, Math.min(at.bottom, view.height - 40)) + 'px';
   }
 }
 
@@ -436,42 +406,15 @@ function moveCompletion(delta) {
 }
 
 function acceptCompletion() {
-  const it = compl.items[compl.index];
-  const { from, to, kind, withPrefix } = compl;
+  const hit = compl;
+  const it = hit.items[hit.index];
   hideCompletions();
-  // a function gets its parentheses too, with the caret between them
-  const text = kind === 'fn'
-    ? (withPrefix ? 'ImGui::' : '') + it.name + '()'
-    : it.name;
-  const caret = kind === 'fn' ? from + text.length - 1 : from + text.length;
-  replaceRange(from, to, text, caret);
+  // what the text becomes is the language's call, not the pane's: the
+  // qualifier and the empty parentheses are facts about the language
+  const ins = LANG.completionInsert(hit, it);
+  EDITOR.replaceRange(hit.from, hit.to, ins.text, hit.from + ins.caret);
   renderSignature();
 }
-
-// the caret can also move without an input event
-for (const ev of ['keyup', 'click', 'focus']) {
-  codeEdit.addEventListener(ev, () => {
-    renderSignature();
-    if (compl) updateCompletions();
-  });
-}
-codeEdit.addEventListener('blur', hideCompletions);
-
-// insertText keeps the browser's own undo stack intact, which setRangeText
-// throws away. It quietly does nothing when the field isn't really focused,
-// so the result is checked rather than the return value trusted.
-function replaceRange(from, to, text, selStart, selEnd) {
-  const was = codeEdit.value;
-  codeEdit.setSelectionRange(from, to);
-  let ok = false;
-  try { ok = document.execCommand('insertText', false, text); } catch (e) { ok = false; }
-  if (!ok || codeEdit.value === was) codeEdit.setRangeText(text, from, to, 'end');
-  if (selStart !== undefined) codeEdit.setSelectionRange(selStart, selEnd === undefined ? selStart : selEnd);
-  paintCodeEditor();
-}
-
-const lineStartAt = (v, i) => v.lastIndexOf('\n', i - 1) + 1;
-const indentOf = line => (line.match(/^[ \t]*/) || [''])[0];
 
 // Returns true when it took the key, which is the signal to stop it going any
 // further. Anything it doesn't claim types normally.
@@ -479,8 +422,7 @@ function handleCodeEditorKey(e) {
   // Ctrl+Space asks for the picker where typing alone would not have offered it
   if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
     e.preventDefault();
-    const hit = completionAt(codeEdit.value, codeEdit.selectionStart,
-      { sigs: PROFILE.docs.sigs, bare: true });
+    const hit = LANG.completions(EDITOR.getValue(), EDITOR.getCursorOffset(), { bare: true });
     if (hit) { compl = { ...hit, index: 0 }; renderCompletions(); }
     return true;
   }
@@ -501,81 +443,18 @@ function handleCodeEditorKey(e) {
     // A reflex Escape used to discard typed C++ with no way back. Only ask
     // when there is actually something to lose, so closing an untouched
     // editor still takes one keystroke.
-    if (codeEdit.value !== codeEditSnapshot) {
+    if (EDITOR.getValue() !== codeEditSnapshot) {
       askConfirm('Discard the C++ you typed and close the editor?', () => setCodeEditing(false));
     } else {
       setCodeEditing(false);
     }
     return true;
   }
-  const v = codeEdit.value;
-  const s = codeEdit.selectionStart, t = codeEdit.selectionEnd;
 
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const multi = v.slice(s, t).includes('\n');
-    if (!multi && !e.shiftKey) { replaceRange(s, t, INDENT, s + INDENT.length); return true; }
-    // block indent or outdent, keeping the whole span selected afterwards
-    const from = lineStartAt(v, s);
-    const to = v.indexOf('\n', t) === -1 ? v.length : v.indexOf('\n', t);
-    const lines = v.slice(from, to).split('\n');
-    const out = lines.map(l => {
-      if (!e.shiftKey) return INDENT + l;
-      if (l.startsWith(INDENT)) return l.slice(INDENT.length);
-      return l.replace(/^[ \t]{1,4}/, '');
-    });
-    const text = out.join('\n');
-    replaceRange(from, to, text, from, from + text.length);
-    return true;
-  }
-
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    const ls = lineStartAt(v, s);
-    const line = v.slice(ls, s);
-    let ind = indentOf(line);
-    // opening a block indents the next line, and a closing brace already
-    // waiting on the right gets pushed onto its own line below
-    const opens = /[{(]\s*$/.test(line.trimEnd());
-    const closesNext = /^\s*[}\)]/.test(v.slice(t));
-    if (opens) {
-      const inner = ind + INDENT;
-      if (closesNext) {
-        const text = '\n' + inner + '\n' + ind;
-        replaceRange(s, t, text, s + 1 + inner.length);
-      } else {
-        replaceRange(s, t, '\n' + inner, s + 1 + inner.length);
-      }
-      return true;
-    }
-    replaceRange(s, t, '\n' + ind, s + 1 + ind.length);
-    return true;
-  }
-
-  // typing a closing brace pulls its line back out one level
-  if (e.key === '}' && s === t) {
-    const ls = lineStartAt(v, s);
-    const before = v.slice(ls, s);
-    if (/^[ \t]+$/.test(before) && before.length >= INDENT.length) {
-      e.preventDefault();
-      const ind = before.slice(0, before.length - INDENT.length);
-      replaceRange(ls, s, ind + '}', ls + ind.length + 1);
-      return true;
-    }
-    return false;
-  }
-
-  // Backspace at the head of a line eats a whole indent level
-  if (e.key === 'Backspace' && s === t) {
-    const ls = lineStartAt(v, s);
-    const before = v.slice(ls, s);
-    if (before.length && /^[ \t]+$/.test(before) && before.length % INDENT.length === 0) {
-      e.preventDefault();
-      replaceRange(s - INDENT.length, s, '', s - INDENT.length);
-      return true;
-    }
-  }
-  return false;
+  // Everything left is plain text editing: the Tab that indents, the Enter that
+  // follows braces, the outdenting `}` and the Backspace that eats a level.
+  // That is the editing surface's own behaviour, so it decides.
+  return EDITOR.handleKey(e);
 }
 
 // A sameline flag on a first child is suppressed at render and emit time
@@ -605,4 +484,3 @@ document.getElementById('filter').oninput = renderPalette;
 
 
 document.getElementById('copyBtn').onclick = () => copyText(PROFILE.generate(), 'C++');
-

@@ -185,6 +185,36 @@ function applyView() {
   drawRulers();
   renderGuides();
   syncCanvasSize();
+  saveView();
+}
+
+// Where you were looking, kept across reloads. The view was the one piece of
+// workspace state that was never persisted: panels, guides, grid, rulers,
+// theme, hotbar and the document all came back, and the canvas snapped to the
+// origin at 100%. Nobody noticed on the slate page for a while because F5 did
+// not reach the browser there at all.
+//
+// Debounced, because applyView runs on every mousemove of a pan.
+const VIEW_KEY = PROFILE.storagePrefix + '.view.v1';
+let viewSaveTimer = 0;
+function saveView() {
+  if (viewSaveTimer) return;
+  viewSaveTimer = setTimeout(() => {
+    viewSaveTimer = 0;
+    lsSet(VIEW_KEY, JSON.stringify({ x: Math.round(pan.x), y: Math.round(pan.y), z: zoom }));
+  }, 400);
+}
+
+// Clamped on the way in: a stored zoom outside the app's own limits, or a NaN
+// from a hand-edited value, would otherwise put the canvas somewhere with no
+// way back except clearing storage.
+function restoreView() {
+  const v = lsJson(VIEW_KEY, null);
+  if (!v) return;
+  const z = Number(v.z);
+  if (Number.isFinite(z)) zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  if (Number.isFinite(Number(v.x))) pan.x = Number(v.x);
+  if (Number.isFinite(Number(v.y))) pan.y = Number(v.y);
 }
 
 // The transform on its own. syncCanvasSize needs it when the origin moves, and
@@ -1258,7 +1288,14 @@ document.addEventListener('mouseup', e => {
     return;
   }
   if (d.kind === 'template') insertTemplateAt(d.tpl, d.drop);
-  else if (d.kind === 'palette') insertNodeAt(d.type, d.drop);
+  else if (d.kind === 'palette') {
+    insertNodeAt(d.type, d.drop);
+    // A DRAG is one deliberate placement and it is finished when you let go.
+    // Leaving the chip armed afterwards meant the next click on the canvas
+    // dropped a second copy of a widget nobody asked for again. Clicking a
+    // chip still arms it, which is the mode for placing several.
+    disarm();
+  }
   else if (d.dup) duplicateTo(d.nodeId, d.drop);
   else moveSelectionTo(d.nodeId, d.drop);
 });
@@ -1276,10 +1313,20 @@ window.addEventListener('blur', () => {
 
 // ---------- arming (widget stamp tool) ----------
 
-const FAMILY_OF = {};
-for (const [letter, types] of Object.entries(FAMILIES)) {
-  for (const t of types) FAMILY_OF[t] = letter;
-}
+// PROFILE.families, not the bare FAMILIES global. The global is imgui's table
+// and studio.html loads widgets.js too, so on the slate page it is present and
+// wrong. keys.js binds the arm letters from PROFILE.families and render.js
+// paints the palette badge from PROFILE.familyOf; the W2 slice converted those
+// two files and missed these three readers, so the binding and the badge said
+// T while arm() armed imgui's 'text', a type the slate catalog does not have.
+// updateArmedUI then read .name off undefined and threw, and four of the five
+// letters slate binds did nothing but raise an exception.
+//
+// Read through a function rather than captured once: the profile's familyOf is
+// a lazy getter, and a module-scope snapshot taken at load is exactly how the
+// original went stale.
+const familyOf = type => PROFILE.familyOf[type];
+const familyTypes = letter => PROFILE.families[letter] || [];
 
 let armed = null; // { letter, index }
 
@@ -1287,11 +1334,12 @@ let armed = null; // { letter, index }
 // a hotbar slot arms a widget that belongs to no family.
 function armedType() {
   if (!armed) return null;
-  return armed.type || FAMILIES[armed.letter][armed.index];
+  return armed.type || familyTypes(armed.letter)[armed.index] || null;
 }
 
 function arm(letter, backward) {
-  const fam = FAMILIES[letter];
+  const fam = familyTypes(letter);
+  if (!fam.length) return;
   if (armed && armed.letter === letter) {
     armed.index = (armed.index + (backward ? fam.length - 1 : 1)) % fam.length;
   } else {
@@ -1303,8 +1351,8 @@ function arm(letter, backward) {
 // Arm a specific widget type rather than a family letter.
 function rearm(type) {
   if (!PROFILE.catalog[type]) return false;
-  const fam = FAMILY_OF[type];
-  armed = fam ? { letter: fam, index: FAMILIES[fam].indexOf(type) } : { type };
+  const fam = familyOf(type);
+  armed = fam ? { letter: fam, index: familyTypes(fam).indexOf(type) } : { type };
   updateArmedUI();
   return true;
 }

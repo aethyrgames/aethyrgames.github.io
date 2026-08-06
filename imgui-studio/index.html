@@ -301,18 +301,23 @@
   .tplrow button:hover { color: var(--mk-green); }
 
   .settings-box { max-width: 620px; width: 92vw; }
-  .settings-head {
+  /* #codeovHead is the same overlay-head shape: a title, a spacer, a close
+     control on a bordered bar. Shared by selector rather than copied, so the
+     two heads cannot drift apart the way two pasted blocks would. */
+  .settings-head, #codeovHead {
     display: flex; align-items: center; gap: 10px; padding: 12px 14px 10px;
     border-bottom: 1px solid var(--mk-border); color: var(--mk-green);
     text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
   }
-  .settings-head .spacer { flex: 1; }
-  .settings-head button, .settings-tabs button {
+  .settings-head .spacer, #codeovHead .spacer { flex: 1; }
+  .settings-head button, .settings-tabs button, #codeovHead button {
     background: transparent; color: var(--mk-comment); border: 1px solid var(--mk-border);
     border-radius: var(--radius); padding: 3px 10px; cursor: pointer;
     font-family: var(--font); font-size: 11px;
   }
-  .settings-head button:hover, .settings-tabs button:hover { color: var(--mk-cyan); border-color: var(--mk-cyan); }
+  .settings-head button:hover, .settings-tabs button:hover, #codeovHead button:hover {
+    color: var(--mk-cyan); border-color: var(--mk-cyan);
+  }
   .settings-tabs { display: flex; gap: 6px; padding: 10px 14px; }
   .settings-tabs button.on { color: var(--mk-green); border-color: var(--mk-green); }
   .set-row {
@@ -547,6 +552,11 @@
   #propbody > * { min-width: 0; }
   .veccell input, .numwrap input { min-width: 0; }
   #propbody input:focus, #propbody select:focus { outline: none; border-color: var(--mk-cyan); }
+  /* The value in the field is not the value a reload would keep. Coloured
+     rather than blocked: the halfway states of typing an identifier or a hex
+     colour are all invalid, and refusing them as you type is unusable. */
+  #propbody input.badvalue { border-color: var(--mk-pink); }
+  #propbody input.badvalue:focus { border-color: var(--mk-pink); }
   #propbody .empty { grid-column: 1 / -1; color: var(--mk-comment); padding: 6px 0; }
   #propbody .empty::before { content: '// '; }
 
@@ -1161,6 +1171,16 @@
     letter-spacing: 0.07em; padding: 7px 8px 2px;
   }
   .ov-cat::before { content: '// '; }
+
+  /* ---- the large document view ---- */
+  /* Overrides .overlay-box, which is tuned for a 500px list of rows. This box
+     holds the code panel's whole body (app/codeview.js moves it in), so it is
+     sized to be a place you would actually read and edit C++ in. Declared after
+     .overlay-box, same specificity, so these four win. */
+  .codeview-box { margin-top: 4vh; width: 96vw; height: 90vh; max-height: 90vh; }
+  /* The moved .panel-body is a flex column that filled its dock. Give it the
+     same thing to fill here, or it collapses to its content height. */
+  #codeovBody { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 </style>
 <style id="themeStyle"></style>
 </head>
@@ -1310,6 +1330,11 @@
         <div id="codehead">
           <select id="themeSel" title="Syntax highlighting theme"></select>
           <button id="copyBtn">Copy</button>
+          <!-- Opens the large view. It travels with the pane (app/codeview.js
+               moves the whole panel body), so in the large view this same
+               button is the way back and reads Collapse. -->
+          <button id="expandCodeBtn" aria-expanded="false"
+            title="Show this pane in a large view filling the workspace">Expand</button>
         </div>
         <pre id="code"></pre>
         <div id="codeEditWrap" hidden>
@@ -1333,6 +1358,26 @@
     </div>
     <div class="dockresize horiz" id="resizeBottom"></div>
     <div class="dock" id="dockBottom"></div>
+  </div>
+
+  <!-- The large document view. #codeovBody is empty until app/codeview.js moves
+       the code panel's own body into it, which is the whole design: one editor
+       instance, one piece of text, in two places by turns rather than mirrored.
+       First among the overlays so all the others paint over it, since any of
+       them can legitimately open while this is up.
+       role=dialog but deliberately NOT aria-modal: this is the panel made big,
+       not a dialog. The app underneath stays live and every shortcut that works
+       with the pane docked keeps working here, so claiming modality would be a
+       lie to a screen reader. -->
+  <div id="codeov" class="overlay" role="dialog" aria-labelledby="codeovTitle" hidden>
+    <div class="overlay-box codeview-box">
+      <div id="codeovHead">
+        <strong id="codeovTitle">Generated C++</strong>
+        <span class="spacer"></span>
+        <button id="codeovClose" title="Back to the docked panel (Esc)">✕</button>
+      </div>
+      <div id="codeovBody"></div>
+    </div>
   </div>
 
   <div id="settingsov" class="overlay" role="dialog" aria-modal="true" aria-label="Settings" hidden>
@@ -1380,24 +1425,57 @@
     </div>
   </div>
 
-<script src="version.js?v=fc258b35ef"></script>
-<script src="profile-imgui.js?v=8d52591cd8"></script>
+<!-- Vendored CodeMirror 6 and Lezer, one generated IIFE defining
+     window.StudioEditorVendor. Built by scripts/build_vendor.mjs and committed
+     the way app/imguidocs.js is. It loads first because it is the only script
+     here that declares nothing about this app, and because the two files that
+     read it, editor-codemirror.js and lang-cpp-lezer.js, decide whether to
+     register at all by whether the global is there. See README for the swap. -->
+<script src="vendor/editor.bundle.js?v=a8987e801e"></script>
+<script src="version.js?v=bd6b8aa43d"></script>
+<script src="profile-imgui.js?v=d4201158dd"></script>
 <script src="widgets.js?v=66c62e3d00"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=7fdfde3a59"></script>
+<script src="cpp.js?v=951a07f5a2"></script>
 <script src="codeintel.js?v=1140d40c85"></script>
+<!-- The two seams, each an interface followed by its implementations. The
+     interface files register nothing and depend on nothing, so they load
+     first; the implementations register themselves on load, which is why they
+     have to sit above theme.js (it asks the editor for its own theme rules
+     while the page is still loading) and above codepane.js (it builds both).
+
+     Two implementations each now, and BOTH load. Which one answers is the
+     order at the top of each interface file, so the swap really is one word
+     rather than one word plus a script tag nobody remembered to add. The
+     alternatives load last within their seam because each is built on what
+     came before it: lang-cpp-lezer.js composes over the hand-rolled service
+     and replaces two of its answers, and editor-codemirror.js needs the
+     vendored bundle above. -->
+<script src="lang-api.js?v=102526c577"></script>
+<script src="lang-cpp-handrolled.js?v=aba8e6e2a3"></script>
+<script src="lang-cpp-lezer.js?v=94c8de2daf"></script>
+<script src="editor-api.js?v=56cc7be192"></script>
+<script src="editor-textarea.js?v=2e39a4184d"></script>
+<script src="editor-codemirror.js?v=0596c1a2e6"></script>
 <script src="doc.js?v=ec407016d0"></script>
-<script src="canvas.js?v=0030cade1e"></script>
-<script src="keys.js?v=0a8eda7da9"></script>
+<script src="canvas.js?v=03a314018e"></script>
+<!-- Ahead of keys.js, which is the one place in this list where load order is
+     about listener order rather than dependency order. Both files register a
+     capture-phase keydown listener on window, those run in registration order,
+     and the large view has to see Escape before keys.js hands it to the code
+     editor. Everything codeview.js reads from later files it reads at click
+     time, never at load. See the Escape note at the bottom of the file. -->
+<script src="codeview.js?v=4c92a095ed"></script>
+<script src="keys.js?v=e783148dcf"></script>
 <script src="generate.js?v=b3750ec656"></script>
-<script src="theme.js?v=cd182fd16a"></script>
+<script src="theme.js?v=74ae270bb5"></script>
 <script src="layout.js?v=c709fffafe"></script>
-<script src="render.js?v=5e79b55e5f"></script>
-<script src="codepane.js?v=301f2365d8"></script>
+<script src="render.js?v=8e642db4bf"></script>
+<script src="codepane.js?v=30564ec228"></script>
 <script src="templates.js?v=c7c8a32efc"></script>
-<script src="settings.js?v=bdbb011190"></script>
-<script src="testhooks.js?v=f55a50626f"></script>
-<script src="boot.js?v=d62cc67d97"></script>
+<script src="settings.js?v=fd8e984934"></script>
+<script src="testhooks.js?v=42c2f74da1"></script>
+<script src="boot.js?v=bdf5dd167e"></script>
 <script src="engine.js?v=ae4ae66fb0"></script>
 </body>
 </html>

@@ -494,10 +494,34 @@ function createParser(WIDGETS, makeNode, colorSlots) {
       // the call whenever an argument contained one, so a window titled
       // "Panel; with semicolon" lost every widget in it.
       const beginArgs = balancedArgs(src.slice(bodyStart + 'ImGui::Begin'.length));
-      const afterBegin = beginArgs === null
-        ? src.indexOf(';', bodyStart)
-        : src.indexOf(';', bodyStart + 'ImGui::Begin'.length + beginArgs.length + 2);
-      const inner = src.slice(afterBegin + 1, bodyEnd);
+      const afterCall = beginArgs === null
+        ? bodyStart
+        : bodyStart + 'ImGui::Begin'.length + beginArgs.length + 2;
+      // Two shapes reach here, and only one used to. The generator writes a
+      // bare `ImGui::Begin(...);`, so the body is everything after that
+      // semicolon. Hand-written ImGui, including every example in the official
+      // demo, guards it: `if (ImGui::Begin(...)) { ... }`, and there is no
+      // semicolon after the call at all. Looking for one walked into the first
+      // statement INSIDE the block and parsed from halfway through it, so
+      // pasting idiomatic ImGui into the pane and pressing Apply mangled it.
+      let inner;
+      const rest = src.slice(afterCall, bodyEnd);
+      const brace = rest.search(/[^\s)]/) >= 0 && rest[rest.search(/[^\s)]/)] === '{'
+        ? afterCall + rest.search(/[^\s)]/)
+        : -1;
+      if (brace >= 0) {
+        // The guard's own block. Its closing brace, not the last one before
+        // End, because the body can contain nested blocks of its own.
+        let depth = 0, close = -1;
+        for (let k = brace; k < bodyEnd; k++) {
+          if (src[k] === '{') depth++;
+          else if (src[k] === '}') { depth--; if (depth === 0) { close = k; break; } }
+        }
+        inner = src.slice(brace + 1, close >= 0 ? close : bodyEnd);
+      } else {
+        const semi = src.indexOf(';', afterCall);
+        inner = src.slice((semi >= 0 ? semi : afterCall) + 1, bodyEnd);
+      }
       const winHelpers = collectHelpers(region);
       allHelpers.push(winHelpers);
       const children = parse(inner, 0, inner.length, errors, newId, schema,

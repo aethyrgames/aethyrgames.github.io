@@ -176,7 +176,7 @@ function renderKeySettings() {
     }
     settingsBody.appendChild(row);
   }
-  settingsBody.appendChild(setRow('Restore every default',
+  settingsBody.appendChild(setRow('Restore defaults',
     settingsButton('reset all', () => { resetBinds(); renderSettings(); })));
 }
 
@@ -200,13 +200,13 @@ function renderViewSettings() {
   // each row carries a revert only when it is off its default
   const row = (label, control, changed, restore) => {
     const r = setRow(label, control);
-    if (changed) r.insertBefore(revertButton('Restore the default', restore), control);
+    if (changed) r.insertBefore(revertButton('Restore default', restore), control);
     settingsBody.appendChild(r);
   };
   row(titleCase('Background grid'),
     settingsButton(showGrid ? 'On' : 'Off', () => { setGrid(!showGrid); renderSettings(); }),
     !showGrid, () => setGrid(true));
-  row(titleCase('Rulers and guides'),
+  row(titleCase('Rulers'),
     settingsButton(showRulers ? 'On' : 'Off', () => { setRulers(!showRulers); renderSettings(); }),
     !showRulers, () => setRulers(true));
   settingsBody.appendChild(setRow(titleCase('Panel layout'),
@@ -223,19 +223,19 @@ function renderViewSettings() {
   }
   sel.value = currentTheme;
   sel.onchange = () => { themeSel.value = sel.value; themeSel.onchange(); };
-  settingsBody.appendChild(setRow(titleCase('Code syntax theme'), sel));
+  settingsBody.appendChild(setRow(titleCase('Syntax theme'), sel));
   settingsBody.appendChild(setRow(titleCase('Editor theme'),
     settingsButton('see Themes', () => { settingsTab = 'theme'; renderSettings(); })));
 }
 
 function renderDataSettings() {
-  settingsBody.appendChild(setRow(titleCase('This project as JSON'),
+  settingsBody.appendChild(setRow(titleCase('This project'),
     settingsButton('export', () => exportProject())));
-  settingsBody.appendChild(setRow(titleCase('Every project and template'),
+  settingsBody.appendChild(setRow(titleCase('Everything'),
     settingsButton('export all', () => exportEverything())));
-  settingsBody.appendChild(setRow(titleCase('Import a project file'),
+  settingsBody.appendChild(setRow(titleCase('Import'),
     settingsButton('import', () => document.getElementById('importFile').click())));
-  settingsBody.appendChild(setRow(titleCase('Shareable link for this document'),
+  settingsBody.appendChild(setRow(titleCase('Share link'),
     settingsButton('copy link', () => copyShareLink())));
 }
 

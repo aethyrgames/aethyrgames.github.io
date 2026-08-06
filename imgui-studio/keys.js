@@ -122,7 +122,7 @@ function isTextEntry(t) {
 // is over the canvas, which is right for the palette filter and wrong for the
 // C++ editor: it blurred the editor mid-word and swallowed the space.
 function isRealEditor(t) {
-  return !!t && (t === codeEdit || t.classList && t.classList.contains('longtext'));
+  return !!t && (EDITOR.owns(t) || t.classList && t.classList.contains('longtext'));
 }
 
 // A real <button>/<select>/<a>: something the browser will Tab to on its own,
@@ -137,6 +137,28 @@ function isFocusable(t) {
 function isModalOpen() {
   return !cmdkEl.hidden || !helpEl.hidden || !settingsOv.hidden || !confirmOv.hidden;
 }
+
+// The same shield, one event earlier, for the engine that cancels `keypress`.
+//
+// The slate runtime is SDL rather than GLFW, and SDL's emscripten backend takes
+// keypress on the WINDOW at bubble phase and preventDefaults it. keypress's
+// default action is the character actually being inserted, so on that page a
+// text field took focus, took keydown, and stayed empty: every key the editor
+// implements in JS (Tab, Enter, `}`, Backspace) worked, and nothing else typed
+// at all. Measured before the fix with a listener chain across both phases:
+// keydown unprevented everywhere, keypress unprevented until window/bubble and
+// prevented after it, no beforeinput, no input. The imgui page never showed it,
+// which is why it survived a gate that says "typing in the C++ pane updates the
+// document live" and set .value by hand to get there.
+//
+// stopImmediatePropagation at window CAPTURE is the earliest point in the
+// dispatch, so the engine's window/bubble listener never runs and never
+// preventDefaults. The default action is untouched, which is the whole point.
+// Only a target somebody is typing into is shielded, so every other keypress
+// still reaches the runtime for the preview's own text entry.
+window.addEventListener('keypress', e => {
+  if (isTextEntry(e.target) || EDITOR.owns(e.target)) e.stopImmediatePropagation();
+}, true);
 
 // emscripten's GLFW handler preventDefaults Backspace and Tab page-wide, which
 // would make every text field uneditable. This capture listener registers
@@ -157,7 +179,7 @@ window.addEventListener('keydown', e => {
   // The C++ editor wants Tab for indenting, so it gets first refusal here.
   // Its handler can't sit on the textarea: this listener would have already
   // stopped the event before it got that far down.
-  if (e.target === codeEdit && handleCodeEditorKey(e)) {
+  if (EDITOR.owns(e.target) && handleCodeEditorKey(e)) {
     e.stopImmediatePropagation();
     return;
   }
@@ -273,7 +295,11 @@ HOTBAR_KEYS.forEach((k, i) => {
     if (!type) return false;         // empty slot declines, key falls through
     return rearm(type);              // so does a type with no arming family
   });
-  bind('edit', i === 0 ? 'Ctrl+0…9' : '', { key: k, ctrl: true },
+  // Alt, not Ctrl, for the same reason the Alt+N note below gives. Chrome and
+  // Edge reserve Ctrl+1..8 for switching browser tabs and never deliver the
+  // keydown to the page, so pinning with Ctrl+number could not work and did
+  // not: the tab changed instead. Alt+number is unclaimed.
+  bind('edit', i === 0 ? 'Alt+0…9' : '', { key: k, alt: true },
     'Pin the selected or armed widget to hotbar slot ' + (i + 1), 'Insert', () => {
     const node = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
     const type = armed ? armedType() : (node && node.type);
