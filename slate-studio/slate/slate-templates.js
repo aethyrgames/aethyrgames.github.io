@@ -87,7 +87,7 @@ function slateBuiltinTemplates() {
     n('image', { brush: 'GraphEditor.PinIcon', sizeX: 11, sizeY: 11, slotVAlign: 'Center' }),
   ]);
   const pinExec = right => n('image', {
-    brush: 'GraphEditor.PinIcon', sizeX: 12, sizeY: 12,
+    brush: 'GraphEditor.ExecPin', sizeX: 12, sizeY: 12,
     slotHAlign: right ? 'Right' : 'Left', slotPadT: 1,
   });
   // The wire between two nodes, held at title-bar height so it meets the pins.
