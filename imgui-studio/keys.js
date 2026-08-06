@@ -10,7 +10,7 @@
 // One table drives dispatch, the ? overlay, and the command palette, the same
 // single-source pattern widgets.js uses. `shift: undefined` means don't care.
 const KEYMAP = [];
-const BINDS_KEY = 'imguistudio.binds';
+const BINDS_KEY = PROFILE.storagePrefix + '.binds';
 let bindOverrides = {};
 try { bindOverrides = JSON.parse(localStorage.getItem(BINDS_KEY) || '{}'); } catch (e) {}
 
@@ -256,8 +256,8 @@ bind('edit', 'Ctrl+Shift+Z', { key: 'Z', ctrl: true, shift: true }, 'Redo', 'Str
 bind('edit', '', { key: 'Y', ctrl: true }, 'Redo', 'Structure', () => redo());
 
 bind('edit', 'V', { key: 'V', shift: false }, 'Back to select (disarm)', 'Insert', () => disarm());
-for (const letter of Object.keys(FAMILIES)) {
-  const names = FAMILIES[letter].map(t => WIDGETS[t].name).join(', ');
+for (const letter of Object.keys(PROFILE.families)) {
+  const names = PROFILE.families[letter].map(t => PROFILE.catalog[t].name).join(', ');
   bind('edit', letter + ' / Shift+' + letter, { key: letter, shift: false },
     'Arm ' + names + ' (press again to cycle)', 'Insert', () => arm(letter, false));
   bind('edit', '', { key: letter, shift: true },
@@ -482,7 +482,7 @@ function commandEntries() {
     { label: 'Save as template', run: () => saveCurrentAsTemplate() },
     { label: 'Import templates', run: () => document.getElementById('tplImportBtn').onclick() },
     { label: 'Export templates', run: () => exportTemplates() },
-    { label: 'Copy C++', run: () => copyText(generateCode(), 'C++') },
+    { label: 'Copy C++', run: () => copyText(PROFILE.generate(), 'C++') },
     { label: 'Edit C++', run: () => document.getElementById('editCodeBtn').onclick() },
     { label: 'Apply C++', run: () => document.getElementById('applyCodeBtn').onclick() },
     { label: 'Copy share link', run: () => document.getElementById('shareBtn').onclick() },
@@ -509,12 +509,12 @@ function commandEntries() {
 
 function openCmdk(mode) {
   rememberFocusBeforeOverlay();
-  const inserts = Object.entries(WIDGETS)
+  const inserts = Object.entries(PROFILE.catalog)
     .filter(([, s]) => !s.hidden)
     .map(([type, s]) => ({
       label: 'Insert ' + s.name,
-      k: FAMILY_OF[type] ? keyFor('Arm ' + FAMILIES[FAMILY_OF[type]]
-        .map(t => WIDGETS[t].name).join(', ')) : '',
+      k: PROFILE.familyOf[type] ? keyFor('Arm ' + PROFILE.families[PROFILE.familyOf[type]]
+        .map(t => PROFILE.catalog[t].name).join(', ')) : '',
       run: () => insertNodeAt(type, dropAfterSelection()),
     }));
   cmdkItems = mode === 'insert' ? inserts : commandEntries().concat(inserts);

@@ -12,10 +12,10 @@
 // Category collapse state persists. A filter force-opens sections that contain
 // a match and restores the pre-filter state when cleared, so searching is a
 // view and never a mutation.
-const CAT_KEY = 'imguistudio.cats';
+const CAT_KEY = PROFILE.storagePrefix + '.cats';
 let catOpen = {};
 try { catOpen = JSON.parse(localStorage.getItem(CAT_KEY) || '{}'); } catch (e) {}
-for (const c of CATEGORIES) if (catOpen[c] === undefined) catOpen[c] = true;
+for (const c of PROFILE.categories) if (catOpen[c] === undefined) catOpen[c] = true;
 
 function saveCats() {
   try { localStorage.setItem(CAT_KEY, JSON.stringify(catOpen)); } catch (e) {}
@@ -52,8 +52,8 @@ function paletteButton(type, spec) {
   // Both badges come from the live KEYMAP entry, not from the constant that
   // seeded it. Rebinding an arm key or a hotbar slot used to leave the palette
   // advertising the original letter forever.
-  const fam = FAMILY_OF[type] ? keyFor('Arm ' + FAMILIES[FAMILY_OF[type]]
-    .map(t => WIDGETS[t].name).join(', ')) : '';
+  const fam = PROFILE.familyOf[type] ? keyFor('Arm ' + PROFILE.families[PROFILE.familyOf[type]]
+    .map(t => PROFILE.catalog[t].name).join(', ')) : '';
   const slot = hotbar.indexOf(type);
   const slotKey = slot >= 0 ? keyFor('Arm the widget in hotbar slot ' + (slot + 1)) : '';
   const blocked = blockedReason(type);
@@ -112,7 +112,7 @@ function renderPalette() {
     && (!term || s.name.toLowerCase().includes(term) || k.includes(term));
 
   // pinned first, so the things you use most never need scrolling to
-  const pinned = hotbar.filter(t => t && WIDGETS[t] && matches([t, WIDGETS[t]]));
+  const pinned = hotbar.filter(t => t && PROFILE.catalog[t] && matches([t, PROFILE.catalog[t]]));
   if (pinned.length) {
     const open = term ? true : catOpen['★ Pinned'] !== false;
     const h = document.createElement('div');
@@ -127,11 +127,11 @@ function renderPalette() {
       renderPalette();
     };
     host.appendChild(h);
-    if (open) for (const t of pinned) host.appendChild(paletteButton(t, WIDGETS[t]));
+    if (open) for (const t of pinned) host.appendChild(paletteButton(t, PROFILE.catalog[t]));
   }
 
-  for (const cat of CATEGORIES) {
-    const entries = Object.entries(WIDGETS).filter(([k, s]) => s.cat === cat && matches([k, s]));
+  for (const cat of PROFILE.categories) {
+    const entries = Object.entries(PROFILE.catalog).filter(([k, s]) => s.cat === cat && matches([k, s]));
     if (!entries.length) continue;
     // a filter that matched inside a collapsed section force-opens it
     const open = term ? true : catOpen[cat];
@@ -146,7 +146,7 @@ function renderPalette() {
     for (const [type, spec] of entries) host.appendChild(paletteButton(type, spec));
   }
   // both buttons stay put. Each is dead when it has nothing left to do
-  const sections = CATEGORIES.concat(['★ Pinned']);
+  const sections = PROFILE.categories.concat(['★ Pinned']);
   palCollapseAll.disabled = !sections.some(c => paletteSectionOpen(c));
   palExpandAll.disabled = sections.every(c => paletteSectionOpen(c));
   syncFilterClear('filter');
@@ -157,7 +157,7 @@ function paletteSectionOpen(cat) {
 }
 
 function setAllPaletteSections(open) {
-  for (const c of CATEGORIES) catOpen[c] = open;
+  for (const c of PROFILE.categories) catOpen[c] = open;
   catOpen['★ Pinned'] = open;
   saveCats();
   renderPalette();
@@ -206,7 +206,7 @@ function MENUS() {
       { group: '3_tpl', label: 'Import templates…', run: () => document.getElementById('tplImportBtn').onclick() },
       { group: '3_tpl', label: 'Export templates', run: () => exportTemplates() },
       { group: '4_share', label: 'Copy share link', run: () => click('shareBtn') },
-      { group: '4_share', label: 'Copy C++', run: () => copyText(generateCode(), 'C++') },
+      { group: '4_share', label: 'Copy C++', run: () => copyText(PROFILE.generate(), 'C++') },
       { group: '5_set', label: 'Settings…', run: () => click('settingsBtn') },
     ],
     view: [
@@ -235,25 +235,21 @@ function MENUS() {
       // Ships next to index.html in the bundle, so a relative link works both on
       // the dev server and at whatever path the site is mounted under.
       { group: '0', label: 'Tutorial', run: () => openTutorial() },
-      { group: '0', label: 'Templates guide', run: () => openPage('templates.html') },
       { group: '1', label: 'Keyboard shortcuts', key: keyFor('Keyboard shortcuts'), run: () => toggleHelp() },
       { group: '1', label: 'Command palette', key: keyFor('Command palette'), run: () => openCmdk('all') },
-      { group: '2', label: 'Dear ImGui manual', run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener') },
-      { group: '3', label: 'Changelog', run: () => openPage('changelog.html') },
+      // The framework's own reference, whichever framework this page designs
+      // for. Hardcoding imgui's here put "Dear ImGui manual" in the slate
+      // page's Help menu, pointing at the wrong framework entirely.
+      { group: '2', label: (PROFILE.manual && PROFILE.manual.label) || 'Dear ImGui manual',
+        run: () => window.open((PROFILE.manual && PROFILE.manual.url) || IMGUI_MANUAL, '_blank', 'noopener') },
     ],
   };
 }
 
 // The keyboard's own idea of which row is current, independent of DOM focus
-// (rows are plain divs, not tab stops).
-//
-// -1 is "no row", and it is where a menu opened with the mouse starts. It used
-// to start at 0, so every menu opened with a highlight already sitting on its
-// first entry: New Project under File, Background Grid under View. A highlight
-// nobody put there reads as "this is the one Enter will run", and since the
-// pointer is never on that row on the way in, nothing took it off again.
-// highlightMenuRow(-1) clears the class and adds it to nothing.
-let menuSel = -1;
+// (rows are plain divs, not tab stops). Reset on every render so switching
+// menus or toggling a checkable row always starts from the top.
+let menuSel = 0;
 
 function highlightMenuRow(i) {
   const rows = [...menuPop.querySelectorAll('.mi:not(.disabled)')];
@@ -262,10 +258,7 @@ function highlightMenuRow(i) {
   return rows;
 }
 
-// `sel` is the row the highlight starts on: 0 when the menu was opened from the
-// keyboard, so Enter has something to run without an ArrowDown first, and -1
-// (the default) for every other way in.
-function renderMenu(name, sel) {
+function renderMenu(name) {
   const items = (MENUS()[name] || []).filter(Boolean);
   items.sort((a, b) => (a.group || '5').localeCompare(b.group || '5') || (a.order || 0) - (b.order || 0));
   menuPop.innerHTML = '';
@@ -309,9 +302,7 @@ function renderMenu(name, sel) {
         // checkable rows stay open, so you can flip two without re-opening
         if (it.checked === undefined) closeMenu();
         it.run();
-        // the re-render keeps the highlight where the keyboard left it, rather
-        // than throwing it back to the top of a menu you are part way down
-        if (it.checked !== undefined && openMenu) renderMenu(openMenu, menuSel);
+        if (it.checked !== undefined && openMenu) renderMenu(openMenu);
       };
     }
     menuPop.appendChild(row);
@@ -326,7 +317,7 @@ function renderMenu(name, sel) {
     if (b.hasAttribute('aria-haspopup')) b.setAttribute('aria-expanded', String(b.dataset.menu === name));
   }
   openMenu = name;
-  menuSel = Number.isInteger(sel) ? sel : -1;
+  menuSel = 0;
   highlightMenuRow(menuSel);
 }
 
@@ -368,12 +359,8 @@ window.addEventListener('keydown', e => {
 for (const b of document.querySelectorAll('.menutop[data-menu]')) {
   b.onclick = e => {
     e.stopPropagation();
-    // detail is 0 when the click came from Enter or Space on the focused
-    // button, and 1+ when a real pointer produced it. That is the only signal
-    // separating the two, and it decides whether the menu opens with its first
-    // row highlighted or with nothing highlighted at all.
     if (openMenu === b.dataset.menu) closeMenu();
-    else renderMenu(b.dataset.menu, e.detail === 0 ? 0 : -1);
+    else renderMenu(b.dataset.menu);
   };
   // once one is open, sliding across the bar moves between them
   b.onmouseenter = () => { if (openMenu && openMenu !== b.dataset.menu) renderMenu(b.dataset.menu); };
@@ -381,17 +368,19 @@ for (const b of document.querySelectorAll('.menutop[data-menu]')) {
 
 // One path for both entry points, so the Help menu row and the bar button
 // cannot drift apart and a test that covers one covers the other.
-//
-// Relative, so a page opens from the dev server and from whatever path the
-// bundle is mounted under. build_site.ps1 copies each of these out of app/, and
-// a page added here without being added there is a Help entry that 404s in
-// production and resolves fine locally, which is the worst way round.
-function openPage(name) { window.open(name, '_blank', 'noopener'); }
-function openTutorial() { openPage('tutorial.html'); }
+// The profile's page, because each studio teaches its own layout model. The
+// bare-name fallback is the imgui page's own tutorial beside index.html.
+function openTutorial() { window.open(PROFILE.tutorialUrl || 'tutorial.html', '_blank', 'noopener'); }
 const tutorialTopBtn = document.getElementById('tutorialTopBtn');
 if (tutorialTopBtn) {
   tutorialTopBtn.onclick = e => { e.stopPropagation(); closeMenu(); openTutorial(); };
 }
+
+// The version badge beside the brand. Shell code on purpose: both pages are the
+// same application at the same version, and the generated banner reads the same
+// constant, so the number in the header is the number in the pasted code.
+const appVerEl = document.getElementById('appVer');
+if (appVerEl && typeof STUDIO_VERSION !== 'undefined') appVerEl.textContent = `v${STUDIO_VERSION}`;
 document.addEventListener('mousedown', e => {
   if (openMenu && !menuPop.contains(e.target) && !e.target.closest('.menutop')) closeMenu();
 }, true);
@@ -473,17 +462,21 @@ window.addEventListener('blur', closeContextMenu);
 // ImGui function and open its declaration (and doc comment) in the pinned
 // header. Falls back to the manual only when the function can't be resolved.
 function docsUrlFor(type) {
-  const entry = Object.entries(parseCpp.schema || {}).find(([, e]) => e.type === type);
-  const line = entry && IMGUI_DOC_LINES[entry[0]];
+  // The profile's own resolver when it has one: each page links its own
+  // framework's docs. The imgui-shaped fallback below reads imgui.h line
+  // numbers, which mean nothing on the slate page.
+  if (PROFILE.docsUrl) return PROFILE.docsUrl(type);
+  const entry = Object.entries((PROFILE.parser && PROFILE.parser.schema) || {}).find(([, e]) => e.type === type);
+  const line = entry && PROFILE.docs.lines[entry[0]];
   return line
-    ? `https://github.com/ocornut/imgui/blob/${IMGUI_DOC_TAG}/imgui.h#L${line}`
+    ? `https://github.com/ocornut/imgui/blob/${PROFILE.docs.tag}/imgui.h#L${line}`
     : IMGUI_MANUAL;
 }
 
 function docsItem(type) {
   return {
     group: '9_docs', order: 0,
-    label: 'ImGui reference for ' + WIDGETS[type].name,
+    label: 'ImGui reference for ' + PROFILE.catalog[type].name,
     run: () => window.open(docsUrlFor(type), '_blank', 'noopener'),
   };
 }
@@ -505,7 +498,7 @@ function cppSnippet(node) {
   doc.children = clone.type === 'window'
     ? [clone]
     : [Object.assign(makeNode('window'), { id: 'snip', label: 'Snippet', children: [clone] })];
-  const code = generateCode();
+  const code = PROFILE.generate();
   doc.children = saved;
   selectedId = savedSel;
   const body = code.split('\n');
@@ -515,7 +508,7 @@ function cppSnippet(node) {
 }
 
 function paletteMenu(type, isPinned) {
-  const spec = WIDGETS[type];
+  const spec = PROFILE.catalog[type];
   const sel = selectedId && selectedId !== 'root' ? findNode(selectedId) : null;
   return [
     { group: '1_insert', order: 0, label: 'Insert After', key: keyFor('Descend into container'),
@@ -539,7 +532,7 @@ function paletteMenu(type, isPinned) {
 // The canvas and hierarchy menus share a spine and differ only in the head,
 // which is what every surveyed tool does.
 function widgetMenu(node, inTree) {
-  const spec = WIDGETS[node.type] || {};
+  const spec = PROFILE.catalog[node.type] || {};
   const parent = findParent(node.id);
   const container = isContainer(node);
   const kids = (node.children || []).length;
@@ -550,8 +543,17 @@ function widgetMenu(node, inTree) {
     { group: '1_head', order: 1, label: 'Rename', key: keyFor('Rename inline on the canvas'),
       disabled: !(spec.props || []).some(p => p[0] === 'label'),
       run: () => { selectId(node.id); beginInlineEdit(node.id); } },
-    { group: '2_structure', order: 0, label: 'Wrap in Group', key: keyFor('Wrap selection in a Group'),
-      run: () => { selectId(node.id); wrapSelection(); } },
+    // UMG's Wrap With: one item per container the profile nominates, so a
+    // widget wraps into a Border or a Scroll Box in one click. Without the
+    // hook the imgui page keeps its single Wrap in Group.
+    ...(PROFILE.wrapContainers
+      ? PROFILE.wrapContainers.map((t, i) => ({
+          group: '2_structure', order: i / 100,
+          label: `Wrap in ${(PROFILE.catalog[t] || {}).name || t}`,
+          key: i === 0 ? keyFor('Wrap selection in a Group') : undefined,
+          run: () => { selectId(node.id); wrapSelection(t); } }))
+      : [{ group: '2_structure', order: 0, label: 'Wrap in Group', key: keyFor('Wrap selection in a Group'),
+          run: () => { selectId(node.id); wrapSelection(); } }]),
     { group: '2_structure', order: 1, label: 'Unwrap container', key: keyFor('Unwrap container'),
       disabled: !container,
       run: () => { selectId(node.id); unwrapSelection(); } },
@@ -601,7 +603,7 @@ function backgroundMenu() {
     { group: '4_view', order: 2, label: 'Clear guides',
       disabled: !guides.length, run: () => { guides = []; renderGuides(); saveGuides(); } },
     { group: '6_code', order: 0, label: 'Copy All C++',
-      run: () => copyText(generateCode(), 'C++') },
+      run: () => copyText(PROFILE.generate(), 'C++') },
     { group: '8_more', order: 0, label: 'All Commands…', key: keyFor('Command palette'),
       run: () => openCmdk('all') },
   ];
@@ -860,39 +862,18 @@ document.addEventListener('mouseup', e => {
       }
     }
   } else {
-    // The row's OWN index, not its position among the rows on screen. Those
-    // agreed while the list was one flat run and stop agreeing the moment a
-    // category is folded: the hidden rows still count in the array the drop is
-    // about to rewrite.
-    const to = Number(d.target.row.dataset.index) + (d.target.where === 'after' ? 1 : 0);
-    reorderTemplate(d.index, to, d.target.row.dataset.cat);
+    const rows = [...document.querySelectorAll('#tpllist .tplrow')];
+    const to = rows.indexOf(d.target.row) + (d.target.where === 'after' ? 1 : 0);
+    reorderTemplate(d.index, to);
   }
   // clears after the click event that follows this mouseup
   setTimeout(() => { listDragMoved = false; }, 0);
 });
 
-// Both indices are into the GROUPED list the panel draws, which is why this
-// writes that list back over `templates` rather than splicing the array in
-// place: after a drop the array order and the screen order have to be the same
-// sequence again, or the next drop lands somewhere else entirely.
-//
-// Dropping into another category's section files it there. That is the whole
-// categorize-by-dragging gesture, and it is why a drop that does not move the
-// row is still worth doing when the category under it differs.
-function reorderTemplate(from, to, cat) {
-  const list = orderedTemplates();
-  const moved = list[from];
-  if (!moved) return;
-  const refiling = cat && cat !== templateCat(moved);
-  if ((from === to || from + 1 === to) && !refiling) return;
-  list.splice(from, 1);
-  list.splice(to > from ? to - 1 : to, 0, moved);
-  if (refiling) {
-    moved.cat = cat;
-    tplCatOpen[cat] = true;
-    saveTplCats();
-  }
-  templates = list;
+function reorderTemplate(from, to) {
+  if (from === to || from + 1 === to) return;
+  const [moved] = templates.splice(from, 1);
+  templates.splice(to > from ? to - 1 : to, 0, moved);
   saveTemplates();
   renderTemplates();
 }
@@ -916,7 +897,7 @@ function renderTree() {
   host.innerHTML = '';
   const emit = (node, parent, index, depth) => {
     if (term && !treeSubtreeMatches(node, term)) return;
-    const spec = WIDGETS[node.type] || {};
+    const spec = PROFILE.catalog[node.type] || {};
     const isContainerRow = !!spec.container || node === doc;
     // a filter force-opens containers, the same way it does in the palette
     const open = term ? true : !treeCollapsed.has(node.id);
@@ -979,6 +960,21 @@ function renderTree() {
     }
 
     if (parent) {
+      // UMG's per-row visibility eye, present only when the profile models a
+      // visibility prop. A hidden widget dims its row, the same signal UMG
+      // sends, and the property round-trips as real code.
+      const visProp = PROFILE.visibilityProp;
+      if (visProp && node.type !== 'window'
+          && (PROFILE.catalog[node.type].props || []).some(p => p[0] === visProp)) {
+        const hidden = node[visProp] === false;
+        if (hidden) row.classList.add('dimrow');
+        const eye = document.createElement('button');
+        eye.textContent = hidden ? '◡' : '👁';
+        eye.className = 'eye';
+        eye.title = hidden ? 'Hidden (Visibility: Collapsed). Click to show.' : 'Visible. Click to hide.';
+        eye.onclick = e => { e.stopPropagation(); node[visProp] = hidden; refresh(); };
+        row.appendChild(eye);
+      }
       for (const [txt, title, fn] of [
         ['↑', 'Move up', () => moveNode(node.id, -1)],
         ['↓', 'Move down', () => moveNode(node.id, 1)],
@@ -1047,7 +1043,7 @@ const LABEL_NAMES = {
 // "sliderfloat" -> "SliderFloat", from the spec's own name so it matches the
 // ImGui function rather than guessing at word boundaries.
 function pascalType(type) {
-  const spec = WIDGETS[type];
+  const spec = PROFILE.catalog[type];
   if (!spec) return type;
   return titleCase(spec.name).replace(/[\s-]+/g, '');
 }
@@ -1077,7 +1073,7 @@ function renderProps() {
     host.appendChild(d);
     return;
   }
-  const spec = WIDGETS[node.type] || { props: [] };
+  const spec = PROFILE.catalog[node.type] || { props: [] };
   const propDefsAll = spec.props || [];
 
   // Unreal puts a small revert arrow beside anything that differs from its
@@ -1149,11 +1145,20 @@ function renderProps() {
   host.appendChild(ident);
 
   const propDefs = spec.props || [];
+  // The profile can mark a family of props as SLOT rules (UMG's shape: the
+  // slot section renders first, named after the parent panel that owns the
+  // slot). Without the hook every prop is the widget's own, the imgui page's
+  // shape, and nothing changes.
+  const slotPrefix = PROFILE.slotPropPrefix || null;
+  const slotDefs = slotPrefix && node !== doc
+    ? propDefs.filter(p => p[0].startsWith(slotPrefix)) : [];
+  const ownDefs = slotDefs.length
+    ? propDefs.filter(p => !p[0].startsWith(slotPrefix)) : propDefs;
   // A widget with no properties of its own (Separator, Spacing, Bullet) had a
   // PROPERTIES heading over nothing at all. Say so instead of ruling off an
   // empty space, and keep the heading only when there is something under it.
   if (propDefs.length) {
-    addHead(node === doc ? titleCase('document') : titleCase('properties'));
+    if (!slotDefs.length) addHead(node === doc ? titleCase('document') : titleCase('properties'));
   } else {
     const none = document.createElement('div');
     none.className = 'empty';
@@ -1186,8 +1191,36 @@ function renderProps() {
         inp.appendChild(opt);
       }
       inp.value = node[key];
-      inp.onchange = () => { node[key] = Number(inp.value); refresh(false, key); };
+      // assign the DECLARED option value, whatever its type: Number() here
+      // turned every slate string enum picked from a dropdown into NaN,
+      // the third face of the numeric-enum assumption
+      inp.onchange = () => {
+        const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+        const v = vals.find(x => String(x) === inp.value);
+        node[key] = v !== undefined ? v : inp.value;
+        refresh(false, key);
+      };
       return inp;
+    }
+    // UMG's alignment control: one segmented row of toggle buttons instead
+    // of a dropdown, because alignment is picked constantly and a dropdown
+    // costs two clicks and hides the current state.
+    if (type === 'align') {
+      const row = document.createElement('span');
+      row.className = 'alignrow';
+      const GLYPH = { Fill: '⬌', Left: '⇤', Right: '⇥', Center: '↔', Top: '⇡', Bottom: '⇣' };
+      const V = { Fill: '⬍', Center: '↕' };
+      const vertical = (opts || []).includes('Top');
+      for (const o of opts || []) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'alignseg' + (node[key] === o ? ' on' : '');
+        b.textContent = (vertical && V[o]) || GLYPH[o] || o[0];
+        b.title = o;
+        b.onclick = () => { node[key] = o; refresh(false, key); };
+        row.appendChild(b);
+      }
+      return row;
     }
     if (type === 'int' || type === 'float') {
       const meta = (opts && typeof opts === 'object' && !Array.isArray(opts)) ? opts : {};
@@ -1249,7 +1282,10 @@ function renderProps() {
     // From the same table coerce enforces on load, so the field cannot accept
     // more than survives a reload. It was a flat 200 here against a cap of 12
     // for a unit, and the extra characters silently vanished on the next load.
-    inp.maxLength = TEXT_CAP[type] || 200;
+    // From PROP_KINDS, the same table coerce dispatches through, so the field
+    // cannot accept more than a reload keeps. It was a flat 200 here against a
+    // cap of 12 for a unit, and the extra characters silently vanished.
+    inp.maxLength = kindCap(type);
     inp.value = node[key] ?? '';
     inp.placeholder = (opts && opts.placeholder) || '';
     inp.oninput = () => { node[key] = inp.value; refresh(false, key); };
@@ -1263,12 +1299,26 @@ function renderProps() {
     if (byKey[a] && byKey[b]) { paired.add(a); paired.add(b); }
   }
 
-  for (const def of propDefs) {
-    const key = def[0];
-    if (paired.has(key)) continue;
-    addField(labelFor(key, node.type), mark(editorFor(def), key), changed(key),
-      changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
+  const renderDefs = list => {
+    for (const def of list) {
+      const key = def[0];
+      if (paired.has(key)) continue;
+      addField(labelFor(key, node.type), mark(editorFor(def), key), changed(key),
+        changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
+    }
+  };
+  if (slotDefs.length) {
+    // named for the panel that OWNS the slot, the way UMG says
+    // "Slot (Vertical Box Slot)": slot rules belong to the parent in the
+    // code, to the child in the editor, and the header is where both truths
+    // fit in one line
+    const parent = findParent(node.id);
+    const pSpec = parent && parent !== doc && PROFILE.catalog[parent.type];
+    addHead(pSpec && pSpec.name ? `Slot (${pSpec.name} Slot)` : 'Slot');
+    renderDefs(slotDefs);
+    addHead(titleCase('properties'));
   }
+  renderDefs(ownDefs);
   for (const [a, b] of PAIRS) {
     if (!byKey[a] || !byKey[b]) continue;
     const row = document.createElement('div');
@@ -1387,7 +1437,7 @@ function renderCode() {
   // while the code pane is being edited it owns the document. Regenerating
   // under the user's cursor is the two-writer race the research warns about
   if (codeEditing) return;
-  document.getElementById('code').innerHTML = highlightOwned(generateCode(), generateCode.owners);
+  document.getElementById('code').innerHTML = highlightOwned(PROFILE.generate(), generateCode.owners);
   // the selection is the same thing in three panes, so the code pane marks it too
   for (const m of document.querySelectorAll('#code .cline')) {
     if (selection.has(m.dataset.node)) m.classList.add('sel');

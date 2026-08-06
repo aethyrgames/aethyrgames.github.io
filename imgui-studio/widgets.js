@@ -34,48 +34,6 @@ function lsSet(key, value) {
   try { localStorage.setItem(key, value); return true; } catch (e) { return false; }
 }
 
-// The canvas view: where the pan sits and how far in it is zoomed. It belongs
-// to the project rather than to the session, so a reload, a tab switch, an
-// imported file and a share link all put you back where you were looking.
-//
-// These three live here rather than in canvas.js because a view arrives from
-// three places nobody trustworthy owns (localStorage, an import file, a #d=
-// fragment), and doc.js and templates.js both have to sanitize one without
-// reaching into the canvas. Declared in widgets.js for the same reason lsGet
-// is: it loads first.
-//
-// The zoom bounds are the ones canvas.js clamps a live zoom to. Same constants,
-// one definition, so a restored view can never land somewhere the zoom control
-// itself refuses to go.
-const VIEW_ZOOM_MIN = 0.25;
-const VIEW_ZOOM_MAX = 4;
-// Far enough out that no real document reaches it, near enough that a corrupt
-// or hostile value cannot strand the canvas at a coordinate with nothing on it
-// and no way back but Reset View.
-const VIEW_PAN_LIMIT = 1e6;
-const DEFAULT_VIEW = { x: 0, y: 0, zoom: 1 };
-
-function sanitizeView(v) {
-  if (!v || typeof v !== 'object') return { ...DEFAULT_VIEW };
-  const clamp = (raw, def, lo, hi) => {
-    const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def;
-  };
-  return {
-    x: clamp(v.x, DEFAULT_VIEW.x, -VIEW_PAN_LIMIT, VIEW_PAN_LIMIT),
-    y: clamp(v.y, DEFAULT_VIEW.y, -VIEW_PAN_LIMIT, VIEW_PAN_LIMIT),
-    zoom: clamp(v.zoom, DEFAULT_VIEW.zoom, VIEW_ZOOM_MIN, VIEW_ZOOM_MAX),
-  };
-}
-
-// "When necessary" for the share link and the two export files. A default view
-// is the one the app opens at anyway, so writing it down only makes the link
-// longer and the file noisier.
-function isDefaultView(v) {
-  const s = sanitizeView(v);
-  return s.x === DEFAULT_VIEW.x && s.y === DEFAULT_VIEW.y && s.zoom === DEFAULT_VIEW.zoom;
-}
-
 // A C++ string literal can't span lines, so control characters have to be
 // escaped rather than passed through from a label.
 const ESCAPES = { '\\': '\\\\', '"': '\\"', '\n': '\\n', '\r': '\\r', '\t': '\\t' };
@@ -572,18 +530,12 @@ const WIDGETS = {
   // ---------------------------------------------------------------- Popups
   // The "###" suffixes keep two popups with the same label from sharing an
   // ImGui id, while the visible text stays exactly what the user typed.
-  // The trigger bodies are braced, like every other condition this generator
-  // emits. They were the only three brace-less ones left, and a one-line body
-  // that grows a second line without gaining its braces is the oldest bug in
-  // C. The parser reads both forms, since hand-written code arrives either way.
   popup: {
     name: 'Popup', cat: 'Popups', container: true, props: [['label', 'text', 'Options']],
     code: (n, v) => ({
       open: [
         `if (ImGui::Button(${q('Open ' + n.label + '###btn' + v)}))`,
-        `{`,
         `    ImGui::OpenPopup(${q(n.label + '###popup' + v)});`,
-        `}`,
         `if (ImGui::BeginPopup(${q(n.label + '###popup' + v)}))`,
       ],
       pop: 'ImGui::EndPopup();', braced: true,
@@ -594,13 +546,11 @@ const WIDGETS = {
     code: (n, v) => ({
       open: [
         `if (ImGui::Button(${q('Open ' + n.label + '###btn' + v)}))`,
-        `{`,
         `    ImGui::OpenPopup(${q(n.label + '###popup' + v)});`,
-        `}`,
         `if (ImGui::BeginPopupModal(${q(n.label + '###popup' + v)}, nullptr, 0))`,
       ],
       pop: 'ImGui::EndPopup();', braced: true,
-      extra: ['if (ImGui::Button("Close"))', '{', '    ImGui::CloseCurrentPopup();', '}'],
+      extra: ['if (ImGui::Button("Close"))', '    ImGui::CloseCurrentPopup();'],
     }),
   },
   tooltip: {
@@ -725,7 +675,11 @@ const COLOR_SLOTS_BY_TYPE = {
 // The id is passed in rather than taken from a counter, which is the only part
 // that was ever app state.
 function makeNodeOfType(type, id) {
-  const spec = WIDGETS[type];
+  // The PROFILE's catalog, not the WIDGETS table above: this factory is shell
+  // code, and on the slate page the table above is not the loaded catalog. It
+  // first shipped reading WIDGETS directly, and every palette drop of a type
+  // both catalogs happened to share (progressbar) worked while slider threw.
+  const spec = PROFILE.catalog[type];
   const node = { type, id };
   for (const [k, , d] of spec.props || []) node[k] = d;
   if (spec.container) node.children = [];

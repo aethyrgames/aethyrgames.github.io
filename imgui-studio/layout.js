@@ -10,7 +10,7 @@
 // panels the research is unanimous that drag-to-tab/floating is over-built, so
 // panels move between the two docks and that is the whole story.
 
-const LAYOUT_KEY = 'imguistudio.layout.v1';
+const LAYOUT_KEY = PROFILE.storagePrefix + '.layout.v1';
 const PANEL_DEFAULTS = {
   palette:    { dock: 'left',  order: 0, collapsed: false, hidden: false, grow: 1 },
   hierarchy:  { dock: 'left',  order: 1, collapsed: false, hidden: false, grow: 1 },
@@ -638,7 +638,7 @@ function syncCanvasSize() {
   // press in world coordinates the engine had never heard of, so a title-bar
   // drag landed hundreds of pixels from the title bar and did nothing.
   if (engineReady && (ox !== sentOrigin.x || oy !== sentOrigin.y)) {
-    Module.ccall('engine_set_origin', null, ['number', 'number'], [ox, oy]);
+    PROFILE.engine.call('engine_set_origin', null, ['number', 'number'], [ox, oy]);
     sentOrigin.x = ox;
     sentOrigin.y = oy;
   }
@@ -648,7 +648,7 @@ function syncCanvasSize() {
     canvas.height = h;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    if (engineReady) Module.ccall('engine_resize', null, ['number', 'number'], [w, h]);
+    if (engineReady) PROFILE.engine.call('engine_resize', null, ['number', 'number'], [w, h]);
   }
   // the canvas element has to move with its origin, or world 0,0 slides
   if (originMoved) applyViewTransform();
@@ -820,7 +820,7 @@ function renderGuides() {
 }
 
 function saveGuides() {
-  try { localStorage.setItem('imguistudio.guides', JSON.stringify(guides)); } catch (e) {}
+  try { localStorage.setItem(PROFILE.storagePrefix + '.guides', JSON.stringify(guides)); } catch (e) {}
 }
 
 // drag out of a ruler to create a guide
@@ -907,14 +907,14 @@ function setRulers(on) {
   guidesEl.style.display = on ? '' : 'none';
   document.getElementById('rulerBtn').classList.toggle('on', on);
   requestAnimationFrame(syncCanvasSize);
-  try { localStorage.setItem('imguistudio.rulers', on ? '1' : '0'); } catch (e) {}
+  try { localStorage.setItem(PROFILE.storagePrefix + '.rulers', on ? '1' : '0'); } catch (e) {}
 }
 
 function setGrid(on) {
   showGrid = on;
   document.getElementById('gridBtn').classList.toggle('on', on);
   canvasHost.classList.toggle('nogrid', !on);
-  try { localStorage.setItem('imguistudio.grid', on ? '1' : '0'); } catch (e) {}
+  try { localStorage.setItem(PROFILE.storagePrefix + '.grid', on ? '1' : '0'); } catch (e) {}
 }
 
 document.getElementById('gridBtn').onclick = () => setGrid(!showGrid);

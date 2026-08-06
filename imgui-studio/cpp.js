@@ -164,10 +164,20 @@ const WINDOW_FLAG_PROPS = [
 // identical string and `===` is a pointer compare.
 let blankMemo = { src: null, out: null };
 
+// Counts characters actually walked by the scan below, i.e. it only moves on a
+// cache miss. It has no effect on behaviour and nothing in the app reads it;
+// it exists so a unit test can compare the amount of scanning work directly,
+// as an exact integer, instead of a wall-clock sample that a loaded CI box can
+// jitter. If findPairEnd ever loses the memoization above and goes back to
+// re-blanking the whole file once per Group/Child pair, this counter grows
+// with the number of pairs instead of staying flat at one scan's worth.
+let blankScanSteps = 0;
+
 function blankForScan(src) {
   if (src === blankMemo.src) return blankMemo.out;
   const out = src.split('');
   for (let i = 0; i < src.length; i++) {
+    blankScanSteps++;
     const j = skipToken(src, i, src.length);
     if (j < 0) continue;
     for (let k = i; k <= j && k < src.length; k++) if (src[k] !== '\n') out[k] = ' ';
@@ -997,13 +1007,7 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     }
 
     // A popup's trigger button. The popup container that follows owns it.
-    //
-    // Both brace styles. The generator emits the braced one now, and the two
-    // arms are spelled out rather than making the braces optional around the
-    // statement: an optional trailing `}` with no opening one would eat the
-    // brace closing whatever block this call happens to sit in.
-    const trigger = rest.match(
-      /^if\s*\(\s*ImGui::Button\s*\(\s*"Open [^"]*"\s*\)\s*\)\s*(?:\{\s*ImGui::OpenPopup\s*\([^;]*\)\s*;\s*\}|ImGui::OpenPopup\s*\([^;]*\)\s*;)/);
+    const trigger = rest.match(/^if\s*\(\s*ImGui::Button\s*\(\s*"Open [^"]*"\s*\)\s*\)\s*\n?\s*ImGui::OpenPopup\s*\([^;]*\)\s*;/);
     if (trigger) { i += trigger[0].length; continue; }
 
     // Bare Begin/End pair: Group and Child region.
@@ -1278,9 +1282,7 @@ function stripTrailingPop(body, fn) {
   // would be re-parsed as a widget and duplicated on every apply.
   if (pop) out = out.replace(new RegExp('ImGui::' + pop + '\\s*\\(\\s*\\)\\s*;?\\s*$'), '');
   if (fn === 'BeginPopupModal') {
-    // braced or not, for the same reason the trigger above reads both
-    out = out.replace(
-      /if\s*\(\s*ImGui::Button\s*\(\s*"Close"\s*\)\s*\)\s*(?:\{\s*ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?\s*\}|ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?)\s*$/, '');
+    out = out.replace(/if\s*\(\s*ImGui::Button\s*\(\s*"Close"\s*\)\s*\)\s*\n?\s*ImGui::CloseCurrentPopup\s*\(\s*\)\s*;?\s*$/, '');
   }
   return out;
 }

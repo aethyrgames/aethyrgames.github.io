@@ -14,32 +14,23 @@ let selectedId = null;
 // Declared up here because the keymap binds these keys well before the hotbar's
 // rendering code appears further down the file.
 const HOTBAR_KEYS = '0123456789-='.split('');
-const HOTBAR_KEY = 'imguistudio.hotbar';
+const HOTBAR_KEY = PROFILE.storagePrefix + '.hotbar';
 const hotbar = new Array(HOTBAR_KEYS.length).fill(null);
 
 // The document root holds windows. It is not itself a window: a panel design
 // can have several, and deleting the last one has to be possible without
 // leaving the document in an impossible state.
-const doc = {
-  type: 'root', id: 'root', children: [{
-  type: 'window', id: 'w1', label: 'My Panel', w: 380, h: 460,
-  children: [
-    { type: 'text',        id: 'n1', label: 'Engine settings' },
-    { type: 'separator',   id: 'n2', label: '' },
-    { type: 'checkbox',    id: 'n3', label: 'Enable turbo' },
-    { type: 'button',      id: 'n4', label: 'Reset', sameline: true },
-    { type: 'sliderfloat', id: 'n5', label: 'Speed', n: 1, min: 0, max: 10 },
-    { type: 'inputtext',   id: 'n6', label: 'Preset name' },
-    { type: 'coloredit',   id: 'n7', label: 'Tint', n: 3 },
-    { type: 'progressbar', id: 'n8', label: '', fraction: 0.4 },
-  ],
-  }],
-};
+//
+// The CONTENT of a fresh document is profile knowledge, and this was the W1
+// find that only surfaced when the slate page booted showing the imgui demo:
+// the literal lived here, so PROFILE.demoDoc existed and the live document
+// never went through it.
+const doc = PROFILE.demoDoc();
 
 const DEFAULT_DOC = JSON.parse(JSON.stringify(doc));
-const SAVE_KEY = 'imguistudio.doc.v1';
+const SAVE_KEY = PROFILE.storagePrefix + '.doc.v1';
 
-const isContainer = node => !!(WIDGETS[node.type] && WIDGETS[node.type].container);
+const isContainer = node => !!(PROFILE.catalog[node.type] && PROFILE.catalog[node.type].container);
 
 // depth-first walk yielding {node, parent, index}
 function walk(node, fn, parent = null, index = 0, depth = 0) {
@@ -128,7 +119,7 @@ function insertAt(node, drop) {
 // everything else, so this walks up from the selection to the nearest
 // container, and falls back to the last window rather than the document.
 function insertHost(type) {
-  if (WIDGETS[type] && WIDGETS[type].rootOnly) return doc;
+  if (PROFILE.catalog[type] && PROFILE.catalog[type].rootOnly) return doc;
   const sel = selectedId ? findNode(selectedId) : null;
   if (sel && sel !== doc) {
     if (isContainer(sel) && sel.type !== 'window') return sel;
@@ -299,7 +290,7 @@ function restoreSnapshot(entry) {
   const s = JSON.parse(entry.docStr);
   doc.children = s.doc.children;
   // The root's own fields, not the window's: `doc` is a root, and the
-  // WIDGETS.window.props loop this replaced was leftover from when doc was a
+  // PROFILE.catalog.window.props loop this replaced was leftover from when doc was a
   // window. It copied fifteen window keys (label/x/y/w/h/...) onto a root that
   // has none of them, and never touched `pre`/`post`, which are the root's
   // actual fields. Apply is the only writer of those two (codepane.js), and it
@@ -471,7 +462,10 @@ function reorderSelection(delta, extreme) {
   refresh();
 }
 
-function wrapSelection() {
+function wrapSelection(type) {
+  // Which container a bare wrap makes is profile knowledge: imgui's Group,
+  // slate's Vertical Box, or whatever the Wrap With menu asked for.
+  const wrapType = type || PROFILE.wrapDefault || 'group';
   const nodes = selectedNodes().filter(n => n !== doc);
   if (!nodes.length) return;
   let last = null;
@@ -479,7 +473,7 @@ function wrapSelection() {
     const list = parent.children;
     const idx = group.map(n => list.indexOf(n)).sort((a, b) => a - b);
     const at = idx[0];
-    const grp = makeNode('group');
+    const grp = makeNode(wrapType);
     // the join belongs to whatever comes first, which is now the group
     if (group[0].sameline) { grp.sameline = true; delete group[0].sameline; }
     for (let k = idx.length - 1; k >= 0; k--) list.splice(idx[k], 1);
@@ -651,31 +645,192 @@ function computeNextId() {
   return m;
 }
 
-// How long each kind of text prop may be. The inspector reads this for its
-// field's maxLength and coerce reads it when a document is loaded, so what you
-// can type is exactly what survives a reload. A unit is a short label like cm
-// or ms that gets concatenated into a printf format and drawn on a slider,
-// which is why it is not free text. longtext is preserved source.
-const TEXT_CAP = { longtext: 20000, text: 200, items: 200, expr: 200, unit: 12 };
+// ---------------------------------------------------------------------------
+// The prop-kind vocabulary
+// ---------------------------------------------------------------------------
+//
+// Every kind the shell understands, what it means, and the value that proves
+// it means it. One table on purpose, and this comment is the reason.
+//
+// Six defects came out of one hole: coerce used to be a chain of ifs ending in
+// `Number(raw)`, so a kind it had no branch for was not rejected, it was
+// silently read as a number. A hex colour or a handler name went to NaN and
+// came back as the catalog default. The wrong value was the DEFAULT, so the
+// document, the preview and the generated code all agreed, the round trip
+// stayed byte-identical, and every check in the repo stayed green while not
+// one colour or handler a slate document set survived a load.
+//
+// The rule that replaces it: a kind exists here or it does not exist. coerce
+// dispatches through this table and has no fallthrough, so a kind with no
+// entry cannot accidentally work -- it is reported at boot by name. Adding a
+// kind means adding its coercion in the same object literal, which is the part
+// that makes the class closed rather than merely emptied.
+//
+// `cap` is the length the inspector's field allows, read from here so what you
+// can type is exactly what survives a reload. `probe` returns a value that is
+// NOT the default, which is what validateCatalog round-trips: a default-valued
+// probe proves nothing, because returning the default is precisely the bug.
+const IDENT_MAX = 64;
+const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const HEX_RE = /^#?([0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?)$/;
+
+// A capped string: text kept as typed, cut to length. A unit is a short label
+// like cm or ms concatenated into a printf format, which is why it is not free
+// text. longtext is preserved source.
+const capped = cap => ({
+  cap,
+  probe: () => 'ZzProbe',
+  coerce: (raw, def) => (typeof raw === 'string' ? raw.slice(0, cap) : def),
+});
+
+const PROP_KINDS = {
+  text: capped(200),
+  longtext: Object.assign(capped(20000), { probe: () => 'Zz\nProbe' }),
+  items: Object.assign(capped(200), { probe: () => 'Zz, Probe' }),
+  expr: capped(200),
+  unit: Object.assign(capped(12), { probe: () => 'zz' }),
+
+  // Honour the default when the value is simply absent. `raw === true` turned
+  // every missing default-true bool into false on sanitize, which the palette
+  // sweep caught as a round trip that gained an .EnableWheel(false) out of
+  // nowhere. imgui never noticed, because its bools all default false.
+  bool: {
+    cap: null,
+    probe: def => !def,
+    coerce: (raw, def) => (typeof raw === 'boolean' ? raw : def === true),
+  },
+
+  // Normalised to lowercase eight digits, because the generator reads the
+  // alpha by offset and the round trip compares text.
+  color: {
+    cap: 9,
+    probe: () => '#123456ff',
+    coerce: (raw, def) => {
+      const m = typeof raw === 'string' && raw.match(HEX_RE);
+      return m ? `#${(m[1].length === 6 ? `${m[1]}ff` : m[1]).toLowerCase()}` : def;
+    },
+  },
+
+  // A handler name becomes a C++ member name in the emitted code, so this
+  // validates rather than caps: a truncated identifier is still an identifier
+  // and would bind to the wrong member.
+  ident: {
+    cap: IDENT_MAX,
+    probe: () => 'ZzProbeHandler',
+    coerce: (raw, def) => (typeof raw === 'string' && raw.length <= IDENT_MAX
+      && IDENT_RE.test(raw) ? raw : def),
+  },
+
+  // Two enum shapes share one coercion: imgui's members are numeric indices,
+  // the slate catalog's are strings ('fill', 'Center', 'int32'). Coercing
+  // numerically alone turned every string member into NaN on every sanitize.
+  // `align` is the same value space drawn as segmented buttons instead of a
+  // dropdown.
+  enum: enumKind(),
+  align: enumKind(),
+
+  int: numberKind(true),
+  float: numberKind(false),
+};
+
+function enumKind() {
+  return {
+    cap: null,
+    probe: (def, opts) => {
+      const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+      return vals.find(v => v !== def);
+    },
+    coerce: (raw, def, opts) => {
+      const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+      if (vals.includes(raw)) return raw;
+      const num = Number(raw);
+      const allowed = vals.map(Number);
+      return Number.isFinite(num) && allowed.includes(num) ? num : def;
+    },
+  };
+}
+
+function numberKind(isInt) {
+  return {
+    cap: null,
+    probe: def => (Number(def) || 0) + (isInt ? 7 : 0.5),
+    coerce: (raw, def) => {
+      const num = Number(raw);
+      if (!Number.isFinite(num)) return def;
+      return isInt ? Math.trunc(num) : num;
+    },
+  };
+}
+
+// Kinds an unknown-kind report has already named, so a catalog with forty
+// colour props does not print forty identical lines.
+const unknownKinds = new Set();
+
+// The inspector's field length for a kind, from the same table coerce reads.
+function kindCap(t) {
+  const k = PROP_KINDS[t];
+  return k && k.cap ? k.cap : 200;
+}
+
+// Every problem validateCatalog found at boot, kept so the gates can assert it
+// is empty on BOTH pages. A console warning alone is a note, and the whole
+// lesson of these six is that a note is not a check.
+let profileProblems = [];
+
+// Walk a catalog and prove the shell can actually interpret it. Three
+// questions, each of which one of the six defects would have failed:
+//   1. is every kind in the vocabulary at all?
+//   2. does an enum carry the options its coercion needs, and is its own
+//      default one of them?
+//   3. does a NON-DEFAULT value of that kind survive coerce unchanged?
+// The third is the one that matters and the one that is easy to get wrong:
+// checking that the default survives passes trivially, because handing back
+// the default is exactly what the broken path did.
+function validateCatalog(catalog) {
+  const out = [];
+  for (const [type, spec] of Object.entries(catalog || {})) {
+    for (const row of (spec && spec.props) || []) {
+      const [key, kind, def, opts] = row;
+      const where = `${type}.${key}`;
+      const k = PROP_KINDS[kind];
+      if (!k) { out.push(`${where}: unknown prop kind "${kind}"`); continue; }
+      if (kind === 'enum' || kind === 'align') {
+        const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+        if (!vals.length) { out.push(`${where}: ${kind} with no options`); continue; }
+        if (!vals.includes(def)) out.push(`${where}: default ${JSON.stringify(def)} is not one of its options`);
+      }
+      const probe = k.probe(def, opts);
+      if (probe === undefined) continue;      // nothing else to offer, e.g. a one-option enum
+      const got = coerce(kind, probe, def, opts);
+      if (got !== probe) {
+        out.push(`${where}: a ${kind} of ${JSON.stringify(probe)} coerces to ${JSON.stringify(got)}`);
+      }
+    }
+  }
+  return out;
+}
 
 // Imported documents are untrusted. Beyond type-checking, an enum has to be
 // checked against its option list: a stray `dir` reaches IM_ASSERT(0) inside
 // ImGui and an out-of-range `n` would emit something like InputInt5.
 function coerce(t, raw, def, opts) {
-  // One table, read by both ends. The inspector's text field used to cap at a
-  // flat 200 while this capped a unit at 12, so a longer unit worked in the
-  // preview and in the generated code right up until the next reload, when
-  // sanitize silently cut it back.
-  if (t in TEXT_CAP) return typeof raw === 'string' ? raw.slice(0, TEXT_CAP[t]) : def;
-  if (t === 'bool') return raw === true;
-  const num = Number(raw);
-  if (t === 'enum') {
-    const allowed = (opts || []).map(o => Number(Array.isArray(o) ? o[1] : o));
-    return allowed.includes(num) ? num : def;
+  const kind = PROP_KINDS[t];
+  if (!kind) {
+    // No fallthrough. The old chain ended in Number(raw), which is how an
+    // unrecognised kind became a silent numeric coercion for four days.
+    if (!unknownKinds.has(t)) {
+      unknownKinds.add(t);
+      console.error(`coerce: no such prop kind "${t}" — every prop of this kind will hold its default.`);
+    }
+    return def;
   }
-  if (!Number.isFinite(num)) return def;
-  return t === 'int' ? Math.trunc(num) : num;
+  return kind.coerce(raw, def, opts);
 }
+
+// Kept as a name because the inspector and the code pane both read it, and a
+// couple of call sites want the raw table.
+const TEXT_CAP = Object.fromEntries(
+  Object.entries(PROP_KINDS).filter(([, k]) => k.cap).map(([t, k]) => [t, k.cap]));
 
 // Keep only the slots this widget type actually reads, as four finite 0..1
 // floats. Anything else would push a color the engine can't map.
@@ -698,7 +853,7 @@ function sanitize(list, ids, atRoot) {
   const out = [];
   for (const n of list) {
     if (!n || typeof n !== 'object' || typeof n.type !== 'string') continue;
-    const spec = WIDGETS[n.type];
+    const spec = PROFILE.catalog[n.type];
     // a window is only meaningful at the root. Anywhere else it is dropped
     if (!spec || n.type === 'root') continue;
     if (n.type === 'window' && !atRoot) continue;
@@ -768,8 +923,8 @@ function applyDocData(raw, savedNextId) {
   // user had dragged to some other size, and starts from clean widget state:
   // ids restart per document, so the new n7 would otherwise inherit the old n7
   if (engineReady) {
-    Module.ccall('engine_reset_window_size', null, [], []);
-    Module.ccall('engine_reset_state', null, [], []);
+    PROFILE.engine.call('engine_reset_window_size', null, [], []);
+    PROFILE.engine.call('engine_reset_state', null, [], []);
   }
   // Same reason: the hierarchy's fold state is a set of node ids, and ids
   // restart per document, so collapsing a container in one project folded shut
@@ -794,7 +949,7 @@ function loadLocal() {
 // The active one is still mirrored to SAVE_KEY so an older build (and the
 // self-test's reload check) keeps finding what it expects.
 
-const PROJECTS_KEY = 'imguistudio.projects.v1';
+const PROJECTS_KEY = PROFILE.storagePrefix + '.projects.v1';
 let projects = [];       // { id, name, doc, nextId }
 let activeProject = null;
 let projectSeq = 1;
@@ -822,10 +977,6 @@ function snapshotActive() {
   if (!p) return;
   p.doc = JSON.parse(JSON.stringify(doc));
   p.nextId = nextId;
-  // Where this project is scrolled to, saved by the same call that saves its
-  // document. Every persist path runs through here, so the canvas position
-  // cannot fall out of step with the widgets it is a view of.
-  p.view = getView();
 }
 
 // Read, merge, write. Every edit reaches this through refresh(), and it used to
@@ -885,16 +1036,11 @@ function loadProjects() {
       name: 'Untitled',
       doc: JSON.parse(JSON.stringify(doc)),
       nextId,
-      view: { ...DEFAULT_VIEW },
     }];
     activeProject = projects[0].id;
   }
   const active = projects.find(p => p.id === activeProject);
   applyDocData(active.doc, active.nextId);
-  // The saved canvas position, which is what makes a reload land where you left
-  // off. A project stored by an older build carries no view and sanitizeView
-  // hands back the default, so nothing has to be migrated.
-  setView(active.view);
 }
 
 function switchProject(id) {
@@ -905,29 +1051,22 @@ function switchProject(id) {
   activeProject = id;
   applyDocData(p.doc, p.nextId);
   resetHistory();
-  // This used to be resetPan(), which is why coming back to a tab you had
-  // scrolled somewhere always started again at the origin.
-  setView(p.view);
+  resetPan();
   refresh();
   renderProjectTabs();
 }
 
-function addProject(name, docData, view) {
+function addProject(name, docData) {
   snapshotActive();
   const p = {
     id: newProjectId(),
     name: name || 'Untitled ' + (projects.length + 1),
     doc: docData ? JSON.parse(JSON.stringify(docData)) : JSON.parse(JSON.stringify(DEFAULT_DOC)),
     nextId: 100,
-    // A document that arrives carrying a view of its own (a share link, an
-    // imported file) opens on it. Everything else opens at the origin instead
-    // of inheriting wherever the last project happened to be scrolled.
-    view: sanitizeView(view),
   };
   projects.push(p);
   activeProject = p.id;
   applyDocData(p.doc, p.nextId);
-  setView(p.view);
   resetHistory();
   refresh();
   renderProjectTabs();
@@ -941,14 +1080,12 @@ function closeProject(id) {
     projects.splice(i, 1);
     closedIds.add(id);
     if (!projects.length) {
-      projects.push({ id: newProjectId(), name: 'Untitled', doc: JSON.parse(JSON.stringify(DEFAULT_DOC)),
-        nextId: 100, view: { ...DEFAULT_VIEW } });
+      projects.push({ id: newProjectId(), name: 'Untitled', doc: JSON.parse(JSON.stringify(DEFAULT_DOC)), nextId: 100 });
     }
     if (activeProject === id) {
       activeProject = projects[Math.min(i, projects.length - 1)].id;
       const p = projects.find(x => x.id === activeProject);
       applyDocData(p.doc, p.nextId);
-      setView(p.view);
       resetHistory();
       refresh();
     }

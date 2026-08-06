@@ -19,28 +19,32 @@ function pushDoc() {
   // document change, engine ready or not, rather than waiting on engineReady
   // below: the label should not lag behind the tree and the properties panel.
   const win = doc.children.find(n => n.type === 'window');
+  // The framework's name from the profile, not baked in. An attribute is not a
+  // text node, so the page generator's branding pass never touched this and a
+  // screen reader on the slate page was told it was looking at ImGui.
+  const fw = PROFILE.frameworkName || 'Widget';
   canvas.setAttribute('aria-label', win
-    ? 'ImGui preview: ' + (win.label || 'Window')
-    : 'ImGui preview canvas, empty');
+    ? `${fw} preview: ` + (win.label || 'Window')
+    : `${fw} preview canvas, empty`);
   if (!engineReady) return;
-  Module.ccall('engine_set_document', null, ['string'], [JSON.stringify(doc)]);
+  PROFILE.engine.call('engine_set_document', null, ['string'], [JSON.stringify(doc)]);
 }
 
-var Module = {
-  canvas: document.getElementById('canvas'),
-  print: t => console.log(t),
-  printErr: t => console.warn(t),
-  onRuntimeInitialized: () => {
-    engineReady = true;
-    updateArmedUI();
-    syncCanvasSize();
-    // the grid step, so a Shift-held title-bar drag snaps to the same grid the
-    // canvas draws rather than to a number the engine invented
-    Module.ccall('engine_set_snap', null, ['number'], [GRID_MINOR]);
-    Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
-    pushDoc();
-  },
-};
+// What the shell does the moment its engine is alive, whichever engine that
+// is. HOW an engine boots is profile knowledge (imgui assembles the global
+// emscripten Module, slate loads its module and starts the Slate frame
+// loop); WHAT happens on ready is shell knowledge, and it is exactly the
+// old onRuntimeInitialized body.
+function engineDidBoot() {
+  engineReady = true;
+  updateArmedUI();
+  syncCanvasSize();
+  // the grid step, so a Shift-held title-bar drag snaps to the same grid the
+  // canvas draws rather than to a number the engine invented
+  PROFILE.engine.call('engine_set_snap', null, ['number'], [GRID_MINOR]);
+  PROFILE.engine.call('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
+  pushDoc();
+}
 
 // ---------- canvas editing ----------
 
@@ -58,61 +62,15 @@ const ghost = document.getElementById('ghost');
 // has to be added back by hand. `:focus-visible` alone was tried first, but
 // Chrome does not apply its own click-vs-keyboard heuristic to a bare
 // tabindexed <canvas> the way it does to form controls: the ring showed up
-// for a mouse click too.
-//
-// The signal is "did the keyboard NAVIGATE here", not "was the last input a
-// key". Those two agree on a click and on a Tab, and disagree everywhere the
-// app hands focus back to the canvas ITSELF: endInlineEdit after a rename,
-// restorePreOverlayFocus after an overlay closes. Each is a programmatic
-// focus() one keystroke after a keydown, and reading that keydown drew a ring
-// on a canvas the user had reached by double-clicking. That shipped twice, as
-// an Alt+Tab and then as a rename, which is what a rule this indirect earns.
-//
-// So only a Tab arms it, and every other keydown and every pointerdown clears
-// it. Nothing needs to spend it on arrival: each of the app's own focus() calls
-// sits behind an Escape, an Enter, an F2 or a click, so the flag is already
-// false by the time the focus event lands.
-//
-// On WINDOW, not document, and this file is loaded before keys.js on purpose.
-// keys.js hands Tab to whatever control has focus by calling
-// stopImmediatePropagation from its own window-capture listener, and that stops
-// document-level capture listeners dead. Sitting on document, this never saw
-// the one key it cares about. The first version of this check pressed Shift
-// instead of Tab, which nothing swallows, so it passed while Tab was invisible.
-let focusFromTab = false;
-window.addEventListener('pointerdown', () => {
-  focusFromTab = false;
-  windowReturning = false;
-}, true);
-window.addEventListener('keydown', e => {
-  focusFromTab = e.key === 'Tab';
-  windowReturning = false;
-}, true);
-
-// Alt+Tab away and back and the canvas fires `focus` again with no new input
-// behind it, because the browser re-focuses whatever was already the active
-// element when the window comes back.
-//
-// A focus arriving that way carries no modality signal at all, so the ring is
-// left exactly as the user last earned it rather than recomputed. This still
-// matters under the Tab rule above, and in the opposite direction to the bug
-// that prompted it: without it, a ring earned by tabbing in would be cleared by
-// a trip to another application and back.
-let windowReturning = false;
-window.addEventListener('blur', () => { windowReturning = true; });
+// for a mouse click too. Tracked here instead, from the same signal a real
+// browser uses: whatever kind of input happened most recently.
+let lastInputWasPointer = false;
+document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
+document.addEventListener('keydown', () => { lastInputWasPointer = false; }, true);
 canvas.addEventListener('focus', () => {
-  if (windowReturning) { windowReturning = false; return; }
-  canvasHost.classList.toggle('kbd-focus', focusFromTab);
+  canvasHost.classList.toggle('kbd-focus', !lastInputWasPointer);
 });
-canvas.addEventListener('blur', () => {
-  // An application switch blurs the element too, and the element's blur and the
-  // window's arrive in either order depending on the browser, so both signals
-  // are read: the flag when the window went first, hasFocus() when the element
-  // did. Either way the ring is left as it is, because the user is coming back
-  // to this canvas and did not leave it.
-  if (windowReturning || !document.hasFocus()) { windowReturning = true; return; }
-  canvasHost.classList.remove('kbd-focus');
-});
+canvas.addEventListener('blur', () => canvasHost.classList.remove('kbd-focus'));
 
 // Panning is a transform on #viewport, and every coordinate below is read from
 // the canvas's own client rect, so nothing else has to account for it.
@@ -140,11 +98,8 @@ let sentOrigin = { x: 0, y: 0 };
 let zoom = 1;
 // assigned once the header control exists. applyView runs before that during init
 let zoomLabel = null;
-// The same two numbers sanitizeView clamps a restored view to (widgets.js).
-// Aliased rather than repeated: a project reopened at a zoom the ladder here
-// refuses would be a view the user could see but not step out of.
-const ZOOM_MIN = VIEW_ZOOM_MIN;
-const ZOOM_MAX = VIEW_ZOOM_MAX;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 4;
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
 const GRID_MINOR = 20;
 const GRID_MAJOR = 100;
@@ -174,9 +129,6 @@ function applyView() {
   drawRulers();
   renderGuides();
   syncCanvasSize();
-  // every pan, zoom and reset ends up here, so this is the one place the view
-  // has to be written down from
-  scheduleViewSave();
 }
 
 // The transform on its own. syncCanvasSize needs it when the origin moves, and
@@ -280,64 +232,31 @@ function focusSelection() {
 }
 
 function resetPan() {
-  pan = { x: DEFAULT_VIEW.x, y: DEFAULT_VIEW.y };
-  zoom = DEFAULT_VIEW.zoom;
+  pan = { x: 0, y: 0 };
+  zoom = 1;
   applyView();
 }
-
-// ---- the view belongs to the project ---------------------------------------
-// Pan and zoom used to live only in this file, so a reload put you back at the
-// origin at 100% however far you had scrolled, and switching project tabs threw
-// the position away on purpose. doc.js keeps what getView returns on the
-// project record and hands it back through setView. These two calls are the
-// whole seam between the canvas and the store.
-
-function getView() {
-  return { x: pan.x, y: pan.y, zoom };
-}
-
-function setView(v) {
-  const s = sanitizeView(v);
-  pan = { x: s.x, y: s.y };
-  zoom = s.zoom;
-  applyView();
-}
-
-// A pan is a stream of mousemoves and saveProjects serializes every open
-// document, so the write is debounced rather than run per frame.
-//
-// Belt to a pair of braces, and knowingly so: refresh() reaches saveProjects on
-// its own often enough that a pan is usually on disk without this. Measured,
-// not assumed -- removing this call and running the whole browser suite changed
-// nothing. It stays because "the view is saved when it changes" should not be a
-// side effect of some unrelated path happening to run, and because the one case
-// it does own (pan, then reload before anything else touches the document) is
-// exactly the gesture this feature exists for.
-let viewSaveTimer = null;
-
-function scheduleViewSave() {
-  // Nothing to hang a view on until loadProjects has run, and a save this early
-  // would write activeProject: null over the stored one, which is how a reload
-  // would come back on the wrong project tab.
-  if (typeof saveProjects !== 'function' || !activeProject) return;
-  clearTimeout(viewSaveTimer);
-  viewSaveTimer = setTimeout(flushViewSave, 300);
-}
-
-// The gesture this whole seam exists for is usually followed by the very reload
-// that would lose the last 300ms of it, so the page leaving flushes the timer
-// rather than dropping it.
-function flushViewSave() {
-  clearTimeout(viewSaveTimer);
-  viewSaveTimer = null;
-  if (typeof saveProjects === 'function' && activeProject) saveProjects();
-}
-window.addEventListener('pagehide', flushViewSave);
 
 // The footer used to repeat the engine state, which never changes after load.
 // It now reads out whatever is under the cursor, which is the thing you
 // actually want while you are pointing at something.
 const hoverInfoEl = document.getElementById('hoverInfo');
+const hoverboxEl = document.getElementById('hoverbox');
+
+// UMG's hover cue: a dashed box around whatever the pointer is over, quiet
+// next to the solid selection outline and absent the moment a gesture runs.
+function updateHoverBox(hit) {
+  if (!hit || hit.id === 'root' || !editMode || drag || resizing || marquee
+      || selection.has(hit.id) || hit.id === selectedId) {
+    hoverboxEl.style.display = 'none';
+    return;
+  }
+  hoverboxEl.style.display = 'block';
+  hoverboxEl.style.left = vpX(hit.x) + 'px';
+  hoverboxEl.style.top = vpY(hit.y) + 'px';
+  hoverboxEl.style.width = hit.w + 'px';
+  hoverboxEl.style.height = hit.h + 'px';
+}
 
 function updateHoverStatus(e) {
   // A flash message (Link copied, Nothing under the pointer, ...) owns the
@@ -347,16 +266,18 @@ function updateHoverStatus(e) {
   if (flashActive) return;
   if (!e) {
     hoverInfoEl.innerHTML = '—';
+    updateHoverBox(null);
     return;
   }
   const p = canvasPoint(e);
   const hit = hitTest(p);
+  updateHoverBox(hit);
   const node = hit && hit.id !== 'root' ? findNode(hit.id) : (hit ? doc : null);
   // rounded: canvasPoint divides by zoom, so at any zoom but 100% this printed
   // a full-precision float and pushed the widget name out of the ellipsis
   const pos = `<i>${Math.round(p.x)}, ${Math.round(p.y)}</i>`;
   if (!node) { hoverInfoEl.innerHTML = pos; return; }
-  const spec = WIDGETS[node.type] || {};
+  const spec = PROFILE.catalog[node.type] || {};
   const label = node === doc ? 'Document' : (node.label || spec.name || node.type);
   hoverInfoEl.innerHTML = `<b>${esc(label)}</b> <i>${esc(spec.name || node.type)}</i> · `
     + `${Math.round(hit.w)}x${Math.round(hit.h)} at ${Math.round(hit.x)}, ${Math.round(hit.y)} · ${pos}`;
@@ -425,7 +346,7 @@ function updateSelectionOverlay() {
     // handles only on the axes this widget's spec actually declares, and only
     // for a single selection (a sizing drag has no meaning across a set)
     const node = findNode(selectedId);
-    const props = (node && WIDGETS[node.type] && WIDGETS[node.type].props) || [];
+    const props = (node && PROFILE.catalog[node.type] && PROFILE.catalog[node.type].props) || [];
     const hasW = props.some(p => p[0] === 'w' || p[0] === 'itemw');
     const hasH = props.some(p => p[0] === 'h');
     // stays resizable mid-drag: dropping the handle the moment it is grabbed
@@ -461,7 +382,7 @@ function pollEngine() {
   try {
     // the ccall itself throws after a wasm abort, so it must sit inside the
     // try or one abort would kill the rAF chain and spam the interval backstop
-    const raw = Module.ccall('engine_get_rects', 'string', [], []);
+    const raw = PROFILE.engine.call('engine_get_rects', 'string', [], []);
     const payload = JSON.parse(raw);
     // Converted here, once, so every consumer downstream stays in world units.
     // The offset comes from the payload rather than from `origin`: the two drift
@@ -476,7 +397,7 @@ function pollEngine() {
     latestRects = [];
   }
   adoptDraggedWindowPos();
-  trackResizingWindow();
+  adoptResizedWindowSize();
   updateSelectionOverlay();
 }
 
@@ -499,8 +420,8 @@ function adoptDraggedWindowPos() {
   let moving = false;
   let movingId = '';
   try {
-    moving = Module.ccall('engine_moving_window', 'number', [], []) === 1;
-    if (moving) movingId = Module.ccall('engine_moving_window_id', 'string', [], []) || '';
+    moving = PROFILE.engine.call('engine_moving_window', 'number', [], []) === 1;
+    if (moving) movingId = PROFILE.engine.call('engine_moving_window_id', 'string', [], []) || '';
   } catch (e) { return; }
   if (!moving && !wasMovingWindow) return;
   // Escape during a drag put the window back and latched this off, so a stale
@@ -541,31 +462,45 @@ function adoptDraggedWindowPos() {
   else refresh();
 }
 
-// The size counterpart to adoptDraggedWindowPos is a tracker now, not an adopt.
+// The same problem as adoptDraggedWindowPos, for the other gesture. Dragging a
+// window's own grip or border resizes it in the preview, and nothing told the
+// document: the inspector kept reading the old size, the generated
+// SetNextWindowSize kept emitting it, and the size vanished on the next reload
+// or the moment any size field was touched.
 //
-// It used to write the published size back into the document. That worked for
-// the corner of an explicitly sized window and for nothing else: an auto-sized
-// window was skipped by design (its published size is ImGui's choice, not the
-// user's, and adopting it would silently freeze it), and a LEFT or TOP edge
-// drag moves the window as it resizes, which this never adopted, so the window
-// jumped back to its document position the next time anything re-placed it.
-// That is the "it doesn't track the new size" this replaces.
-//
-// So the grip is off in edit mode (engine/main.cpp adds NoResize while
-// g_EditMode) and the selection handles are the one way to size a window while
-// editing, which they do by writing the document directly. In interactive mode
-// the grip is live and deliberately NOT adopted: what you stretch in there is
-// something you are trying out, and engine_set_edit_mode puts the size back on
-// the way out.
-//
-// The flag stays because the SHEET still needs it. A window growing under a
-// live grip can outrun a surface that only grows after the fact, so layout.js
-// keeps a margin of headroom in hand while the gesture runs.
+// Only windows the document has already given an explicit size are adopted. A
+// window sized 0 is auto-sized, so its published size is ImGui's choice rather
+// than the user's, and writing that back would silently convert it into a fixed
+// one on the first frame it was ever drawn.
 let wasResizingWindow = false;
-function trackResizingWindow() {
+function adoptResizedWindowSize() {
+  let resizingWin = false;
   try {
-    wasResizingWindow = Module.ccall('engine_resizing_window', 'number', [], []) === 1;
-  } catch (e) { wasResizingWindow = false; }
+    resizingWin = PROFILE.engine.call('engine_resizing_window', 'number', [], []) === 1;
+  } catch (e) { return; }
+  if (!resizingWin && !wasResizingWindow) return;
+  let changed = false;
+  for (const win of doc.children) {
+    if (win.type !== 'window') continue;
+    if (!(Number(win.w) > 0) || !(Number(win.h) > 0)) continue;   // auto-sized
+    const r = latestRects.find(x => x.id === win.id && x.window);
+    if (!r || (r.w === 0 && r.h === 0)) continue;                 // hidden
+    const w = Math.round(r.w), h = Math.round(r.h);
+    if (w === Math.round(win.w) && h === Math.round(win.h)) continue;
+    win.w = w;
+    win.h = h;
+    changed = true;
+  }
+  if (resizingWin) {
+    wasResizingWindow = true;
+    // Pushed every frame so the engine's copy keeps up, exactly as the move
+    // path does. It cannot fight the drag: the size sent is the one ImGui just
+    // produced, so the re-apply is a no-op.
+    if (changed) { pushDoc(); syncCanvasSize(); renderProps(); }
+    return;
+  }
+  wasResizingWindow = false;
+  if (changed) { pushHistory(); refresh(); }
 }
 
 function tick() {
@@ -737,18 +672,11 @@ for (const h of selbox.querySelectorAll('.rh')) {
     resizing = {
       id: node.id, axis: h.dataset.axis,
       startX: e.clientX, startY: e.clientY,
-      wkey: (WIDGETS[node.type].props || []).some(p => p[0] === 'w') ? 'w' : 'itemw',
+      wkey: (PROFILE.catalog[node.type].props || []).some(p => p[0] === 'w') ? 'w' : 'itemw',
       w0: Number(node.w || node.itemw) || (r ? Math.round(r.w) : 0),
       x0: Number(node.x) || 0,
       y0: Number(node.y) || 0,
       h0: Number(node.h) || (r ? Math.round(r.h) : 0),
-      // Where the far edge sits in WORLD terms, which is what a Shift-snap on
-      // the right or bottom edge has to land on the grid. A window has its own
-      // x and y, a widget in a flow layout does not: its position is whatever
-      // the layout gave it, so it comes off the published rect. Captured once
-      // at drag start for the same reason w0 is, since the row reflows.
-      left0: r ? r.x : (Number(node.x) || 0),
-      top0: r ? r.y : (Number(node.y) || 0),
     };
   });
 }
@@ -889,6 +817,21 @@ canvas.addEventListener('mousedown', e => {
     if (e.shiftKey) { toggleSelected(hit.id); return; }
     if (!selection.has(hit.id)) selectId(hit.id);
     else { selectedId = hit.id; refresh(); }
+    // A title-bar press on a window moves it. On imgui the ENGINE owns that
+    // gesture (ImGui drags its own windows and the shell adopts the position),
+    // so the shell must stay out of the way; the profile says which world this
+    // is. Slate's windows are slots the runtime pins where the document says,
+    // so the shell drags the document and the engine follows.
+    const hitNode = findNode(hit.id);
+    if (hitNode && hitNode.type === 'window' && !PROFILE.engine.nativeWindowDrag
+        && p.y <= hit.y + TITLE_GRAB) {
+      drag = {
+        kind: 'winmove', nodeId: hit.id, started: false,
+        startX: e.clientX, startY: e.clientY,
+        x0: Number(hitNode.x) || 0, y0: Number(hitNode.y) || 0,
+      };
+      return;
+    }
     drag = {
       kind: 'move', nodeId: hit.id, dup: e.altKey, started: false,
       startX: e.clientX, startY: e.clientY, drop: null,
@@ -909,7 +852,7 @@ canvas.addEventListener('dblclick', e => {
   if (!hit || hit.id === doc.id) return;
   const node = findNode(hit.id);
   if (!node) return;
-  if ((WIDGETS[node.type].props || []).some(p => p[0] === 'label')) {
+  if ((PROFILE.catalog[node.type].props || []).some(p => p[0] === 'label')) {
     selectId(node.id);
     beginInlineEdit(node.id);
   } else if (isContainer(node)) {
@@ -961,13 +904,23 @@ function endDrag() {
 // never visible. Gated on wasMovingWindow so a stale snapshot from an earlier
 // press cannot yank a window that is sitting still.
 function cancelDrag() {
+  // The shell-side window move keeps its own restore point in the drag, since
+  // the imgui winDragStart/wasMovingWindow pair belongs to the engine gesture.
+  const wm = drag && drag.kind === 'winmove' && drag.started ? drag : null;
   endDrag();
+  if (wm) {
+    const win = doc.children.find(n => n.id === wm.nodeId);
+    if (win) { win.x = wm.x0; win.y = wm.y0; }
+    pushDoc();
+    refresh();
+    return;
+  }
   if (!winDragStart || !wasMovingWindow) { winDragStart = null; return; }
   const win = doc.children.find(n => n.id === winDragStart.id);
   if (win) { win.x = winDragStart.x; win.y = winDragStart.y; }
   winDragStart = null;
   moveCancelled = true;
-  try { Module.ccall('engine_cancel_move', null, [], []); } catch (e) {}
+  try { PROFILE.engine.call('engine_cancel_move', null, [], []); } catch (e) {}
   pushDoc();
   refresh();
 }
@@ -983,8 +936,8 @@ function beginInlineEdit(id) {
   const node = findNode(id);
   const r = rectFor(id);
   if (!node) return;
-  if (!(WIDGETS[node.type].props || []).some(p => p[0] === 'label')) {
-    flashStatus(`A ${WIDGETS[node.type].name} has no label to rename.`);
+  if (!(PROFILE.catalog[node.type].props || []).some(p => p[0] === 'label')) {
+    flashStatus(`A ${PROFILE.catalog[node.type].name} has no label to rename.`);
     return;
   }
   // No rect means the preview did not draw it: a widget in a closed popup, a
@@ -1065,35 +1018,12 @@ document.addEventListener('mousemove', e => {
     // out the edge crawled behind the cursor, zoomed in it raced ahead.
     const dx = (e.clientX - resizing.startX) / zoom;
     const dy = (e.clientY - resizing.startY) / zoom;
-    // Shift lands the edge you are DRAGGING on the grid you can see, which is
-    // what it already meant on the left and top edges below and what it means
-    // on a window title-bar drag. Only those two branches had it, and they are
-    // the two a plain widget never gets: its selection box carries a right
-    // edge, a bottom edge and the corner between them, so holding Shift while
-    // resizing a widget did nothing at all.
-    //
-    // The size takes up the difference, since the near edge is not moving.
-    const snapFar = (near, size) => {
-      let s = Math.round((near + size) / GRID_MINOR) * GRID_MINOR - near;
-      // A snap that lands under the floor goes to the next line up rather than
-      // being clamped back off the grid.
-      while (s < MIN_DRAG_SIZE) { s += GRID_MINOR; }
-      // Rounded, because a widget's near edge comes from the engine and can sit
-      // on a fraction. The field is what the generated C++ carries, and a width
-      // of 137.4062 there to put an edge a rounding error closer to a grid line
-      // is a bad trade.
-      return Math.round(s);
-    };
     if (resizing.axis.includes('w')) {
       // whichever key this widget spells its width with
-      let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
-      if (e.shiftKey) { w = snapFar(resizing.left0, w); }
-      node[resizing.wkey] = w;
+      node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
     }
     if (resizing.axis.includes('h')) {
-      let h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
-      if (e.shiftKey) { h = snapFar(resizing.top0, h); }
-      node.h = h;
+      node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
     }
     // a left or top edge grows the other way, so the node moves as it sizes
     // A left or top edge grows the other way, so the node moves as it sizes.
@@ -1139,10 +1069,33 @@ document.addEventListener('mousemove', e => {
     // asked to back out of it. Routing it through cancelDrag threw away a window
     // move that had already happened.
     if (drag.started && e.buttons === 0) { endDrag(); return; }
+    if (drag.kind === 'winmove') {
+      if (!drag.started) {
+        if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 5) return;
+        drag.started = true;
+      }
+      const win = findNode(drag.nodeId);
+      if (!win) { endDrag(); return; }
+      // Client-pixel delta divided by zoom, same arithmetic as the grips: these
+      // are world-space fields. Shift snaps, matching the imgui title-bar drag.
+      let nx = Math.round(drag.x0 + (e.clientX - drag.startX) / zoom);
+      let ny = Math.round(drag.y0 + (e.clientY - drag.startY) / zoom);
+      if (e.shiftKey) {
+        nx = Math.round(nx / GRID_MINOR) * GRID_MINOR;
+        ny = Math.round(ny / GRID_MINOR) * GRID_MINOR;
+      }
+      win.x = nx;
+      win.y = ny;
+      // The engine sees every step so the preview tracks the cursor; the undo
+      // entry and the save wait for mouseup, exactly as the resize path does.
+      pushDoc();
+      paintDuringGesture(true);
+      return;
+    }
     if (!drag.started) {
       if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) < 5) return;
       drag.started = true;
-      const label = drag.kind === 'palette' ? titleCase(WIDGETS[drag.type].name)
+      const label = drag.kind === 'palette' ? titleCase(PROFILE.catalog[drag.type].name)
         : drag.kind === 'template' ? titleCase(drag.tpl.name)
           : (findNode(drag.nodeId)?.label || drag.nodeId);
       ghost.textContent = (drag.dup ? '+ ' : '') + label;
@@ -1164,7 +1117,7 @@ document.addEventListener('mousemove', e => {
   if (armed && editMode) {
     const p = canvasPoint(e);
     if (p.inside) {
-      ghost.textContent = WIDGETS[armedType()].name;
+      ghost.textContent = PROFILE.catalog[armedType()].name;
       ghost.style.display = 'block';
       ghost.style.left = (e.clientX + 14) + 'px';
       ghost.style.top = (e.clientY + 14) + 'px';
@@ -1200,12 +1153,15 @@ document.addEventListener('mouseup', e => {
     else if (d.kind === 'palette') addNode(d.type);
     return;
   }
+  // The position was applied live on every move; what is left is making the
+  // gesture undoable and letting the panels catch up.
+  if (d.kind === 'winmove') { pushHistory(); refresh(); return; }
   // One branch, not two. The `!d.drop` case used to fall through to addNode and
   // throw the drop POINT away, and computeDropTarget returns null for empty
   // canvas because the document root publishes no rect. Dropping a Window
   // on empty space, which is the normal way to place one, always lost the
   // position it was dropped at. Only a release outside the canvas has no point.
-  if (d.kind === 'palette' && WIDGETS[d.type] && WIDGETS[d.type].rootOnly) {
+  if (d.kind === 'palette' && PROFILE.catalog[d.type] && PROFILE.catalog[d.type].rootOnly) {
     const at = canvasPoint(e);
     // The HOST rect, not at.inside. `inside` is measured against the canvas
     // ELEMENT, a 4096px surface carrying a slab of off-screen slack whose box
@@ -1280,7 +1236,7 @@ function arm(letter, backward) {
 
 // Arm a specific widget type rather than a family letter.
 function rearm(type) {
-  if (!WIDGETS[type]) return false;
+  if (!PROFILE.catalog[type]) return false;
   const fam = FAMILY_OF[type];
   armed = fam ? { letter: fam, index: FAMILIES[fam].indexOf(type) } : { type };
   updateArmedUI();
@@ -1298,7 +1254,7 @@ function disarm() {
 
 function updateArmedUI() {
   document.getElementById('armInfo').textContent = armed
-    ? 'armed: ' + WIDGETS[armedType()].name
+    ? 'armed: ' + PROFILE.catalog[armedType()].name
       + (armed.letter ? ' (' + armed.letter + ' cycles, Enter inserts, Esc exits)'
         : ' (Enter inserts, Esc exits)')
     : '';
@@ -1307,7 +1263,7 @@ function updateArmedUI() {
   }
   // cycling the family while hovering must retag the ghost in place
   if (armed && !drag && ghost.style.display === 'block') {
-    ghost.textContent = WIDGETS[armedType()].name;
+    ghost.textContent = PROFILE.catalog[armedType()].name;
   }
 }
 
@@ -1317,7 +1273,7 @@ function stampArmed(drop, at) {
   // A rootOnly type has nowhere to go through insertNodeAt: insertAt refuses a
   // window anywhere but the root, insertNodeAt swallowed the refusal, and the
   // armed tool silently did nothing. The drag path already has this fallback.
-  if (WIDGETS[type] && WIDGETS[type].rootOnly) {
+  if (PROFILE.catalog[type] && PROFILE.catalog[type].rootOnly) {
     const node = makeNode(type);
     if (at) { node.x = Math.round(at.x); node.y = Math.round(at.y); }
     doc.children.push(node);
@@ -1328,7 +1284,7 @@ function stampArmed(drop, at) {
   if (!drop) { flashStatus('Nothing under the pointer to insert next to.'); return; }
   // stays armed for repeated stamps
   if (!insertNodeAt(type, drop)) {
-    flashStatus(`A ${WIDGETS[type].name} cannot go there.`);
+    flashStatus(`A ${PROFILE.catalog[type].name} cannot go there.`);
   }
 }
 
@@ -1342,7 +1298,7 @@ function setLiveMode(live) {
     ? '<b>LIVE</b>: widgets respond'
     : 'hold <b>' + comboLabel(peekEntry() || { key: ' ' }) + '</b> to test interaction';
   if (live) disarm();
-  if (engineReady) Module.ccall('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
+  if (engineReady) PROFILE.engine.call('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
   updateSelectionOverlay();
 }
 

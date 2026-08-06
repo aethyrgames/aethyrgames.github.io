@@ -15,7 +15,10 @@ let codeEditing = false;
 // document or the live textarea: generating is what changes the document's
 // C++, typing is not, and the two must not be read as the same signal.
 let codeEditSnapshot = '';
-const parseCpp = createParser(WIDGETS, makeNode, colorSlots);
+// The parser is assembled by the PROFILE, not here: which factory builds it
+// and from which catalog is exactly the kind of knowledge W1 moved out of the
+// shell. This file only asks PROFILE.parser, and a profile without one means
+// the Edit flow is absent, not broken.
 const codeEl = document.getElementById('code');
 const codeEdit = document.getElementById('codeEdit');
 const codeStatus = document.getElementById('codeStatus');
@@ -34,7 +37,7 @@ function setCodeEditing(on) {
   cancelBtn.hidden = !on;
   reloadBtn.hidden = true;   // only offered once the document actually moves on
   if (on) {
-    codeEdit.value = generateCode();
+    codeEdit.value = PROFILE.generate();
     codeEditSnapshot = codeEdit.value;
     paintCodeEditor();
     const gone = generateCode.skipped || [];
@@ -76,7 +79,7 @@ function markCodeStale() {
   // user's own typing look like a canvas change: type anything, then merely
   // select a widget (which calls refresh() -> markCodeStale()), and the banner
   // claimed the document had moved on when only the text field had.
-  if (!codeEditing || generateCode() === codeEditSnapshot) return;
+  if (!codeEditing || PROFILE.generate() === codeEditSnapshot) return;
   codeStatus.className = 'err';
   codeStatus.textContent = 'The document changed on the canvas after this C++ was '
     + 'generated. Applying replaces those changes with the text below. '
@@ -91,7 +94,7 @@ cancelBtn.onclick = () => setCodeEditing(false);
 applyBtn.onclick = () => {
   let result;
   try {
-    result = parseCpp(codeEdit.value, nextId);
+    result = PROFILE.parser(codeEdit.value, nextId);
   } catch (err) {
     // never blank the canvas on a parse failure: keep the last good document
     codeStatus.className = 'err';
@@ -168,14 +171,19 @@ codeEdit.addEventListener('scroll', () => {
 const lintEl = document.getElementById('codeLint');
 const sigEl = document.getElementById('codeSig');
 const complEl = document.getElementById('codeCompl');
-const IMGUI_NAMES = Object.keys(IMGUI_DOC_LINES);
+// The name list is PROFILE.docs.names now: deriving it from the doc map is
+// profile knowledge (which map, which casing), and it was the second
+// derivation W1 found living in the shell after the parser assembly.
 let lintDiags = [];
 let intelTimer = null;
 let compl = null;          // { from, to, items, index }
 
 // Every ImGui call the parser turns into a widget, so the lint can say which
 // ones it will instead keep verbatim.
-const modelledCalls = new Set(Object.keys(parseCpp.schema || {}));
+const modelledCalls = new Set(Object.keys((PROFILE.parser && PROFILE.parser.schema) || {}));
+// A profile without a parser has no Edit flow, which the contract calls a
+// missing feature rather than an error. The button follows the profile.
+if (!PROFILE.parser && editBtn) editBtn.hidden = true;
 
 function scheduleCodeIntel() {
   clearTimeout(intelTimer);
@@ -186,7 +194,7 @@ function scheduleCodeIntel() {
 function runCodeIntel() {
   if (!codeEditing) return;
   lintDiags = lintCpp(codeEdit.value, {
-    sigs: IMGUI_SIGS, names: IMGUI_NAMES, modelled: modelledCalls,
+    sigs: PROFILE.docs.sigs, names: PROFILE.docs.names, modelled: modelledCalls,
   });
   renderLint();
   renderSignature();
@@ -280,7 +288,7 @@ const lineHeightOf = () => editorMetrics().lineH;
 
 function renderSignature() {
   const hit = codeEditing
-    ? signatureAt(codeEdit.value, codeEdit.selectionStart, IMGUI_SIGS) : null;
+    ? signatureAt(codeEdit.value, codeEdit.selectionStart, PROFILE.docs.sigs) : null;
   sigEl.hidden = !hit;
   if (!hit) return;
   // underline the argument the caret is on, so a long list stays readable
@@ -320,7 +328,7 @@ function updateCompletions() {
   // three-letter word would put a popup over the code constantly. Ctrl+Space is
   // there for when you do want it on a bare word.
   const hit = completionAt(codeEdit.value, codeEdit.selectionStart,
-    { sigs: IMGUI_SIGS, bare: false });
+    { sigs: PROFILE.docs.sigs, bare: false });
   if (!hit) return hideCompletions();
   // A caret event re-runs this, so the highlighted row has to survive it.
   // Narrowing the word changes the span or the list, and then the top item wins.
@@ -432,7 +440,7 @@ function handleCodeEditorKey(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
     e.preventDefault();
     const hit = completionAt(codeEdit.value, codeEdit.selectionStart,
-      { sigs: IMGUI_SIGS, bare: true });
+      { sigs: PROFILE.docs.sigs, bare: true });
     if (hit) { compl = { ...hit, index: 0 }; renderCompletions(); }
     return true;
   }
@@ -556,5 +564,5 @@ function refresh(rebuildProps = true, prop) {
 document.getElementById('filter').oninput = renderPalette;
 
 
-document.getElementById('copyBtn').onclick = () => copyText(generateCode(), 'C++');
+document.getElementById('copyBtn').onclick = () => copyText(PROFILE.generate(), 'C++');
 

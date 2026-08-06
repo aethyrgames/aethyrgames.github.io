@@ -9,6 +9,10 @@
 // load order in index.html is the dependency order.
 
 window.__test = {
+  // What validateCatalog found at boot: every prop whose kind this shell
+  // cannot interpret. Both gates assert this is empty, on both pages.
+  profileProblems: () => profileProblems.slice(),
+  propKinds: () => Object.keys(PROP_KINDS),
   rects: () => latestRects,
   doc: () => doc,
   // the widgets of the first window: what "the document" used to mean
@@ -44,7 +48,6 @@ window.__test = {
   canvasSize: () => ({ w: canvas.width, h: canvas.height }),
   inlineEditing: () => inlineId !== null,
   ctxOpen: () => document.getElementById('ctxmenu').style.display === 'block',
-  closeCtx: () => closeContextMenu(),
   handlePos: axis => {
     const h = document.querySelector('#selbox .rh-' + axis)
       || document.querySelector('#selbox .rh[data-axis="' + axis + '"]');
@@ -98,8 +101,8 @@ window.__test = {
     return captured;
   },
   importPayload: s => importPayload(s),
-  widgetTypes: () => Object.keys(WIDGETS).filter(k => !WIDGETS[k].hidden),
-  generate: () => generateCode(),
+  widgetTypes: () => Object.keys(PROFILE.catalog).filter(k => !PROFILE.catalog[k].hidden),
+  generate: () => PROFILE.generate(),
   refresh: () => refresh(),
   selectMany: ids => selectMany(ids),
   // Reset asks first now, so the test drives the dialog the way a user does
@@ -135,19 +138,15 @@ window.__test = {
       doc.children = d.children || [];
       doc.pre = d.pre || '';
       doc.post = d.post || '';
-      return generateCode();
+      return PROFILE.generate();
     } finally {
       doc.children = keep.children; doc.pre = keep.pre; doc.post = keep.post;
       // generateCode leaves owners/skipped behind for the code pane, so put
       // them back in step with the document that is actually open
-      generateCode();
+      PROFILE.generate();
     }
   },
   saveTemplate: () => saveCurrentAsTemplate(),
-  // what each template is filed under, and the section order the panel draws
-  templateCats: () => templates.map(t => ({ name: t.name, cat: templateCat(t) })),
-  templateCatOrder: () => templateCategories(),
-  setTemplateCat: (name, cat) => setTemplateCat(templates.find(t => t.name === name), cat),
   // the path the UI uses: into the nearest container of the selection
   insertTemplate: name => insertTemplateInHost(
     templates.find(t => t.name.toLowerCase() === String(name).toLowerCase())),
@@ -161,26 +160,26 @@ window.__test = {
   // ImGui works in surface pixels. Reported in world units so it can be compared
   // with a document coordinate
   imguiMouse: () => (engineReady ? {
-    x: Module.ccall('engine_mouse_x', 'number', [], []) + origin.x,
-    y: Module.ccall('engine_mouse_y', 'number', [], []) + origin.y,
-    w: Module.ccall('engine_display_w', 'number', [], []),
-    h: Module.ccall('engine_display_h', 'number', [], []),
+    x: PROFILE.engine.call('engine_mouse_x', 'number', [], []) + origin.x,
+    y: PROFILE.engine.call('engine_mouse_y', 'number', [], []) + origin.y,
+    w: PROFILE.engine.call('engine_display_w', 'number', [], []),
+    h: PROFILE.engine.call('engine_display_h', 'number', [], []),
   } : null),
-  popupDepth: () => (engineReady ? Module.ccall('engine_popup_depth', 'number', [], []) : -1),
+  popupDepth: () => (engineReady ? PROFILE.engine.call('engine_popup_depth', 'number', [], []) : -1),
   // the top-left-most vertex the engine drew last frame: negative means part of
   // a window was drawn off the surface, which is what clipping looks like
   minDraw: () => (engineReady ? {
-    x: Module.ccall('engine_min_draw_x', 'number', [], []),
-    y: Module.ccall('engine_min_draw_y', 'number', [], []),
+    x: PROFILE.engine.call('engine_min_draw_x', 'number', [], []),
+    y: PROFILE.engine.call('engine_min_draw_y', 'number', [], []),
   } : null),
   widgetFloat: id => (engineReady
-    ? Module.ccall('engine_get_float', 'number', ['string'], [id]) : null),
+    ? PROFILE.engine.call('engine_get_float', 'number', ['string'], [id]) : null),
   widgetBool: id => (engineReady
-    ? Module.ccall('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
+    ? PROFILE.engine.call('engine_get_bool', 'number', ['string'], [id]) === 1 : null),
   // Takes a raw state key, not a node id, because the keys that matter here are
   // composed: "radio:<window id>:<group>". -1 means the key does not exist.
   widgetInt: key => (engineReady
-    ? Module.ccall('engine_get_int', 'number', ['string'], [key]) : null),
+    ? PROFILE.engine.call('engine_get_int', 'number', ['string'], [key]) : null),
   // The document-replace path New, Open, templates and projects all go through.
   loadDocData: raw => { applyDocData(JSON.parse(JSON.stringify(raw)), 100); refresh(); },
   // Share links, so the size ceilings can be driven directly rather than by
@@ -253,7 +252,7 @@ window.__test = {
   // whether ImGui itself has a window under the cursor, which is the only way to
   // tell a title-bar drag that engaged from one that silently did not
   moving: () => {
-    try { return Module.ccall('engine_moving_window', 'number', [], []) === 1; }
+    try { return PROFILE.engine.call('engine_moving_window', 'number', [], []) === 1; }
     catch (e) { return false; }
   },
   armedDrag: () => armedWindowDrag,
@@ -275,18 +274,9 @@ window.__test = {
   zoomStep: d => zoomStep(d),
   zoomFit: () => zoomToFit(),
   pan: () => ({ ...pan }),
-  // pan and zoom as one value, which is the shape that rides on the project,
-  // the share link and both export files
-  view: () => getView(),
-  setView: v => setView(v),
-  // which row the keyboard would run, or -1 for none. The class on the row is
-  // what you can see; this is what the app believes, and a check wants both.
-  menuSelIndex: () => menuSel,
   // a screen point in world coordinates, the conversion every gesture uses
   pointAt: (x, y) => canvasPoint({ clientX: x, clientY: y }),
   gridOn: () => showGrid,
-  // the step Shift snaps to, from the app rather than typed into a check twice
-  gridStep: () => GRID_MINOR,
   rulersOn: () => showRulers,
   menu: name => renderMenu(name),
   closeMenu: () => closeMenu(),
@@ -354,29 +344,29 @@ window.__test = {
   // (app/codepane.js:83, which is right, since blanking the canvas on a bad
   // parse would be worse). So a caller that only compares generated code to
   // what it fed in is comparing a document against itself. `same` is true because
-  // nothing happened. Proved with a mutation that made parseCpp throw on every
+  // nothing happened. Proved with a mutation that made PROFILE.parser throw on every
   // call. Twelve other checks went red and this one stayed green.
   roundTrip: () => {
-    const before = generateCode();
+    const before = PROFILE.generate();
     setCodeEditing(true);
     codeEdit.value = before;
     paintCodeEditor();
     applyBtn.onclick();
     const status = codeStatus.textContent;
     return {
-      same: generateCode() === before,
+      same: PROFILE.generate() === before,
       // the document really was replaced, rather than kept by the error path
       applied: !codeStatus.classList.contains('err') && /^Applied\./.test(status),
       status,
       before,
-      after: generateCode(),
+      after: PROFILE.generate(),
     };
   },
   addAll: () => {
     // one of every widget type, containers nested so the tree is exercised
     const win = doc.children.find(n => n.type === 'window')
       || doc.children[doc.children.push(makeNode('window')) - 1];
-    for (const [type, spec] of Object.entries(WIDGETS)) {
+    for (const [type, spec] of Object.entries(PROFILE.catalog)) {
       if (spec.hidden || spec.rootOnly) continue;
       const node = makeNode(type);
       win.children.push(node);
@@ -424,7 +414,7 @@ window.__test = {
   paletteButtonPos: text => {
     for (const b of document.querySelectorAll('#palette button')) {
       // the badge span is part of textContent, so match on the widget name
-      if (b.dataset.type && WIDGETS[b.dataset.type].name === text) {
+      if (b.dataset.type && PROFILE.catalog[b.dataset.type].name === text) {
         const r = b.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       }

@@ -1,4 +1,12 @@
 // Start-up, in order: restore the saved layout and preferences, load the
+
+// The engine boots through the profile, before engine-adjacent shell code
+// expects it and before an imgui page's engine.js script tag executes (that
+// script reads the global Module this call assembles).
+PROFILE.engine.boot({
+  canvas: document.getElementById('canvas'),
+  onReady: () => engineDidBoot(),
+});
 // projects and templates, draw everything once, and open a shared document if
 // the URL carries one. Loads last, so everything it calls is defined.
 //
@@ -21,14 +29,26 @@ if (!Array.isArray(hb) && !hotbar.some(Boolean)) {
     .forEach((t, i) => { hotbar[i] = t; });
   saveHotbar();
 }
-const g = lsJson('imguistudio.guides', []);
+const g = lsJson(PROFILE.storagePrefix + '.guides', []);
 if (Array.isArray(g)) guides = g;
 renderGuides();
 // lsGet, not localStorage.getItem. A browser that blocks storage THROWS here,
 // and a throw at the top level of this file stopped the app starting at all:
 // no palette, no projects, no first render.
-setRulers(lsGet('imguistudio.rulers') !== '0');
-setGrid(lsGet('imguistudio.grid') !== '0');
+setRulers(lsGet(PROFILE.storagePrefix + '.rulers') !== '0');
+setGrid(lsGet(PROFILE.storagePrefix + '.grid') !== '0');
+
+// Before anything reads the catalog: can this shell actually interpret the
+// profile it was handed? Six defects came from a kind the shell had no branch
+// for, each found by accident days later, because nothing ever asked. Loud on
+// the console for whoever is looking, and kept on profileProblems so both
+// gates can assert it is empty -- a warning nobody reads is a note, and a note
+// is what failed six times.
+profileProblems = validateCatalog(PROFILE.catalog);
+if (profileProblems.length) {
+  console.error(`PROFILE "${PROFILE.id}" declares ${profileProblems.length} prop(s) this shell cannot interpret:`);
+  for (const p of profileProblems) console.error(`  ${p}`);
+}
 
 renderPalette();
 loadProjects();      // adopts the old single-document save on first run

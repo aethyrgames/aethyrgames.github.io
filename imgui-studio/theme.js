@@ -89,7 +89,7 @@ const THEMES = {
 // fills the same twelve color slots plus the four neutrals, and `dark: false`
 // flips the neutral washes so hover and veil stay visible on a light ground.
 
-const UI_THEME_KEY = 'imguistudio.uitheme';
+const UI_THEME_KEY = PROFILE.storagePrefix + '.uitheme';
 
 const UI_THEMES = {
   doki: {
@@ -291,7 +291,7 @@ function setThemeVars(key) {
 }
 
 
-const THEME_KEY = 'imguistudio.theme';
+const THEME_KEY = PROFILE.storagePrefix + '.theme';
 
 function applyTheme(key) {
   const t = THEMES[key] || THEMES['monokai-bright'];
