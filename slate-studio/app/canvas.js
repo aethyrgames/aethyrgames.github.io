@@ -19,9 +19,13 @@ function pushDoc() {
   // document change, engine ready or not, rather than waiting on engineReady
   // below: the label should not lag behind the tree and the properties panel.
   const win = doc.children.find(n => n.type === 'window');
+  // The framework's name from the profile, not baked in. An attribute is not a
+  // text node, so the page generator's branding pass never touched this and a
+  // screen reader on the slate page was told it was looking at ImGui.
+  const fw = PROFILE.frameworkName || 'Widget';
   canvas.setAttribute('aria-label', win
-    ? 'ImGui preview: ' + (win.label || 'Window')
-    : 'ImGui preview canvas, empty');
+    ? `${fw} preview: ` + (win.label || 'Window')
+    : `${fw} preview canvas, empty`);
   if (!engineReady) return;
   PROFILE.engine.call('engine_set_document', null, ['string'], [JSON.stringify(doc)]);
 }

@@ -130,6 +130,9 @@ const PROFILE = {
 
   storagePrefix: 'slatestudio',
 
+  // The framework this page designs for, in prose. See profile-imgui.js.
+  frameworkName: 'Slate',
+
   // UMG-designer surface hooks the shell reads when present: slot props
   // group under a parent-named Slot section, the hierarchy grows a
   // visibility eye per row, and Wrap With offers these containers.
