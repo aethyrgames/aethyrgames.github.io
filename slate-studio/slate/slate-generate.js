@@ -270,6 +270,11 @@ function slateClassName(label, taken) {
 // One LOCTEXT namespace and one shared key set span the file; the ctx's
 // className is re-pointed per window because handler bindings and member
 // definitions spell the owning class out.
+// What SNew(SWindow) already does, so the generator does not restate it and
+// the parser fills the same values when the opener is silent. Both sides read
+// this one object.
+const SLATE_WINDOW_DEFAULTS = { x: 30, y: 30, w: 380, h: 300 };
+
 function slateGenerateDoc(wins, opts) {
   const ctx = slateMakeCtx('SlateStudio');
   const taken = new Set();
@@ -313,12 +318,30 @@ function slateGenerateDoc(wins, opts) {
   blocks.forEach((b, i) => {
     const varName = `${b.cls.replace(/^S/, '')}Window`;
     if (i) opener.push('');
+    // Only what differs from the default. A window nobody has moved or sized
+    // said .ClientSize(380.f, 300.f).ScreenPosition(30.f, 30.f) in every file,
+    // which is three lines of noise describing nothing the author chose. The
+    // parser already fills the same defaults when the opener omits them, so
+    // the round trip is unaffected: absence and the default value mean the
+    // same thing on both sides.
+    const w = Math.round(b.win.w), h = Math.round(b.win.h);
+    const wx = Math.round(b.win.x), wy = Math.round(b.win.y);
+    const sized = w !== SLATE_WINDOW_DEFAULTS.w || h !== SLATE_WINDOW_DEFAULTS.h;
+    const placed = wx !== SLATE_WINDOW_DEFAULTS.x || wy !== SLATE_WINDOW_DEFAULTS.y;
     opener.push(
       `${SLATE_INDENT}TSharedRef<SWindow> ${varName} = SNew(SWindow)`,
       `${SLATE_INDENT}${SLATE_INDENT}.Title(${ctx.text(b.win.label || 'My Panel')})`,
-      `${SLATE_INDENT}${SLATE_INDENT}.ClientSize(FVector2D(${slateF(Math.round(b.win.w))}, ${slateF(Math.round(b.win.h))}))`,
-      `${SLATE_INDENT}${SLATE_INDENT}.ScreenPosition(FVector2D(${slateF(Math.round(b.win.x))}, ${slateF(Math.round(b.win.y))}))`,
-      `${SLATE_INDENT}${SLATE_INDENT}.AutoCenter(EAutoCenter::None)`,
+    );
+    if (sized) {
+      opener.push(`${SLATE_INDENT}${SLATE_INDENT}.ClientSize(FVector2D(${slateF(w)}, ${slateF(h)}))`);
+    }
+    if (placed) {
+      opener.push(
+        `${SLATE_INDENT}${SLATE_INDENT}.ScreenPosition(FVector2D(${slateF(wx)}, ${slateF(wy)}))`,
+        `${SLATE_INDENT}${SLATE_INDENT}.AutoCenter(EAutoCenter::None)`,
+      );
+    }
+    opener.push(
       `${SLATE_INDENT}${SLATE_INDENT}[`,
       `${SLATE_INDENT}${SLATE_INDENT}${SLATE_INDENT}SNew(${b.cls})`,
       `${SLATE_INDENT}${SLATE_INDENT}];`,

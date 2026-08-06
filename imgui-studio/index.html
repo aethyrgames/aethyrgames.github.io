@@ -877,16 +877,21 @@
      min-width:0 because a select's automatic minimum is its widest OPTION, so
      without this it refuses to shrink and shoves everything after it out. */
   #codehead select { margin: 4px 0 4px 8px; min-width: 0; }
-  #codehead button {
+  #codefoot {
+    display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+    padding: 5px 8px; border-top: 1px solid var(--mk-border);
+    background: var(--mk-gutter);
+  }
+  #codefoot button, #codehead button {
     /* Edit/Copy/etc. measured 2.97:1 on Solarized Light; same floor as .brand */
     margin: 4px 8px; background: transparent; color: color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green));
     border: 1px solid color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green)); border-radius: var(--radius);
     padding: 4px 12px; cursor: pointer; font-size: 12px; font-family: var(--font);
     transition: background 0.15s, color 0.15s;
   }
-  #codehead button::before { content: '$ '; color: var(--mk-comment); }
-  #codehead button:hover { background: var(--mk-green); color: var(--mk-bg); }
-  #codehead button:hover::before { color: var(--mk-bg); }
+  #codefoot button::before, #codehead button::before { content: '$ '; color: var(--mk-comment); }
+  #codefoot button:hover, #codehead button:hover { background: var(--mk-green); color: var(--mk-bg); }
+  #codefoot button:hover::before, #codehead button:hover::before { color: var(--mk-bg); }
 
   /* Structural only: colors come from the generated #themeStyle rules */
   #code {
@@ -1304,10 +1309,6 @@
       <section class="panel" data-panel="code" data-title="Generated C++">
         <div id="codehead">
           <select id="themeSel" title="Syntax highlighting theme"></select>
-          <button id="editCodeBtn" title="Edit the C++ and apply it back to the document">Edit</button>
-          <button id="applyCodeBtn" hidden>Apply</button>
-          <button id="reloadCodeBtn" title="Regenerate from the current document, discarding edits here" hidden>Reload</button>
-          <button id="cancelCodeBtn" hidden>Cancel</button>
           <button id="copyBtn">Copy</button>
         </div>
         <pre id="code"></pre>
@@ -1319,6 +1320,14 @@
         <div id="codeSig" hidden></div>
         <div id="codeLint" hidden></div>
         <div id="codeStatus" role="status" hidden></div>
+        <!-- The edit flow lives at the bottom left, where the eye ends up after
+             reading the code rather than where it started. -->
+        <div id="codefoot">
+          <button id="editCodeBtn" title="Edit the C++ and apply it back to the document">Edit</button>
+          <button id="applyCodeBtn" hidden>Apply</button>
+          <button id="reloadCodeBtn" title="Regenerate from the current document, discarding edits here" hidden>Reload</button>
+          <button id="cancelCodeBtn" hidden>Cancel</button>
+        </div>
       </section>
     </div>
     </div>
@@ -1371,20 +1380,20 @@
     </div>
   </div>
 
-<script src="version.js?v=dd76b29c7f"></script>
+<script src="version.js?v=fc258b35ef"></script>
 <script src="profile-imgui.js?v=8d52591cd8"></script>
 <script src="widgets.js?v=66c62e3d00"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
 <script src="cpp.js?v=7fdfde3a59"></script>
 <script src="codeintel.js?v=1140d40c85"></script>
 <script src="doc.js?v=ec407016d0"></script>
-<script src="canvas.js?v=a0cb5c983c"></script>
+<script src="canvas.js?v=0030cade1e"></script>
 <script src="keys.js?v=0a8eda7da9"></script>
 <script src="generate.js?v=b3750ec656"></script>
 <script src="theme.js?v=cd182fd16a"></script>
 <script src="layout.js?v=c709fffafe"></script>
 <script src="render.js?v=5e79b55e5f"></script>
-<script src="codepane.js?v=45f6669b1d"></script>
+<script src="codepane.js?v=301f2365d8"></script>
 <script src="templates.js?v=c7c8a32efc"></script>
 <script src="settings.js?v=bdbb011190"></script>
 <script src="testhooks.js?v=f55a50626f"></script>

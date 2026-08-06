@@ -81,11 +81,13 @@ const ghost = document.getElementById('ghost');
 // for a mouse click too. Tracked here instead, from the same signal a real
 // browser uses: whatever kind of input happened most recently.
 let lastInputWasPointer = false;
+let windowWasAway = false;
 // pointerdown AND mousedown, and both clear the ring outright rather than only
 // setting the flag. Alt+click was reaching focus with the flag still false and
 // lighting the ring around the whole canvas.
 const sawPointer = () => {
   lastInputWasPointer = true;
+  windowWasAway = false;
   canvasHost.classList.remove('kbd-focus');
 };
 document.addEventListener('pointerdown', sawPointer, true);
@@ -100,10 +102,30 @@ const MODIFIER_KEYS = new Set(['Alt', 'Control', 'Shift', 'Meta', 'AltGraph', 'C
 document.addEventListener('keydown', e => {
   if (MODIFIER_KEYS.has(e.key)) return;
   lastInputWasPointer = false;
+  // Typed while the window is focused, so whatever debt an earlier window
+  // switch left is settled: a deliberate Tab onto the canvas still rings.
+  windowWasAway = false;
 }, true);
+// Alt+Tab is the case the modifier exemption above does NOT cover, and it is
+// the one people actually hit. Switching windows types Alt (exempt) and then
+// Tab (not exempt, because Tab really is keyboard navigation inside a page),
+// so the flag flips; the whole window then blurs and, on the way back, the
+// canvas re-focuses with no pointer event in between and the ring lights up.
+// A focus that arrives because the WINDOW came back is not navigation within
+// the page, whatever was typed to get there, so it is suppressed once.
+window.addEventListener('blur', () => { windowWasAway = true; });
 canvas.addEventListener('focus', () => {
+  if (windowWasAway) {
+    windowWasAway = false;
+    canvasHost.classList.remove('kbd-focus');
+    return;
+  }
   canvasHost.classList.toggle('kbd-focus', !lastInputWasPointer);
 });
+// Cleared by a real interaction rather than by the window's own focus event,
+// which races the element focus it is supposed to precede. A keypress while
+// the window IS focused clears it (see the keydown handler above), and so does
+// any pointer press, so a genuine Tab-to-canvas after returning still rings.
 canvas.addEventListener('blur', () => canvasHost.classList.remove('kbd-focus'));
 
 // Panning is a transform on #viewport, and every coordinate below is read from
@@ -1052,12 +1074,23 @@ document.addEventListener('mousemove', e => {
     // out the edge crawled behind the cursor, zoomed in it raced ahead.
     const dx = (e.clientX - resizing.startX) / zoom;
     const dy = (e.clientY - resizing.startY) / zoom;
+    // Shift snaps to the same grid the canvas draws. This lived only in the
+    // uppercase branches below, which are the LEFT and TOP edges, so holding
+    // Shift while dragging any of the ordinary right, bottom or corner grips
+    // did nothing at all -- and those are the grips people actually use. The
+    // moving edge is the far one here, so it is the SIZE that lands on the
+    // grid, which keeps the anchored edge exactly where the user left it.
+    const snap = v => Math.round(v / GRID_MINOR) * GRID_MINOR;
     if (resizing.axis.includes('w')) {
       // whichever key this widget spells its width with
-      node[resizing.wkey] = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
+      let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
+      if (e.shiftKey) w = Math.max(MIN_DRAG_SIZE, snap(w));
+      node[resizing.wkey] = w;
     }
     if (resizing.axis.includes('h')) {
-      node.h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
+      let h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
+      if (e.shiftKey) h = Math.max(MIN_DRAG_SIZE, snap(h));
+      node.h = h;
     }
     // a left or top edge grows the other way, so the node moves as it sizes
     // A left or top edge grows the other way, so the node moves as it sizes.
@@ -1065,7 +1098,6 @@ document.addEventListener('mousemove', e => {
     // so the edge stops rather than dragging the window off the sheet.
     // Shift snaps to the grid, the same as dragging the window by its title bar.
     // The far edge stays put, so the size takes up whatever the snap moved.
-    const snap = v => Math.round(v / GRID_MINOR) * GRID_MINOR;
     if (resizing.axis.includes('W')) {
       let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 - dx));
       let x = Math.round(resizing.x0 + (resizing.w0 - w));

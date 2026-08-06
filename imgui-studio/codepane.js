@@ -27,8 +27,15 @@ const applyBtn = document.getElementById('applyCodeBtn');
 const cancelBtn = document.getElementById('cancelCodeBtn');
 const reloadBtn = document.getElementById('reloadCodeBtn');
 
+let livePreviewTimer = 0;
 function setCodeEditing(on) {
   codeEditing = on;
+  // A pending live-preview parse belongs to the editing session that queued
+  // it. Left running, it fires a quarter of a second after Cancel and applies
+  // the text the user just discarded, or overwrites a canvas edit made in the
+  // meantime. It cost an imgui check a dragged window position before anyone
+  // noticed the timer outliving its editor.
+  if (!on && livePreviewTimer) { clearTimeout(livePreviewTimer); livePreviewTimer = 0; }
   codeEl.hidden = on;
   document.getElementById('codeEditWrap').hidden = !on;
   codeStatus.hidden = !on;
@@ -156,7 +163,40 @@ function paintCodeEditor() {
   codeEditHl.scrollLeft = codeEdit.scrollLeft;
 }
 
-codeEdit.addEventListener('input', () => { paintCodeEditor(); scheduleCodeIntel(); });
+// Live preview while typing. Only a CLEAN parse touches the document, so a
+// half-typed line leaves the last good preview standing instead of blanking
+// the canvas, which is the same promise Apply makes on a parse failure.
+//
+// Deliberately NOT refresh(): that regenerates the pane, marks the editor
+// stale against its own snapshot, saves, and pushes an undo entry, none of
+// which belong to a keystroke. This updates the tree and the engine and
+// nothing else, so Apply remains the commit and undo still steps by edit
+// rather than by character.
+function scheduleLivePreview() {
+  if (!PROFILE.parser) return;
+  if (livePreviewTimer) clearTimeout(livePreviewTimer);
+  livePreviewTimer = setTimeout(() => {
+    livePreviewTimer = 0;
+    if (!codeEditing) return;
+    let result;
+    try { result = PROFILE.parser(codeEdit.value, nextId); } catch (err) { return; }
+    if (!result || !Array.isArray(result.windows) || !result.windows.length) return;
+    const ids = new Set(['root']);
+    const cleaned = sanitize(result.windows, ids, true);
+    if (!cleaned.length) return;
+    nextId = Math.max(nextId, result.nextId);
+    doc.children = cleaned;
+    if (result.pre) doc.pre = result.pre; else delete doc.pre;
+    if (result.post) doc.post = result.post; else delete doc.post;
+    renderTree();
+    pushDoc();
+  }, 250);
+}
+codeEdit.addEventListener('input', () => {
+  paintCodeEditor();
+  scheduleCodeIntel();
+  scheduleLivePreview();
+});
 codeEdit.addEventListener('scroll', () => {
   codeEditHl.scrollTop = codeEdit.scrollTop;
   codeEditHl.scrollLeft = codeEdit.scrollLeft;

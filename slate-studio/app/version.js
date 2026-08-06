@@ -7,7 +7,7 @@
 //
 // Kept in step with package.json by a gate check on both pages, because two
 // version numbers that can disagree eventually do.
-const STUDIO_VERSION = '0.3.0';
+const STUDIO_VERSION = '0.4.0';
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { STUDIO_VERSION };
