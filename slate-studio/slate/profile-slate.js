@@ -227,6 +227,13 @@ const PROFILE = {
   // ../slate-studio/ hop lands on the copy the bundle ships at its root.
   tutorialUrl: '../slate-studio/tutorial.html',
 
+  // Help > the framework's own reference. Without this the shell falls back to
+  // the imgui manual, which is the right link on exactly one of the two pages.
+  manual: {
+    label: 'Slate UI framework guide',
+    url: 'https://dev.epicgames.com/documentation/en-us/unreal-engine/slate-ui-framework-in-unreal-engine',
+  },
+
   // A call, not a reference, matching the imgui profile: the builder returns
   // fresh objects so an applied template cannot mutate the master copies.
   get templates() {

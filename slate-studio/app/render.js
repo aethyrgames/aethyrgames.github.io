@@ -237,7 +237,11 @@ function MENUS() {
       { group: '0', label: 'Tutorial', run: () => openTutorial() },
       { group: '1', label: 'Keyboard shortcuts', key: keyFor('Keyboard shortcuts'), run: () => toggleHelp() },
       { group: '1', label: 'Command palette', key: keyFor('Command palette'), run: () => openCmdk('all') },
-      { group: '2', label: 'Dear ImGui manual', run: () => window.open(IMGUI_MANUAL, '_blank', 'noopener') },
+      // The framework's own reference, whichever framework this page designs
+      // for. Hardcoding imgui's here put "Dear ImGui manual" in the slate
+      // page's Help menu, pointing at the wrong framework entirely.
+      { group: '2', label: (PROFILE.manual && PROFILE.manual.label) || 'Dear ImGui manual',
+        run: () => window.open((PROFILE.manual && PROFILE.manual.url) || IMGUI_MANUAL, '_blank', 'noopener') },
     ],
   };
 }
@@ -371,6 +375,12 @@ const tutorialTopBtn = document.getElementById('tutorialTopBtn');
 if (tutorialTopBtn) {
   tutorialTopBtn.onclick = e => { e.stopPropagation(); closeMenu(); openTutorial(); };
 }
+
+// The version badge beside the brand. Shell code on purpose: both pages are the
+// same application at the same version, and the generated banner reads the same
+// constant, so the number in the header is the number in the pasted code.
+const appVerEl = document.getElementById('appVer');
+if (appVerEl && typeof STUDIO_VERSION !== 'undefined') appVerEl.textContent = `v${STUDIO_VERSION}`;
 document.addEventListener('mousedown', e => {
   if (openMenu && !menuPop.contains(e.target) && !e.target.closest('.menutop')) closeMenu();
 }, true);
@@ -1272,7 +1282,10 @@ function renderProps() {
     // From the same table coerce enforces on load, so the field cannot accept
     // more than survives a reload. It was a flat 200 here against a cap of 12
     // for a unit, and the extra characters silently vanished on the next load.
-    inp.maxLength = TEXT_CAP[type] || 200;
+    // From PROP_KINDS, the same table coerce dispatches through, so the field
+    // cannot accept more than a reload keeps. It was a flat 200 here against a
+    // cap of 12 for a unit, and the extra characters silently vanished.
+    inp.maxLength = kindCap(type);
     inp.value = node[key] ?? '';
     inp.placeholder = (opts && opts.placeholder) || '';
     inp.oninput = () => { node[key] = inp.value; refresh(false, key); };

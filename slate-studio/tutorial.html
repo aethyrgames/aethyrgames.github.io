@@ -239,7 +239,20 @@ void OpenStudioWindows()
 
 <h2 id="templates">Templates Are Worked Examples</h2>
 
-<p>The Templates panel sits at the bottom of the left dock, collapsed until you click its title. It holds five worked examples: a blank window, a login form, a settings panel, an about dialog, and a status card. Each is a small document that already works, so it's a starting point and the reference for its feature at the same time. The login form shows the fill-spacer idiom, the about dialog is mostly slot alignment, and the status card nests Border, Box, and Overlay three deep.</p>
+<p>The Templates panel sits at the bottom of the left dock, collapsed until you click its title. Each template is a small document that already works, so it's a starting point and the reference for its feature at the same time.</p>
+
+<p>Five of them are small enough to read in one sitting. <strong>Blank Window</strong> is the empty start. <strong>Login Form</strong> shows the fill-spacer idiom, <strong>Settings Panel</strong> is sliders and spin boxes over section headers, <strong>About Dialog</strong> is mostly slot alignment, and <strong>Status Card</strong> nests Border, Box, and Overlay three deep.</p>
+
+<p>The other four reproduce surfaces you already know from the editor, which makes them the fastest way to see what a real panel costs in Slate:</p>
+
+<ul>
+  <li><strong>Actor Details</strong> is the Details panel with a Character selected: an Expandable Area per category, a name column against an editor column, and vector editors built from three Numeric Entry Boxes on a row. Two categories start collapsed, which is what <code>InitiallyCollapsed</code> is for.</li>
+  <li><strong>Property Customization</strong> is what an <code>IPropertyTypeCustomization</code> draws: gameplay tag pills in a Wrap Box over a picker tree, and a data table row handle resolving to a preview of the row it names.</li>
+  <li><strong>Blueprint Node Graph</strong> splits My Blueprint from the graph with a Splitter, whose slots take a proportional value instead of the usual fill and align. The nodes are a coloured title bar over a pin body, because that's all a node is once the wires are somebody else's problem.</li>
+  <li><strong>Data Asset</strong> is an asset editor: a Scale Box thumbnail inside a fixed Box, then the categories a details view would build for the UPROPERTYs underneath.</li>
+</ul>
+
+<p>None of them use anything the palette doesn't have, so the C++ each one generates compiles the same way yours does.</p>
 
 <p>Click a name, or its <code>＋</code>, and the template's widgets land in the nearest container of your selection. Drag a row onto the canvas instead to put them where you drop. Right-click a row for the bigger moves: <strong>Apply Here</strong> replaces the current document (it asks first), and <strong>Open as Project</strong> puts the template in a new tab and leaves your document alone.</p>
 

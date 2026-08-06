@@ -9,6 +9,10 @@
 // load order in index.html is the dependency order.
 
 window.__test = {
+  // What validateCatalog found at boot: every prop whose kind this shell
+  // cannot interpret. Both gates assert this is empty, on both pages.
+  profileProblems: () => profileProblems.slice(),
+  propKinds: () => Object.keys(PROP_KINDS),
   rects: () => latestRects,
   doc: () => doc,
   // the widgets of the first window: what "the document" used to mean

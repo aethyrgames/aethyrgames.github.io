@@ -1,4 +1,4 @@
-<!-- GENERATED from app/index.html (e22cffc87a884325) by scripts/gen_slate_page.mjs. Do not edit. -->
+<!-- GENERATED from app/index.html (908e55d932ba1e5b) by scripts/gen_slate_page.mjs. Do not edit. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,6 +82,16 @@
     text-shadow: var(--glow-chroma); white-space: nowrap;
   }
   .brand::before { content: '> '; color: var(--mk-comment); }
+  /* Same 98% mix #modeHint uses: it sits on #apphead's gutter background too,
+     which is the tighter of the two the contrast check measures against. */
+  .ver {
+    color: color-mix(in srgb, var(--mk-fg) 98%, var(--mk-comment));
+    font-size: 11px; margin-left: 6px; white-space: nowrap;
+  }
+  /* Below 900px every remaining header item is a control that has to stay
+     reachable, and the version is the one thing here that is not. Same
+     breakpoint #modeHint drops at, for the same reason. */
+  @media (max-width: 900px) { .ver { display: none; } }
   .tagline { color: var(--mk-comment); font-size: 12px; }
   #apphead .spacer { flex: 1; }
   .sitelink {
@@ -1142,7 +1152,7 @@
 </head>
 <body>
   <div id="apphead">
-    <span class="brand">Slate Studio</span>
+    <span class="brand">Slate Studio</span><span class="ver" id="appVer" title="Studio version"></span>
     <nav id="menubar">
       <button class="menutop" data-menu="file" aria-haspopup="menu" aria-expanded="false">File</button>
       <button class="menutop" data-menu="view" aria-haspopup="menu" aria-expanded="false">View</button>
@@ -1352,28 +1362,29 @@
     </div>
   </div>
 
+<script src="app/version.js?v=fa95fec024"></script>
 <script src="slate/slate-widgets.js?v=e9853e12cf"></script>
 <script src="slate/slate-layout.js?v=cce51f5ae8"></script>
-<script src="slate/slate-generate.js?v=e41878358d"></script>
+<script src="slate/slate-generate.js?v=b52b712418"></script>
 <script src="slate/slate-parse.js?v=f61a95b71e"></script>
-<script src="slate/slate-templates.js?v=b8370978e9"></script>
-<script src="slate/profile-slate.js?v=d1aa9ce07e"></script>
+<script src="slate/slate-templates.js?v=8b1323a225"></script>
+<script src="slate/profile-slate.js?v=12a1ae018c"></script>
 <script src="app/widgets.js?v=66c62e3d00"></script>
 <script src="app/imguidocs.js?v=50da266d44"></script>
 <script src="app/cpp.js?v=7fdfde3a59"></script>
 <script src="app/codeintel.js?v=1140d40c85"></script>
-<script src="app/doc.js?v=27c40fed33"></script>
+<script src="app/doc.js?v=5e8121616d"></script>
 <script src="app/canvas.js?v=d1c556e856"></script>
 <script src="app/keys.js?v=0a8eda7da9"></script>
-<script src="app/generate.js?v=3564689795"></script>
+<script src="app/generate.js?v=b3750ec656"></script>
 <script src="app/theme.js?v=cd182fd16a"></script>
 <script src="app/layout.js?v=55d9721eba"></script>
-<script src="app/render.js?v=a942a0738b"></script>
+<script src="app/render.js?v=5e79b55e5f"></script>
 <script src="app/codepane.js?v=45f6669b1d"></script>
 <script src="app/templates.js?v=c7c8a32efc"></script>
 <script src="app/settings.js?v=bdbb011190"></script>
-<script src="app/testhooks.js?v=8aafbc5f28"></script>
-<script src="app/boot.js?v=385e999cf6"></script>
+<script src="app/testhooks.js?v=fbd34a4497"></script>
+<script src="app/boot.js?v=d62cc67d97"></script>
 <!-- engine.js intentionally absent: the slate engine lands in W3 -->
 </body>
 </html>

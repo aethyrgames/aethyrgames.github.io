@@ -645,44 +645,192 @@ function computeNextId() {
   return m;
 }
 
-// How long each kind of text prop may be. The inspector reads this for its
-// field's maxLength and coerce reads it when a document is loaded, so what you
-// can type is exactly what survives a reload. A unit is a short label like cm
-// or ms that gets concatenated into a printf format and drawn on a slider,
-// which is why it is not free text. longtext is preserved source.
-const TEXT_CAP = { longtext: 20000, text: 200, items: 200, expr: 200, unit: 12 };
+// ---------------------------------------------------------------------------
+// The prop-kind vocabulary
+// ---------------------------------------------------------------------------
+//
+// Every kind the shell understands, what it means, and the value that proves
+// it means it. One table on purpose, and this comment is the reason.
+//
+// Six defects came out of one hole: coerce used to be a chain of ifs ending in
+// `Number(raw)`, so a kind it had no branch for was not rejected, it was
+// silently read as a number. A hex colour or a handler name went to NaN and
+// came back as the catalog default. The wrong value was the DEFAULT, so the
+// document, the preview and the generated code all agreed, the round trip
+// stayed byte-identical, and every check in the repo stayed green while not
+// one colour or handler a slate document set survived a load.
+//
+// The rule that replaces it: a kind exists here or it does not exist. coerce
+// dispatches through this table and has no fallthrough, so a kind with no
+// entry cannot accidentally work -- it is reported at boot by name. Adding a
+// kind means adding its coercion in the same object literal, which is the part
+// that makes the class closed rather than merely emptied.
+//
+// `cap` is the length the inspector's field allows, read from here so what you
+// can type is exactly what survives a reload. `probe` returns a value that is
+// NOT the default, which is what validateCatalog round-trips: a default-valued
+// probe proves nothing, because returning the default is precisely the bug.
+const IDENT_MAX = 64;
+const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const HEX_RE = /^#?([0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?)$/;
+
+// A capped string: text kept as typed, cut to length. A unit is a short label
+// like cm or ms concatenated into a printf format, which is why it is not free
+// text. longtext is preserved source.
+const capped = cap => ({
+  cap,
+  probe: () => 'ZzProbe',
+  coerce: (raw, def) => (typeof raw === 'string' ? raw.slice(0, cap) : def),
+});
+
+const PROP_KINDS = {
+  text: capped(200),
+  longtext: Object.assign(capped(20000), { probe: () => 'Zz\nProbe' }),
+  items: Object.assign(capped(200), { probe: () => 'Zz, Probe' }),
+  expr: capped(200),
+  unit: Object.assign(capped(12), { probe: () => 'zz' }),
+
+  // Honour the default when the value is simply absent. `raw === true` turned
+  // every missing default-true bool into false on sanitize, which the palette
+  // sweep caught as a round trip that gained an .EnableWheel(false) out of
+  // nowhere. imgui never noticed, because its bools all default false.
+  bool: {
+    cap: null,
+    probe: def => !def,
+    coerce: (raw, def) => (typeof raw === 'boolean' ? raw : def === true),
+  },
+
+  // Normalised to lowercase eight digits, because the generator reads the
+  // alpha by offset and the round trip compares text.
+  color: {
+    cap: 9,
+    probe: () => '#123456ff',
+    coerce: (raw, def) => {
+      const m = typeof raw === 'string' && raw.match(HEX_RE);
+      return m ? `#${(m[1].length === 6 ? `${m[1]}ff` : m[1]).toLowerCase()}` : def;
+    },
+  },
+
+  // A handler name becomes a C++ member name in the emitted code, so this
+  // validates rather than caps: a truncated identifier is still an identifier
+  // and would bind to the wrong member.
+  ident: {
+    cap: IDENT_MAX,
+    probe: () => 'ZzProbeHandler',
+    coerce: (raw, def) => (typeof raw === 'string' && raw.length <= IDENT_MAX
+      && IDENT_RE.test(raw) ? raw : def),
+  },
+
+  // Two enum shapes share one coercion: imgui's members are numeric indices,
+  // the slate catalog's are strings ('fill', 'Center', 'int32'). Coercing
+  // numerically alone turned every string member into NaN on every sanitize.
+  // `align` is the same value space drawn as segmented buttons instead of a
+  // dropdown.
+  enum: enumKind(),
+  align: enumKind(),
+
+  int: numberKind(true),
+  float: numberKind(false),
+};
+
+function enumKind() {
+  return {
+    cap: null,
+    probe: (def, opts) => {
+      const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+      return vals.find(v => v !== def);
+    },
+    coerce: (raw, def, opts) => {
+      const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+      if (vals.includes(raw)) return raw;
+      const num = Number(raw);
+      const allowed = vals.map(Number);
+      return Number.isFinite(num) && allowed.includes(num) ? num : def;
+    },
+  };
+}
+
+function numberKind(isInt) {
+  return {
+    cap: null,
+    probe: def => (Number(def) || 0) + (isInt ? 7 : 0.5),
+    coerce: (raw, def) => {
+      const num = Number(raw);
+      if (!Number.isFinite(num)) return def;
+      return isInt ? Math.trunc(num) : num;
+    },
+  };
+}
+
+// Kinds an unknown-kind report has already named, so a catalog with forty
+// colour props does not print forty identical lines.
+const unknownKinds = new Set();
+
+// The inspector's field length for a kind, from the same table coerce reads.
+function kindCap(t) {
+  const k = PROP_KINDS[t];
+  return k && k.cap ? k.cap : 200;
+}
+
+// Every problem validateCatalog found at boot, kept so the gates can assert it
+// is empty on BOTH pages. A console warning alone is a note, and the whole
+// lesson of these six is that a note is not a check.
+let profileProblems = [];
+
+// Walk a catalog and prove the shell can actually interpret it. Three
+// questions, each of which one of the six defects would have failed:
+//   1. is every kind in the vocabulary at all?
+//   2. does an enum carry the options its coercion needs, and is its own
+//      default one of them?
+//   3. does a NON-DEFAULT value of that kind survive coerce unchanged?
+// The third is the one that matters and the one that is easy to get wrong:
+// checking that the default survives passes trivially, because handing back
+// the default is exactly what the broken path did.
+function validateCatalog(catalog) {
+  const out = [];
+  for (const [type, spec] of Object.entries(catalog || {})) {
+    for (const row of (spec && spec.props) || []) {
+      const [key, kind, def, opts] = row;
+      const where = `${type}.${key}`;
+      const k = PROP_KINDS[kind];
+      if (!k) { out.push(`${where}: unknown prop kind "${kind}"`); continue; }
+      if (kind === 'enum' || kind === 'align') {
+        const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+        if (!vals.length) { out.push(`${where}: ${kind} with no options`); continue; }
+        if (!vals.includes(def)) out.push(`${where}: default ${JSON.stringify(def)} is not one of its options`);
+      }
+      const probe = k.probe(def, opts);
+      if (probe === undefined) continue;      // nothing else to offer, e.g. a one-option enum
+      const got = coerce(kind, probe, def, opts);
+      if (got !== probe) {
+        out.push(`${where}: a ${kind} of ${JSON.stringify(probe)} coerces to ${JSON.stringify(got)}`);
+      }
+    }
+  }
+  return out;
+}
 
 // Imported documents are untrusted. Beyond type-checking, an enum has to be
 // checked against its option list: a stray `dir` reaches IM_ASSERT(0) inside
 // ImGui and an out-of-range `n` would emit something like InputInt5.
 function coerce(t, raw, def, opts) {
-  // One table, read by both ends. The inspector's text field used to cap at a
-  // flat 200 while this capped a unit at 12, so a longer unit worked in the
-  // preview and in the generated code right up until the next reload, when
-  // sanitize silently cut it back.
-  if (t in TEXT_CAP) return typeof raw === 'string' ? raw.slice(0, TEXT_CAP[t]) : def;
-  // Honor the default when the value is simply absent: `raw === true` turned
-  // every missing default-true bool (the slate spin box's enableWheel) into
-  // false on sanitize, which the palette sweep caught as a round trip that
-  // gained an .EnableWheel(false) out of nowhere. imgui never noticed
-  // because its bools all default false.
-  if (t === 'bool') return typeof raw === 'boolean' ? raw : def === true;
-  const num = Number(raw);
-  if (t === 'enum' || t === 'align') {
-    // Two enum shapes share this branch: imgui's are numeric indices, the
-    // slate catalog's are strings ('fill', 'Center', 'int32'). The numeric
-    // coercion alone turned every string member into NaN, silently, on every
-    // sanitize: the demo's fill spacer died at LOAD, the generated code
-    // emitted AutoHeight for it, and the round trip stayed byte-identical
-    // because both sides were consistently wrong.
-    const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
-    if (vals.includes(raw)) return raw;
-    const allowed = vals.map(Number);
-    return Number.isFinite(num) && allowed.includes(num) ? num : def;
+  const kind = PROP_KINDS[t];
+  if (!kind) {
+    // No fallthrough. The old chain ended in Number(raw), which is how an
+    // unrecognised kind became a silent numeric coercion for four days.
+    if (!unknownKinds.has(t)) {
+      unknownKinds.add(t);
+      console.error(`coerce: no such prop kind "${t}" — every prop of this kind will hold its default.`);
+    }
+    return def;
   }
-  if (!Number.isFinite(num)) return def;
-  return t === 'int' ? Math.trunc(num) : num;
+  return kind.coerce(raw, def, opts);
 }
+
+// Kept as a name because the inspector and the code pane both read it, and a
+// couple of call sites want the raw table.
+const TEXT_CAP = Object.fromEntries(
+  Object.entries(PROP_KINDS).filter(([, k]) => k.cap).map(([t, k]) => [t, k.cap]));
 
 // Keep only the slots this widget type actually reads, as four finite 0..1
 // floats. Anything else would push a color the engine can't map.

@@ -38,6 +38,18 @@ renderGuides();
 setRulers(lsGet(PROFILE.storagePrefix + '.rulers') !== '0');
 setGrid(lsGet(PROFILE.storagePrefix + '.grid') !== '0');
 
+// Before anything reads the catalog: can this shell actually interpret the
+// profile it was handed? Six defects came from a kind the shell had no branch
+// for, each found by accident days later, because nothing ever asked. Loud on
+// the console for whoever is looking, and kept on profileProblems so both
+// gates can assert it is empty -- a warning nobody reads is a note, and a note
+// is what failed six times.
+profileProblems = validateCatalog(PROFILE.catalog);
+if (profileProblems.length) {
+  console.error(`PROFILE "${PROFILE.id}" declares ${profileProblems.length} prop(s) this shell cannot interpret:`);
+  for (const p of profileProblems) console.error(`  ${p}`);
+}
+
 renderPalette();
 loadProjects();      // adopts the old single-document save on first run
 loadTemplates();
