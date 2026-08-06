@@ -33,10 +33,14 @@ function slateBuiltinTemplates() {
   const val = node => fill(node, 0.58);
   // Name on the left, editor on the right. Every details panel in the editor
   // is this row repeated, which is most of why they all look alike.
-  const row = (label, editor) => n('horizontalbox', { slotPadT: 2 }, [
+  // nameWeight is adjustable because one row does not fit the default split:
+  // three mobility buttons in 0.58 of a 430px panel clipped 'Stationary' to
+  // 'Stationa'. The editor gives that row more room too.
+  const row = (label, editor, nameWeight) => n('horizontalbox', { slotPadT: 2 }, [
     n('textblock', {
       text: label, colorAndOpacity: '#b4b4b4ff',
-      slotSize: 'fill', slotWeight: 0.42, slotVAlign: 'Center',
+      slotSize: 'fill', slotWeight: nameWeight === undefined ? 0.42 : nameWeight,
+      slotVAlign: 'Center',
     }),
     editor,
   ]);
@@ -197,11 +201,11 @@ function slateBuiltinTemplates() {
           row('Location', vec(1240, -880, 92)),
           row('Rotation', vec(0, 180, 0)),
           row('Scale', vec(1, 1, 1)),
-          row('Mobility', val(n('horizontalbox', {}, [
-            fill(n('button', { text: 'Static', padX: 2 })),
-            fill(n('button', { text: 'Stationary', padX: 2, slotPadL: 2 })),
-            fill(n('button', { text: 'Movable', padX: 2, slotPadL: 2 })),
-          ]))),
+          row('Mobility', fill(n('horizontalbox', {}, [
+            fill(n('button', { text: 'Static', padX: 1 })),
+            fill(n('button', { text: 'Stationary', padX: 1, slotPadL: 2 })),
+            fill(n('button', { text: 'Movable', padX: 1, slotPadL: 2 })),
+          ]), 0.74), 0.26),
         ]),
         cat('Character', [
           row('Auto Possess Player', val(n('textcombobox', { items: 'Disabled, Player 0, Player 1' }))),
