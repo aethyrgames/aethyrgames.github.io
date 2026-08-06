@@ -671,7 +671,23 @@ function computeNextId() {
 // NOT the default, which is what validateCatalog round-trips: a default-valued
 // probe proves nothing, because returning the default is precisely the bug.
 const IDENT_MAX = 64;
-const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+// Empty is legal and means "no handler bound", which is what every ident prop
+// in the catalog defaults to and what the emitters test for before writing a
+// binding. Requiring a leading letter unconditionally made every catalog
+// default invalid the moment defaults were checked at all.
+const IDENT_RE = /^([A-Za-z_][A-Za-z0-9_]*)?$/;
+// The fourth column of a catalog row is an option LIST only for the
+// enum-shaped kinds. Everything else uses it for metadata: a placeholder for
+// a text field, a step for a number. Mapping it unconditionally threw
+// "(opts || []).map is not a function" inside boot, which aborted the rest
+// of boot.js and left the imgui page half-built, with an error nobody would
+// connect to a catalog walk.
+const optionValues = opts =>
+  (Array.isArray(opts) ? opts : []).map(o => (Array.isArray(o) ? o[1] : o));
+
+// Never a legal value of any kind, so coercing a default against it reveals
+// whether the default survived on its own merits or only by being the fallback.
+const DEFAULT_SENTINEL = '\u0000not-a-value';
 const HEX_RE = /^#?([0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?)$/;
 
 // A capped string: text kept as typed, cut to length. A unit is a short label
@@ -733,15 +749,21 @@ const PROP_KINDS = {
   float: numberKind(false),
 };
 
+// Options live in the CATALOG ROW, never in the arguments here: this takes
+// none, so enumKind(['Left','Center']) would drop them silently. `needsOptions`
+// is what validateCatalog reads to decide whether a row owes an option list,
+// instead of testing the kind's NAME. Testing the name meant a third
+// enum-shaped kind under any other name skipped the options check, the
+// default-in-options check, and, through an undefined probe, the coercion
+// check as well. That is the recurring defect reproduced inside the guard
+// built to stop it, which is exactly how an adversarial audit found it.
 function enumKind() {
   return {
     cap: null,
-    probe: (def, opts) => {
-      const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
-      return vals.find(v => v !== def);
-    },
+    needsOptions: true,
+    probe: (def, opts) => optionValues(opts).find(v => v !== def),
     coerce: (raw, def, opts) => {
-      const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+      const vals = optionValues(opts);
       if (vals.includes(raw)) return raw;
       const num = Number(raw);
       const allowed = vals.map(Number);
@@ -794,13 +816,34 @@ function validateCatalog(catalog) {
       const where = `${type}.${key}`;
       const k = PROP_KINDS[kind];
       if (!k) { out.push(`${where}: unknown prop kind "${kind}"`); continue; }
-      if (kind === 'enum' || kind === 'align') {
-        const vals = (opts || []).map(o => (Array.isArray(o) ? o[1] : o));
+      // Asked of the KIND, not of its name. Two literals here meant any third
+      // enum-shaped kind was exempt from every question below.
+      const vals = optionValues(opts);
+      if (k.needsOptions) {
         if (!vals.length) { out.push(`${where}: ${kind} with no options`); continue; }
         if (!vals.includes(def)) out.push(`${where}: default ${JSON.stringify(def)} is not one of its options`);
       }
+      // The DECLARED DEFAULT has to be valid for its own kind. Coercing it
+      // against itself proves nothing, because an invalid default is handed
+      // back unchanged: it IS the fallback. Coercing against a sentinel asks
+      // the real question. This is what catches a bool default written 1, a
+      // colour written '#ABC' that silently becomes '#aabbccff' on first load,
+      // and an ident with a space in it.
+      const kept = coerce(kind, def, DEFAULT_SENTINEL, opts);
+      if (kept !== def) {
+        out.push(`${where}: the declared default ${JSON.stringify(def)} is not a valid ${kind} (loads as ${JSON.stringify(kept)})`);
+      }
       const probe = k.probe(def, opts);
-      if (probe === undefined) continue;      // nothing else to offer, e.g. a one-option enum
+      if (probe === undefined) {
+        // "No non-default value exists" is true of a one-option enum and of
+        // nothing else. Treating it as a silent skip is how a kind with a
+        // missing option list slipped past the coercion check too, so the only
+        // unprobeable case that passes quietly is the one that is explicable.
+        if (!(k.needsOptions && vals.length === 1)) {
+          out.push(`${where}: a ${kind} offers no non-default value to probe with`);
+        }
+        continue;
+      }
       const got = coerce(kind, probe, def, opts);
       if (got !== probe) {
         out.push(`${where}: a ${kind} of ${JSON.stringify(probe)} coerces to ${JSON.stringify(got)}`);

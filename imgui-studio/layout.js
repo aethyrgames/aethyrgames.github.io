@@ -572,8 +572,14 @@ function syncCanvasSize() {
   // that the frame on which content first crosses zero can clip by a pixel or two
   // before the next poll. Anything PLACED at a negative position is covered before
   // it is ever drawn, which is what matters.
+  // Panning belongs in this set and was simply never added. Every pan move
+  // recomputes viewLeft/viewTop from `pan`, so the origin walked outward a
+  // quantize step at a time and each step rebuilt the surface, which blinks.
+  // Holding the origin and the size for the duration of the pan means the sheet
+  // grows once instead of at every step. The class is already on the host for
+  // the duration of the gesture, so there is no second flag to keep in sync.
   const gesture = !!(drag || resizing || wasMovingWindow || wasResizingWindow
-    || armedWindowDrag);
+    || armedWindowDrag) || canvasHost.classList.contains('panning');
   // Extra headroom once content is ALREADY in negative space and a gesture is
   // running, which is the only time the sheet has to stay ahead of a moving edge.
   // Applying it to every gesture instead churned the surface during ordinary
@@ -703,8 +709,13 @@ function drawRulers() {
   const W = canvasHost.clientWidth, H = canvasHost.clientHeight;
   for (const { cv, horiz, flip } of RULERS) {
     const len = horiz ? W : H;
-    cv.width = horiz ? len : 20;
-    cv.height = horiz ? 20 : len;
+    // The short axis comes from the element's own content box, not a constant.
+    // The rule is drawn as a CSS border inside a border-box element, so the
+    // content box is one pixel thinner than the 20px track, and a 20px bitmap
+    // squeezed into it scaled the tick labels by 0.95 and blurred them.
+    const thick = Math.max(1, horiz ? cv.clientHeight : cv.clientWidth);
+    cv.width = horiz ? len : thick;
+    cv.height = horiz ? thick : len;
     const g = cv.getContext('2d');
     // read from the theme rather than baking Monokai into the canvas
     const css = getComputedStyle(document.documentElement);

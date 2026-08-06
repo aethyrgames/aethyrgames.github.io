@@ -13,6 +13,13 @@ window.__test = {
   // cannot interpret. Both gates assert this is empty, on both pages.
   profileProblems: () => profileProblems.slice(),
   propKinds: () => Object.keys(PROP_KINDS),
+  // The guard itself, so a check can feed it a catalog built to break it. An
+  // adversarial audit found that validateCatalog asked its enum questions by
+  // KIND NAME, which nothing running could have caught: every shipped catalog
+  // passed. A guard that is only ever run against catalogs known to be good is
+  // not being tested, it is being agreed with.
+  validateCatalog: c => validateCatalog(c),
+  propKindTable: () => PROP_KINDS,
   rects: () => latestRects,
   doc: () => doc,
   // the widgets of the first window: what "the document" used to mean
