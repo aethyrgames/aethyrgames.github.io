@@ -167,7 +167,14 @@ function createSlateParser(catalog) {
       NumPieces: I('pieces'), Radius: F('radius'), ColorAndOpacity: C('colorAndOpacity'),
     },
     border: {
-      BorderImage: () => {},   // fixed brush, carried by the emitter
+      // No longer a fixed brush: a border can name one, and the default is the
+      // one the emitter writes when it is not asked for anything else. Reading
+      // it back is what keeps a blueprint node a blueprint node through the
+      // code pane instead of reverting to a panel rectangle.
+      BorderImage: (n, a) => {
+        const m = /GetBrush\(\s*"([^"]+)"\s*\)/.exec(a);
+        if (m && m[1] !== 'ToolPanel.GroupBorder') n.brush = m[1];
+      },
       BorderBackgroundColor: C('borderBackgroundColor'),
       Padding: (n, a) => {
         const m = marginBox(a);

@@ -12,6 +12,55 @@
 const TEMPLATES_KEY = PROFILE.storagePrefix + '.templates.v1';
 const tn = (type, extra) => Object.assign(makeNode(type), extra || {});
 
+// Templates are filed under a category, the way the palette files widgets. The
+// list was one flat run of everything, which was fine at seven entries and is
+// not at nineteen: the worked examples and the one-of-everything gallery are
+// different things to reach for and they were sitting in the same pile.
+//
+// A category is free text, so you can make one up. These three are the ones the
+// app ships with, and the section order below is the order they appear in.
+const TPL_CAT_EXAMPLES = 'Examples';
+const TPL_CAT_GALLERY = 'Widget gallery';
+const TPL_CAT_YOURS = 'Yours';
+const TPL_CATS = [TPL_CAT_EXAMPLES, TPL_CAT_GALLERY, TPL_CAT_YOURS];
+// Where a template with no category of its own lands. Everything saved before
+// categories existed arrives here, which is right: it was yours.
+const TPL_CAT_DEFAULT = TPL_CAT_YOURS;
+const TPL_CAT_MAX = 40;
+
+// Section collapse state, kept apart from the palette's own so collapsing a
+// widget category does not fold a template one with the same name.
+const TPL_CATS_KEY = 'imguistudio.tplcats';
+let tplCatOpen = lsJson(TPL_CATS_KEY, null) || {};
+function saveTplCats() {
+  lsSet(TPL_CATS_KEY, JSON.stringify(tplCatOpen));
+}
+
+const templateCat = t => {
+  const c = t && typeof t.cat === 'string' ? t.cat.trim().slice(0, TPL_CAT_MAX) : '';
+  return c || TPL_CAT_DEFAULT;
+};
+
+// The shipped three first and in their declared order, then anything a user has
+// invented, alphabetically. A category with nothing in it is not a section.
+function templateCategories() {
+  const live = new Set(templates.map(templateCat));
+  const mine = [...live].filter(c => !TPL_CATS.includes(c)).sort();
+  return TPL_CATS.filter(c => live.has(c)).concat(mine);
+}
+
+// The flat list, grouped. renderTemplates draws this and the reorder drag
+// rewrites `templates` from it, so what the list shows and what the array holds
+// stay the same sequence: a drop index read off the DOM would otherwise land on
+// a different template than the one it was dropped next to.
+function orderedTemplates() {
+  const out = [];
+  for (const c of templateCategories()) {
+    for (const t of templates) { if (templateCat(t) === c) out.push(t); }
+  }
+  return out;
+}
+
 function builtinTemplates() {
   // A builder returns the window's children, or { windows: [...] } when the
   // example is about windows themselves. Every extra feature the tool has should
@@ -22,7 +71,7 @@ function builtinTemplates() {
   const sec = (label, kids) => Object.assign(tn('section', { label }), { children: kids });
   const kids = (node, list) => Object.assign(node, { children: list });
 
-  const defs = [
+  const exampleDefs = [
     ['Blank window', () => []],
 
     // Function containers, units, per-widget width, a color override, a modal
@@ -172,9 +221,173 @@ function builtinTemplates() {
     ]],
   ];
 
-  return defs.map(([name, build]) => {
-    // built from a function so one bad widget type can't take the whole list
-    // down at load time
+  // One template per widget category, and between them they hold one of every
+  // type in the catalog. A unit check asserts exactly that, so a widget added
+  // to WIDGETS without a home here turns the suite red rather than quietly
+  // being the one thing nobody can find an example of.
+  //
+  // These are deliberately plain. An example above is a worked scene with
+  // labels and colors chosen to teach something; these are specimens, at their
+  // catalog defaults, so what you see is what the widget does with nothing
+  // done to it.
+  const galleryDefs = [
+    ['Text', () => [
+      tn('text', { label: 'Plain text' }),
+      tn('textcolored', { label: 'Colored text' }),
+      tn('textdisabled', { label: 'Disabled text' }),
+      tn('textwrapped', { label: 'Wrapped text runs on until it reaches the edge of the window, then continues on the next line.' }),
+      tn('textfmt', { format: 'Formatted: %d of %d', args: 'state.shown, state.total' }),
+      tn('inputint', { label: 'Shown' }),
+      tn('inputint', { label: 'Total' }),
+      tn('labeltext', { label: 'Label text' }),
+      tn('bullettext', { label: 'Bulleted text' }),
+      tn('bullet'),
+      tn('text', { label: 'after a bare bullet', sameline: true }),
+      tn('separatortext', { label: 'Separator with a title' }),
+    ]],
+
+    ['Buttons and toggles', () => [
+      tn('button', { label: 'Button' }),
+      tn('smallbutton', { label: 'Small button', sameline: true }),
+      tn('arrowbutton', { sameline: true }),
+      tn('separator'),
+      tn('checkbox', { label: 'Checkbox' }),
+      tn('radiobutton', { label: 'First', group: 'pick', value: 0 }),
+      tn('radiobutton', { label: 'Second', group: 'pick', value: 1, sameline: true }),
+      tn('separator'),
+      tn('progressbar', { label: 'Progress', fraction: 0.6 }),
+    ]],
+
+    ['Input fields', () => [
+      tn('inputtext', { label: 'Text' }),
+      tn('inputtextwithhint', { label: 'With a hint' }),
+      tn('inputtextmultiline', { label: 'Multiline' }),
+      tn('separator'),
+      tn('inputint', { label: 'Int' }),
+      tn('inputfloat', { label: 'Float' }),
+      tn('inputdouble', { label: 'Double' }),
+    ]],
+
+    ['Sliders', () => [
+      tn('sliderfloat', { label: 'Float', min: 0, max: 1 }),
+      tn('sliderint', { label: 'Int', min: 0, max: 10 }),
+      tn('sliderangle', { label: 'Angle' }),
+      tn('separator'),
+      tn('vsliderfloat', { label: 'V float' }),
+      tn('vsliderint', { label: 'V int', sameline: true }),
+    ]],
+
+    ['Drags', () => [
+      tn('dragfloat', { label: 'Float' }),
+      tn('dragint', { label: 'Int' }),
+      tn('separator'),
+      tn('dragfloatrange2', { label: 'Float range' }),
+      tn('dragintrange2', { label: 'Int range' }),
+    ]],
+
+    ['Color', () => [
+      tn('coloredit', { label: 'Color edit' }),
+      tn('colorbutton', { label: 'Color button' }),
+      tn('separator'),
+      tn('colorpicker', { label: 'Color picker' }),
+    ]],
+
+    ['Choice', () => [
+      tn('combo', { label: 'Combo', items: 'First, Second, Third' }),
+      tn('listbox', { label: 'List box', items: 'First, Second, Third' }),
+      tn('separator'),
+      tn('selectable', { label: 'Selectable' }),
+    ]],
+
+    ['Plots', () => [
+      tn('plotlines', { label: 'Lines' }),
+      tn('plothistogram', { label: 'Histogram' }),
+    ]],
+
+    ['Layout and spacing', () => [
+      tn('text', { label: 'Above a separator' }),
+      tn('separator'),
+      tn('text', { label: 'Below it' }),
+      tn('spacing'),
+      tn('text', { label: 'After a spacing' }),
+      tn('newline'),
+      tn('text', { label: 'After a newline' }),
+      tn('dummy', { w: 60, h: 20 }),
+      tn('text', { label: 'After a dummy of 60 by 20' }),
+      tn('indent'),
+      tn('text', { label: 'Indented' }),
+      tn('unindent'),
+      tn('text', { label: 'Back out again' }),
+      tn('aligntext'),
+      tn('text', { label: 'Aligned to frame padding', sameline: true }),
+      tn('button', { label: 'Beside it', sameline: true }),
+    ]],
+
+    ['Containers', () => [
+      kids(tn('group'), [
+        tn('text', { label: 'A group is one item to SameLine and hover' }),
+        tn('button', { label: 'Inside the group' }),
+      ]),
+      kids(tn('section', { label: 'Helper' }), [
+        tn('text', { label: 'A Function container becomes a function of its own' }),
+      ]),
+      kids(tn('child', { label: 'scroll', h: 70 }), [
+        tn('textwrapped', { label: 'A child region scrolls on its own.' }),
+      ]),
+      kids(tn('treenode', { label: 'Tree node' }), [
+        tn('text', { label: 'Nested under the node' }),
+      ]),
+      kids(tn('collapsingheader', { label: 'Collapsing header' }), [
+        tn('text', { label: 'Nested under the header' }),
+      ]),
+      kids(tn('tabbar', { label: 'Tabs' }), [
+        kids(tn('tabitem', { label: 'First tab' }), [tn('text', { label: 'First page' })]),
+        kids(tn('tabitem', { label: 'Second tab' }), [tn('text', { label: 'Second page' })]),
+      ]),
+      kids(tn('table', { label: 'grid', cols: 2 }), [
+        tn('text', { label: 'Row 1' }), tn('text', { label: 'Cell' }),
+        tn('text', { label: 'Row 2' }), tn('text', { label: 'Cell' }),
+      ]),
+    ]],
+
+    // A menu bar is only legal directly on the window, which is why this one is
+    // a whole window rather than a list of children.
+    ['Menus', () => ({
+      windows: [
+        win('Menus', [
+          kids(tn('menubar'), [
+            kids(tn('menu', { label: 'File' }), [
+              tn('menuitem', { label: 'New', shortcut: 'Ctrl+N' }),
+              tn('menuitem', { label: 'Open', shortcut: 'Ctrl+O' }),
+            ]),
+            kids(tn('menu', { label: 'Edit' }), [
+              tn('menuitem', { label: 'Undo', shortcut: 'Ctrl+Z' }),
+            ]),
+          ]),
+          tn('text', { label: 'The bar sits directly on the window.' }),
+        ]),
+      ],
+    })],
+
+    ['Popups and tooltips', () => [
+      tn('text', { label: 'Hover the button for a tooltip.' }),
+      tn('button', { label: 'Hover me' }),
+      kids(tn('tooltip'), [
+        tn('textwrapped', { label: 'A tooltip attaches to the item before it.' }),
+      ]),
+      tn('separator'),
+      kids(tn('popup', { label: 'Popup' }), [
+        tn('menuitem', { label: 'An item' }),
+      ]),
+      kids(tn('modal', { label: 'Modal' }), [
+        tn('textwrapped', { label: 'A modal takes the keyboard until it is closed.' }),
+      ]),
+    ]],
+  ];
+
+  // built from a function so one bad widget type can't take the whole list
+  // down at load time
+  const make = (defs, cat) => defs.map(([name, build]) => {
     let built = [];
     try { built = build(); } catch (e) { built = []; }
     const windows = Array.isArray(built)
@@ -183,12 +396,17 @@ function builtinTemplates() {
     let i = 0;
     for (const w of windows) w.id = 'tw' + (i++);
     return {
-      id: 'builtin:' + name,
+      // the category is part of the id, so a gallery entry and an example are
+      // free to share a name without sharing a saved order slot
+      id: 'builtin:' + cat + ':' + name,
       name,
+      cat,
       builtin: true,
       doc: { type: 'root', children: windows.length ? windows : [win(name, [])] },
     };
   });
+
+  return make(exampleDefs, TPL_CAT_EXAMPLES).concat(make(galleryDefs, TPL_CAT_GALLERY));
 }
 
 let templates = [];
@@ -199,7 +417,12 @@ let templates = [];
 function saveTemplates() {
   const mine = templates.filter(t => !t.builtin);
   const order = templates.map(t => t.name);
-  lsSet(TEMPLATES_KEY, JSON.stringify({ v: 1, templates: mine, order }));
+  // Categories are replayed by name for the same reason the order is: a builtin
+  // is rebuilt from source on every load, so a builtin you filed somewhere else
+  // would go back to its shipped category on the next reload without this.
+  const cats = {};
+  for (const t of templates) { cats[t.name] = templateCat(t); }
+  lsSet(TEMPLATES_KEY, JSON.stringify({ v: 1, templates: mine, order, cats }));
 }
 
 function loadTemplates() {
@@ -220,6 +443,17 @@ function loadTemplates() {
       .map((t, i) => ({ t, k: rank.has(t.name) ? rank.get(t.name) : order.length + i }))
       .sort((a, b) => a.k - b.k)
       .map(x => x.t);
+  }
+  // Saved categories, replayed the same way. Only over a name that was actually
+  // saved: a builtin added since keeps the category it ships with rather than
+  // falling into "Yours" because the stored map has never heard of it.
+  const cats = (s && s.cats && typeof s.cats === 'object') ? s.cats : null;
+  if (cats) {
+    for (const t of templates) {
+      if (typeof cats[t.name] === 'string' && cats[t.name].trim()) {
+        t.cat = cats[t.name].trim().slice(0, TPL_CAT_MAX);
+      }
+    }
   }
 }
 
@@ -324,7 +558,31 @@ function insertTemplateInHost(t) {
 function renderTemplates() {
   const host = document.getElementById('tpllist');
   host.innerHTML = '';
-  for (const t of templates) {
+  const ordered = orderedTemplates();
+  let cat = null;
+  let open = true;
+  for (const t of ordered) {
+    // A section header every time the category changes. `ordered` is grouped,
+    // so that is once per category rather than once per row.
+    if (templateCat(t) !== cat) {
+      cat = templateCat(t);
+      open = tplCatOpen[cat] !== false;   // sections start open, unlike the palette's
+      // Copies, because `cat` and `open` are reassigned by the next section and
+      // the handler below outlives this iteration. Closing over the loop
+      // variables folds whichever category happens to be last, every time.
+      const mine = cat;
+      const wasOpen = open;
+      const n = ordered.filter(x => templateCat(x) === mine).length;
+      const h = document.createElement('div');
+      h.className = 'cat';
+      h.innerHTML = '<span class="tw"></span><span></span>';
+      h.querySelector('.tw').textContent = open ? '▾' : '▸';
+      h.lastChild.textContent = mine + '  (' + n + ')';
+      h.title = 'Click to fold this category';
+      h.onclick = () => { tplCatOpen[mine] = !wasOpen; saveTplCats(); renderTemplates(); };
+      host.appendChild(h);
+    }
+    if (!open) continue;
     const row = document.createElement('div');
     row.className = 'tplrow';
     const n = document.createElement('span');
@@ -362,14 +620,26 @@ function renderTemplates() {
       };
       row.appendChild(del);
     }
-    row.dataset.index = String(templates.indexOf(t));
-    row.addEventListener('mousedown', e => startTemplateDrag(e, templates.indexOf(t), t));
+    // Indices into the ORDERED list, which is what the reorder drop reads back
+    // off the DOM. `templates.indexOf` was right while the list was flat and is
+    // wrong now: the array is grouped only after a drop rewrites it.
+    row.dataset.index = String(ordered.indexOf(t));
+    row.dataset.cat = templateCat(t);
+    row.addEventListener('mousedown', e => startTemplateDrag(e, ordered.indexOf(t), t));
     row.oncontextmenu = e => {
       e.preventDefault();
+      const others = templateCategories().filter(c => c !== templateCat(t));
       openContextMenu(e, [
         { group: '1', order: 0, label: 'Apply Here', run: () => applyTemplate(t, false) },
         { group: '1', order: 1, label: 'Open as Project', run: () => applyTemplate(t, true) },
         { group: '2', order: 0, label: 'Export Template', run: () => exportTemplates([t]) },
+        // Dragging a row into another section does this too. The menu is here
+        // for the same reason every gesture on this canvas has a keyboard or
+        // menu twin: a drag is not discoverable and cannot be undone halfway.
+        ...others.map((c, i) => ({ group: '3', order: i,
+          label: 'Move to ' + c, run: () => setTemplateCat(t, c) })),
+        { group: '3', order: others.length, label: 'New Category…',
+          run: () => beginTemplateCatEdit(t) },
         t.builtin ? null : { group: '9z', order: 0, label: 'Delete', danger: true,
           run: () => { templates = templates.filter(x => x !== t); saveTemplates(); renderTemplates(); } },
       ]);
@@ -378,13 +648,52 @@ function renderTemplates() {
   }
 }
 
+function setTemplateCat(t, cat) {
+  const name = String(cat || '').trim().slice(0, TPL_CAT_MAX);
+  if (!name || name === templateCat(t)) return;
+  t.cat = name;
+  // A category you just filed something into starts open, or the row appears to
+  // have been deleted.
+  tplCatOpen[name] = true;
+  saveTplCats();
+  saveTemplates();
+  renderTemplates();
+}
+
+// Same shape as renaming a project tab: an input in place of the label, Enter
+// commits, Escape means never mind. Escape clears onblur first, because
+// re-rendering detaches the input and a detached input fires blur.
+function beginTemplateCatEdit(t) {
+  const row = [...document.querySelectorAll('#tpllist .tplrow')]
+    .find(r => r.dataset.index === String(orderedTemplates().indexOf(t)));
+  const label = row && row.querySelector('.tplname');
+  if (!label) return;
+  const input = document.createElement('input');
+  input.className = 'prename';
+  input.value = templateCat(t);
+  input.title = 'Name a category for this template';
+  input.maxLength = TPL_CAT_MAX;
+  const commit = () => setTemplateCat(t, input.value);
+  input.onblur = commit;
+  input.onkeydown = ev => {
+    ev.stopPropagation();
+    if (ev.key === 'Enter') { commit(); }
+    if (ev.key === 'Escape') { input.onblur = null; renderTemplates(); }
+  };
+  row.replaceChild(input, label);
+  input.focus();
+  input.select();
+}
+
 function saveCurrentAsTemplate() {
   const firstWin = doc.children.find(n => n.type === 'window');
   const base = ((firstWin && firstWin.label) || 'Template').trim();
   let name = base;
   let i = 2;
   while (templates.some(t => t.name === name)) name = base + ' ' + (i++);
-  templates.push({ id: 't' + templates.length + '-' + name, name, doc: JSON.parse(JSON.stringify(doc)) });
+  // Filed under Yours, which is where anything you make yourself belongs.
+  templates.push({ id: 't' + templates.length + '-' + name, name, cat: TPL_CAT_YOURS,
+    doc: JSON.parse(JSON.stringify(doc)) });
   saveTemplates();
   renderTemplates();
 }
@@ -402,7 +711,12 @@ function downloadJson(name, data) {
 
 function exportProject() {
   const p = projects.find(x => x.id === activeProject);
-  downloadJson('imguistudio-panel.json', { v: 2, kind: 'project', name: (p && p.name) || '', doc });
+  const out = { v: 2, kind: 'project', name: (p && p.name) || '', doc };
+  // same rule as the share link: carried when it is not the default, so an
+  // older reader still sees a file shaped the way it expects
+  const view = getView();
+  if (!isDefaultView(view)) out.view = view;
+  downloadJson('imguistudio-panel.json', out);
 }
 
 // Templates get their own file kind so importing one can't be mistaken for
@@ -410,7 +724,8 @@ function exportProject() {
 function exportTemplates(list) {
   const mine = (list || templates).filter(t => !t.builtin || list);
   downloadJson('imguistudio-templates.json',
-    { v: 1, kind: 'templates', templates: mine.map(t => ({ name: t.name, doc: t.doc })) });
+    { v: 1, kind: 'templates',
+      templates: mine.map(t => ({ name: t.name, cat: templateCat(t), doc: t.doc })) });
 }
 
 function exportEverything() {
@@ -418,8 +733,15 @@ function exportEverything() {
   downloadJson('imguistudio-everything.json', {
     v: 1,
     kind: 'everything',
-    projects: projects.map(p => ({ name: p.name, doc: p.doc, nextId: p.nextId })),
-    templates: templates.filter(t => !t.builtin).map(t => ({ name: t.name, doc: t.doc })),
+    // snapshotActive above has just put the live canvas position on the active
+    // project, so every entry's view is current
+    projects: projects.map(p => {
+      const e = { name: p.name, doc: p.doc, nextId: p.nextId };
+      if (!isDefaultView(p.view)) e.view = p.view;
+      return e;
+    }),
+    templates: templates.filter(t => !t.builtin)
+      .map(t => ({ name: t.name, cat: templateCat(t), doc: t.doc })),
     layout,
     binds: bindOverrides,
     theme: currentTheme,
@@ -442,7 +764,7 @@ function importPayload(s) {
       let name = t.name || 'Imported';
       let i = 2;
       while (templates.some(x => x.name === name)) name = (t.name || 'Imported') + ' ' + (i++);
-      templates.push({ id: 'ti' + templates.length, name, doc: t.doc });
+      templates.push({ id: 'ti' + templates.length, name, cat: t.cat, doc: t.doc });
     }
     saveTemplates();
     renderTemplates();
@@ -458,9 +780,9 @@ function importPayload(s) {
     if (!projs.length && !tpls.length && !s.binds && !s.layout && !s.theme) {
       throw new Error('that file holds nothing this app can import');
     }
-    for (const p of projs) addProject(p.name, p.doc);
+    for (const p of projs) addProject(p.name, p.doc, p.view);
     for (const t of tpls) {
-      templates.push({ id: 'ti' + templates.length, name: t.name || 'Imported', doc: t.doc });
+      templates.push({ id: 'ti' + templates.length, name: t.name || 'Imported', cat: t.cat, doc: t.doc });
     }
     if (s.binds) {
       bindOverrides = s.binds;
@@ -514,7 +836,7 @@ function importPayload(s) {
   // s.name is the tab name exportProject saves; d.label only exists when the
   // document is a lone window, which is why a project export used to come back
   // as 'Imported' every time
-  addProject(s.name || d.label || 'Imported', d);
+  addProject(s.name || d.label || 'Imported', d, s.view);
   saveProjects();
   return 'opened as a new project';
 }
@@ -591,7 +913,14 @@ async function decodeShare(code) {
 }
 
 async function buildShareLink() {
-  const code = await encodeShare({ v: 1, doc });
+  // The canvas position rides along, because a link is you showing someone what
+  // you were looking at, and a panel out in negative space opens on empty
+  // ground without it. Only when it is not the default: that one is what the
+  // app opens at anyway, and every byte here is a byte of URL.
+  const payload = { v: 1, doc };
+  const view = getView();
+  if (!isDefaultView(view)) payload.view = view;
+  const code = await encodeShare(payload);
   return location.origin + location.pathname + '#d=' + code;
 }
 
@@ -625,7 +954,8 @@ async function loadSharedFromUrl() {
     // A root doc carries no label of its own; its first window usually does,
     // so two different links don't both land as an unlabeled "Shared".
     const firstWin = payload.doc.children && payload.doc.children[0];
-    addProject(payload.doc.label || (firstWin && firstWin.label) || 'Shared', payload.doc);
+    addProject(payload.doc.label || (firstWin && firstWin.label) || 'Shared',
+      payload.doc, payload.view);
     saveProjects();
     // window.history, not the bare name: doc.js's undo ring is also called
     // `history` and, sharing this file's global scope, shadows the browser's.

@@ -145,11 +145,12 @@ function slateBuiltinTemplates() {
   //   node body             sampled from RegularNode_body.png composited over
   //                         the graph background: #121412
   const bpNode = (title, titleColor, icon, kids) => n('border', {
-    borderBackgroundColor: '#121412ff', padL: 0, padT: 0, padR: 0, padB: 0,
-    slotVAlign: 'Top',
+    brush: 'Graph.Node.Body', borderBackgroundColor: '#ffffffff',
+    padL: 0, padT: 0, padR: 0, padB: 0, slotVAlign: 'Top',
   }, [
     n('verticalbox', {}, [
-      n('border', { borderBackgroundColor: titleColor, padL: 10, padT: 5, padR: 30, padB: 3 }, [
+      n('border', { brush: 'Graph.Node.ColorSpill', borderBackgroundColor: titleColor,
+        padL: 10, padT: 5, padR: 30, padB: 3 }, [
         n('horizontalbox', {}, [
           n('image', { brush: icon, sizeX: 16, sizeY: 16, slotVAlign: 'Center' }),
           n('textblock', { text: title, fontSize: 10, slotPadL: 4, slotVAlign: 'Center' }),
@@ -548,7 +549,8 @@ function slateBuiltinTemplates() {
         // Graph/GraphPanel_SolidBackground.PNG, sampled solid (38,38,38)
         // = #262626 (brush at StarshipStyle.cpp:4026).
         Object.assign(n('border', {
-          borderBackgroundColor: '#262626ff', padL: 12, padT: 12, padR: 12, padB: 12,
+          brush: 'Graph.Panel.SolidBackground', borderBackgroundColor: '#ffffffff',
+          padL: 12, padT: 12, padR: 12, padB: 12,
         }, [
           n('verticalbox', {}, [
             n('horizontalbox', {}, [
@@ -561,9 +563,9 @@ function slateBuiltinTemplates() {
               // gives these. The spill's alpha runs 0.66 at the left to 0.01 at
               // the right, which is a gradient a flat SBorder cannot reproduce
               // -- these are the strong end, where the text is.
-              bpNode('Event BeginPlay', '#4d2222ff', 'GraphEditor.Event_16x', [pinExec(true)]),
+              bpNode('Event BeginPlay', '#ff0000ff', 'GraphEditor.Event_16x', [pinExec(true)]),
               wire(),
-              bpNode('Print String', '#2e404dff', 'GraphEditor.Function_16x', [
+              bpNode('Print String', '#79c9ffff', 'GraphEditor.Function_16x', [
                 n('horizontalbox', {}, [
                   fill(n('verticalbox', {}, [
                     pinExec(false),
@@ -574,7 +576,7 @@ function slateBuiltinTemplates() {
                 ]),
               ]),
               wire(),
-              bpNode('Delay', '#2e404dff', 'GraphEditor.Timeline_16x', [
+              bpNode('Delay', '#79c9ffff', 'GraphEditor.Timeline_16x', [
                 n('horizontalbox', {}, [
                   fill(n('verticalbox', {}, [pinExec(false), pinIn('Duration')])),
                   n('verticalbox', { slotPadL: 24 }, [pinOut('Completed')]),

@@ -11,6 +11,14 @@ repository LICENSE.
 
 The engine module is compiled from Unreal Engine 5.8 source code and includes
 Unreal Engine content (Slate brushes, icons and shaders in the `.data` file).
+
+That content now also includes eleven files of EDITOR art, staged by name rather
+than by folder so the list is auditable: the blueprint node body, its colour
+spill, gloss, title highlight and two shadows, the connected and disconnected
+data pin sprites, the graph background tile, and the two exec pin sprites. They
+are listed in `slate-wasm/stage-content.mjs` under EDITOR_ART and measured in
+`docs/research/EDITOR-FIDELITY.md`. They are what makes the Blueprint template
+draw the editor's own node instead of an approximation of one.
 Unreal(R) Engine, (c) Epic Games, Inc. All rights reserved. Unreal and its logo
 are Epic's trademarks or registered trademarks in the US and elsewhere.
 

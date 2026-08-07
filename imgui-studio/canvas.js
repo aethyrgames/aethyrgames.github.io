@@ -78,55 +78,61 @@ const ghost = document.getElementById('ghost');
 // has to be added back by hand. `:focus-visible` alone was tried first, but
 // Chrome does not apply its own click-vs-keyboard heuristic to a bare
 // tabindexed <canvas> the way it does to form controls: the ring showed up
-// for a mouse click too. Tracked here instead, from the same signal a real
-// browser uses: whatever kind of input happened most recently.
-let lastInputWasPointer = false;
-let windowWasAway = false;
-// pointerdown AND mousedown, and both clear the ring outright rather than only
-// setting the flag. Alt+click was reaching focus with the flag still false and
-// lighting the ring around the whole canvas.
-const sawPointer = () => {
-  lastInputWasPointer = true;
-  windowWasAway = false;
-  canvasHost.classList.remove('kbd-focus');
-};
-document.addEventListener('pointerdown', sawPointer, true);
-document.addEventListener('mousedown', sawPointer, true);
-// A bare modifier is not keyboard NAVIGATION. Holding Alt, Ctrl, Shift or Meta
-// before a click used to count as keyboard input, so the click that followed
-// was treated as a keyboard focus arrival and drew the ring. This is the same
-// exception Chrome's own :focus-visible heuristic makes, and it is the whole
-// bug: the modifier is pressed on the way to a mouse gesture, not instead of
-// one. Ctrl+Alt+click is this app's pan gesture, so it hit the common case.
-const MODIFIER_KEYS = new Set(['Alt', 'Control', 'Shift', 'Meta', 'AltGraph', 'CapsLock']);
-document.addEventListener('keydown', e => {
-  if (MODIFIER_KEYS.has(e.key)) return;
-  lastInputWasPointer = false;
-  // Typed while the window is focused, so whatever debt an earlier window
-  // switch left is settled: a deliberate Tab onto the canvas still rings.
-  windowWasAway = false;
+// for a mouse click too.
+//
+// The signal is "did the keyboard NAVIGATE here", not "was the last input a
+// key". Those two agree on a click and on a Tab, and disagree everywhere the
+// app hands focus back to the canvas ITSELF: endInlineEdit after a rename,
+// restorePreOverlayFocus after an overlay closes. Each is a programmatic
+// focus() one keystroke after a keydown, and reading that keydown drew a ring
+// on a canvas the user had reached by double-clicking. That shipped twice, as
+// an Alt+Tab and then as a rename, which is what a rule this indirect earns.
+//
+// So only a Tab arms it, and every other keydown and every pointerdown clears
+// it. Nothing needs to spend it on arrival: each of the app's own focus() calls
+// sits behind an Escape, an Enter, an F2 or a click, so the flag is already
+// false by the time the focus event lands.
+//
+// On WINDOW, not document, and this file is loaded before keys.js on purpose.
+// keys.js hands Tab to whatever control has focus by calling
+// stopImmediatePropagation from its own window-capture listener, and that stops
+// document-level capture listeners dead. Sitting on document, this never saw
+// the one key it cares about. The first version of this check pressed Shift
+// instead of Tab, which nothing swallows, so it passed while Tab was invisible.
+let focusFromTab = false;
+window.addEventListener('pointerdown', () => {
+  focusFromTab = false;
+  windowReturning = false;
 }, true);
-// Alt+Tab is the case the modifier exemption above does NOT cover, and it is
-// the one people actually hit. Switching windows types Alt (exempt) and then
-// Tab (not exempt, because Tab really is keyboard navigation inside a page),
-// so the flag flips; the whole window then blurs and, on the way back, the
-// canvas re-focuses with no pointer event in between and the ring lights up.
-// A focus that arrives because the WINDOW came back is not navigation within
-// the page, whatever was typed to get there, so it is suppressed once.
-window.addEventListener('blur', () => { windowWasAway = true; });
+window.addEventListener('keydown', e => {
+  focusFromTab = e.key === 'Tab';
+  windowReturning = false;
+}, true);
+
+// Alt+Tab away and back and the canvas fires `focus` again with no new input
+// behind it, because the browser re-focuses whatever was already the active
+// element when the window comes back.
+//
+// A focus arriving that way carries no modality signal at all, so the ring is
+// left exactly as the user last earned it rather than recomputed. This still
+// matters under the Tab rule above, and in the opposite direction to the bug
+// that prompted it: without it, a ring earned by tabbing in would be cleared by
+// a trip to another application and back.
+let windowReturning = false;
+window.addEventListener('blur', () => { windowReturning = true; });
 canvas.addEventListener('focus', () => {
-  if (windowWasAway) {
-    windowWasAway = false;
-    canvasHost.classList.remove('kbd-focus');
-    return;
-  }
-  canvasHost.classList.toggle('kbd-focus', !lastInputWasPointer);
+  if (windowReturning) { windowReturning = false; return; }
+  canvasHost.classList.toggle('kbd-focus', focusFromTab);
 });
-// Cleared by a real interaction rather than by the window's own focus event,
-// which races the element focus it is supposed to precede. A keypress while
-// the window IS focused clears it (see the keydown handler above), and so does
-// any pointer press, so a genuine Tab-to-canvas after returning still rings.
-canvas.addEventListener('blur', () => canvasHost.classList.remove('kbd-focus'));
+canvas.addEventListener('blur', () => {
+  // An application switch blurs the element too, and the element's blur and the
+  // window's arrive in either order depending on the browser, so both signals
+  // are read: the flag when the window went first, hasFocus() when the element
+  // did. Either way the ring is left as it is, because the user is coming back
+  // to this canvas and did not leave it.
+  if (windowReturning || !document.hasFocus()) { windowReturning = true; return; }
+  canvasHost.classList.remove('kbd-focus');
+});
 
 // Panning is a transform on #viewport, and every coordinate below is read from
 // the canvas's own client rect, so nothing else has to account for it.
@@ -154,8 +160,11 @@ let sentOrigin = { x: 0, y: 0 };
 let zoom = 1;
 // assigned once the header control exists. applyView runs before that during init
 let zoomLabel = null;
-const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 4;
+// The same two numbers sanitizeView clamps a restored view to (widgets.js).
+// Aliased rather than repeated: a project reopened at a zoom the ladder here
+// refuses would be a view the user could see but not step out of.
+const ZOOM_MIN = VIEW_ZOOM_MIN;
+const ZOOM_MAX = VIEW_ZOOM_MAX;
 const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
 const GRID_MINOR = 20;
 const GRID_MAJOR = 100;
@@ -185,36 +194,9 @@ function applyView() {
   drawRulers();
   renderGuides();
   syncCanvasSize();
-  saveView();
-}
-
-// Where you were looking, kept across reloads. The view was the one piece of
-// workspace state that was never persisted: panels, guides, grid, rulers,
-// theme, hotbar and the document all came back, and the canvas snapped to the
-// origin at 100%. Nobody noticed on the slate page for a while because F5 did
-// not reach the browser there at all.
-//
-// Debounced, because applyView runs on every mousemove of a pan.
-const VIEW_KEY = PROFILE.storagePrefix + '.view.v1';
-let viewSaveTimer = 0;
-function saveView() {
-  if (viewSaveTimer) return;
-  viewSaveTimer = setTimeout(() => {
-    viewSaveTimer = 0;
-    lsSet(VIEW_KEY, JSON.stringify({ x: Math.round(pan.x), y: Math.round(pan.y), z: zoom }));
-  }, 400);
-}
-
-// Clamped on the way in: a stored zoom outside the app's own limits, or a NaN
-// from a hand-edited value, would otherwise put the canvas somewhere with no
-// way back except clearing storage.
-function restoreView() {
-  const v = lsJson(VIEW_KEY, null);
-  if (!v) return;
-  const z = Number(v.z);
-  if (Number.isFinite(z)) zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
-  if (Number.isFinite(Number(v.x))) pan.x = Number(v.x);
-  if (Number.isFinite(Number(v.y))) pan.y = Number(v.y);
+  // every pan, zoom and reset ends up here, so this is the one place the view
+  // has to be written down from
+  scheduleViewSave();
 }
 
 // The transform on its own. syncCanvasSize needs it when the origin moves, and
@@ -318,10 +300,59 @@ function focusSelection() {
 }
 
 function resetPan() {
-  pan = { x: 0, y: 0 };
-  zoom = 1;
+  pan = { x: DEFAULT_VIEW.x, y: DEFAULT_VIEW.y };
+  zoom = DEFAULT_VIEW.zoom;
   applyView();
 }
+
+// ---- the view belongs to the project ---------------------------------------
+// Pan and zoom used to live only in this file, so a reload put you back at the
+// origin at 100% however far you had scrolled, and switching project tabs threw
+// the position away on purpose. doc.js keeps what getView returns on the
+// project record and hands it back through setView. These two calls are the
+// whole seam between the canvas and the store.
+
+function getView() {
+  return { x: pan.x, y: pan.y, zoom };
+}
+
+function setView(v) {
+  const s = sanitizeView(v);
+  pan = { x: s.x, y: s.y };
+  zoom = s.zoom;
+  applyView();
+}
+
+// A pan is a stream of mousemoves and saveProjects serializes every open
+// document, so the write is debounced rather than run per frame.
+//
+// Belt to a pair of braces, and knowingly so: refresh() reaches saveProjects on
+// its own often enough that a pan is usually on disk without this. Measured,
+// not assumed -- removing this call and running the whole browser suite changed
+// nothing. It stays because "the view is saved when it changes" should not be a
+// side effect of some unrelated path happening to run, and because the one case
+// it does own (pan, then reload before anything else touches the document) is
+// exactly the gesture this feature exists for.
+let viewSaveTimer = null;
+
+function scheduleViewSave() {
+  // Nothing to hang a view on until loadProjects has run, and a save this early
+  // would write activeProject: null over the stored one, which is how a reload
+  // would come back on the wrong project tab.
+  if (typeof saveProjects !== 'function' || !activeProject) return;
+  clearTimeout(viewSaveTimer);
+  viewSaveTimer = setTimeout(flushViewSave, 300);
+}
+
+// The gesture this whole seam exists for is usually followed by the very reload
+// that would lose the last 300ms of it, so the page leaving flushes the timer
+// rather than dropping it.
+function flushViewSave() {
+  clearTimeout(viewSaveTimer);
+  viewSaveTimer = null;
+  if (typeof saveProjects === 'function' && activeProject) saveProjects();
+}
+window.addEventListener('pagehide', flushViewSave);
 
 // The footer used to repeat the engine state, which never changes after load.
 // It now reads out whatever is under the cursor, which is the thing you
@@ -483,7 +514,7 @@ function pollEngine() {
     latestRects = [];
   }
   adoptDraggedWindowPos();
-  adoptResizedWindowSize();
+  trackResizingWindow();
   updateSelectionOverlay();
 }
 
@@ -548,45 +579,55 @@ function adoptDraggedWindowPos() {
   else refresh();
 }
 
-// The same problem as adoptDraggedWindowPos, for the other gesture. Dragging a
-// window's own grip or border resizes it in the preview, and nothing told the
-// document: the inspector kept reading the old size, the generated
-// SetNextWindowSize kept emitting it, and the size vanished on the next reload
-// or the moment any size field was touched.
+// The size counterpart to adoptDraggedWindowPos is a tracker now, not an adopt.
 //
-// Only windows the document has already given an explicit size are adopted. A
-// window sized 0 is auto-sized, so its published size is ImGui's choice rather
-// than the user's, and writing that back would silently convert it into a fixed
-// one on the first frame it was ever drawn.
+// It used to write the published size back into the document. That worked for
+// the corner of an explicitly sized window and for nothing else: an auto-sized
+// window was skipped by design (its published size is ImGui's choice, not the
+// user's, and adopting it would silently freeze it), and a LEFT or TOP edge
+// drag moves the window as it resizes, which this never adopted, so the window
+// jumped back to its document position the next time anything re-placed it.
+// That is the "it doesn't track the new size" this replaces.
+//
+// So the grip is off in edit mode (engine/main.cpp adds NoResize while
+// g_EditMode) and the selection handles are the one way to size a window while
+// editing, which they do by writing the document directly. In interactive mode
+// the grip is live and deliberately NOT adopted: what you stretch in there is
+// The size counterpart to adoptDraggedWindowPos is a tracker now, not an adopt.
+//
+// It used to write the published size back into the document. That worked for
+// the corner of an explicitly sized window and for nothing else: an auto-sized
+// window was skipped by design (its published size is ImGui's choice, not the
+// user's, and adopting it would silently freeze it), and a LEFT or TOP edge
+// drag moves the window as it resizes, which this never adopted, so the window
+// jumped back to its document position the next time anything re-placed it.
+// That is the "it doesn't track the new size" this replaces.
+//
+// So the grip is off in edit mode (engine/main.cpp adds NoResize while
+// g_EditMode) and the selection handles are the one way to size a window while
+// editing, which they do by writing the document directly. In interactive mode
+// the grip is live and deliberately NOT adopted: what you stretch in there is
+// something you are trying out, and engine_set_edit_mode puts the size back on
+// the way out.
+//
+// The flag stays because the SHEET still needs it. A window growing under a
+// live grip can outrun a surface that only grows after the fact, so layout.js
+// keeps a margin of headroom in hand while the gesture runs.
 let wasResizingWindow = false;
-function adoptResizedWindowSize() {
-  let resizingWin = false;
+function trackResizingWindow() {
+  // Through the PROFILE seam rather than Module.ccall, because the slate page
+  // runs this same file against a different engine.
+  //
+  // The flag is all this sets. An earlier version of this branch also wrote the
+  // dragged size back into the document every frame, which made an interactive
+  // resize permanent and contradicted the contract the suite holds: leaving
+  // interactive mode puts the window back to what the document says. That
+  // writeback had no test of its own and arrived through a refactor commit,
+  // while the comment directly above it -- which it did not update -- already
+  // described the flag as the only thing left here.
   try {
-    resizingWin = PROFILE.engine.call('engine_resizing_window', 'number', [], []) === 1;
-  } catch (e) { return; }
-  if (!resizingWin && !wasResizingWindow) return;
-  let changed = false;
-  for (const win of doc.children) {
-    if (win.type !== 'window') continue;
-    if (!(Number(win.w) > 0) || !(Number(win.h) > 0)) continue;   // auto-sized
-    const r = latestRects.find(x => x.id === win.id && x.window);
-    if (!r || (r.w === 0 && r.h === 0)) continue;                 // hidden
-    const w = Math.round(r.w), h = Math.round(r.h);
-    if (w === Math.round(win.w) && h === Math.round(win.h)) continue;
-    win.w = w;
-    win.h = h;
-    changed = true;
-  }
-  if (resizingWin) {
-    wasResizingWindow = true;
-    // Pushed every frame so the engine's copy keeps up, exactly as the move
-    // path does. It cannot fight the drag: the size sent is the one ImGui just
-    // produced, so the re-apply is a no-op.
-    if (changed) { pushDoc(); syncCanvasSize(); renderProps(); }
-    return;
-  }
-  wasResizingWindow = false;
-  if (changed) { pushHistory(); refresh(); }
+    wasResizingWindow = PROFILE.engine.call('engine_resizing_window', 'number', [], []) === 1;
+  } catch (e) { wasResizingWindow = false; }
 }
 
 function tick() {
@@ -763,6 +804,13 @@ for (const h of selbox.querySelectorAll('.rh')) {
       x0: Number(node.x) || 0,
       y0: Number(node.y) || 0,
       h0: Number(node.h) || (r ? Math.round(r.h) : 0),
+      // Where the far edge sits in WORLD terms, which is what a Shift-snap on
+      // the right or bottom edge has to land on the grid. A window has its own
+      // x and y, a widget in a flow layout does not: its position is whatever
+      // the layout gave it, so it comes off the published rect. Captured once
+      // at drag start for the same reason w0 is, since the row reflows.
+      left0: r ? r.x : (Number(node.x) || 0),
+      top0: r ? r.y : (Number(node.y) || 0),
     };
   });
 }
@@ -1104,22 +1152,34 @@ document.addEventListener('mousemove', e => {
     // out the edge crawled behind the cursor, zoomed in it raced ahead.
     const dx = (e.clientX - resizing.startX) / zoom;
     const dy = (e.clientY - resizing.startY) / zoom;
-    // Shift snaps to the same grid the canvas draws. This lived only in the
-    // uppercase branches below, which are the LEFT and TOP edges, so holding
-    // Shift while dragging any of the ordinary right, bottom or corner grips
-    // did nothing at all -- and those are the grips people actually use. The
-    // moving edge is the far one here, so it is the SIZE that lands on the
-    // grid, which keeps the anchored edge exactly where the user left it.
-    const snap = v => Math.round(v / GRID_MINOR) * GRID_MINOR;
+    // Shift lands the edge you are DRAGGING on the grid you can see, which is
+    // what it already meant on the left and top edges below and what it means
+    // on a window title-bar drag. Only those two branches had it, and they are
+    // the two a plain widget never gets: its selection box carries a right
+    // edge, a bottom edge and the corner between them, so holding Shift while
+    // resizing a widget did nothing at all.
+    //
+    // The size takes up the difference, since the near edge is not moving.
+    const snapFar = (near, size) => {
+      let s = Math.round((near + size) / GRID_MINOR) * GRID_MINOR - near;
+      // A snap that lands under the floor goes to the next line up rather than
+      // being clamped back off the grid.
+      while (s < MIN_DRAG_SIZE) { s += GRID_MINOR; }
+      // Rounded, because a widget's near edge comes from the engine and can sit
+      // on a fraction. The field is what the generated C++ carries, and a width
+      // of 137.4062 there to put an edge a rounding error closer to a grid line
+      // is a bad trade.
+      return Math.round(s);
+    };
     if (resizing.axis.includes('w')) {
       // whichever key this widget spells its width with
       let w = Math.max(MIN_DRAG_SIZE, Math.round(resizing.w0 + dx));
-      if (e.shiftKey) w = Math.max(MIN_DRAG_SIZE, snap(w));
+      if (e.shiftKey) { w = snapFar(resizing.left0, w); }
       node[resizing.wkey] = w;
     }
     if (resizing.axis.includes('h')) {
       let h = Math.max(MIN_DRAG_SIZE, Math.round(resizing.h0 + dy));
-      if (e.shiftKey) h = Math.max(MIN_DRAG_SIZE, snap(h));
+      if (e.shiftKey) { h = snapFar(resizing.top0, h); }
       node.h = h;
     }
     // a left or top edge grows the other way, so the node moves as it sizes

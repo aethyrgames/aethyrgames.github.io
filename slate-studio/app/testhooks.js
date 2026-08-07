@@ -55,6 +55,7 @@ window.__test = {
   canvasSize: () => ({ w: canvas.width, h: canvas.height }),
   inlineEditing: () => inlineId !== null,
   ctxOpen: () => document.getElementById('ctxmenu').style.display === 'block',
+  closeCtx: () => closeContextMenu(),
   handlePos: axis => {
     const h = document.querySelector('#selbox .rh-' + axis)
       || document.querySelector('#selbox .rh[data-axis="' + axis + '"]');
@@ -154,6 +155,10 @@ window.__test = {
     }
   },
   saveTemplate: () => saveCurrentAsTemplate(),
+  // what each template is filed under, and the section order the panel draws
+  templateCats: () => templates.map(t => ({ name: t.name, cat: templateCat(t) })),
+  templateCatOrder: () => templateCategories(),
+  setTemplateCat: (name, cat) => setTemplateCat(templates.find(t => t.name === name), cat),
   // the path the UI uses: into the nearest container of the selection
   insertTemplate: name => insertTemplateInHost(
     templates.find(t => t.name.toLowerCase() === String(name).toLowerCase())),
@@ -281,9 +286,18 @@ window.__test = {
   zoomStep: d => zoomStep(d),
   zoomFit: () => zoomToFit(),
   pan: () => ({ ...pan }),
+  // pan and zoom as one value, which is the shape that rides on the project,
+  // the share link and both export files
+  view: () => getView(),
+  setView: v => setView(v),
+  // which row the keyboard would run, or -1 for none. The class on the row is
+  // what you can see; this is what the app believes, and a check wants both.
+  menuSelIndex: () => menuSel,
   // a screen point in world coordinates, the conversion every gesture uses
   pointAt: (x, y) => canvasPoint({ clientX: x, clientY: y }),
   gridOn: () => showGrid,
+  // the step Shift snaps to, from the app rather than typed into a check twice
+  gridStep: () => GRID_MINOR,
   rulersOn: () => showRulers,
   menu: name => renderMenu(name),
   closeMenu: () => closeMenu(),

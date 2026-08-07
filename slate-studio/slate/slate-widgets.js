@@ -368,11 +368,17 @@ const SLATE_WIDGETS = {
     container: true, single: true,
     props: [
       ['borderBackgroundColor', 'color', '#3a3a3aff'],
+      // A named style brush instead of the default panel one. This is how a
+      // border becomes a blueprint node body rather than a rectangle: the
+      // editor's art is nine-sliced, so the corner stays a corner however the
+      // border is stretched. Empty means ToolPanel.GroupBorder, as before.
+      ['brush', 'text', ''],
       // The engine default is FMargin(2.0f). Emitting nothing still insets by 2.
       ['padL', 'float', 2], ['padT', 'float', 2], ['padR', 'float', 2], ['padB', 'float', 2],
     ],
     emit(n, ctx) {
-      const out = [`.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))`];
+      const out = [`.BorderImage(FAppStyle::Get().GetBrush("${
+        n.props.brush || 'ToolPanel.GroupBorder'}"))`];
       if (n.props.borderBackgroundColor !== '#3a3a3aff') {
         out.push(`.BorderBackgroundColor(${ctx.color(n.props.borderBackgroundColor)})`);
       }
