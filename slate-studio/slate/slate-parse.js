@@ -221,6 +221,13 @@ function createSlateParser(catalog) {
     expandablearea: {
       AreaTitle: T('areaTitle'),
       InitiallyCollapsed: B('initiallyCollapsed'),
+      BorderBackgroundColor: C('headerColor'),
+      BodyBorderBackgroundColor: C('bodyColor'),
+      AreaTitleFont: (n, a) => {
+        // .AreaTitleFont(FCoreStyle::GetDefaultFontStyle("Bold", 8))
+        const m = /"(\w+)"\s*,\s*([\d.]+)/.exec(a);
+        if (m) { n.titleBold = m[1] === 'Bold'; n.titleFontSize = Math.round(Number(m[2])); }
+      },
       // the named slot: the method itself is a no-op, the bracket after it
       // is the single child the container branch already handles
       BodyContent: () => {},

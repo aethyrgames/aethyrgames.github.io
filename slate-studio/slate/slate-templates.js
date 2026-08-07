@@ -53,9 +53,18 @@ function slateBuiltinTemplates() {
     editor,
   ]);
   // A collapsible category over a stack of rows.
-  const cat = (title, kids, collapsed) => n('expandablearea',
-    { areaTitle: title, initiallyCollapsed: !!collapsed, slotPadT: 4 },
-    [n('verticalbox', {}, kids)]);
+  //
+  // MEASURED: a top-level category header is FLAT FStyleColors::Header #2F2F2F,
+  // not a gradient -- "DetailsView.CategoryTop" is a plain FSlateColorBrush
+  // (StarshipStyle.cpp:3723) and GetBackgroundImageForCategoryRow returns it
+  // regardless of hover (DetailsViewStyle.cpp:269-281). The body sits on
+  // FStyleColors::Panel #242424. The title is FStyleFonts::SmallBold, Bold 8pt
+  // (StarshipStyle.cpp:3805), over #C8C8C8.
+  const cat = (title, kids, collapsed) => n('expandablearea', {
+    areaTitle: title, initiallyCollapsed: !!collapsed, slotPadT: 4,
+    headerColor: '#2f2f2fff', bodyColor: '#242424ff',
+    titleFontSize: 8, titleBold: true,
+  }, [n('verticalbox', {}, kids)]);
   // Three numeric fields on one line: the editor's vector editor.
   //
   // The coloured strip down the left of each field is the single most
@@ -499,9 +508,18 @@ function slateBuiltinTemplates() {
         }, [
           n('verticalbox', {}, [
             n('horizontalbox', {}, [
-              bpNode('Event BeginPlay', '#a33232ff', 'GraphEditor.Event_16x', [pinExec(true)]),
+              // MEASURED, not picked. The engine stores no title colour you can
+              // copy: SGraphNode.cpp:872-889 overlays a grey gradient
+              // (RegularNode_color_spill) tinted by the accent OVER a gloss
+              // layer over the body, so the GraphEditorSettings accent is an
+              // input, never what anyone sees. Compositing those three PNGs in
+              // that order, at the point where the title text actually sits,
+              // gives these. The spill's alpha runs 0.66 at the left to 0.01 at
+              // the right, which is a gradient a flat SBorder cannot reproduce
+              // -- these are the strong end, where the text is.
+              bpNode('Event BeginPlay', '#4d2222ff', 'GraphEditor.Event_16x', [pinExec(true)]),
               wire(),
-              bpNode('Print String', '#2f6cadff', 'GraphEditor.Function_16x', [
+              bpNode('Print String', '#2e404dff', 'GraphEditor.Function_16x', [
                 n('horizontalbox', {}, [
                   fill(n('verticalbox', {}, [
                     pinExec(false),
@@ -512,7 +530,7 @@ function slateBuiltinTemplates() {
                 ]),
               ]),
               wire(),
-              bpNode('Delay', '#2f6cadff', 'GraphEditor.Timeline_16x', [
+              bpNode('Delay', '#2e404dff', 'GraphEditor.Timeline_16x', [
                 n('horizontalbox', {}, [
                   fill(n('verticalbox', {}, [pinExec(false), pinIn('Duration')])),
                   n('verticalbox', { slotPadL: 24 }, [pinOut('Completed')]),

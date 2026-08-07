@@ -554,10 +554,29 @@ SLATE_WIDGETS.expandablearea = {
   props: [
     ['areaTitle', 'text', 'Details'],
     ['initiallyCollapsed', 'bool', false],
+    // The header and body tints, and the title font. A details panel is mostly
+    // category headers, so without these the closest the tool could get to the
+    // editor was "an expander that happens to be there". The engine defaults
+    // below are the FExpandableAreaStyle ones, so an untouched area still emits
+    // nothing and looks like a stock SExpandableArea.
+    ['headerColor', 'color', '#ffffffff'],
+    ['bodyColor', 'color', '#ffffffff'],
+    ['titleFontSize', 'int', 8],
+    ['titleBold', 'bool', false],
   ],
   emit(n, ctx) {
     const out = [`.AreaTitle(${ctx.text(n.props.areaTitle)})`];
     if (n.props.initiallyCollapsed) out.push('.InitiallyCollapsed(true)');
+    if (n.props.headerColor !== '#ffffffff') {
+      out.push(`.BorderBackgroundColor(${ctx.color(n.props.headerColor)})`);
+    }
+    if (n.props.bodyColor !== '#ffffffff') {
+      out.push(`.BodyBorderBackgroundColor(${ctx.color(n.props.bodyColor)})`);
+    }
+    if (n.props.titleFontSize !== 8 || n.props.titleBold) {
+      out.push(`.AreaTitleFont(FCoreStyle::GetDefaultFontStyle("${
+        n.props.titleBold ? 'Bold' : 'Regular'}", ${n.props.titleFontSize}))`);
+    }
     return out;
   },
 };
