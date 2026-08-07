@@ -44,13 +44,25 @@ function slateBuiltinTemplates() {
   // PropertyFontStyle is FStyleFonts::Small, Regular 8pt
   // (PropertyEditorConstants.cpp:11, StarshipCoreStyle.cpp:38), over
   // FStyleColors::Foreground #C0C0C0 (StyleColors.cpp:82-135).
-  const row = (label, editor, nameWeight) => n('horizontalbox', { slotPadT: 2 }, [
+  // `modified` grows the row's third column: the reset-to-default arrow, which
+  // the editor shows on a property whose value differs from its default and
+  // hides otherwise. MEASURED: the icon is "PropertyWindow.DiffersFromDefault"
+  // = Starship/Common/ResetToDefault at 16x16 (StarshipStyle.cpp:3655), living
+  // in the splitter's third slot at RightColumnMinWidth 22
+  // (DetailsViewArgs.h:92). Showing it on every row would be the easy mistake
+  // and the wrong picture: a details panel with a full column of arrows is one
+  // where nothing is at its default, which is rare.
+  const row = (label, editor, nameWeight, modified) => n('horizontalbox', { slotPadT: 2 }, [
     n('textblock', {
       text: label, colorAndOpacity: '#c0c0c0ff', fontSize: 8,
       slotSize: 'fill', slotWeight: nameWeight === undefined ? 0.4 : nameWeight,
       slotVAlign: 'Center',
     }),
     editor,
+    ...(modified ? [n('image', {
+      brush: 'Icons.ResetToDefault', sizeX: 16, sizeY: 16,
+      slotPadL: 6, slotVAlign: 'Center',
+    })] : []),
   ]);
   // A collapsible category over a stack of rows.
   //
@@ -371,8 +383,8 @@ function slateBuiltinTemplates() {
       // is why it always sorts to the top however the others are named.
       fill(n('scrollbox', { slotPadT: 6 }, [
         cat('Transform', [
-          row('Location', vec(1240, -880, 92)),
-          row('Rotation', vec(0, 180, 0)),
+          row('Location', vec(1240, -880, 92), undefined, true),
+          row('Rotation', vec(0, 180, 0), undefined, true),
           row('Scale', vec(1, 1, 1)),
           row('Mobility', fill(n('horizontalbox', {}, [
             fill(n('button', { text: 'Static', padX: 1 })),
@@ -628,8 +640,8 @@ function slateBuiltinTemplates() {
           row('Tint', val(n('colorblock', { color: '#5c7fb0ff', sizeX: 60, sizeY: 14 }))),
         ]),
         cat('Ballistics', [
-          row('Base Damage', val(n('spinbox', { typeArg: 'int32', value: 34, minValue: 0, maxValue: 500 }))),
-          row('Fire Rate', val(n('numericentrybox', { typeArg: 'float', value: 0.12, allowSpin: true }))),
+          row('Base Damage', val(n('spinbox', { typeArg: 'int32', value: 34, minValue: 0, maxValue: 500 })), undefined, true),
+          row('Fire Rate', val(n('numericentrybox', { typeArg: 'float', value: 0.12, allowSpin: true })), undefined, true),
           row('Magazine Size', val(n('spinbox', { typeArg: 'int32', value: 30, minValue: 1, maxValue: 200 }))),
           row('Spread', val(n('slider', { value: 0.18, handler: 'OnSpreadChanged' }))),
           row('Damage Falloff', val(n('progressbar', { percent: 0.62 }))),
