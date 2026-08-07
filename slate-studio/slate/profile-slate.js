@@ -161,7 +161,7 @@ const PROFILE = {
   // Arm-key families over the slate catalog. Small on purpose: a family is
   // a mnemonic, not a taxonomy, and every type here exists in the catalog,
   // which is the invariant the shell crashes without.
-  categories: ['Window', 'Text', 'Display', 'Input', 'Layout', 'Panel'],
+  categories: ['Window', 'Text', 'Display', 'Input', 'Layout', 'Panel', 'Table'],
 
   families: {
     B: ['button', 'checkbox', 'hyperlink'],

@@ -581,6 +581,92 @@ SLATE_WIDGETS.expandablearea = {
   },
 };
 
+// ---- Tables -------------------------------------------------------------
+// The widget family the editor is mostly built out of: the Content Browser,
+// the Data Table editor, the details tree and the component tree are all one
+// of these. They are the only catalog entries that need a MEMBER function
+// rather than a chain call, because a list view does not hold its rows -- it
+// asks for them, and OnGenerateRow is where the row is made.
+
+const COLUMN_LIST = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+
+SLATE_WIDGETS.headerrow = {
+  cls: 'SHeaderRow', header: 'Widgets/Views/SHeaderRow.h', module: 'Slate',
+  cat: 'Table', name: 'Header Row',
+  props: [['columns', 'items', 'Name, Type, Value']],
+  emit(n, ctx) {
+    // `+ SHeaderRow::Column(...)` really is the syntax, and it works as one
+    // chain line because `.` binds tighter than `+`: every DefaultLabel and
+    // FillWidth lands on the column's FArguments before the column is added.
+    return COLUMN_LIST(n.props.columns).map(c =>
+      `+ SHeaderRow::Column(FName(TEXT("${slateEscape(c)}")))`
+      + `.DefaultLabel(${ctx.text(c)}).FillWidth(1.f)`);
+  },
+};
+
+SLATE_WIDGETS.listview = {
+  cls: 'SListView', header: 'Widgets/Views/SListView.h', module: 'Slate',
+  cat: 'Table', name: 'List View',
+  // SListView is a template over the ITEM type, and the item type has to be a
+  // shared pointer or a UObject pointer: STableRow stores it in a TArray the
+  // view owns. TSharedPtr<FString> is the simplest thing that is honest.
+  template: 'ItemType',
+  props: [
+    ['typeArg', 'enum', 'TSharedPtr<FString>', { values: ['TSharedPtr<FString>'] }],
+    ['items', 'items', 'Rifle_Standard, Rifle_Heavy, Pistol_Light'],
+    ['columns', 'items', ''],
+    ['selectionMode', 'enum', 'Single',
+      { values: ['None', 'Single', 'SingleToggle', 'Multi'] }],
+    ['rowHandler', 'ident', 'OnGenerateRow'],
+  ],
+  // The items array is a static local ahead of ChildSlot, the same shape
+  // STextComboBox uses, so the whole widget stays inside the one function the
+  // pane shows and the parser can read the items back out of it.
+  preLines(n) {
+    const items = COLUMN_LIST(n.props.items);
+    const list = items.map(s => `MakeShared<FString>(TEXT("${slateEscape(s)}"))`).join(', ');
+    return [`static TArray<TSharedPtr<FString>> Rows${n.id} { ${list} };`];
+  },
+  emit(n, ctx) {
+    const out = [`.ListItemsSource(&Rows${n.id})`];
+    const handler = n.props.rowHandler || 'OnGenerateRow';
+    out.push(`.OnGenerateRow(this, &${ctx.className}::${handler})`);
+    if (n.props.selectionMode !== 'Single') {
+      out.push(`.SelectionMode(ESelectionMode::${n.props.selectionMode})`);
+    }
+    const cols = COLUMN_LIST(n.props.columns);
+    if (cols.length) {
+      ctx.headers.add('Widgets/Views/SHeaderRow.h');
+      out.push('.HeaderRow(');
+      out.push(`\tSNew(SHeaderRow)`);
+      for (const c of cols) {
+        out.push(`\t+ SHeaderRow::Column(FName(TEXT("${slateEscape(c)}")))`
+          + `.DefaultLabel(${ctx.text(c)}).FillWidth(1.f)`);
+      }
+      out.push(')');
+    }
+    return out;
+  },
+  // A list view asks for its rows rather than holding them, so this is the one
+  // widget in the catalog whose generated code does not work without a method
+  // on the class. STableRow is a template too, over the same item type.
+  members(n, ctx) {
+    const handler = n.props.rowHandler || 'OnGenerateRow';
+    ctx.headers.add('Widgets/Views/STableRow.h');
+    ctx.headers.add('Widgets/Views/STableViewBase.h');
+    return [{
+      decl: `TSharedRef<ITableRow> ${handler}(TSharedPtr<FString> Item, `
+        + `const TSharedRef<STableViewBase>& OwnerTable);`,
+      def: `TSharedRef<ITableRow> ${ctx.className}::${handler}(TSharedPtr<FString> Item, `
+        + `const TSharedRef<STableViewBase>& OwnerTable)\n{\n`
+        + `\treturn SNew(STableRow<TSharedPtr<FString>>, OwnerTable)\n`
+        + `\t\t[\n`
+        + `\t\t\tSNew(STextBlock).Text(FText::FromString(*Item))\n`
+        + `\t\t];\n}`,
+    }];
+  },
+};
+
 // A block of Slate the tool carries verbatim: the parser wraps any SNew of a
 // class it does not model in one of these, the generator re-emits the code
 // untouched, and the preview draws a neutral placeholder. Hidden from the

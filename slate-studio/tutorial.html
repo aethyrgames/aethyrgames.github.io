@@ -250,6 +250,7 @@ void OpenStudioWindows()
   <li><strong>Property Customization</strong> is what an <code>IPropertyTypeCustomization</code> draws: gameplay tag pills in a Wrap Box over a picker tree, and a data table row handle resolving to a preview of the row it names.</li>
   <li><strong>Blueprint Node Graph</strong> splits My Blueprint from the graph with a Splitter, whose slots take a proportional value instead of the usual fill and align. The nodes are a coloured title bar over a pin body, because that's all a node is once the wires are somebody else's problem.</li>
   <li><strong>Data Asset</strong> is an asset editor: a Scale Box thumbnail inside a fixed Box, then the categories a details view would build for the UPROPERTYs underneath.</li>
+  <li><strong>Data Table</strong> is the one built on the table family: a List View under a Header Row, over a row editor. It's also the only template whose generated class needs a <em>method</em> rather than just a Construct, because a list view doesn't hold its rows, it asks for them, and <code>OnGenerateRow</code> is where a row gets made.</li>
 </ul>
 
 <p>None of them use anything the palette doesn't have, so the C++ each one generates compiles the same way yours does.</p>

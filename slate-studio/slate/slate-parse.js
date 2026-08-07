@@ -218,6 +218,35 @@ function createSlateParser(catalog) {
       Orientation: (n, a) => { if (/Vertical/.test(a)) n.orientation = 'Vertical'; },
     },
     scalebox: { Stretch: qualEnum('stretch'), UserSpecifiedScale: F('userScale') },
+    // Columns arrive through the `+ SHeaderRow::Column(...)` branch above
+    // rather than as chain calls, so there is nothing to model here. The entry
+    // exists so the type is KNOWN: without it the parser wraps the whole
+    // SNew(SHeaderRow) as a Raw Slate node.
+    headerrow: {},
+    listview: {
+      // Same static-array trick STextComboBox uses: the rows are a static the
+      // generator writes ahead of ChildSlot, and ListItemsSource only names it.
+      ListItemsSource: (n, a, note, ctx) => {
+        const m = /&\s*(\w+)/.exec(a);
+        if (m && ctx && ctx.statics && ctx.statics[m[1]] !== undefined) n.items = ctx.statics[m[1]];
+        else note('ListItemsSource does not name a static rows array the parser can see');
+      },
+      OnGenerateRow: (n, a) => {
+        const m = /::\s*(\w+)\s*$/.exec(String(a).trim());
+        if (m) n.rowHandler = m[1];
+      },
+      SelectionMode: (n, a) => {
+        const m = /ESelectionMode::(\w+)/.exec(a);
+        if (m) n.selectionMode = m[1];
+      },
+      // The inline header row is an argument rather than a child, so its
+      // columns are read straight out of the argument text.
+      HeaderRow: (n, a) => {
+        const cols = [...String(a).matchAll(/Column\(\s*FName\(\s*TEXT\(\s*"((?:[^"\\]|\\.)*)"\s*\)\s*\)\s*\)/g)]
+          .map(x => unescapeStr(x[1]));
+        if (cols.length) n.columns = cols.join(', ');
+      },
+    },
     expandablearea: {
       AreaTitle: T('areaTitle'),
       InitiallyCollapsed: B('initiallyCollapsed'),
@@ -415,10 +444,40 @@ function createSlateParser(catalog) {
         // + Panel::Slot() mods [ child ]
         S.pos++;
         skipWs(S);
-        readIdent(S);
-        if (S.src.startsWith('::', S.pos)) { S.pos += 2; readIdent(S); }
+        const owner = readIdent(S);
+        let member = null;
+        if (S.src.startsWith('::', S.pos)) { S.pos += 2; member = readIdent(S); }
         skipWs(S);
-        readBalanced(S, '(', ')');
+        const ownerArgs = readBalanced(S, '(', ')');
+
+        // + SHeaderRow::Column(...) is the one `+` form that is NOT a slot: a
+        // column is a description, not a widget, so it carries no [ child ] and
+        // the slot path below would drop it with "a slot with no [ content ]".
+        // Dropping it was silent data loss rather than a visible failure: the
+        // columns came back as the catalog DEFAULT, so a header the user had
+        // renamed reverted to Name/Type/Value on the first Edit-and-Apply.
+        if (owner === 'SHeaderRow' && member === 'Column') {
+          const id = /TEXT\(\s*"((?:[^"\\]|\\.)*)"\s*\)/.exec(ownerArgs || '');
+          // Consume the column's own chain (.DefaultLabel, .FillWidth, ...);
+          // the id is what the catalog models, the rest is presentation the
+          // emitter rebuilds.
+          for (;;) {
+            skipWs(S);
+            if (S.src[S.pos] !== '.') break;
+            S.pos++;
+            readIdent(S);
+            skipWs(S);
+            readBalanced(S, '(', ')');
+          }
+          if (id) {
+            const name = unescapeStr(id[1]);
+            node.columns = node.columns ? `${node.columns}, ${name}` : name;
+          } else {
+            S.note('a header column with no readable ColumnId');
+          }
+          continue;
+        }
+
         const slotProps = {};
         for (;;) {
           skipWs(S);

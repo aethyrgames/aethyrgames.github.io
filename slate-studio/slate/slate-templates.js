@@ -623,6 +623,53 @@ function slateBuiltinTemplates() {
         n('button', { text: 'Save Asset', handler: 'OnSaveAssetAs' }),
       ]),
     ])],
+    // The Data Table editor, and the one template built on the table family.
+    // A real one is an SListView with an SHeaderRow above a row editor, which
+    // is the shape almost every editor list has: the Content Browser, the
+    // output log, the asset picker and the details tree are all this widget
+    // wearing different columns.
+    ['Data Table', () => win('Data Table', 620, 560, [
+      n('horizontalbox', {}, [
+        n('button', { text: 'Save', padX: 8, handler: 'OnSaveTable', slotVAlign: 'Center' }),
+        n('button', { text: 'Browse', padX: 8, slotPadL: 3, slotVAlign: 'Center' }),
+        n('separator', { orientation: 'Vertical', thickness: 1, slotPadL: 8, slotPadR: 8 }),
+        n('button', { text: 'Add', padX: 8, handler: 'OnAddRow', slotVAlign: 'Center' }),
+        n('button', { text: 'Duplicate', padX: 8, slotPadL: 3, slotVAlign: 'Center' }),
+        n('button', { text: 'Remove', padX: 8, slotPadL: 3, slotVAlign: 'Center' }),
+        n('spacer', { slotSize: 'fill' }),
+        n('textblock', {
+          text: 'FWeaponTableRow', colorAndOpacity: '#8a8a8aff', fontSize: 9,
+          slotVAlign: 'Center',
+        }),
+      ]),
+      n('searchbox', { hintText: 'Search', slotPadT: 4 }),
+      fill(n('border', {
+        borderBackgroundColor: '#1a1a1aff',
+        padL: 1, padT: 1, padR: 1, padB: 1, slotPadT: 6,
+      }, [
+        n('listview', {
+          columns: 'Row Name, Damage, Fire Rate, Magazine, Rarity',
+          items: 'Rifle_Standard, Rifle_Heavy, Pistol_Light, Pistol_Heavy, '
+            + 'Shotgun_Pump, Shotgun_Auto, Launcher_Rocket, SMG_Compact',
+          selectionMode: 'Multi',
+          rowHandler: 'OnGenerateWeaponRow',
+        }),
+      ])),
+      cat('Row Editor', [
+        row('Row Name', val(n('editabletextbox', { text: 'Rifle_Standard', minDesiredWidth: 0 }))),
+        row('Base Damage', val(n('spinbox', { typeArg: 'int32', value: 34, minValue: 0, maxValue: 500 }))),
+        row('Fire Rate', val(n('numericentrybox', { typeArg: 'float', value: 0.12 }))),
+        row('Magazine Size', val(n('spinbox', { typeArg: 'int32', value: 30, minValue: 1, maxValue: 200 }))),
+        row('Rarity', val(n('textcombobox', { items: 'Common, Uncommon, Rare, Legendary' }))),
+      ]),
+      n('horizontalbox', { slotPadT: 6 }, [
+        n('textblock', {
+          text: '8 rows', colorAndOpacity: '#8a8a8aff', fontSize: 9, slotVAlign: 'Center',
+        }),
+        n('spacer', { slotSize: 'fill' }),
+        n('button', { text: 'Apply', handler: 'OnApplyRow' }),
+      ]),
+    ])],
   ];
 
   return defs.map(([name, build]) => {

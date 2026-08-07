@@ -194,6 +194,24 @@ function slateCollectMembers(node, ctx, acc) {
   return acc;
 }
 
+// Types a MEMBER DECLARATION can name that the .h's fixed includes do not
+// provide. A list view's OnGenerateRow returns TSharedRef<ITableRow> and takes
+// a TSharedRef<STableViewBase>, and both appear in the header rather than the
+// cpp, where ctx.headers cannot reach them. A forward declaration is enough:
+// the decl only ever holds them through TSharedRef, which does not need the
+// definition.
+//
+// Derived from the decl text rather than tracked alongside it, so the two
+// cannot drift: a member that stops naming ITableRow stops forward-declaring
+// it in the same edit.
+const SLATE_HEADER_FWD = ['ITableRow', 'STableViewBase'];
+function slateForwardDecls(members) {
+  const text = (members || []).map(m => m.decl).join('\n');
+  const out = SLATE_HEADER_FWD.filter(t => new RegExp(`\\b${t}\\b`).test(text))
+    .map(t => `class ${t};`);
+  return out.length ? [...out, ''] : [];
+}
+
 // The full .h/.cpp pair. Section 6 of the research argues this is the right
 // output shape: an SCompoundWidget is the unit Slate composes, it needs no editor
 // context, and it drops into a tab spawner, an SWindow or another widget equally.
@@ -212,6 +230,7 @@ function slateGenerate(root, className) {
     '#include "Widgets/SCompoundWidget.h"',
     '#include "Widgets/DeclarativeSyntaxSupport.h"',
     '',
+    ...slateForwardDecls(members),
     `class ${className} : public SCompoundWidget`,
     '{',
     'public:',
@@ -384,6 +403,7 @@ function slateGenerateDoc(wins, opts) {
       '#include "Widgets/DeclarativeSyntaxSupport.h"',
       '#include "Styling/SlateTypes.h"',
       '',
+      ...slateForwardDecls(b.members),
       `class ${b.cls} : public SCompoundWidget`,
       '{',
       'public:',
