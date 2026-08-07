@@ -7,8 +7,14 @@
 //
 // Kept in step with package.json by a gate check on both pages, because two
 // version numbers that can disagree eventually do.
-const STUDIO_VERSION = '0.5.1';
+// The day this build was CUT, written by scripts/release.mjs. Cut rather
+// than confirmed-live on purpose: if a publish fails you keep seeing the
+// older build, and this is that build's date, so the tooltip always
+// describes what you are actually running rather than what was attempted.
+const STUDIO_PUBLISHED = '2026-08-07';
+
+const STUDIO_VERSION = '0.5.2';
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { STUDIO_VERSION };
+  module.exports = { STUDIO_VERSION, STUDIO_PUBLISHED };
 }

@@ -28,18 +28,26 @@ function slateBuiltinTemplates() {
   const fill = (node, weight) => Object.assign(node, {
     slotSize: 'fill', slotWeight: weight === undefined ? 1 : weight,
   });
-  // The editor column of a details row. 0.58 against the name column's 0.42
-  // is roughly where the editor splits its own panel.
-  const val = node => fill(node, 0.58);
+  // The editor column of a details row. MEASURED: FDetailsViewArgs::ColumnWidth
+  // is .6f (DetailsViewArgs.h:90,165) and the name column is the remainder,
+  // 1 - (value + right), so 0.6/0.4. FDetailColumnSizeData's own 0.7f default
+  // (DetailColumnSizeData.h:15) is overwritten at SDetailsView.cpp:104 and is
+  // never the number a real panel uses.
+  const val = node => fill(node, 0.6);
   // Name on the left, editor on the right. Every details panel in the editor
   // is this row repeated, which is most of why they all look alike.
   // nameWeight is adjustable because one row does not fit the default split:
-  // three mobility buttons in 0.58 of a 430px panel clipped 'Stationary' to
+  // three mobility buttons in 0.6 of a 430px panel clipped 'Stationary' to
   // 'Stationa'. The editor gives that row more room too.
+  //
+  // Font and colour MEASURED, not chosen: PropertyEditorConstants::
+  // PropertyFontStyle is FStyleFonts::Small, Regular 8pt
+  // (PropertyEditorConstants.cpp:11, StarshipCoreStyle.cpp:38), over
+  // FStyleColors::Foreground #C0C0C0 (StyleColors.cpp:82-135).
   const row = (label, editor, nameWeight) => n('horizontalbox', { slotPadT: 2 }, [
     n('textblock', {
-      text: label, colorAndOpacity: '#b4b4b4ff',
-      slotSize: 'fill', slotWeight: nameWeight === undefined ? 0.42 : nameWeight,
+      text: label, colorAndOpacity: '#c0c0c0ff', fontSize: 8,
+      slotSize: 'fill', slotWeight: nameWeight === undefined ? 0.4 : nameWeight,
       slotVAlign: 'Center',
     }),
     editor,
@@ -49,10 +57,34 @@ function slateBuiltinTemplates() {
     { areaTitle: title, initiallyCollapsed: !!collapsed, slotPadT: 4 },
     [n('verticalbox', {}, kids)]);
   // Three numeric fields on one line: the editor's vector editor.
+  //
+  // The coloured strip down the left of each field is the single most
+  // recognisable thing about a UE transform row, and it is not decoration: the
+  // editor builds it with SNumericEntryBox::BuildNarrowColorLabel, an SBorder
+  // tinted by the axis colour, dropped into the box's own Label slot with
+  // LabelLocation(Inside) (SVectorInputBox.h:509-544, SNumericEntryBox.h:468-477).
+  //
+  // MEASURED colours, converted from the engine's linear FLinearColor to sRGB:
+  //   X (0.594,  0.0197, 0.0 ) -> #CB2600
+  //   Y (0.1349, 0.3959, 0.0 ) -> #67A900
+  //   Z (0.0251, 0.207,  0.85) -> #2C7EED
+  // They are declared TWICE in the engine, once in Core's AxisDisplayInfo.cpp:
+  // 96-120 and again as statics on the Slate widget itself
+  // (SNumericEntryBox.h:50-52, 878-887). The Slate copy is the one that matters
+  // here: it means the axis colours need no editor module at all.
+  //
+  // A separate SColorBlock beside the field rather than inside its Label slot,
+  // because the catalog has no named-slot prop yet. Visually it lands in the
+  // same place; the narrowing is that the strip sits outside the box's border
+  // instead of inside it.
+  const AXIS = { X: '#cb2600ff', Y: '#67a900ff', Z: '#2c7eedff' };
+  const axisField = (axis, value) => fill(n('horizontalbox',
+    axis === 'X' ? {} : { slotPadL: 3 }, [
+      n('colorblock', { color: AXIS[axis], sizeX: 3, sizeY: 18, slotVAlign: 'Fill' }),
+      fill(n('numericentrybox', { typeArg: 'float', value, allowSpin: true })),
+    ]));
   const vec = (x, y, z) => val(n('horizontalbox', {}, [
-    fill(n('numericentrybox', { typeArg: 'float', value: x, allowSpin: true })),
-    fill(n('numericentrybox', { typeArg: 'float', value: y, allowSpin: true, slotPadL: 3 })),
-    fill(n('numericentrybox', { typeArg: 'float', value: z, allowSpin: true, slotPadL: 3 })),
+    axisField('X', x), axisField('Y', y), axisField('Z', z),
   ]));
   // A gameplay tag pill, carrying its own remove button.
   const chip = text => n('border', {
@@ -66,38 +98,73 @@ function slateBuiltinTemplates() {
   ]);
   // One blueprint node: a coloured title bar over its pins, which is all a
   // node is once the wires are somebody else's problem.
+  // MEASURED against SGraphNode::UpdateGraphNode and StarshipStyle.cpp:
+  //   title border padding  FMargin(10, 5, 30, 3)   SGraphNode.h:492
+  //     -- the 30 on the right is deliberate in the engine too, so the colour
+  //        spill runs well past the end of the title text
+  //   title font            Bold 10, white          StarshipStyle.cpp:4390-4395
+  //                                                 + SGraphNode.cpp:833
+  //   icon                  16x16, 4px to the text  SGraphNode.cpp:896-902
+  //   content area padding  FMargin(0, 3)           SGraphNode.cpp:1117
+  //   pin column inset      10px from the node edge (PaddingTowardsNodeEdge)
+  //                                                 GraphEditorSettings.cpp:21
+  //   node body             sampled from RegularNode_body.png composited over
+  //                         the graph background: #121412
   const bpNode = (title, titleColor, icon, kids) => n('border', {
-    borderBackgroundColor: '#20262eff', padL: 0, padT: 0, padR: 0, padB: 0,
+    borderBackgroundColor: '#121412ff', padL: 0, padT: 0, padR: 0, padB: 0,
     slotVAlign: 'Top',
   }, [
     n('verticalbox', {}, [
-      n('border', { borderBackgroundColor: titleColor, padL: 6, padT: 3, padR: 8, padB: 3 }, [
+      n('border', { borderBackgroundColor: titleColor, padL: 10, padT: 5, padR: 30, padB: 3 }, [
         n('horizontalbox', {}, [
-          n('image', { brush: icon, sizeX: 14, sizeY: 14, slotVAlign: 'Center' }),
-          n('textblock', { text: title, fontSize: 11, slotPadL: 5, slotVAlign: 'Center' }),
+          n('image', { brush: icon, sizeX: 16, sizeY: 16, slotVAlign: 'Center' }),
+          n('textblock', { text: title, fontSize: 10, slotPadL: 4, slotVAlign: 'Center' }),
         ]),
       ]),
-      n('verticalbox', { slotPadL: 6, slotPadT: 5, slotPadR: 6, slotPadB: 6 }, kids),
+      n('verticalbox', { slotPadL: 10, slotPadT: 3, slotPadR: 10, slotPadB: 3 }, kids),
     ]),
   ]);
   // Data pins carry a name, execution pins do not, so they are two shapes and
   // not one with an empty label.
-  const pinIn = label => n('horizontalbox', { slotPadT: 1 }, [
-    n('image', { brush: 'GraphEditor.PinIcon', sizeX: 11, sizeY: 11, slotVAlign: 'Center' }),
-    n('textblock', { text: label, fontSize: 9, slotPadL: 4, slotVAlign: 'Center' }),
+  //
+  // MEASURED: a data pin is Pin_connected_VarA.png at 15x11 (BPST_VariantA is
+  // the default DataPinStyle, GraphEditorSettings.cpp:37) and an exec pin is
+  // ExecPin_Connected.png at 12x16 -- they are NOT the same size, which is most
+  // of why a hand-drawn graph reads as wrong. Row gap is PaddingBelowPin 4 plus
+  // PaddingAbovePin 4 = 8 (GraphEditorSettings.cpp:18-22); icon to label is
+  // SideToSideMargin 5.0 (SGraphPin.h:119). Label is Regular 9 over #DADADA
+  // (StarshipStyle.cpp:4472-4477).
+  const pinIn = label => n('horizontalbox', { slotPadT: 4 }, [
+    n('image', { brush: 'GraphEditor.PinIcon', sizeX: 15, sizeY: 11, slotVAlign: 'Center' }),
+    n('textblock', {
+      text: label, fontSize: 9, colorAndOpacity: '#dadadaff',
+      slotPadL: 5, slotVAlign: 'Center',
+    }),
   ]);
-  const pinOut = label => n('horizontalbox', { slotHAlign: 'Right', slotPadT: 1 }, [
-    n('textblock', { text: label, fontSize: 9, slotPadR: 4, slotVAlign: 'Center' }),
-    n('image', { brush: 'GraphEditor.PinIcon', sizeX: 11, sizeY: 11, slotVAlign: 'Center' }),
+  const pinOut = label => n('horizontalbox', { slotHAlign: 'Right', slotPadT: 4 }, [
+    n('textblock', {
+      text: label, fontSize: 9, colorAndOpacity: '#dadadaff',
+      slotPadR: 5, slotVAlign: 'Center',
+    }),
+    n('image', { brush: 'GraphEditor.PinIcon', sizeX: 15, sizeY: 11, slotVAlign: 'Center' }),
   ]);
   const pinExec = right => n('image', {
-    brush: 'GraphEditor.ExecPin', sizeX: 12, sizeY: 12,
-    slotHAlign: right ? 'Right' : 'Left', slotPadT: 1,
+    brush: 'GraphEditor.ExecPin', sizeX: 12, sizeY: 16,
+    slotHAlign: right ? 'Right' : 'Left', slotPadT: 4,
   });
   // The wire between two nodes, held at title-bar height so it meets the pins.
+  // MEASURED: DefaultExecutionWireThickness is 2.5 and an exec wire takes
+  // ExecutionPinTypeColor, pure white (GraphEditorSettings.cpp:41,66). And
+  // Blueprint wires carry NO arrowhead: FKismetConnectionDrawingPolicy nulls
+  // the base policy's ArrowImage outright, and the midpoint arrow is behind
+  // bDrawMidpointArrowsInBlueprints, which defaults false
+  // (BlueprintConnectionDrawingPolicy.cpp:50-58, BlueprintEditorSettings.cpp:33).
+  // A straight run is a narrowing: the real thing is a cubic Hermite spline
+  // with horizontal tangents, which needs a custom OnPaint this catalog has no
+  // widget for.
   const wire = () => n('box', {
-    widthOverride: 28, heightOverride: 2, slotVAlign: 'Top', slotPadT: 14,
-  }, [n('separator', { thickness: 2 })]);
+    widthOverride: 28, heightOverride: 3, slotVAlign: 'Top', slotPadT: 15,
+  }, [n('separator', { thickness: 2.5 })]);
 
   const defs = [
     ['Blank Window', () => win('Blank Window', 380, 300, [])],
@@ -177,25 +244,90 @@ function slateBuiltinTemplates() {
     // actor's own header, then category after category of name-and-editor
     // rows. Two categories start collapsed, which is what SExpandableArea's
     // InitiallyCollapsed is for.
-    ['Actor Details', () => win('Actor Details', 430, 660, [
+    ['Actor Details', () => win('Actor Details', 430, 700, [
+      // SActorDetails.cpp:567-630 top to bottom: the name area, then a vertical
+      // splitter holding the component tree at .2 over the details view. The
+      // "+ Add Component" and "Edit Blueprint" controls live in the NAME row,
+      // not above the tree (SActorDetails.cpp:564-565 injects them into
+      // SDetailNameArea's CustomContentSlot) -- a detail worth copying, because
+      // putting them over the tree is the obvious wrong guess.
       n('horizontalbox', {}, [
-        n('button', { text: 'Filters', padX: 6, slotVAlign: 'Center' }),
-        fill(n('searchbox', { hintText: 'Search Details', slotPadL: 4 })),
-        n('image', { brush: 'Icons.Settings', sizeX: 16, sizeY: 16, slotPadL: 4, slotVAlign: 'Center' }),
+        n('image', { brush: 'ClassIcon.Character', sizeX: 16, sizeY: 16, slotVAlign: 'Center' }),
+        // WidthOverride(200) on the name box, SDetailNameArea.cpp:88-208.
+        n('box', { widthOverride: 200, slotPadL: 4, slotVAlign: 'Center' }, [
+          n('editabletextbox', { text: 'BP_ThirdPersonCharacter', minDesiredWidth: 0 }),
+        ]),
+        n('spacer', { slotSize: 'fill' }),
+        n('button', { text: '+ Add', padX: 6, slotVAlign: 'Center' }),
+        n('button', { text: 'Edit Blueprint', padX: 6, slotPadL: 3, slotVAlign: 'Center' }),
+        n('image', { brush: 'Icons.Lock', sizeX: 16, sizeY: 16, slotPadL: 4, slotVAlign: 'Center' }),
       ]),
+      // The component tree. Names MEASURED: ACharacter's internal FNames are
+      // CollisionCylinder/CharacterMesh0/CharMoveComp (Character.cpp:32-34) but
+      // the tree shows the owning class's PROPERTY names, resolved by
+      // FComponentEditorUtils::FindVariableNameGivenComponentInstance
+      // (ComponentEditorUtils.cpp:983-1063), so it reads CapsuleComponent /
+      // Mesh / CharacterMovement. ArrowComponent is WITH_EDITORONLY_DATA
+      // (Character.cpp:97-109), which is why it shows here and never in a game.
+      // CharacterMovement is a UActorComponent, not a scene component, so it is
+      // a sibling of the root rather than nested under it.
       n('border', {
-        borderBackgroundColor: '#2a3038ff',
-        padL: 6, padT: 6, padR: 6, padB: 6, slotPadT: 6,
+        borderBackgroundColor: '#1a1a1aff',
+        padL: 1, padT: 1, padR: 1, padB: 1, slotPadT: 4,
       }, [
-        n('horizontalbox', {}, [
-          n('image', { brush: 'ClassIcon.Character', sizeX: 24, sizeY: 24, slotVAlign: 'Center' }),
-          fill(n('verticalbox', { slotPadL: 6, slotVAlign: 'Center' }, [
-            n('textblock', { text: 'BP_ThirdPersonCharacter', fontSize: 12 }),
-            n('hyperlink', { text: 'Edit Blueprint', handler: 'OnEditBlueprint' }),
-          ])),
-          n('button', { text: 'Add', padX: 6, slotVAlign: 'Center' }),
+        n('border', {
+          borderBackgroundColor: '#242424ff', padL: 4, padT: 4, padR: 4, padB: 4,
+        }, [
+          n('verticalbox', {}, [
+            n('horizontalbox', {}, [
+              n('image', { brush: 'ClassIcon.Character', sizeX: 14, sizeY: 14, slotVAlign: 'Center' }),
+              n('textblock', { text: 'BP_ThirdPersonCharacter (Self)', fontSize: 8, colorAndOpacity: '#c0c0c0ff', slotPadL: 5, slotVAlign: 'Center' }),
+            ]),
+            n('horizontalbox', { slotPadL: 16, slotPadT: 3 }, [
+              n('image', { brush: 'ClassIcon.StaticMesh', sizeX: 14, sizeY: 14, slotVAlign: 'Center' }),
+              n('textblock', { text: 'CapsuleComponent (Root)', fontSize: 8, colorAndOpacity: '#c0c0c0ff', slotPadL: 5, slotVAlign: 'Center' }),
+            ]),
+            n('horizontalbox', { slotPadL: 32, slotPadT: 3 }, [
+              n('image', { brush: 'Icons.ArrowRight', sizeX: 14, sizeY: 14, slotVAlign: 'Center' }),
+              n('textblock', { text: 'ArrowComponent', fontSize: 8, colorAndOpacity: '#c0c0c0ff', slotPadL: 5, slotVAlign: 'Center' }),
+            ]),
+            n('horizontalbox', { slotPadL: 32, slotPadT: 3 }, [
+              n('image', { brush: 'ClassIcon.StaticMesh', sizeX: 14, sizeY: 14, slotVAlign: 'Center' }),
+              n('textblock', { text: 'Mesh', fontSize: 8, colorAndOpacity: '#c0c0c0ff', slotPadL: 5, slotVAlign: 'Center' }),
+            ]),
+            n('horizontalbox', { slotPadL: 16, slotPadT: 3 }, [
+              n('image', { brush: 'Icons.World', sizeX: 14, sizeY: 14, slotVAlign: 'Center' }),
+              n('textblock', { text: 'CharacterMovement', fontSize: 8, colorAndOpacity: '#c0c0c0ff', slotPadL: 5, slotVAlign: 'Center' }),
+            ]),
+          ]),
         ]),
       ]),
+      // The filter row, SDetailsView.cpp:311-419: search box, then the property
+      // matrix, favourites star and view-options gear.
+      n('horizontalbox', { slotPadT: 6 }, [
+        // "Search", not "Search Details": LOCTEXT("SearchDetailsHint", "Search")
+        // at SDetailsView.cpp:319.
+        fill(n('searchbox', { hintText: 'Search' })),
+        n('image', { brush: 'Icons.Edit', sizeX: 16, sizeY: 16, slotPadL: 4, slotVAlign: 'Center' }),
+        n('image', { brush: 'Icons.Visible', sizeX: 16, sizeY: 16, slotPadL: 4, slotVAlign: 'Center' }),
+        n('image', { brush: 'Icons.Settings', sizeX: 16, sizeY: 16, slotPadL: 4, slotVAlign: 'Center' }),
+      ]),
+      // The section chips under the search row, SDetailsView.cpp:1357-1463.
+      n('wrapbox', { innerSlotPadding: 3, slotPadT: 4 }, [
+        n('button', { text: 'All', padX: 7, padY: 1 }),
+        n('button', { text: 'General', padX: 7, padY: 1 }),
+        n('button', { text: 'Actor', padX: 7, padY: 1 }),
+        n('button', { text: 'LOD', padX: 7, padY: 1 }),
+        n('button', { text: 'Physics', padX: 7, padY: 1 }),
+        n('button', { text: 'Rendering', padX: 7, padY: 1 }),
+        n('button', { text: 'Streaming', padX: 7, padY: 1 }),
+      ]),
+      // Categories and property names are the REAL ones a Character shows, read
+      // out of the UPROPERTY(Category=...) declarations rather than invented:
+      // Actor.h, Pawn.h:72-123, Character.h:645-758. The Transform category is
+      // synthesised rather than declared -- ActorDetails.cpp:467-486 adds it
+      // from FComponentTransformDetails at ECategoryPriority::Transform, which
+      // is why it always sorts to the top however the others are named.
       fill(n('scrollbox', { slotPadT: 6 }, [
         cat('Transform', [
           row('Location', vec(1240, -880, 92)),
@@ -207,31 +339,50 @@ function slateBuiltinTemplates() {
             fill(n('button', { text: 'Movable', padX: 1, slotPadL: 2 })),
           ]), 0.74), 0.26),
         ]),
-        cat('Character', [
-          row('Auto Possess Player', val(n('textcombobox', { items: 'Disabled, Player 0, Player 1' }))),
-          row('Auto Possess AI', val(n('textcombobox', { items: 'Disabled, Placed in World, Spawned' }))),
-          n('checkbox', { label: 'Use Controller Rotation Yaw', checked: true, slotPadT: 2 }),
+        cat('Actor', [
           n('checkbox', { label: 'Can Be Damaged', checked: true }),
+          n('checkbox', { label: 'Find Camera Component when View Target', checked: true }),
+          n('checkbox', { label: 'Auto Destroy When Finished' }),
+          row('Initial Life Span', val(n('numericentrybox', { typeArg: 'float', value: 0 }))),
         ]),
-        cat('Character Movement: Walking', [
-          row('Max Walk Speed', val(n('spinbox', { typeArg: 'float', value: 500, minValue: 0, maxValue: 2000 }))),
-          row('Jump Z Velocity', val(n('spinbox', { typeArg: 'float', value: 700, minValue: 0, maxValue: 2000 }))),
-          row('Gravity Scale', val(n('slider', { value: 0.5, handler: 'OnGravityScale' }))),
-          row('Ground Friction', val(n('numericentrybox', { typeArg: 'float', value: 8, allowSpin: true }))),
+        cat('Character', [
+          // JumpMaxHoldTime and JumpMaxCount are the only EditAnywhere fields
+          // in this category; the rest are VisibleInstanceOnly and read-only.
+          row('Jump Max Hold Time', val(n('numericentrybox', { typeArg: 'float', value: 0 }))),
+          row('Jump Max Count', val(n('spinbox', { typeArg: 'int32', value: 1, minValue: 0, maxValue: 10 }))),
+          n('checkbox', { label: 'Is Crouched', slotPadT: 2 }),
+          n('checkbox', { label: 'Pressed Jump' }),
+        ]),
+        cat('Pawn', [
+          row('Auto Possess Player', val(n('textcombobox', { items: 'Disabled, Player 0, Player 1' }))),
+          row('Auto Possess AI', val(n('textcombobox', { items: 'Disabled, Placed in World, Spawned, Placed in World or Spawned' }))),
+          n('checkbox', { label: 'Use Controller Rotation Pitch', slotPadT: 2 }),
+          n('checkbox', { label: 'Use Controller Rotation Yaw', checked: true }),
+          n('checkbox', { label: 'Use Controller Rotation Roll' }),
+          n('checkbox', { label: 'Can Affect Navigation Generation', checked: true }),
         ]),
         cat('Rendering', [
-          n('checkbox', { label: 'Visible', checked: true }),
-          n('checkbox', { label: 'Hidden in Game' }),
-          n('checkbox', { label: 'Cast Shadow', checked: true }),
-          row('Custom Depth Stencil', val(n('spinbox', { typeArg: 'int32', value: 0, minValue: 0, maxValue: 255 }))),
+          n('checkbox', { label: 'Actor Hidden In Game' }),
+          row('Editor Billboard Scale', val(n('numericentrybox', { typeArg: 'float', value: 1 }))),
         ], true),
         cat('Collision', [
-          row('Collision Preset', val(n('textcombobox', { items: 'Pawn, BlockAll, OverlapAll, NoCollision' }))),
-          n('checkbox', { label: 'Generate Overlap Events', checked: true }),
+          n('checkbox', { label: 'Generate Overlap Events During Level Streaming' }),
+          row('Update Overlaps Method During Level Streaming',
+            val(n('textcombobox', { items: 'Use Config Default, Always Update, Only Update Movable, Never Update' }))),
+        ], true),
+        cat('Physics', [
+          n('checkbox', { label: 'Async Physics Tick Enabled' }),
+        ], true),
+        cat('Replication', [
+          n('checkbox', { label: 'Replicates' }),
+          n('checkbox', { label: 'Replicate Movement', checked: true }),
+          row('Net Cull Distance Squared', val(n('numericentrybox', { typeArg: 'float', value: 225000000 }))),
+          row('Net Update Frequency', val(n('numericentrybox', { typeArg: 'float', value: 100 }))),
+          row('Min Net Update Frequency', val(n('numericentrybox', { typeArg: 'float', value: 2 }))),
         ], true),
       ])),
       n('horizontalbox', { slotPadT: 6 }, [
-        n('textblock', { text: '5 categories', colorAndOpacity: '#8a8a8aff', fontSize: 9, slotVAlign: 'Center' }),
+        n('textblock', { text: '8 categories', colorAndOpacity: '#8a8a8aff', fontSize: 9, slotVAlign: 'Center' }),
         n('spacer', { slotSize: 'fill' }),
         n('button', { text: 'Reset to Defaults', handler: 'OnResetDetails' }),
       ]),
@@ -340,8 +491,11 @@ function slateBuiltinTemplates() {
             n('button', { text: 'Add New', padX: 6 }),
           ]),
         ]), { slotWeight: 0.26 }),
+        // MEASURED: the graph's own background is a flat 16x16 tile,
+        // Graph/GraphPanel_SolidBackground.PNG, sampled solid (38,38,38)
+        // = #262626 (brush at StarshipStyle.cpp:4026).
         Object.assign(n('border', {
-          borderBackgroundColor: '#12151aff', padL: 12, padT: 12, padR: 12, padB: 12,
+          borderBackgroundColor: '#262626ff', padL: 12, padT: 12, padR: 12, padB: 12,
         }, [
           n('verticalbox', {}, [
             n('horizontalbox', {}, [

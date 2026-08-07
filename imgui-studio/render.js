@@ -386,7 +386,14 @@ if (tutorialTopBtn) {
 // same application at the same version, and the generated banner reads the same
 // constant, so the number in the header is the number in the pasted code.
 const appVerEl = document.getElementById('appVer');
-if (appVerEl && typeof STUDIO_VERSION !== 'undefined') appVerEl.textContent = `v${STUDIO_VERSION}`;
+if (appVerEl && typeof STUDIO_VERSION !== 'undefined') {
+  appVerEl.textContent = `v${STUDIO_VERSION}`;
+  // Hover says when this build was cut. The date is stamped into version.js by
+  // the release, so it describes the build you are looking at rather than
+  // whatever the newest release happens to be.
+  const cut = typeof STUDIO_PUBLISHED === 'undefined' ? '' : STUDIO_PUBLISHED;
+  appVerEl.title = cut ? `Studio v${STUDIO_VERSION}, published ${cut}` : `Studio v${STUDIO_VERSION}`;
+}
 document.addEventListener('mousedown', e => {
   if (!openMenu) return;
   // e.target is not always an Element: a synthetic event dispatched on the

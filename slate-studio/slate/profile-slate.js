@@ -74,15 +74,24 @@ function slateBuildCatalog() {
 // preview seam carried and the runtime contract documents. Living here as
 // well was the residue that made every checkbox render its fallback label.
 const SLATE_RUNTIME_ALIASES = {
-  progressbar: { percent: 'fraction' },
+  progressbar: { percent: 'fraction', fillColorAndOpacity: 'fillColor' },
   checkbox: { label: 'text' },
   editabletextbox: { hintText: 'hint' },
+  // multilinetextbox reads `hint` in the runtime exactly like its single-line
+  // sibling, and had no row here, so every multi-line box in every template
+  // previewed with an empty hint while the generated C++ carried the real one.
+  multilinetextbox: { hintText: 'hint' },
   searchbox: { hintText: 'hint' },
   spinbox: { minValue: 'min', maxValue: 'max' },
-  numericentrybox: { minValue: 'min', maxValue: 'max' },
   image: { sizeX: 'w', sizeY: 'h', colorAndOpacity: 'color' },
+  spacer: { sizeX: 'w', sizeY: 'h' },
   box: { widthOverride: 'w', heightOverride: 'h' },
-  border: { borderBackgroundColor: 'color', padL: 'padding' },
+  circularthrobber: { colorAndOpacity: 'color' },
+  // Per-side, not uniform. `padL: 'padding'` sent the LEFT inset to a runtime
+  // that applied it on all four sides and discarded the other three, so a row
+  // padded (8,2,8,2) previewed as (8,8,8,8) and nothing said so: the emitted
+  // FMargin was right the whole time.
+  border: { borderBackgroundColor: 'color' },
 };
 
 function slateNodeFromShell(n, seq, runtimeAliases) {
@@ -93,7 +102,6 @@ function slateNodeFromShell(n, seq, runtimeAliases) {
   // undefined.toFixed the first time this adapter ran without the merge.
   const props = {};
   const spec = SLATE_WIDGETS[n.type];
-  for (const row of (spec && spec.props) || []) props[row[0]] = row[2];
   // The aliases are for the RUNTIME path only: StudioProbe spells some props
   // differently from the catalog, the C++ emitters do not. Applying them on
   // the generator path renamed the props out from under every emitter, so a
@@ -101,6 +109,15 @@ function slateNodeFromShell(n, seq, runtimeAliases) {
   // defaults forever while the preview showed the real values. The round-trip
   // gate is what finally made that visible.
   const alias = (runtimeAliases && SLATE_RUNTIME_ALIASES[n.type]) || {};
+  // Seed under the RUNTIME name, not the catalog name. Seeding under the
+  // catalog name meant an aliased prop the node did not carry never reached the
+  // runtime under any name it reads, so the runtime fell through to its own
+  // hardcoded fallback -- and every one of those was a second copy of the
+  // default, free to drift. It had: an untouched border defaults to #3a3a3a in
+  // the catalog and previewed as WHITE, because the runtime's own fallback said
+  // white. This makes the catalog the single source of every default and leaves
+  // the runtime's fallbacks as dead belt-and-braces.
+  for (const row of (spec && spec.props) || []) props[alias[row[0]] || row[0]] = row[2];
   for (const [k, v] of Object.entries(n)) {
     if (k === 'id' || k === 'type' || k === 'children' || k.startsWith('slot')) continue;
     props[alias[k] || k] = v;

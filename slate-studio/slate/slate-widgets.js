@@ -101,9 +101,15 @@ const SLATE_WIDGETS = {
       // ContentPadding defaults to FMargin(4.0, 2.0).
       ['padX', 'float', 4],
       ['padY', 'float', 2],
+      // The preview has always read this and nothing could ever send it, so
+      // every button previewed enabled whatever the document meant. A greyed
+      // out button is ordinary in an editor panel, so the honest repair is to
+      // give the catalog the prop rather than take the read away.
+      ['enabled', 'bool', true],
     ],
     emit(n, ctx) {
       const out = [`.Text(${ctx.text(n.props.text)})`];
+      if (!n.props.enabled) out.push('.IsEnabled(false)');
       if (n.props.padX !== 4 || n.props.padY !== 2) {
         out.push(`.ContentPadding(FMargin(${ctx.f(n.props.padX)}, ${ctx.f(n.props.padY)}))`);
       }

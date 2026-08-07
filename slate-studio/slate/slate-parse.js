@@ -127,6 +127,7 @@ function createSlateParser(catalog) {
         const m = marginBox(a);
         if (m) { n.padX = m[0]; n.padY = m[1]; }
       },
+      IsEnabled: B('enabled'),
       OnClicked: H,
     },
     checkbox: {

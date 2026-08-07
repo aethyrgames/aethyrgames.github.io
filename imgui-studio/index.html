@@ -887,21 +887,16 @@
      min-width:0 because a select's automatic minimum is its widest OPTION, so
      without this it refuses to shrink and shoves everything after it out. */
   #codehead select { margin: 4px 0 4px 8px; min-width: 0; }
-  #codefoot {
-    display: flex; gap: 6px; align-items: center; flex-shrink: 0;
-    padding: 5px 8px; border-top: 1px solid var(--mk-border);
-    background: var(--mk-gutter);
-  }
-  #codefoot button, #codehead button {
+  #codehead button {
     /* Edit/Copy/etc. measured 2.97:1 on Solarized Light; same floor as .brand */
     margin: 4px 8px; background: transparent; color: color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green));
     border: 1px solid color-mix(in srgb, var(--mk-fg) 20%, var(--mk-green)); border-radius: var(--radius);
     padding: 4px 12px; cursor: pointer; font-size: 12px; font-family: var(--font);
     transition: background 0.15s, color 0.15s;
   }
-  #codefoot button::before, #codehead button::before { content: '$ '; color: var(--mk-comment); }
-  #codefoot button:hover, #codehead button:hover { background: var(--mk-green); color: var(--mk-bg); }
-  #codefoot button:hover::before, #codehead button:hover::before { color: var(--mk-bg); }
+  #codehead button::before { content: '$ '; color: var(--mk-comment); }
+  #codehead button:hover { background: var(--mk-green); color: var(--mk-bg); }
+  #codehead button:hover::before { color: var(--mk-bg); }
 
   /* Structural only: colors come from the generated #themeStyle rules */
   #code {
@@ -1328,13 +1323,21 @@
     <div class="dock" id="dockRight">
       <section class="panel" data-panel="code" data-title="Generated C++">
         <div id="codehead">
-          <select id="themeSel" title="Syntax highlighting theme"></select>
+          <!-- Kept in the DOM and out of the panel. Settings > Syntax theme
+               drives this element (settings.js writes .value and calls
+               .onchange), so removing it removes the setting; hiding it just
+               takes the control out of a panel that has enough buttons. -->
+          <select id="themeSel" title="Syntax highlighting theme" hidden></select>
+          <button id="editCodeBtn" title="Edit the C++ and apply it back to the document">Edit</button>
+          <button id="applyCodeBtn" hidden>Apply</button>
+          <button id="reloadCodeBtn" title="Regenerate from the current document, discarding edits here" hidden>Reload</button>
+          <button id="cancelCodeBtn" hidden>Cancel</button>
           <button id="copyBtn">Copy</button>
           <!-- Opens the large view. It travels with the pane (app/codeview.js
                moves the whole panel body), so in the large view this same
                button is the way back and reads Collapse. -->
           <button id="expandCodeBtn" aria-expanded="false"
-            title="Show this pane in a large view filling the workspace">Expand</button>
+            title="Show this pane in a large view filling the workspace">Editor</button>
         </div>
         <pre id="code"></pre>
         <div id="codeEditWrap" hidden>
@@ -1345,14 +1348,6 @@
         <div id="codeSig" hidden></div>
         <div id="codeLint" hidden></div>
         <div id="codeStatus" role="status" hidden></div>
-        <!-- The edit flow lives at the bottom left, where the eye ends up after
-             reading the code rather than where it started. -->
-        <div id="codefoot">
-          <button id="editCodeBtn" title="Edit the C++ and apply it back to the document">Edit</button>
-          <button id="applyCodeBtn" hidden>Apply</button>
-          <button id="reloadCodeBtn" title="Regenerate from the current document, discarding edits here" hidden>Reload</button>
-          <button id="cancelCodeBtn" hidden>Cancel</button>
-        </div>
       </section>
     </div>
     </div>
@@ -1432,7 +1427,7 @@
      read it, editor-codemirror.js and lang-cpp-lezer.js, decide whether to
      register at all by whether the global is there. See README for the swap. -->
 <script src="vendor/editor.bundle.js?v=a8987e801e"></script>
-<script src="version.js?v=ef065b1d69"></script>
+<script src="version.js?v=b70868c7c6"></script>
 <script src="profile-imgui.js?v=d4201158dd"></script>
 <script src="widgets.js?v=66c62e3d00"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
@@ -1470,7 +1465,7 @@
 <script src="generate.js?v=b3750ec656"></script>
 <script src="theme.js?v=74ae270bb5"></script>
 <script src="layout.js?v=c709fffafe"></script>
-<script src="render.js?v=8e642db4bf"></script>
+<script src="render.js?v=cdf59a2bf6"></script>
 <script src="codepane.js?v=30564ec228"></script>
 <script src="templates.js?v=c7c8a32efc"></script>
 <script src="settings.js?v=fd8e984934"></script>
