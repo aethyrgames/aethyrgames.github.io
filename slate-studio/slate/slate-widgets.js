@@ -1,3 +1,5 @@
+const AUX_GRAPH_WIRE = "// A graph wire. Slate has no widget that draws one: in the editor a connection\n// is painted by SGraphPanel's connection drawing policy, OUTSIDE the widget\n// tree, so there is nothing stock to compose and no brush that would do. This\n// is the smallest widget that draws the real thing -- a cubic Hermite spline\n// with horizontal tangents, which is what UGraphEditorSettings describes with\n// ForwardSplineTangentFromHorizontalDelta = (1, 0).\n//\n// Thickness defaults to 2.5, which is DefaultExecutionWireThickness; a data\n// wire is 1.5 (GraphEditorSettings.cpp:65-66). Exec wires take\n// ExecutionPinTypeColor, pure white, and a data wire takes its SOURCE pin's\n// type colour rather than a blend of the two ends.\nclass SStudioGraphWire : public SLeafWidget\n{\npublic:\n\tSLATE_BEGIN_ARGS(SStudioGraphWire)\n\t\t: _Thickness(2.5f)\n\t\t, _WireColor(FLinearColor::White)\n\t\t, _Tangent(1.0f)\n\t\t, _Length(28.0f)\n\t{}\n\t\tSLATE_ARGUMENT(float, Thickness)\n\t\tSLATE_ARGUMENT(FLinearColor, WireColor)\n\t\tSLATE_ARGUMENT(float, Tangent)\n\t\tSLATE_ARGUMENT(float, Length)\n\tSLATE_END_ARGS()\n\n\tvoid Construct(const FArguments& InArgs)\n\t{\n\t\tThickness = InArgs._Thickness;\n\t\tWireColor = InArgs._WireColor;\n\t\tTangent = InArgs._Tangent;\n\t\tLength = InArgs._Length;\n\t}\n\n\tvirtual FVector2D ComputeDesiredSize(float) const override\n\t{\n\t\t// Tall enough that the curve is not clipped by its own row.\n\t\treturn FVector2D(Length, FMath::Max(Thickness * 4.0f, 12.0f));\n\t}\n\n\tvirtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,\n\t\tconst FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,\n\t\tint32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override\n\t{\n\t\tconst FVector2f Size(AllottedGeometry.GetLocalSize());\n\t\tconst FVector2f Start(0.0f, Size.Y * 0.5f);\n\t\tconst FVector2f End(Size.X, Size.Y * 0.5f);\n\t\t// Both tangents point along +X, which is what a forward connection does.\n\t\t// The magnitude is the horizontal delta, clamped in the editor to\n\t\t// ForwardSplineHorizontalDeltaRange; over a span this short the clamp\n\t\t// never bites, so Tangent scales it instead.\n\t\tconst FVector2f Dir(Size.X * Tangent, 0.0f);\n\t\tFSlateDrawElement::MakeSpline(OutDrawElements, LayerId,\n\t\t\tAllottedGeometry.ToPaintGeometry(), Start, Dir, End, Dir,\n\t\t\tThickness, ESlateDrawEffect::None, WireColor);\n\t\treturn LayerId + 1;\n\t}\n\nprivate:\n\tfloat Thickness = 2.5f;\n\tFLinearColor WireColor = FLinearColor::White;\n\tfloat Tangent = 1.0f;\n\tfloat Length = 28.0f;\n};";
+
 // The Slate widget catalog. Prototype subset.
 //
 // Every class name, header path, argument name and default in this file was read
@@ -671,6 +673,32 @@ SLATE_WIDGETS.listview = {
         + `\t\t];\n}`,
     }];
   },
+};
+
+// ---- Drawn, not composed ---------------------------------------------------
+// The one catalog entry whose class the GENERATOR has to write, because Slate
+// ships nothing that draws it. `aux` is that class: the generator emits it once
+// per document that uses it, ahead of the window classes.
+
+SLATE_WIDGETS.graphwire = {
+	cls: 'SStudioGraphWire', header: null, module: null,
+	cat: 'Display', name: 'Graph Wire',
+	aux: { name: 'SStudioGraphWire', code: AUX_GRAPH_WIRE,
+		headers: ['Widgets/SLeafWidget.h', 'Rendering/DrawElements.h'] },
+	props: [
+		['thickness', 'float', 2.5],
+		['wireColor', 'color', '#ffffffff'],
+		['tangent', 'float', 1],
+		['length', 'float', 28],
+	],
+	emit(n, ctx) {
+		const out = [];
+		if (n.props.thickness !== 2.5) out.push(`.Thickness(${ctx.f(n.props.thickness)})`);
+		if (n.props.wireColor !== '#ffffffff') out.push(`.WireColor(${ctx.linear(n.props.wireColor)})`);
+		if (n.props.tangent !== 1) out.push(`.Tangent(${ctx.f(n.props.tangent)})`);
+		if (n.props.length !== 28) out.push(`.Length(${ctx.f(n.props.length)})`);
+		return out;
+	},
 };
 
 // A block of Slate the tool carries verbatim: the parser wraps any SNew of a

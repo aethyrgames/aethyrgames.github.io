@@ -59,6 +59,11 @@ function slateMakeCtx(className) {
     color: slateColor,
     linear: slateLinearColor,
     headers: new Set(),
+    // Widget classes the GENERATOR has to write, because Slate ships nothing
+    // that draws them. Keyed by class name so a document with four wires emits
+    // one class. This is the output contract widening: a generated cpp may now
+    // define a helper widget before the window classes that compose it.
+    auxClasses: new Map(),
     aliases: [],
     // statements a widget needs ahead of ChildSlot (a combo box's options
     // array); collected per window and emitted inside Construct
@@ -94,7 +99,9 @@ function slateEmitWidget(node, ctx) {
   }
   const spec = SLATE_WIDGETS[node.type];
   if (!spec) return [`// unknown widget type: ${node.type}`];
-  ctx.headers.add(spec.header);
+  // An aux widget has no header of its own: the generator writes the class
+  // into the same cpp. Adding a null here emitted #include "null".
+  if (spec.header) ctx.headers.add(spec.header);
   if (spec.preLines) ctx.preLines.push(...spec.preLines(node, ctx));
 
   // A template widget needs its type argument inside SNew. SNew is a VARIADIC
@@ -114,6 +121,10 @@ function slateEmitWidget(node, ctx) {
     }
   }
 
+  if (spec.aux) {
+    ctx.auxClasses.set(spec.aux.name, spec.aux.code);
+    for (const h of spec.aux.headers || []) ctx.headers.add(h);
+  }
   const lines = [`SNew(${cls})`];
   for (const el of spec.emit(node, ctx) || []) lines.push(el);
 
@@ -246,6 +257,8 @@ function slateGenerate(root, className) {
   header.push('};', '');
 
   const includes = [...ctx.headers].sort().map(h => `#include "${h}"`);
+  const auxLines = [];
+  for (const code of ctx.auxClasses.values()) auxLines.push('', ...code.split('\n'));
   const cpp = [
     `#include "${className}.h"`,
     '',
@@ -254,6 +267,7 @@ function slateGenerate(root, className) {
     '#include "Styling/CoreStyle.h"',
     '',
     `#define LOCTEXT_NAMESPACE "${className}"`,
+    ...auxLines,
     '',
     ...(ctx.aliases.length ? [...ctx.aliases, ''] : []),
     `void ${className}::Construct(const FArguments& InArgs)`,
@@ -382,6 +396,11 @@ function slateGenerateDoc(wins, opts) {
     '',
     '#define LOCTEXT_NAMESPACE "SlateStudio"',
   ];
+  // The helper widgets this document needs, ahead of the classes that compose
+  // them. One definition however many times a wire appears.
+  const auxOut = [];
+  for (const code of ctx.auxClasses.values()) auxOut.push('', ...code.split('\n'));
+  out.push(...auxOut);
   for (const b of blocks) out.push('', ...b.lines);
   out.push('', ...opener);
   out.push('', '#undef LOCTEXT_NAMESPACE', '');

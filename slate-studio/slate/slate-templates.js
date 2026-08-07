@@ -227,9 +227,9 @@ function slateBuiltinTemplates() {
   //
   // A box with a separator in it is honest about being a placeholder. Changing
   // that means changing what the generator is allowed to emit.
-  const wire = () => n('box', {
-    widthOverride: 28, heightOverride: 3, slotVAlign: 'Top', slotPadT: 15,
-  }, [n('separator', { thickness: 2.5 })]);
+  const wire = () => n('graphwire', {
+    thickness: 2.5, length: 28, slotVAlign: 'Top', slotPadT: 12,
+  });
 
   const defs = [
     ['Blank Window', () => win('Blank Window', 380, 300, [])],

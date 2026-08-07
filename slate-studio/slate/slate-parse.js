@@ -229,6 +229,15 @@ function createSlateParser(catalog) {
     // rather than as chain calls, so there is nothing to model here. The entry
     // exists so the type is KNOWN: without it the parser wraps the whole
     // SNew(SHeaderRow) as a Raw Slate node.
+    // The one widget whose class the generator WRITES. Its definition sits in
+    // the cpp above Construct, outside anything this parser reads, so only the
+    // SNew chain needs modelling here.
+    graphwire: {
+      Thickness: F('thickness'),
+      WireColor: C('wireColor'),
+      Tangent: F('tangent'),
+      Length: F('length'),
+    },
     headerrow: {},
     listview: {
       // Same static-array trick STextComboBox uses: the rows are a static the
