@@ -60,11 +60,24 @@ function slateBuiltinTemplates() {
   // regardless of hover (DetailsViewStyle.cpp:269-281). The body sits on
   // FStyleColors::Panel #242424. The title is FStyleFonts::SmallBold, Bold 8pt
   // (StarshipStyle.cpp:3805), over #C8C8C8.
+  //
+  // The 1px rule between rows is not a widget in the editor either, and copying
+  // how it is actually made is cheaper than drawing it. SDetailSingleItemRow's
+  // outer SBorder is "DetailsView.GridLine", FStyleColors::Recessed #1A1A1A,
+  // with Padding(0,0,0,1) -- so the "separator" is the row's own background
+  // showing through a one-pixel gap (SDetailSingleItemRow.cpp:829-831,
+  // StarshipStyle.cpp:3791). Here the category BODY is the recessed colour and
+  // each row is a #242424 band with a 1px bottom slot gap, which produces the
+  // same picture with one wrapper per row instead of three.
+  const rowChrome = kid => n('border', {
+    borderBackgroundColor: '#242424ff',
+    padL: 4, padT: 2, padR: 2, padB: 2, slotPadB: 1,
+  }, [kid]);
   const cat = (title, kids, collapsed) => n('expandablearea', {
     areaTitle: title, initiallyCollapsed: !!collapsed, slotPadT: 4,
-    headerColor: '#2f2f2fff', bodyColor: '#242424ff',
+    headerColor: '#2f2f2fff', bodyColor: '#1a1a1aff',
     titleFontSize: 8, titleBold: true,
-  }, [n('verticalbox', {}, kids)]);
+  }, [n('verticalbox', {}, kids.map(rowChrome))]);
   // Three numeric fields on one line: the editor's vector editor.
   //
   // The coloured strip down the left of each field is the single most
@@ -168,9 +181,28 @@ function slateBuiltinTemplates() {
   // the base policy's ArrowImage outright, and the midpoint arrow is behind
   // bDrawMidpointArrowsInBlueprints, which defaults false
   // (BlueprintConnectionDrawingPolicy.cpp:50-58, BlueprintEditorSettings.cpp:33).
-  // A straight run is a narrowing: the real thing is a cubic Hermite spline
-  // with horizontal tangents, which needs a custom OnPaint this catalog has no
-  // widget for.
+  // A straight run is a narrowing, and it is a PERMANENT one until somebody
+  // makes a decision, so here is the decision rather than another apology.
+  //
+  // The real thing is a cubic Hermite spline with horizontal tangents. I kept
+  // listing "do the wires properly" as unfinished work until I checked whether
+  // it could be finished at all. MEASURED: FSlateDrawElement::MakeSpline and
+  // MakeDrawSpaceSpline do exist, in SlateCore's DrawElementTypes.h, so the
+  // drawing is available. But NO widget anywhere in the Slate module paints a
+  // spline -- grep the whole module for either call and there are zero hits. In
+  // the editor a wire is not a widget at all: SGraphPanel's connection drawing
+  // policy paints it directly, outside the widget tree.
+  //
+  // So this catalog cannot express a wire without the studio emitting a custom
+  // SWidget subclass with its own OnPaint, and the generator emits one
+  // SCompoundWidget that composes STOCK widgets. Drawing a spline in the
+  // preview alone would be worse than a straight line: it would be a picture
+  // that no generated code produces, which is the exact defect class the prop
+  // oracle exists to prevent, and the oracle could not catch this one because
+  // it checks props rather than paint.
+  //
+  // A box with a separator in it is honest about being a placeholder. Changing
+  // that means changing what the generator is allowed to emit.
   const wire = () => n('box', {
     widthOverride: 28, heightOverride: 3, slotVAlign: 'Top', slotPadT: 15,
   }, [n('separator', { thickness: 2.5 })]);
