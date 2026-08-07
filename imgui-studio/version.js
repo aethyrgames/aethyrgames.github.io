@@ -13,7 +13,7 @@
 // describes what you are actually running rather than what was attempted.
 const STUDIO_PUBLISHED = '2026-08-07';
 
-const STUDIO_VERSION = '0.5.6';
+const STUDIO_VERSION = '0.5.7';
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { STUDIO_VERSION, STUDIO_PUBLISHED };
