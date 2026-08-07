@@ -233,7 +233,34 @@ function perturb(t, cur, opts) {
     return vals.find(v => v !== Number(cur)) ?? Number(cur) + 1;
   }
   if (t === 'bool') return !cur;
+  // A different SET. Adding an option that is off changes the emitted
+  // expression in a way no spacing or ordering difference could fake, which is
+  // what lets the differential probe attribute that argument to this property.
+  if (t === 'flags') {
+    const on = String(cur ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    const off = (opts || []).map(String).find(v => !on.includes(v));
+    return off ? on.concat(off).join(', ') : on.slice(0, -1).join(', ');
+  }
   return (Number(cur) || 0) + 37;
+}
+
+// An ImGuiXxxFlags_ expression back into the bare names the document holds.
+//
+// Aliases are expanded rather than kept. The generator collapses the four
+// border bits into ImGuiTableFlags_Borders because that reads better, and
+// hand-written code says Borders far more often than it names the bits, so a
+// reader that does not expand loses every one of them on Apply.
+function flagsFromExpr(expr, allowed, aliases) {
+  const on = [];
+  const add = (name) => { if (allowed.includes(name) && !on.includes(name)) on.push(name); };
+  for (const m of String(expr).matchAll(/ImGui\w*Flags_(\w+)/g)) {
+    const alias = (aliases || []).find(([a]) => a === m[1]);
+    if (alias) alias[1].forEach(add);
+    else add(m[1]);
+  }
+  // Ordered by the option list, the same way coerce orders it, so a value that
+  // survived the trip compares equal to the one that went in.
+  return allowed.filter(f => on.includes(f)).join(', ');
 }
 
 function buildSchema(WIDGETS, makeNode) {
@@ -942,8 +969,20 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
 
     // Structural calls the generator re-emits from the tree. Keeping them would
     // duplicate on every apply.
-    if (/^ImGui::(TableNextColumn|TableNextRow)\s*\(\s*\)\s*;/.test(rest)) {
-      i = src.indexOf(';', i) + 1;
+    //
+    // ONLY the shapes this generator writes. A TableNextRow carrying row flags,
+    // or a TableSetupColumn carrying a width, sort or header flag, is written by
+    // hand in a shape the document has no property to hold, so it falls through
+    // to raw code and stays visible rather than being eaten on Apply. That is
+    // the same rule ProgressBar's missing alias entry below is built on.
+    //
+    // Advancing by the match rather than to the next ';' as well, because a
+    // semicolon inside a column label would otherwise cut the statement short
+    // and leave its tail behind as garbage.
+    const structural = rest.match(
+      /^ImGui::(?:TableNextColumn\s*\(\s*\)|TableNextRow\s*\(\s*\)|TableNextRow\s*\(\s*0\s*,[^;]*\)|TableHeadersRow\s*\(\s*\)|TableSetupColumn\s*\(\s*"(?:[^"\\]|\\.)*"\s*\))\s*;/);
+    if (structural) {
+      i += structural[0].length;
       continue;
     }
 
@@ -1082,6 +1121,8 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
           const node = nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields)
             || Object.assign(makeNode(entry.type), { id: newId() });
           const inner = stripTrailingPop(body, fn);
+          // Before parse(), which discards the very calls this reads.
+          if (node.type === 'table') readTableProps(node, inner, helpers);
           node.children = parse(inner, 0, inner.length, errors, newId, schema,
             colorSlots, WIDGETS, makeNode, fields, helpers);
           attach(node);
@@ -1354,6 +1395,64 @@ function stripGeneratedSuffix(s) {
   return s.replace(/###(popup|btn)\w*$/, '').replace(/##dup\d+$/, '');
 }
 
+// A Table's own shape, read back off the structural calls in its body.
+//
+// BeginTable carries the column count and nothing else, so rows, the header
+// row, the row height and the column names all have to come from the calls
+// around the cells. parse() discards those calls, since the generator re-emits
+// them from the tree, which is why this runs first.
+//
+// Depth zero only. A nested table's rows, header and cells belong to the INNER
+// table, and counting them out here would grow the outer table by however much
+// the inner one held, every single Apply.
+function readTableProps(node, body, helpers) {
+  const labels = [];
+  let rows = 0, cells = 0, header = false, height = null;
+
+  const scan = (text, seen) => {
+    let depth = 0;
+    const re = /[{}]|ImGui::(TableSetupColumn|TableHeadersRow|TableNextRow|TableNextColumn)\s*\(([^;]*)\)\s*;|(\w+)\s*\(\s*state\s*(?:,[^)]*)?\)\s*;/g;
+    for (let m; (m = re.exec(text)) !== null;) {
+      if (m[0] === '{') { depth++; continue; }
+      if (m[0] === '}') { depth--; continue; }
+      if (depth !== 0) continue;
+      if (m[3] !== undefined) {
+        // A lifted Function container consumes no cell of its own: its children
+        // advance THIS table's grid from inside the helper. Without following
+        // the call, a table whose cells all sit in a Function container reads
+        // back as one row and Apply quietly drops the rest of its grid.
+        const h = helpers && helpers[m[3]];
+        if (h && h.body && !seen.has(m[3])) { seen.add(m[3]); scan(h.body, seen); }
+        continue;
+      }
+      const args = (m[2] || '').trim();
+      if (m[1] === 'TableSetupColumn') {
+        if (/^"(?:[^"\\]|\\.)*"$/.test(args)) labels.push(litStr(args));
+      } else if (m[1] === 'TableHeadersRow') {
+        header = true;
+      } else if (m[1] === 'TableNextRow') {
+        rows++;
+        if (height === null) height = splitTopLevel(args)[1];
+      } else {
+        cells++;
+      }
+    }
+  };
+  scan(body, new Set());
+
+  node.header = header;
+  // Two forms to read: GetTextLineHeightWithSpacing() for the default and a
+  // float literal for an override. Anything else was written by hand, and is
+  // left at the default rather than guessed at.
+  const px = /^([\d.]+)f?$/.exec(String(height === null || height === undefined ? '' : height).trim());
+  node.rowHeight = px ? Number(px[1]) : 0;
+  if (labels.length) node.colLabels = labels.join(', ');
+  // Rows from the row breaks the generator wrote. A body with none of them was
+  // written flat by hand, so fall back to the cells over the column count.
+  const cols = Math.max(1, Number(node.cols) || 1);
+  node.rows = Math.max(1, rows || Math.ceil(cells / cols));
+}
+
 function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
   const node = makeNode(entry.type);
   node.id = newId();
@@ -1382,6 +1481,15 @@ function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
     const t = def[1];
     // a raw C++ expression: whatever was written, kept as written
     if (t === 'expr') { node[slot.key] = v; return; }
+    if (t === 'flags') {
+      // The allowed names come from the catalog row, so this stays true for any
+      // catalog. The alias table is the imgui catalog's, reached by name and
+      // guarded: another profile with no aliases simply expands nothing.
+      const allowed = (def[3] || []).map(String);
+      const aliases = typeof TABLE_FLAG_ALIASES !== 'undefined' ? TABLE_FLAG_ALIASES : [];
+      node[slot.key] = flagsFromExpr(v, allowed, aliases);
+      return;
+    }
     if (t === 'unit') {
       // the argument is a printf format the unit was appended to, so the unit
       // is whatever follows the conversion spec

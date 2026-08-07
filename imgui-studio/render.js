@@ -1280,6 +1280,74 @@ function renderProps() {
       }
       return row;
     }
+    // A set of ImGui bits. Thirty checkboxes in one flat column is a wall
+    // nobody reads, so they come grouped, the mutually exclusive ones behave
+    // that way, and the ones that cannot do anything yet say why instead of
+    // offering a control that changes nothing.
+    if (type === 'flags') {
+      const all = (opts || []).map(String);
+      const on = new Set(String(node[key] ?? '').split(',').map(s => s.trim()).filter(Boolean));
+      // Grouping, exclusivity and gating belong to the imgui table catalog, so
+      // they are reached by name and guarded. Another profile with none of them
+      // gets one plain list, which is still a working editor.
+      // `typeof` on the bare name, NOT a lookup on window. A top-level const in
+      // a classic script is a lexical binding in the global environment and
+      // never becomes a property of the global object, so `in window` answers
+      // false for all three of these and the editor silently degrades to one
+      // flat ungrouped list with no gating and no exclusivity.
+      const groups = (node.type === 'table' && typeof TABLE_FLAG_GROUPS !== 'undefined'
+        && TABLE_FLAG_GROUPS) || [['', all]];
+      const exclusive = typeof TABLE_FLAGS_EXCLUSIVE !== 'undefined' ? TABLE_FLAGS_EXCLUSIVE : [];
+      const needs = typeof TABLE_FLAG_NEEDS !== 'undefined' ? TABLE_FLAG_NEEDS : {};
+
+      const box = document.createElement('div');
+      box.className = 'flagsbox';
+      const commit = () => {
+        // Ordered by the option list, the same way coerce orders it, so the
+        // stored value does not churn as boxes are ticked in a different order.
+        node[key] = all.filter(f => on.has(f)).join(', ');
+        refresh(false, key);
+      };
+      for (const [gname, names] of groups) {
+        const members = names.filter(f => all.includes(f));
+        if (!members.length) continue;
+        if (gname) {
+          const h = document.createElement('div');
+          h.className = 'flaggroup';
+          h.textContent = gname;
+          box.appendChild(h);
+        }
+        for (const f of members) {
+          const need = needs[f];
+          // `header` is a sibling property, anything else is another flag.
+          const met = !need || (need[0] === 'header' ? !!node.header : on.has(need[0]));
+          const row = document.createElement('label');
+          row.className = 'flagrow' + (met ? '' : ' off');
+          row.title = met ? 'ImGuiTableFlags_' + f : `Does nothing while ${need[1]}`;
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = on.has(f);
+          cb.disabled = !met;
+          cb.onchange = () => {
+            if (!cb.checked) on.delete(f);
+            else {
+              on.add(f);
+              // The four sizing policies share ImGuiTableFlags_SizingMask_, so
+              // ticking one has to clear the rest. Letting two stay ticked
+              // would silently apply whichever bit pattern happened to win.
+              if (exclusive.includes(f)) for (const o of exclusive) if (o !== f) on.delete(o);
+            }
+            commit();
+          };
+          row.appendChild(cb);
+          const name = document.createElement('span');
+          name.textContent = f;
+          row.appendChild(name);
+          box.appendChild(row);
+        }
+      }
+      return box;
+    }
     if (type === 'int' || type === 'float') {
       const meta = (opts && typeof opts === 'object' && !Array.isArray(opts)) ? opts : {};
       const wrap = document.createElement('span');
@@ -1312,6 +1380,41 @@ function renderProps() {
       };
       inp.onblur = () => { if (String(node[key]) !== inp.value) inp.value = node[key]; };
       wrap.appendChild(inp);
+      // A +/- pair for properties that are a COUNT you nudge rather than a
+      // measurement you type. A Table's rows and columns are what this is for:
+      // changing the shape of a grid by selecting the text in a number field
+      // and typing over it is the wrong gesture for the job.
+      if (meta.stepper) {
+        const nudge = (by, glyph, title) => {
+          const clamped = () => {
+            let v = Math.trunc(Number(node[key]) || 0) + by;
+            if (meta.min !== undefined) v = Math.max(meta.min, v);
+            if (meta.max !== undefined) v = Math.min(meta.max, v);
+            return v;
+          };
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'numstep';
+          b.textContent = glyph;
+          b.title = title;
+          // The field is the tab stop. Two more per number would triple the
+          // keyboard cost of walking the inspector, and the arrow keys already
+          // step a number input.
+          b.tabIndex = -1;
+          // At the end of the range the button would silently do nothing, so
+          // it says so instead. Recomputed on each render, which refresh()
+          // below triggers, so it cannot go stale.
+          b.disabled = clamped() === Math.trunc(Number(node[key]) || 0);
+          b.onclick = () => {
+            node[key] = clamped();
+            inp.value = node[key];
+            refresh(false, key);
+          };
+          return b;
+        };
+        wrap.appendChild(nudge(-1, '−', 'One fewer'));
+        wrap.appendChild(nudge(1, '+', 'One more'));
+      }
       if (meta.unit) {
         const u = document.createElement('span');
         u.className = 'unit';
@@ -1446,7 +1549,14 @@ function renderProps() {
   }
 
   // ---- color overrides ----
-  const slots = colorSlots(node.type);
+  // Slots the node can actually reach right now, which is not always every slot
+  // valid for its type. A Table only draws a header row when `header` is on, so
+  // offering TableHeaderBg while it is off would put back exactly the swatch
+  // that changes nothing which widgets.js spent a comment removing. The static
+  // list stays whole for the parser and the generator, and the narrowing is
+  // here because this is the only place a person sees it.
+  const slots = colorSlots(node.type)
+    .filter(s => s !== 'TableHeaderBg' || node.type !== 'table' || !!node.header);
   if (!slots.length) return;
   const overridden = slots.filter(s => node.colors && node.colors[s]).length;
   addHead('colors' + (overridden ? ' (' + overridden + ' overridden)' : ''));

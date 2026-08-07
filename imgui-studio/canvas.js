@@ -472,6 +472,11 @@ function updateSelectionOverlay() {
     selbox.classList.toggle('win', !!node && node.type === 'window');
     selbox.classList.toggle('now', !hasW);
     selbox.classList.toggle('noh', !hasH);
+    // A grid-shaped widget gets its row and column steppers on the canvas.
+    // Keyed on the SPEC declaring both, not on the type being 'table', so this
+    // is a control any grid-shaped widget picks up rather than a special case.
+    selbox.classList.toggle('grid',
+      selection.size <= 1 && props.some(p => p[0] === 'rows') && props.some(p => p[0] === 'cols'));
   }
   // secondary members of the selection
   const others = [...selection].filter(id => id !== selectedId);
@@ -784,6 +789,37 @@ function paintDuringGesture(withCode) {
     renderTree();
     renderProps();
     if (withCode) renderCode();
+  });
+}
+
+// The grid steppers. mousedown is stopped as well as the click, or the press
+// would fall through to the canvas and start dragging the widget out from under
+// the button before the click ever lands.
+//
+// One pushHistory per press, so growing a grid and taking it back is two
+// undos rather than one, and so removing a row that HELD widgets is a single
+// step you can walk back. That is the escape hatch for a destructive nudge,
+// which is why there is no confirmation on it.
+for (const b of selbox.querySelectorAll('.gs b')) {
+  b.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+  b.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const node = selectedId && findNode(selectedId);
+    if (!node) return;
+    const m = /^(rows|cols)([-+]\d+)$/.exec(b.dataset.grid || '');
+    if (!m) return;
+    const [, key, delta] = m;
+    // The catalog's own floor and ceiling, so the button can never set a number
+    // the emitters would clamp away underneath it.
+    const meta = ((PROFILE.catalog[node.type].props || []).find(p => p[0] === key) || [])[3] || {};
+    const lo = meta.min === undefined ? 1 : meta.min;
+    const hi = meta.max === undefined ? 64 : meta.max;
+    const next = Math.min(hi, Math.max(lo, (Math.trunc(Number(node[key])) || lo) + Number(delta)));
+    if (next === node[key]) return;   // already at the end of the range
+    node[key] = next;
+    pushHistory();
+    refresh();
   });
 }
 

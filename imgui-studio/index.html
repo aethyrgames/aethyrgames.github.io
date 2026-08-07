@@ -605,6 +605,37 @@
   }
   .numwrap:has(.unit) input { padding-right: 26px; }
 
+  /* A +/- pair for counts you nudge rather than measurements you type. Real
+     buttons after the field rather than an overlay, so they take a pointer and
+     can go disabled at the ends of the range. The field keeps the tab stop. */
+  .numstep {
+    flex: 0 0 auto; width: 20px; align-self: stretch; margin-left: 3px;
+    background: var(--mk-surface); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: 3px;
+    font-size: 12px; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .numstep:hover:not(:disabled) { background: var(--mk-hover); }
+  .numstep:disabled { opacity: .4; cursor: default; }
+  /* the unit would sit under the buttons otherwise */
+  .numwrap:has(.numstep) .unit { right: 49px; }
+
+  /* A flag set. Grouped, and narrow enough that the names are the content
+     rather than the checkboxes. A gated flag stays visible and greyed with its
+     reason in the tooltip, so it reads as "not yet" rather than "missing". */
+  .flagsbox { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .flaggroup {
+    margin-top: 5px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--mk-comment);
+  }
+  .flaggroup:first-child { margin-top: 0; }
+  .flagrow {
+    display: flex; align-items: center; gap: 5px; font-size: 11px;
+    cursor: pointer; min-width: 0;
+  }
+  .flagrow span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .flagrow input { flex: 0 0 auto; margin: 0; }
+  .flagrow.off { color: var(--mk-comment); cursor: default; }
+
   .colorrow { display: flex; align-items: center; gap: 6px; }
   /* the swatch is the control, so the color fills it edge to edge and the
      border is the only chrome */
@@ -848,6 +879,23 @@
   #selbox:not(.win) .winonly { display: none; }
   #selbox.noh .rh, #selbox.now .rh-r, #selbox.now .rh-c { display: none; }
   #selbox.noh .rh-r { display: block; }
+
+  /* A Table's grid steppers. Shown only on .grid, which canvas.js sets for a
+     widget whose spec declares rows and cols, so this is not table-specific
+     markup so much as a control any grid-shaped widget would get. */
+  .gs { position: absolute; display: none; gap: 2px; pointer-events: auto; }
+  #selbox.grid .gs { display: flex; }
+  /* transform-origin so counter-scaling pulls the pair toward the edge it
+     belongs to instead of drifting away from it as you zoom out */
+  #selbox.grid .gs-cols { left: 100%; top: 0; margin-left: 6px; transform-origin: left top; }
+  #selbox.grid .gs-rows { top: 100%; left: 0; margin-top: 6px; transform-origin: left top; }
+  .gs b {
+    display: block; width: 15px; height: 15px; line-height: 13px; text-align: center;
+    font-weight: 500; font-size: 12px; cursor: pointer; border-radius: 3px;
+    background: var(--mk-surface); color: var(--mk-fg);
+    border: 1px solid var(--mk-cyan);
+  }
+  .gs b:hover { background: var(--mk-cyan); color: var(--mk-bg); }
   /* a forgiving grab area around each grip, so aiming at an edge does not land
      on the canvas and start a selection instead */
   .rh::after { content: ''; position: absolute; inset: -5px; }
@@ -1013,6 +1061,7 @@
      counter-scale to keep the same size on screen. Without this they are specks
      at 25% and slabs at 400%. */
   #selbox .rh { transform: scale(var(--inv-zoom, 1)); }
+  #selbox .gs { transform: scale(var(--inv-zoom, 1)); }
   /* The inline label editor counter-scales its WHOLE box, not just a border:
      beginInlineEdit sizes it in screen pixels (floored at 80x18) and this
      transform cancels the ambient viewport zoom back out, so that size (and
@@ -1303,6 +1352,15 @@
               <i class="rh rh-tl winonly" data-axis="WH"></i>
               <i class="rh rh-tr winonly" data-axis="Hw"></i>
               <i class="rh rh-bl winonly" data-axis="Wh"></i>
+              <!-- Grid steppers, for a Table. Off the right edge for columns and
+                   under the bottom edge for rows, so the control sits beside the
+                   thing it changes rather than in a panel across the app. -->
+              <span class="gs gs-cols">
+                <b data-grid="cols-1" title="One fewer column">−</b><b data-grid="cols+1" title="One more column">+</b>
+              </span>
+              <span class="gs gs-rows">
+                <b data-grid="rows-1" title="One fewer row">−</b><b data-grid="rows+1" title="One more row">+</b>
+              </span>
             </div>
             <div id="dropbox"></div>
             <div id="dropline"></div>
@@ -1440,9 +1498,9 @@
 <script src="vendor/editor.bundle.js?v=a8987e801e"></script>
 <script src="version.js?v=5c47523644"></script>
 <script src="profile-imgui.js?v=d4201158dd"></script>
-<script src="widgets.js?v=7f1a35f54b"></script>
+<script src="widgets.js?v=e6597cda57"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=3867a0ddab"></script>
+<script src="cpp.js?v=0d18860879"></script>
 <script src="codeintel.js?v=1140d40c85"></script>
 <!-- The two seams, each an interface followed by its implementations. The
      interface files register nothing and depend on nothing, so they load
@@ -1463,8 +1521,8 @@
 <script src="editor-api.js?v=56cc7be192"></script>
 <script src="editor-textarea.js?v=2e39a4184d"></script>
 <script src="editor-codemirror.js?v=0596c1a2e6"></script>
-<script src="doc.js?v=82e1a48f3e"></script>
-<script src="canvas.js?v=e1cb2fa296"></script>
+<script src="doc.js?v=fc9422ea70"></script>
+<script src="canvas.js?v=4ad8fb0677"></script>
 <!-- Ahead of keys.js, which is the one place in this list where load order is
      about listener order rather than dependency order. Both files register a
      capture-phase keydown listener on window, those run in registration order,
@@ -1473,15 +1531,15 @@
      time, never at load. See the Escape note at the bottom of the file. -->
 <script src="codeview.js?v=4c92a095ed"></script>
 <script src="keys.js?v=e783148dcf"></script>
-<script src="generate.js?v=b3750ec656"></script>
+<script src="generate.js?v=cef9c6f489"></script>
 <script src="theme.js?v=74ae270bb5"></script>
 <script src="layout.js?v=c709fffafe"></script>
-<script src="render.js?v=cb9347fa40"></script>
+<script src="render.js?v=37b9ab0700"></script>
 <script src="codepane.js?v=30564ec228"></script>
 <script src="templates.js?v=9848af86cc"></script>
 <script src="settings.js?v=fd8e984934"></script>
 <script src="testhooks.js?v=03c4e524cc"></script>
 <script src="boot.js?v=ece0f956f0"></script>
-<script src="engine.js?v=a7806ce69d"></script>
+<script src="engine.js?v=3a2b6da0f0"></script>
 </body>
 </html>

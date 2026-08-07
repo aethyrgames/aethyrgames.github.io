@@ -118,7 +118,21 @@ function generateCode() {
   let curToggleRef = () => null;
   let curHelperParams = '';
   let curHelperArgs = '';
-  const emit = (node, depth, index, parentType, inTabbar) => {
+  // The cell cursor of the nearest enclosing table, or null outside one. Shared
+  // by reference rather than recomputed per child, because a Function container
+  // lifts its children into a helper without consuming a cell itself: they have
+  // to keep counting against the SAME grid, or every row break after a section
+  // lands in the wrong place.
+  const advanceCell = (out, ind, cell) => {
+    // TableNextColumn wraps into the next row by itself, so a row break only
+    // needs an explicit call when the row carries a minimum height. Emitting it
+    // at every row start rather than once keeps a multi-row table's rows all the
+    // same height instead of only its first.
+    if (cell.n % cell.cols === 0) out.push(ind + `ImGui::TableNextRow(0, ${cell.height});`);
+    out.push(ind + 'ImGui::TableNextColumn();');
+    cell.n++;
+  };
+  const emit = (node, depth, index, parentType, inTabbar, cell) => {
     const spec = WIDGETS[node.type];
     if (!spec) return;
     const ind = '    '.repeat(depth);
@@ -198,7 +212,10 @@ function generateCode() {
       // `parentType === 'window'`). Table-cell advancement and everything
       // else still sees the real ambient parentType through unchanged.
       const kidParentType = parentType === 'window' ? 'section' : parentType;
-      for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, kidParentType, inTabbar);
+      // `cell` straight through, for the reason on advanceCell: the container
+      // consumes no cell of its own, so its children keep counting against the
+      // enclosing table's grid.
+      for (let i = 0; i < kids.length; i++) emit(kids[i], 1, i, kidParentType, inTabbar, cell);
       const lines = out.splice(start);
       const lineOwners = owners.splice(start, lines.length);
       helpers.push({ id: node.id, fnName, fnLabel, lines, owners: lineOwners });
@@ -217,8 +234,13 @@ function generateCode() {
       return;
     }
 
-    if (parentType === 'table') out.push(ind + 'ImGui::TableNextColumn();');
-    else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
+    if (parentType === 'table') {
+      // A table with no cursor should still advance, matching the engine's
+      // AdvanceCell. Falling through to the SameLine arm instead would stack
+      // every child of that table on top of the one before it.
+      if (cell) advanceCell(out, ind, cell);
+      else out.push(ind + 'ImGui::TableNextColumn();');
+    } else if (node.sameline && index > 0) out.push(ind + 'ImGui::SameLine();');
 
     if (spec.field) addField(spec.field(node, v));
     // ImGui's own way to size an item that has no explicit size argument
@@ -254,9 +276,20 @@ function generateCode() {
     const braced = res.braced !== false;
     if (braced) out.push(ind + '{');
     const cd = braced ? depth + 1 : depth;
+    const cind = '    '.repeat(cd);
+    // Setup calls go INSIDE the scope and BEFORE the children. TableHeadersRow
+    // reads what TableSetupColumn registered and has to precede the first body
+    // row, so this cannot ride along in `open` with the Begin call.
+    if (res.head) for (const l of res.head) out.push(cind + l);
     const kids = node.children || [];
     const childTab = node.type === 'tabbar' ? true : (ENDS_TABBAR.has(node.type) ? false : inTabbar);
-    for (let i = 0; i < kids.length; i++) emit(kids[i], cd, i, node.type, childTab);
+    // A container that lays its children out in cells opens a cursor for them.
+    const kidCell = res.cells ? Object.assign({ n: 0 }, res.cells) : null;
+    for (let i = 0; i < kids.length; i++) emit(kids[i], cd, i, node.type, childTab, kidCell);
+    // Pad the declared grid out to rows x cols. Without this an empty table
+    // emits no row at all, so it collapses to nothing and there is no cell to
+    // aim a drop at, which is the whole point of the one-line default height.
+    if (kidCell) while (kidCell.n < kidCell.rows * kidCell.cols) advanceCell(out, cind, kidCell);
     if (res.extra) for (const l of res.extra) out.push('    '.repeat(cd) + l);
     if (res.pop) out.push('    '.repeat(cd) + res.pop);
     if (braced) out.push(ind + '}');

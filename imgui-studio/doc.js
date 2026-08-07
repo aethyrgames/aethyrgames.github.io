@@ -747,6 +747,37 @@ const PROP_KINDS = {
 
   int: numberKind(true),
   float: numberKind(false),
+
+  // A SET of ImGui flag bits, held as a comma-separated list of their bare
+  // names ("Borders, RowBg"), with the allowed names in the catalog row the way
+  // an enum carries its members.
+  //
+  // Names rather than a packed integer, because a saved document is meant to be
+  // readable and a bitmask cannot be read without the enum beside it. One prop
+  // rather than one bool per flag, because the parser attributes ONE argument
+  // to ONE property: thirty bools all feeding BeginTable's third argument would
+  // leave the differential probe unable to tell which of them it had changed.
+  flags: {
+    cap: 600,
+    needsOptions: true,
+    listOfOptions: true,
+    // A different SET, not a different string. Adding an option that is off
+    // gives a value no ordering or spacing difference could fake.
+    probe: (def, opts) => {
+      const on = flagList(def);
+      const off = optionValues(opts).map(String).find(v => !on.includes(v));
+      return off ? on.concat(off).join(', ') : on.slice(0, -1).join(', ');
+    },
+    // Unknown names are dropped rather than kept: they would emit an
+    // ImGuiTableFlags_ identifier that does not exist and fail to compile.
+    // Order follows the option list, so two documents with the same set of
+    // flags on hold the same string and the round trip cannot churn.
+    coerce: (raw, def, opts) => {
+      if (typeof raw !== 'string') return def;
+      const on = new Set(flagList(raw));
+      return optionValues(opts).map(String).filter(v => on.has(v)).join(', ');
+    },
+  },
 };
 
 // Options live in the CATALOG ROW, never in the arguments here: this takes
@@ -821,7 +852,18 @@ function validateCatalog(catalog) {
       const vals = optionValues(opts);
       if (k.needsOptions) {
         if (!vals.length) { out.push(`${where}: ${kind} with no options`); continue; }
-        if (!vals.includes(def)) out.push(`${where}: default ${JSON.stringify(def)} is not one of its options`);
+        // A list kind's default names SEVERAL options, so every member is
+        // checked rather than the whole string. Asking `vals.includes(def)` of
+        // one would report a perfectly good "Borders, RowBg" as not being one
+        // of its own options, and the gates assert this list is empty.
+        const missing = k.listOfOptions
+          ? flagList(def).filter(v => !vals.map(String).includes(v))
+          : (vals.includes(def) ? [] : [def]);
+        if (missing.length) {
+          out.push(`${where}: default ${JSON.stringify(def)} names `
+            + `${missing.length > 1 ? 'values that are not options' : 'a value that is not an option'}: `
+            + missing.join(', '));
+        }
       }
       // The DECLARED DEFAULT has to be valid for its own kind. Coercing it
       // against itself proves nothing, because an invalid default is handed
