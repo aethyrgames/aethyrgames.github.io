@@ -979,8 +979,18 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
     // Advancing by the match rather than to the next ';' as well, because a
     // semicolon inside a column label would otherwise cut the statement short
     // and leave its tail behind as garbage.
-    const structural = rest.match(
-      /^ImGui::(?:TableNextColumn\s*\(\s*\)|TableNextRow\s*\(\s*\)|TableNextRow\s*\(\s*0\s*,[^;]*\)|TableHeadersRow\s*\(\s*\)|TableSetupColumn\s*\(\s*"(?:[^"\\]|\\.)*"\s*\))\s*;/);
+    // TableSetupColumn is matched at all three arities the document can hold:
+    // a bare label, a label plus a flags expression, and both plus a numeric
+    // width. A fourth argument (user_id) or a width that is not a literal is
+    // still something no column property can carry, so those keep falling
+    // through to raw code where they stay visible.
+    const SETUP_COL = 'TableSetupColumn\\s*\\(\\s*"(?:[^"\\\\]|\\\\.)*"\\s*'
+      + '(?:,\\s*(?:0|ImGuiTableColumnFlags_\\w+(?:\\s*\\|\\s*ImGuiTableColumnFlags_\\w+)*)\\s*'
+      + '(?:,\\s*[\\d.]+f?\\s*)?)?\\)';
+    const structural = rest.match(new RegExp(
+      '^ImGui::(?:TableNextColumn\\s*\\(\\s*\\)|TableNextRow\\s*\\(\\s*\\)'
+      + '|TableNextRow\\s*\\(\\s*0\\s*,[^;]*\\)|TableHeadersRow\\s*\\(\\s*\\)'
+      + '|' + SETUP_COL + ')\\s*;'));
     if (structural) {
       i += structural[0].length;
       continue;
@@ -1407,6 +1417,7 @@ function stripGeneratedSuffix(s) {
 // the inner one held, every single Apply.
 function readTableProps(node, body, helpers) {
   const labels = [];
+  const columns = [];
   let rows = 0, cells = 0, header = false, height = null;
 
   const scan = (text, seen) => {
@@ -1427,7 +1438,18 @@ function readTableProps(node, body, helpers) {
       }
       const args = (m[2] || '').trim();
       if (m[1] === 'TableSetupColumn') {
-        if (/^"(?:[^"\\]|\\.)*"$/.test(args)) labels.push(litStr(args));
+        // (label), (label, flags) and (label, flags, width) all read back now.
+        // The label-only form used to be the only one the document could hold,
+        // so anything longer was deliberately left as raw code; a column can
+        // carry flags and a width of its own now, so it is read instead.
+        const parts = splitTopLevel(args).map(s => s.trim());
+        if (parts.length && /^"(?:[^"\\]|\\.)*"$/.test(parts[0])) {
+          labels.push(litStr(parts[0]));
+          const on = flagsFromExpr(parts[1] || '',
+            typeof TABLE_COLUMN_FLAGS !== 'undefined' ? TABLE_COLUMN_FLAGS : [], []);
+          const w = /^([\d.]+)f?$/.exec(parts[2] || '');
+          columns.push(on || w ? { flags: on, width: w ? Number(w[1]) : 0 } : null);
+        }
       } else if (m[1] === 'TableHeadersRow') {
         header = true;
       } else if (m[1] === 'TableNextRow') {
@@ -1447,6 +1469,9 @@ function readTableProps(node, body, helpers) {
   const px = /^([\d.]+)f?$/.exec(String(height === null || height === undefined ? '' : height).trim());
   node.rowHeight = px ? Number(px[1]) : 0;
   if (labels.length) node.colLabels = labels.join(', ');
+  // Only when something is actually set, so an ordinary table does not gain an
+  // array of nulls it never had.
+  if (columns.some(Boolean)) node.columns = columns;
   // Rows from the row breaks the generator wrote. A body with none of them was
   // written flat by hand, so fall back to the cells over the column count.
   const cols = Math.max(1, Number(node.cols) || 1);

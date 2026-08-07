@@ -21,6 +21,12 @@ window.__test = {
   validateCatalog: c => validateCatalog(c),
   propKindTable: () => PROP_KINDS,
   rects: () => latestRects,
+  // Column bands the engine published, and which column is being edited. Both
+  // are needed to drive a column selection from a test: a column has no id, so
+  // there is nothing to pass to select().
+  cols: () => latestCols,
+  selectedCol: () => (selectedCol ? { ...selectedCol } : null),
+  selectColumn: (id, i) => selectColumn(id, i),
   doc: () => doc,
   // the widgets of the first window: what "the document" used to mean
   widgets: () => (doc.children.find(n => n.type === 'window') || { children: [] }).children,

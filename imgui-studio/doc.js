@@ -10,6 +10,26 @@
 
 let nextId = 100;
 let selectedId = null;
+// Which column of the selected Table is being edited, as { id, i }, or null.
+//
+// A SECOND channel rather than a value in `selection`, because a column is not
+// a node: it has no id to put in that set, and everything reading it (Delete,
+// Duplicate, the hierarchy, the drop targeting) would then have to learn about
+// a member that cannot be deleted, duplicated, listed or dropped into.
+//
+// It carries the table's id as well as the index so it can be dropped the
+// moment the selection moves elsewhere. An index alone would survive a change
+// of selection and quietly point at a different table's column.
+let selectedCol = null;
+function selectColumn(id, i) {
+  selectedCol = id === null || i === null ? null : { id, i };
+  refresh();
+}
+// Called wherever the selection changes. A column override belongs to the table
+// it was picked on, so anything that moves off that table drops it.
+function syncSelectedColumn() {
+  if (selectedCol && selectedCol.id !== selectedId) selectedCol = null;
+}
 
 // Declared up here because the keymap binds these keys well before the hotbar's
 // rendering code appears further down the file.
@@ -917,6 +937,40 @@ function coerce(t, raw, def, opts) {
 const TEXT_CAP = Object.fromEntries(
   Object.entries(PROP_KINDS).filter(([, k]) => k.cap).map(([t, k]) => [t, k.cap]));
 
+// Per-column overrides on a Table, indexed by column. A side structure like
+// `colors` rather than a property with a kind, because a column is not a node
+// and there is no fixed number of them.
+//
+// This rebuild drops anything it does not copy, so a table's columns would be
+// erased on every load without this. It is written against the SANITISED node,
+// so the column count it trims to is the one that survived coercion rather
+// than whatever the file claimed.
+//
+// A hole is normal and kept as null: a table with flags on its third column
+// alone holds nothing for the first two, and collapsing the array would move
+// those flags onto column 1.
+function sanitizeColumns(node, raw) {
+  if (node.type !== 'table' || !Array.isArray(raw)) return null;
+  const max = Math.max(1, Math.min(64, Math.trunc(Number(node.cols)) || 1));
+  const allowed = typeof TABLE_COLUMN_FLAGS !== 'undefined' ? TABLE_COLUMN_FLAGS : [];
+  const out = [];
+  let any = false;
+  for (let i = 0; i < max; i++) {
+    const c = raw[i];
+    if (!c || typeof c !== 'object') { out.push(null); continue; }
+    const on = String(c.flags ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    const flags = allowed.filter(fl => on.includes(fl)).join(', ');
+    const w = Number(c.width);
+    const width = Number.isFinite(w) && w > 0 ? Math.min(9999, w) : 0;
+    if (!flags && !width) { out.push(null); continue; }
+    out.push({ flags, width });
+    any = true;
+  }
+  // Nothing worth carrying reads as no overrides at all, so an emptied-out
+  // table does not keep an array of nulls in its save file forever.
+  return any ? out : null;
+}
+
 // Keep only the slots this widget type actually reads, as four finite 0..1
 // floats. Anything else would push a color the engine can't map.
 function sanitizeColors(type, raw) {
@@ -960,6 +1014,8 @@ function sanitize(list, ids, atRoot) {
     if (n.sameline === true) c.sameline = true;
     const cols = sanitizeColors(n.type, n.colors);
     if (cols) c.colors = cols;
+    const columns = sanitizeColumns(c, n.columns);
+    if (columns) c.columns = columns;
     if (spec.container) c.children = sanitize(n.children, ids, false);
     out.push(c);
   }

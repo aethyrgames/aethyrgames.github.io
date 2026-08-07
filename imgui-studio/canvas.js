@@ -11,6 +11,7 @@
 let engineReady = false;
 let editMode = true;
 let latestRects = [];
+let latestCols = [];
 let engineWantsText = false;
 
 function pushDoc() {
@@ -428,6 +429,26 @@ function rectFor(id) {
 // draw order, which is ImGui's z-order, so the last window containing the point
 // is the top one and only it and the rects drawn after it (its own contents) are
 // candidates.
+// The column band of `tableId` under a world point, or null.
+//
+// Straight off what the engine published, which is ImGui's own resolved
+// geometry. Computing edges here from the column count would be a second
+// implementation of the sizing rules, and it would be wrong the moment a
+// stretch policy or a user resize made the columns uneven.
+function colAt(p, tableId) {
+  for (const c of latestCols) {
+    if (c.table !== tableId) continue;
+    if (p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h) return c;
+  }
+  return null;
+}
+
+// The band for a specific column, for the overlay and for the inspector's
+// picker, which selects a column without there being a pointer involved.
+function colBand(tableId, i) {
+  return latestCols.find(c => c.table === tableId && c.i === i) || null;
+}
+
 function hitTest(p) {
   const hits = [];
   latestRects.forEach((r, i) => {
@@ -443,6 +464,7 @@ function hitTest(p) {
 }
 
 const selboxes = document.getElementById('selboxes');
+const colbox = document.getElementById('colbox');
 
 function updateSelectionOverlay() {
   const primary = editMode && selectedId ? rectFor(selectedId) : null;
@@ -478,6 +500,20 @@ function updateSelectionOverlay() {
     selbox.classList.toggle('grid',
       selection.size <= 1 && props.some(p => p[0] === 'rows') && props.some(p => p[0] === 'cols'));
   }
+  // The selected column, drawn as a band over the table rather than as another
+  // selection box. It is not a node, and giving it the node outline would say
+  // it can be deleted, duplicated and dragged, none of which it can.
+  const band = editMode && selectedCol ? colBand(selectedCol.id, selectedCol.i) : null;
+  if (!band) {
+    colbox.style.display = 'none';
+  } else {
+    colbox.style.display = 'block';
+    colbox.style.left = vpX(band.x) + 'px';
+    colbox.style.top = vpY(band.y) + 'px';
+    colbox.style.width = band.w + 'px';
+    colbox.style.height = band.h + 'px';
+  }
+
   // secondary members of the selection
   const others = [...selection].filter(id => id !== selectedId);
   if (!editMode || !others.length) { selboxes.innerHTML = ''; return; }
@@ -512,6 +548,11 @@ function pollEngine() {
     // value made every rect jump by the difference.
     const ox = Number(payload.ox) || 0, oy = Number(payload.oy) || 0;
     latestRects = (payload.rects || []).map(r => (ox || oy)
+      ? { ...r, x: r.x + ox, y: r.y + oy } : r);
+    // Column bands, converted the same way and for the same reason. They arrive
+    // on their own key rather than mixed into rects, because every consumer of
+    // that list assumes an entry is a node and a column is not one.
+    latestCols = (payload.cols || []).map(r => (ox || oy)
       ? { ...r, x: r.x + ox, y: r.y + oy } : r);
     engineWantsText = !!payload.wantText;
   } catch (e) {
@@ -985,6 +1026,18 @@ canvas.addEventListener('mousedown', e => {
   const hit = hitTest(p);
   if (hit && hit.id !== doc.id) {
     if (e.shiftKey) { toggleSelected(hit.id); return; }
+    // A second click on an already-selected Table picks the COLUMN under the
+    // cursor: the first click selects the table the way it always did, so this
+    // costs nothing anyone was already doing and reads as going one level in.
+    //
+    // Only when the click landed on the table ITSELF. hitTest returns the
+    // widget in a cell when there is one, and clicking a button still selects
+    // that button rather than the column it happens to sit in.
+    if (hit.id === selectedId && selection.size <= 1) {
+      const node0 = findNode(hit.id);
+      const band = node0 && node0.type === 'table' ? colAt(p, hit.id) : null;
+      if (band) { selectColumn(hit.id, band.i); return; }
+    }
     if (!selection.has(hit.id)) selectId(hit.id);
     else { selectedId = hit.id; refresh(); }
     // A title-bar press on a window moves it. On imgui the ENGINE owns that

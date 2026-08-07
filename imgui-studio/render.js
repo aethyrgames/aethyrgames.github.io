@@ -1120,6 +1120,65 @@ function labelFor(key, type) {
   return titleCase(String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2'));
 }
 
+// A set of ImGui bits as grouped, gated checkboxes.
+//
+// Shared by the table's own flags and by a column's, because they are the same
+// control over a different store: one reads a property on the node, the other
+// an entry in its `columns` array. `get`/`set` are what let the second exist
+// without a second copy of the grouping, exclusivity and gating rules.
+//
+// `exclusive` is a list of SETS, not one set: a column has three independent
+// ones (width policy, indent, sort direction), and ticking a width flag must
+// not clear an indent flag.
+function flagBox({ all, prefix, groups, exclusive, needs, get, set, met }) {
+  const on = new Set(String(get() ?? '').split(',').map(s => s.trim()).filter(Boolean));
+  const box = document.createElement('div');
+  box.className = 'flagsbox';
+  // Ordered by the option list, the same way coerce orders it, so the stored
+  // value does not churn as boxes are ticked in a different order.
+  const commit = () => set(all.filter(f => on.has(f)).join(', '));
+  for (const [gname, names] of groups) {
+    const members = names.filter(f => all.includes(f));
+    if (!members.length) continue;
+    if (gname) {
+      const h = document.createElement('div');
+      h.className = 'flaggroup';
+      h.textContent = gname;
+      box.appendChild(h);
+    }
+    for (const f of members) {
+      const need = needs[f];
+      const ok = !need || met(need[0], on);
+      const row = document.createElement('label');
+      row.className = 'flagrow' + (ok ? '' : ' off');
+      row.title = ok ? prefix + f : `Does nothing while ${need[1]}`;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = on.has(f);
+      cb.disabled = !ok;
+      cb.onchange = () => {
+        if (!cb.checked) on.delete(f);
+        else {
+          on.add(f);
+          // Members of one exclusive set share a mask in ImGui, so two ticked
+          // is not "both", it is whichever bit pattern wins. Only the set this
+          // flag belongs to is cleared.
+          for (const set2 of exclusive) {
+            if (set2.includes(f)) for (const o of set2) if (o !== f) on.delete(o);
+          }
+        }
+        commit();
+      };
+      row.appendChild(cb);
+      const name = document.createElement('span');
+      name.textContent = f;
+      row.appendChild(name);
+      box.appendChild(row);
+    }
+  }
+  return box;
+}
+
 function renderProps() {
   const host = document.getElementById('propbody');
   host.innerHTML = '';
@@ -1286,67 +1345,28 @@ function renderProps() {
     // offering a control that changes nothing.
     if (type === 'flags') {
       const all = (opts || []).map(String);
-      const on = new Set(String(node[key] ?? '').split(',').map(s => s.trim()).filter(Boolean));
       // Grouping, exclusivity and gating belong to the imgui table catalog, so
       // they are reached by name and guarded. Another profile with none of them
       // gets one plain list, which is still a working editor.
+      //
       // `typeof` on the bare name, NOT a lookup on window. A top-level const in
       // a classic script is a lexical binding in the global environment and
       // never becomes a property of the global object, so `in window` answers
       // false for all three of these and the editor silently degrades to one
       // flat ungrouped list with no gating and no exclusivity.
-      const groups = (node.type === 'table' && typeof TABLE_FLAG_GROUPS !== 'undefined'
-        && TABLE_FLAG_GROUPS) || [['', all]];
-      const exclusive = typeof TABLE_FLAGS_EXCLUSIVE !== 'undefined' ? TABLE_FLAGS_EXCLUSIVE : [];
-      const needs = typeof TABLE_FLAG_NEEDS !== 'undefined' ? TABLE_FLAG_NEEDS : {};
-
-      const box = document.createElement('div');
-      box.className = 'flagsbox';
-      const commit = () => {
-        // Ordered by the option list, the same way coerce orders it, so the
-        // stored value does not churn as boxes are ticked in a different order.
-        node[key] = all.filter(f => on.has(f)).join(', ');
-        refresh(false, key);
-      };
-      for (const [gname, names] of groups) {
-        const members = names.filter(f => all.includes(f));
-        if (!members.length) continue;
-        if (gname) {
-          const h = document.createElement('div');
-          h.className = 'flaggroup';
-          h.textContent = gname;
-          box.appendChild(h);
-        }
-        for (const f of members) {
-          const need = needs[f];
-          // `header` is a sibling property, anything else is another flag.
-          const met = !need || (need[0] === 'header' ? !!node.header : on.has(need[0]));
-          const row = document.createElement('label');
-          row.className = 'flagrow' + (met ? '' : ' off');
-          row.title = met ? 'ImGuiTableFlags_' + f : `Does nothing while ${need[1]}`;
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = on.has(f);
-          cb.disabled = !met;
-          cb.onchange = () => {
-            if (!cb.checked) on.delete(f);
-            else {
-              on.add(f);
-              // The four sizing policies share ImGuiTableFlags_SizingMask_, so
-              // ticking one has to clear the rest. Letting two stay ticked
-              // would silently apply whichever bit pattern happened to win.
-              if (exclusive.includes(f)) for (const o of exclusive) if (o !== f) on.delete(o);
-            }
-            commit();
-          };
-          row.appendChild(cb);
-          const name = document.createElement('span');
-          name.textContent = f;
-          row.appendChild(name);
-          box.appendChild(row);
-        }
-      }
-      return box;
+      return flagBox({
+        all,
+        prefix: 'ImGuiTableFlags_',
+        groups: (node.type === 'table' && typeof TABLE_FLAG_GROUPS !== 'undefined'
+          && TABLE_FLAG_GROUPS) || [['', all]],
+        exclusive: typeof TABLE_FLAGS_EXCLUSIVE !== 'undefined' ? [TABLE_FLAGS_EXCLUSIVE] : [],
+        needs: typeof TABLE_FLAG_NEEDS !== 'undefined' ? TABLE_FLAG_NEEDS : {},
+        get: () => node[key],
+        set: (v) => { node[key] = v; refresh(false, key); },
+        // `header` is a sibling property of the table, anything else is one of
+        // the table's own flags.
+        met: (need, on) => (need === 'header' ? !!node.header : on.has(need)),
+      });
     }
     if (type === 'int' || type === 'float') {
       const meta = (opts && typeof opts === 'object' && !Array.isArray(opts)) ? opts : {};
@@ -1546,6 +1566,112 @@ function renderProps() {
     addField('SameLine', t, !!node.sameline && !first,
       node.sameline && !first ? () => { delete node.sameline; } : null,
       'Puts this widget on the same row as the one before it, via ImGui::SameLine().');
+  }
+
+  // ---- columns ----
+  // A column has no id, so it cannot be selected the way a node is. The canvas
+  // gesture is a second click on an already-selected table; this picker is the
+  // same thing reachable from the keyboard, and it is also what makes the
+  // feature discoverable at all, since nothing about a table says "click me
+  // again".
+  if (node.type === 'table' && typeof TABLE_COLUMN_FLAGS !== 'undefined') {
+    const count = Math.max(1, Math.min(64, Math.trunc(Number(node.cols)) || 1));
+    const pickedRaw = selectedCol && selectedCol.id === node.id ? selectedCol.i : null;
+    // A column that no longer exists is not picked. Shrinking the table with
+    // its last column selected would otherwise draw an editor writing into a
+    // slot sanitizeColumns throws away on the next load.
+    const picked = pickedRaw !== null && pickedRaw < count ? pickedRaw : null;
+    addHead('columns' + (picked === null ? '' : ` (${picked + 1} of ${count})`));
+
+    const pick = document.createElement('div');
+    pick.className = 'colpick';
+    for (let i = 0; i < count; i++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'colseg' + (i === picked ? ' on' : '');
+      b.textContent = String(i + 1);
+      b.title = `Select column ${i + 1}`;
+      // Clicking the picked one again lets go, so there is a way back to
+      // editing the table itself without hunting for empty canvas.
+      b.onclick = () => selectColumn(node.id, i === picked ? null : i);
+      pick.appendChild(b);
+    }
+    const pickRow = document.createElement('div');
+    pickRow.className = 'proprow';
+    const pickLabel = document.createElement('label');
+    pickLabel.textContent = 'Column';
+    pickLabel.title = 'Which column the settings below apply to.';
+    pickRow.appendChild(pickLabel);
+    pickRow.appendChild(pick);
+    host.appendChild(pickRow);
+
+    if (picked !== null) {
+      // The label lives in the table's own comma-separated colLabels, edited
+      // one slot at a time here. Two stores for one thing would be a second
+      // source of truth, and colLabels already round-trips.
+      const labels = String(node.colLabels ?? '').split(',').map(s => s.trim());
+      while (labels.length < count) labels.push('');
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = labels[picked] || '';
+      nameInput.placeholder = `Column ${picked + 1}`;
+      nameInput.maxLength = kindCap('items');
+      nameInput.oninput = () => {
+        // Commas separate the columns, so one inside a name would silently
+        // become a column break and shift every name after it along by one.
+        labels[picked] = nameInput.value.replace(/,/g, ' ');
+        node.colLabels = labels.slice(0, count).join(', ');
+        refresh(false, 'colLabels');
+      };
+      addField('Name', nameInput, !!labels[picked], null,
+        'This column\'s name in the header row. Stored in the table\'s Column names.');
+
+      const col = (Array.isArray(node.columns) && node.columns[picked]) || {};
+      const write = (patch) => {
+        const arr = Array.isArray(node.columns) ? node.columns.slice() : [];
+        while (arr.length < count) arr.push(null);
+        arr[picked] = Object.assign({ flags: '', width: 0 }, arr[picked] || {}, patch);
+        // An entry holding nothing is dropped back to null, so clearing a
+        // column's settings really clears them instead of leaving {flags:'',
+        // width:0} behind for the generator to reason about.
+        if (!arr[picked].flags && !(Number(arr[picked].width) > 0)) arr[picked] = null;
+        node.columns = arr.some(Boolean) ? arr : undefined;
+        if (!node.columns) delete node.columns;
+        refresh(false, 'columns');
+      };
+
+      const widthInput = document.createElement('input');
+      widthInput.type = 'number';
+      widthInput.min = 0;
+      widthInput.step = 'any';
+      widthInput.value = Number(col.width) || 0;
+      widthInput.oninput = () => {
+        if (widthInput.value === '') return;
+        const v = Number(widthInput.value);
+        if (Number.isFinite(v)) write({ width: Math.max(0, v) });
+      };
+      const widthWrap = document.createElement('span');
+      widthWrap.className = 'numwrap';
+      widthWrap.appendChild(widthInput);
+      addField('Size', widthWrap, Number(col.width) > 0, null,
+        'Pixels for a Fixed column, a weight for a Stretch one. 0 leaves it to the table.');
+
+      addField('Flags', flagBox({
+        all: TABLE_COLUMN_FLAGS,
+        prefix: 'ImGuiTableColumnFlags_',
+        groups: TABLE_COLUMN_FLAG_GROUPS,
+        exclusive: TABLE_COLUMN_EXCLUSIVE,
+        needs: TABLE_COLUMN_NEEDS,
+        get: () => col.flags,
+        set: (v) => write({ flags: v }),
+        // A column flag is gated on the TABLE, not on its sibling column flags:
+        // sorting needs the table sortable, hiding needs it hideable, and the
+        // header options need a header row to appear in.
+        met: (need) => (need === 'header'
+          ? !!node.header
+          : String(node.flags ?? '').split(',').map(s => s.trim()).includes(need)),
+      }), !!col.flags, null, 'Per-column ImGuiTableColumnFlags for this column.');
+    }
   }
 
   // ---- color overrides ----

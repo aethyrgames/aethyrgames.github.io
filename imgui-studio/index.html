@@ -636,6 +636,17 @@
   .flagrow input { flex: 0 0 auto; margin: 0; }
   .flagrow.off { color: var(--mk-comment); cursor: default; }
 
+  /* The column picker: one segment per column, like the alignment row. Wraps,
+     because a 20-column table would otherwise push the panel sideways. */
+  .colpick { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; min-width: 0; }
+  .colseg {
+    min-width: 20px; height: 18px; padding: 0 3px; font-size: 10px; cursor: pointer;
+    background: var(--mk-surface); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: 3px;
+  }
+  .colseg:hover { border-color: var(--mk-cyan); }
+  .colseg.on { background: var(--mk-cyan); color: var(--mk-bg); border-color: var(--mk-cyan); }
+
   .colorrow { display: flex; align-items: center; gap: 6px; }
   /* the swatch is the control, so the color fills it edge to edge and the
      border is the only chrome */
@@ -851,6 +862,15 @@
     border: 1px solid var(--mk-cyan);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--mk-cyan) 30%, transparent), 0 0 12px color-mix(in srgb, var(--mk-cyan) 15%, transparent);
   }
+  /* A selected COLUMN. A translucent band rather than an outline with grips,
+     because a column is not a node: it cannot be deleted, duplicated or
+     dragged, and the node outline would offer all three. */
+  #colbox {
+    position: absolute; display: none; pointer-events: none;
+    background: color-mix(in srgb, var(--mk-cyan) 16%, transparent);
+    border-left: 1px solid var(--mk-cyan); border-right: 1px solid var(--mk-cyan);
+  }
+
   /* secondary members of a multi-selection: same hue, quieter */
   #selboxes { position: absolute; inset: 0; pointer-events: none; }
   #selboxes .sb {
@@ -1062,6 +1082,7 @@
      at 25% and slabs at 400%. */
   #selbox .rh { transform: scale(var(--inv-zoom, 1)); }
   #selbox .gs { transform: scale(var(--inv-zoom, 1)); }
+  #colbox { border-left-width: calc(1px * var(--inv-zoom, 1)); border-right-width: calc(1px * var(--inv-zoom, 1)); }
   /* The inline label editor counter-scales its WHOLE box, not just a border:
      beginInlineEdit sizes it in screen pixels (floored at 80x18) and this
      transform cancels the ambient viewport zoom back out, so that size (and
@@ -1343,6 +1364,7 @@
                  surface is drawing -->
             <canvas id="canvas" tabindex="0" role="img" aria-label="Preview canvas"></canvas>
             <div id="selboxes"></div>
+            <div id="colbox"></div>
             <div id="selbox">
               <i class="rh rh-r" data-axis="w"></i>
               <i class="rh rh-b" data-axis="h"></i>
@@ -1498,9 +1520,9 @@
 <script src="vendor/editor.bundle.js?v=a8987e801e"></script>
 <script src="version.js?v=5c47523644"></script>
 <script src="profile-imgui.js?v=d4201158dd"></script>
-<script src="widgets.js?v=e6597cda57"></script>
+<script src="widgets.js?v=cfc0268e8a"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
-<script src="cpp.js?v=0d18860879"></script>
+<script src="cpp.js?v=780826ee62"></script>
 <script src="codeintel.js?v=1140d40c85"></script>
 <!-- The two seams, each an interface followed by its implementations. The
      interface files register nothing and depend on nothing, so they load
@@ -1521,8 +1543,8 @@
 <script src="editor-api.js?v=56cc7be192"></script>
 <script src="editor-textarea.js?v=2e39a4184d"></script>
 <script src="editor-codemirror.js?v=0596c1a2e6"></script>
-<script src="doc.js?v=fc9422ea70"></script>
-<script src="canvas.js?v=4ad8fb0677"></script>
+<script src="doc.js?v=e26d7b2960"></script>
+<script src="canvas.js?v=9974049828"></script>
 <!-- Ahead of keys.js, which is the one place in this list where load order is
      about listener order rather than dependency order. Both files register a
      capture-phase keydown listener on window, those run in registration order,
@@ -1534,12 +1556,12 @@
 <script src="generate.js?v=cef9c6f489"></script>
 <script src="theme.js?v=74ae270bb5"></script>
 <script src="layout.js?v=c709fffafe"></script>
-<script src="render.js?v=37b9ab0700"></script>
-<script src="codepane.js?v=30564ec228"></script>
+<script src="render.js?v=6d50ae62de"></script>
+<script src="codepane.js?v=dc7135a343"></script>
 <script src="templates.js?v=9848af86cc"></script>
 <script src="settings.js?v=fd8e984934"></script>
-<script src="testhooks.js?v=03c4e524cc"></script>
+<script src="testhooks.js?v=2dec08869a"></script>
 <script src="boot.js?v=ece0f956f0"></script>
-<script src="engine.js?v=3a2b6da0f0"></script>
+<script src="engine.js?v=37eb5fe16a"></script>
 </body>
 </html>

@@ -190,8 +190,13 @@ const tableColLabels = (n) => {
 // header was on is silently reset by the next Apply. Columns still at their
 // "Column N" defaults hold nothing worth carrying, so those stay unwritten and
 // an ordinary table keeps generating the same two lines it always did.
+// Per-column settings need the setup calls too, for the same reason names do:
+// TableSetupColumn is the only place the emitted C++ can hold them.
 const tableWantsSetup = n =>
-  !!n.header || tableColLabels(n).some((l, i) => l !== `Column ${i + 1}`);
+  !!n.header
+  || tableColLabels(n).some((l, i) => l !== `Column ${i + 1}`)
+  || (Array.isArray(n.columns) && n.columns.some((c, i) =>
+    i < tableCols(n) && c && (flagList(c.flags).length || Number(c.width) > 0)));
 
 // The names in a flag-set value. Lives here rather than in doc.js because the
 // default loadApp list carries widgets.js and not doc.js, so a helper the
@@ -235,6 +240,78 @@ const TABLE_FLAG_NEEDS = {
   SortMulti: ['Sortable', 'sorting is off'],
   SortTristate: ['Sortable', 'sorting is off'],
   Reorderable: ['header', 'there is no header row to drag'],
+};
+
+// ------------------------------------------------------- per-column flags
+// The 19 settable ImGuiTableColumnFlags. The four trailing Is* are read-only
+// status that TableGetColumnFlags reports back, and the trailing-underscore
+// ones are internal, so neither is a switch anyone can set.
+//
+// A column is NOT a node in the document: it has no id, no children and no
+// rect of its own to drop onto. Its overrides live in an array on the table,
+// indexed by column, the same way `colors` is a side structure on any node
+// rather than a property with a kind. docs/LAYOUT.md § The Table Widget.
+const TABLE_COLUMN_FLAG_GROUPS = [
+  ['Width', ['WidthStretch', 'WidthFixed']],
+  ['Visibility', ['Disabled', 'DefaultHide', 'NoHide']],
+  ['Header', ['NoHeaderLabel', 'NoHeaderWidth', 'AngledHeader']],
+  ['Sorting', ['DefaultSort', 'NoSort', 'NoSortAscending', 'NoSortDescending',
+    'PreferSortAscending', 'PreferSortDescending']],
+  ['Behaviour', ['NoResize', 'NoReorder', 'NoClip', 'IndentEnable', 'IndentDisable']],
+];
+const TABLE_COLUMN_FLAGS = TABLE_COLUMN_FLAG_GROUPS.flatMap(([, names]) => names);
+
+// Sets where ImGui reads one bit or the other, never both. Width is
+// ImGuiTableColumnFlags_WidthMask_, indent is _IndentMask_, and the two sort
+// preferences are a direction rather than a pair of independent switches.
+const TABLE_COLUMN_EXCLUSIVE = [
+  ['WidthStretch', 'WidthFixed'],
+  ['IndentEnable', 'IndentDisable'],
+  ['PreferSortAscending', 'PreferSortDescending'],
+];
+
+// A per-column flag only means something when the TABLE allows it, so these
+// gate on the table's own flags rather than on a sibling column flag.
+const TABLE_COLUMN_NEEDS = {
+  DefaultSort: ['Sortable', 'the table is not sortable'],
+  NoSort: ['Sortable', 'the table is not sortable'],
+  NoSortAscending: ['Sortable', 'the table is not sortable'],
+  NoSortDescending: ['Sortable', 'the table is not sortable'],
+  PreferSortAscending: ['Sortable', 'the table is not sortable'],
+  PreferSortDescending: ['Sortable', 'the table is not sortable'],
+  NoHide: ['Hideable', 'the table does not allow hiding columns'],
+  NoReorder: ['Reorderable', 'the table does not allow reordering'],
+  NoHeaderLabel: ['header', 'there is no header row'],
+  NoHeaderWidth: ['header', 'there is no header row'],
+  AngledHeader: ['header', 'there is no header row'],
+};
+
+// One column's overrides, defaulted. Missing entries are normal: a table with
+// flags on its third column alone holds nothing for the first two.
+const tableColumn = (n, i) => (Array.isArray(n.columns) && n.columns[i]) || {};
+const tableColumnFlags = (n, i) =>
+  flagList(tableColumn(n, i).flags).filter(f => TABLE_COLUMN_FLAGS.includes(f));
+// A width means different things per policy: pixels for WidthFixed, a weight
+// for WidthStretch. One number either way, which is what TableSetupColumn's
+// third argument is.
+const tableColumnWidth = (n, i) => {
+  const w = Number(tableColumn(n, i).width);
+  return Number.isFinite(w) && w > 0 ? w : 0;
+};
+
+// One TableSetupColumn call. The label-only form stays exactly what it was, so
+// a table nobody has given per-column settings to generates the same line it
+// generated before columns were selectable at all.
+const tableColSetupCall = (n, i, label) => {
+  const on = tableColumnFlags(n, i);
+  const w = tableColumnWidth(n, i);
+  if (!on.length && !w) return `ImGui::TableSetupColumn(${q(label)});`;
+  const expr = on.length
+    ? on.map(x => `ImGuiTableColumnFlags_${x}`).join(' | ')
+    : 'ImGuiTableColumnFlags_None';
+  return w
+    ? `ImGui::TableSetupColumn(${q(label)}, ${expr}, ${f(w)});`
+    : `ImGui::TableSetupColumn(${q(label)}, ${expr});`;
 };
 
 // Aliases, for reading and writing the C++ only. The DOCUMENT always holds
@@ -686,7 +763,7 @@ const WIDGETS = {
       // calls also go out for named columns without a header, which is what
       // keeps those names from being reset on the next Apply.
       if (tableWantsSetup(n)) {
-        for (const label of tableColLabels(n)) head.push(`ImGui::TableSetupColumn(${q(label)});`);
+        tableColLabels(n).forEach((label, i) => head.push(tableColSetupCall(n, i, label)));
       }
       if (n.header) head.push('ImGui::TableHeadersRow();');
       return {
