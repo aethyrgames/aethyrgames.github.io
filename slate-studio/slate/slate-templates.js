@@ -169,22 +169,33 @@ function slateBuiltinTemplates() {
   // PaddingAbovePin 4 = 8 (GraphEditorSettings.cpp:18-22); icon to label is
   // SideToSideMargin 5.0 (SGraphPin.h:119). Label is Regular 9 over #DADADA
   // (StarshipStyle.cpp:4472-4477).
-  const pinIn = label => n('horizontalbox', { slotPadT: 4 }, [
-    n('image', { brush: 'GraphEditor.PinIcon', sizeX: 15, sizeY: 11, slotVAlign: 'Center' }),
+  //
+  // A pin knows whether it is WIRED, because the editor draws two different
+  // sprites for it: Pin_connected_VarA is filled, Pin_disconnected_VarA is a
+  // hollow ring. Drawing the filled one on an unwired pin is a small lie that
+  // reads instantly wrong to anyone who uses the editor, and it is also what
+  // stops two of the eleven staged files being art nothing draws.
+  const pinIn = (label, wired) => n('horizontalbox', { slotPadT: 4 }, [
+    n('image', {
+      brush: wired ? 'GraphEditor.PinIcon' : 'GraphEditor.PinIcon.Disconnected',
+      sizeX: 15, sizeY: 11, slotVAlign: 'Center' }),
     n('textblock', {
       text: label, fontSize: 9, colorAndOpacity: '#dadadaff',
       slotPadL: 5, slotVAlign: 'Center',
     }),
   ]);
-  const pinOut = label => n('horizontalbox', { slotHAlign: 'Right', slotPadT: 4 }, [
+  const pinOut = (label, wired) => n('horizontalbox', { slotHAlign: 'Right', slotPadT: 4 }, [
     n('textblock', {
       text: label, fontSize: 9, colorAndOpacity: '#dadadaff',
       slotPadR: 5, slotVAlign: 'Center',
     }),
-    n('image', { brush: 'GraphEditor.PinIcon', sizeX: 15, sizeY: 11, slotVAlign: 'Center' }),
+    n('image', {
+      brush: wired ? 'GraphEditor.PinIcon' : 'GraphEditor.PinIcon.Disconnected',
+      sizeX: 15, sizeY: 11, slotVAlign: 'Center' }),
   ]);
-  const pinExec = right => n('image', {
-    brush: 'GraphEditor.ExecPin', sizeX: 12, sizeY: 16,
+  const pinExec = (right, unwired) => n('image', {
+    brush: unwired ? 'GraphEditor.ExecPin.Disconnected' : 'GraphEditor.ExecPin',
+    sizeX: 12, sizeY: 16,
     slotHAlign: right ? 'Right' : 'Left', slotPadT: 4,
   });
   // The wire between two nodes, held at title-bar height so it meets the pins.
@@ -579,7 +590,7 @@ function slateBuiltinTemplates() {
               bpNode('Delay', '#79c9ffff', 'GraphEditor.Timeline_16x', [
                 n('horizontalbox', {}, [
                   fill(n('verticalbox', {}, [pinExec(false), pinIn('Duration')])),
-                  n('verticalbox', { slotPadL: 24 }, [pinOut('Completed')]),
+                  n('verticalbox', { slotPadL: 24 }, [pinOut('Completed', false)]),
                 ]),
               ]),
             ]),
