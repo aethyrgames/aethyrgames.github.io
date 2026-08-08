@@ -91,8 +91,12 @@
 <h1>Changelog</h1>
 <p class="lead">Newest first. The version in the editor's header links here, and a unit check ties the three numbers together: this page, that header, and <code>package.json</code>.</p>
 
-<h2 id="v0-5-17">0.5.17 <span class="date">2026-08-08</span></h2>
+<h2 id="v0-5-18">0.5.18 <span class="date">2026-08-08</span></h2>
 <ul>
+<li>Portrait gives the canvas its width back: a 268px strip becomes 918px</li>
+<li>The eraser end of the pen, hover that is not a held button, and a tooltip a finger can reach</li>
+<li>The preview drag check was releasing before the engine had picked the drag up</li>
+<li>Every drag outside the canvas takes a pen, through one bridge</li>
 <li>A deploy cannot publish new bytes behind an old version number</li>
 <li>The pen has four signals a finger does not, and pressure is the weakest</li>
 <li>The pen could select a widget and not size one, because the bridge stopped at the canvas</li>

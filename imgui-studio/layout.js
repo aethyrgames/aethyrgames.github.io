@@ -99,6 +99,9 @@ function buildPanels() {
       applyLayout();
     };
     head.addEventListener('mousedown', e => startPanelDrag(e, key));
+    // 'move', so a tap still reaches head.onclick above and collapses the
+    // panel. That is the only way to collapse one without a mouse.
+    bridgePointerDrag(head);
 
     el.appendChild(head);
     el.appendChild(body);
@@ -111,7 +114,35 @@ function dockEl(side) {
   return document.getElementById('dock' + side[0].toUpperCase() + side.slice(1));
 }
 
+// ---------- posture ----------
+//
+// The worst number ever measured in this app: at a real Surface Pro portrait
+// viewport the canvas is a 268 CSS px strip, because the layout keeps its three
+// desktop columns whatever the shape of the screen. 21% to 38% of the viewport
+// in landscape, 25% in portrait, on a device whose whole point is the glass.
+//
+// Read from the viewport SHAPE rather than from a width breakpoint. 960 wide is
+// not a small screen and a `max-width` query would not fire on it, and there is
+// no web API at all that reports a keyboard detaching, so shape is the only
+// signal there is.
+//
+// 1.2 rather than a hair over 1, and the number was chosen by being wrong
+// first. At 1.05 a 900x1000 DESKTOP browser window counted as portrait and lost
+// its side docks, which is not what anyone tilting a window means, and it broke
+// a standing check about the canvas clearing the right dock. Both viewports
+// this exists for are 1.5 (960x1440 and 720x1080), so there is a lot of room
+// between a tablet stood on its end and a tallish window on a monitor.
+//
+// This never writes to `layout`. A panel's saved dock is where it goes when
+// there is room for it, so rotating back restores exactly what was there rather
+// than a layout this decided on your behalf.
+function portraitPosture() {
+  return window.innerHeight > window.innerWidth * 1.2;
+}
+
 function applyLayout() {
+  const portrait = portraitPosture();
+  document.documentElement.dataset.posture = portrait ? 'portrait' : 'landscape';
   const docks = {};
   for (const s of DOCK_SIDES) { docks[s] = dockEl(s); docks[s].innerHTML = ''; }
   // Hidden panels stay in the DOM as display:none rather than being detached.
@@ -125,7 +156,11 @@ function applyLayout() {
     el.classList.toggle('gone', !!p.hidden);
     el.querySelector('.tw').textContent = p.collapsed ? '▸' : '▾';
     el.style.flexGrow = p.collapsed ? '' : String(p.grow || 1);
-    const dock = docks[p.dock] || docks.left;
+    // In portrait every panel goes to the bottom, where the dock stacks them
+    // and their own headers act as the accordion. One dock instead of three,
+    // and the canvas gets the full width back.
+    const side = portrait ? 'bottom' : p.dock;
+    const dock = docks[side] || docks.left;
     // a splitter between neighbors, so a dock's panels can be resized rather
     // than being stuck at their equal share
     // A collapsed panel is a title bar with nothing to resize, and
@@ -137,8 +172,13 @@ function applyLayout() {
     if (!p.hidden && !p.collapsed
         && dock.querySelector('.panel:not(.gone):not(.collapsed)')) {
       const sp = document.createElement('div');
-      sp.className = 'panelsplit' + (p.dock === 'top' || p.dock === 'bottom' ? ' vert' : '');
+      // The seam follows the dock's DIRECTION, not its name. A bottom dock lays
+      // its panels out in a row and wants a vertical seam, except in portrait
+      // where it stacks them and wants a horizontal one.
+      const inRow = !portrait && (side === 'top' || side === 'bottom');
+      sp.className = 'panelsplit' + (inRow ? ' vert' : '');
       sp.addEventListener('mousedown', ev => startPanelResize(ev, dock, el));
+      bridgePointerDrag(sp);
       dock.appendChild(sp);
     }
     dock.appendChild(el);
@@ -146,6 +186,18 @@ function applyLayout() {
   clampDockSizes();
   docks.left.style.width = layout.size.left + 'px';
   docks.right.style.width = layout.size.right + 'px';
+  // An empty dock still reserved its width, which is what made portrait cost
+  // 750px of nothing: the panels had all moved to the bottom and the left and
+  // right columns went on holding 280 and 470 pixels of empty background. The
+  // canvas got none of it back. Every dock that holds no visible panel is out
+  // of the layout now, and so is its splitter, which otherwise sat in the
+  // middle of the canvas offering to resize a dock that was not there.
+  for (const s of DOCK_SIDES) {
+    const holds = docks[s].querySelector('.panel:not(.gone)');
+    docks[s].style.display = holds ? '' : 'none';
+    const seam = document.getElementById('resize' + s[0].toUpperCase() + s.slice(1));
+    if (seam) seam.style.display = holds ? '' : 'none';
+  }
   // A vertical dock collapses cleanly because each panel's own height shrinks
   // to its header; a top/bottom dock's panels sit side by side instead, so
   // the DOCK's height (not any one panel's) is what has to give. Left at
@@ -154,9 +206,17 @@ function applyLayout() {
   // back. auto-sizes it to the header strip instead, once nothing in it is
   // left open.
   for (const side of ['top', 'bottom']) {
-    const inDock = entries.filter(([, p]) => !p.hidden && p.dock === side);
+    const inDock = entries.filter(([, p]) => !p.hidden
+      && (portrait ? side === 'bottom' : p.dock === side));
     const allCollapsed = inDock.length > 0 && inDock.every(([, p]) => p.collapsed);
-    docks[side].style.height = allCollapsed ? 'auto' : layout.size[side] + 'px';
+    // Portrait caps the drawer at 45% of the viewport rather than using the
+    // remembered height, which is a landscape number for a dock that held one
+    // or two panels and now holds all of them. The canvas keeps the majority
+    // share, which is the entire point of the reflow.
+    const h = portrait && side === 'bottom'
+      ? Math.min(layout.size.bottom, Math.round(window.innerHeight * 0.45))
+      : layout.size[side];
+    docks[side].style.height = allCollapsed ? 'auto' : h + 'px';
   }
   renderPanelButtons();
   saveLayout();
@@ -309,6 +369,11 @@ function showDropPreview(side, key, at) {
 
 function startPanelDrag(e, key) {
   if (e.button !== 0 || e.target.tagName === 'BUTTON') return;
+  // One dock in portrait, so there is nowhere to aim. Left armed it would write
+  // a dock the layout is currently ignoring, and the panel would appear to jump
+  // somewhere else the next time the device was turned. Tapping the header to
+  // collapse still works, which is what the header is for here.
+  if (portraitPosture()) return;
   panelDrag = { key, startX: e.clientX, startY: e.clientY, moved: false };
 }
 
@@ -405,6 +470,10 @@ for (const [id, side] of [['resizeLeft', 'left'], ['resizeRight', 'right'],
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
   });
+  // 'move', so the double-tap below survives. A dock splitter has no other
+  // reset, and on an 11in tablet in portrait dock sizing is the whole reason
+  // the canvas is 21% of the viewport.
+  bridgePointerDrag(el);
   // double-click a splitter to reset that dock
   el.addEventListener('dblclick', () => {
     layout.size[side] = SIZE_DEFAULTS[side];
@@ -679,7 +748,12 @@ new ResizeObserver(() => syncCanvasSize()).observe(canvasHost);
 window.addEventListener('resize', () => {
   const before = JSON.stringify(layout.size);
   clampDockSizes();
-  if (JSON.stringify(layout.size) !== before) applyLayout();
+  // Turning the device is a resize and nothing else. Without the posture test
+  // here the reflow would only happen the next time something ELSE rebuilt the
+  // layout, so rotating a tablet did nothing until you touched a panel.
+  const posture = portraitPosture() ? 'portrait' : 'landscape';
+  if (JSON.stringify(layout.size) !== before
+      || document.documentElement.dataset.posture !== posture) applyLayout();
   syncCanvasSize();
   // a shorter window scrolls the hierarchy, and losing sight of what you had
   // selected is disorienting
@@ -820,6 +894,8 @@ function renderGuides() {
       document.addEventListener('mousemove', move);
       document.addEventListener('mouseup', up);
     });
+    // 'move' again: double-tap is the only way to remove a guide.
+    bridgePointerDrag(el);
     el.addEventListener('dblclick', e => {
       e.stopPropagation();
       guides.splice(i, 1);
@@ -837,6 +913,11 @@ function saveGuides() {
 // drag out of a ruler to create a guide
 for (const [cv, axis] of [[rulerTop, 'y'], [rulerLeft, 'x'],
   [rulerBottom, 'y'], [rulerRight, 'x']]) {
+  // 'move' matters more here than anywhere else. This handler pushes a guide
+  // into the array at mousedown and only takes it back if the release lands on
+  // the ruler again, so a press that engaged on contact would let a stray tap
+  // leave a guide behind. Nothing engages until the finger has travelled.
+  bridgePointerDrag(cv);
   cv.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
     e.preventDefault();

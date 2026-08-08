@@ -775,6 +775,9 @@ const marqueeEl = document.getElementById('marquee');
 let marquee = null;
 let resizing = null;
 const MIN_DRAG_SIZE = 8;   // 0 means "auto" to ImGui, so a drag must not reach it
+// Long enough not to fire on a tap, short enough to feel like an answer rather
+// than a wait. Named so the check can hold the same number the app does.
+const TIP_HOLD_MS = 500;
 
 // A flow layout has almost no empty canvas to rubber-band from (widgets tile
 // edge to edge), so Ctrl+drag starts a marquee from anywhere.
@@ -906,48 +909,12 @@ for (const h of selbox.querySelectorAll('.rh')) {
 // changed size, and nothing anywhere reported an error. Reported from a Surface
 // Pro, where the pen is the only pointer there is.
 //
-// Replayed rather than migrated, matching the canvas bridge below: the mouse
-// resize path stays byte-identical, and that path carries the eight-grip window
-// case with its move-and-size-together edges.
-//
-// setPointerCapture on the grip, not on #canvas. Capture retargets the moves,
-// and the moves have to keep arriving at an element inside #selbox: the grip is
-// 24px under a pen and the drag leaves it immediately.
+// 'press' rather than the 'move' every other bridged drag uses, because a grip
+// has no tap form to protect: nothing here listens for click or dblclick, and
+// the press has to grab immediately or the first pixel of the drag is lost.
+// pointerdrag.js explains the difference and why it matters everywhere else.
 for (const h of selbox.querySelectorAll('.rh')) {
-  h.addEventListener('pointerdown', e => {
-    // Mouse already works. Replaying it would start the resize twice.
-    if (e.pointerType === 'mouse') return;
-    try { h.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
-    h.dispatchEvent(new MouseEvent('mousedown', {
-      bubbles: true, cancelable: true, view: window,
-      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 1,
-      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
-    }));
-  });
-  // On document, because that is where the resize is driven from. Guarded on
-  // `resizing` rather than replayed unconditionally: a pen hovers, so a bare
-  // move over a grip with nothing grabbed would otherwise drive the drag and
-  // ghost branches of the same handler.
-  h.addEventListener('pointermove', e => {
-    if (e.pointerType === 'mouse' || !resizing) return;
-    document.dispatchEvent(new MouseEvent('mousemove', {
-      bubbles: true, cancelable: true, view: window,
-      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 1,
-      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
-    }));
-  });
-  // pointercancel as well as pointerup. A palm landing mid-drag cancels the pen
-  // with no pointerup and no compatibility mouseup, and without this the resize
-  // would still be following a pointer that no longer exists.
-  for (const t of ['pointerup', 'pointercancel']) {
-    h.addEventListener(t, e => {
-      if (e.pointerType === 'mouse' || !resizing) return;
-      document.dispatchEvent(new MouseEvent('mouseup', {
-        bubbles: true, cancelable: true, view: window,
-        clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 0,
-      }));
-    });
-  }
+  bridgePointerDrag(h, { engage: 'press' });
 }
 
 // emscripten's GLFW binds every mouse listener to the canvas element itself,
@@ -980,6 +947,36 @@ window.addEventListener('pointerdown', e => {
   if (document.documentElement.dataset.input !== t) document.documentElement.dataset.input = t;
 }, true);
 
+// ---------- a tooltip a finger can reach ----------
+//
+// Thirty `title=` attributes in the shell and thirty-three more set from script,
+// every one behind a hover a touchscreen does not have. They mostly carry a
+// keyboard shortcut or a sentence of clarification, so losing them is not fatal.
+// Having no route to them at all, on the device the app is being used on, still
+// is.
+//
+// A press held still flashes it into the status line, which is where this app
+// already says things, so it needs no new surface and nothing to dismiss.
+// Movement cancels it, so it cannot fire part way into a drag, and a mouse never
+// runs it because a mouse has the real one.
+let tipTimer = 0;
+let tipFrom = null;
+const cancelTip = () => { clearTimeout(tipTimer); tipTimer = 0; tipFrom = null; };
+window.addEventListener('pointerdown', e => {
+  cancelTip();
+  if (e.pointerType === 'mouse') return;
+  const el = e.target instanceof Element ? e.target.closest('[title]') : null;
+  const msg = el && el.getAttribute('title');
+  if (!msg) return;
+  tipFrom = { x: e.clientX, y: e.clientY };
+  tipTimer = setTimeout(() => { tipTimer = 0; flashStatus(msg); }, TIP_HOLD_MS);
+}, true);
+window.addEventListener('pointermove', e => {
+  if (!tipTimer || !tipFrom) return;
+  if (Math.abs(e.clientX - tipFrom.x) + Math.abs(e.clientY - tipFrom.y) > 8) cancelTip();
+}, true);
+for (const t of ['pointerup', 'pointercancel']) window.addEventListener(t, cancelTip, true);
+
 // ---------- touch and pen reach the canvas ----------
 //
 // The shipped Emscripten GLFW glue in app/engine.js registers touchstart,
@@ -1000,16 +997,12 @@ window.addEventListener('pointerdown', e => {
 // path byte-identical, which matters because those paths carry select, drag,
 // marquee, resize and window-move.
 function shellOwnsTouch(e) {
-  // The canvas itself, and the resize grips floating over it, which are bridged
-  // by hand just above.
-  //
-  // NOT the grid steppers and NOT the inline label editor. Those are driven by
-  // `click` and by focus, and both of those ARRIVE as compatibility events, so
-  // cancelling their touches would take away the only input they have. The
-  // grips are the opposite case: their compatibility events are worse than
-  // useless, because the pair lands at touchend together.
-  return editMode && (e.target === canvas
-    || (e.target instanceof Element && e.target.closest('.rh')));
+  // Only the canvas itself. The grips cancel their own touches through
+  // pointerdrag.js, and the grid steppers and the inline label editor keep
+  // theirs on purpose: those two are driven by `click` and by focus, both of
+  // which ARRIVE as compatibility events, so cancelling them would take away
+  // the only input they have.
+  return editMode && e.target === canvas;
 }
 
 // Capture phase and NOT passive, or preventDefault is ignored. Registered on
@@ -1122,11 +1115,48 @@ for (const [from, to] of Object.entries(POINTER_TO_MOUSE)) {
       // A pen barrel press reports button 2 and should still open the context
       // menu the mouse path already builds.
       button: e.button < 0 ? 0 : e.button,
-      buttons: to === 'mouseup' ? 0 : (e.buttons || 1),
+      // A press is a press, and after that whatever the pointer REPORTS.
+      //
+      // This read `e.buttons || 1`, which is right for a finger and wrong for a
+      // pen, because a pen hovers: it sends moves with buttons 0 before it ever
+      // touches the glass, and forcing those to 1 tells the shell a button is
+      // held while the pen is in the air. That also hides the `e.buttons === 0`
+      // test the drag path uses to notice a mouseup it never received, which is
+      // the one safety net for a gesture whose release went missing.
+      buttons: to === 'mouseup' ? 0 : (to === 'mousedown' ? 1 : e.buttons),
       ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
     }));
   });
 }
+
+// ---------- the other end of the pen ----------
+//
+// Flip it over, touch a widget, the widget goes.
+//
+// The Surface Pro run recorded the eraser as `button 5` with `buttons=32`,
+// unambiguous and needing no mode, no latch and no threshold. The app already
+// has the verb, the gesture describes itself, and nobody has to be told what it
+// does. It did nothing until now for the same reason the barrel button is safe:
+// the canvas ignores any press whose button is not 0.
+//
+// Edit mode only. In Live mode the preview is the running application and a
+// press there belongs to it.
+//
+// No confirmation, on purpose, matching Delete and the context menu. refresh()
+// pushes the history entry, so Ctrl+Z is the way back and the flash says so.
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'pen' || e.button !== 5) return;
+  e.preventDefault();
+  if (!editMode) return;
+  const p = canvasPoint(e);
+  const hit = p.inside ? hitTest(p) : null;
+  const node = hit && findNode(hit.id);
+  if (!node || node === doc) { flashStatus('Nothing under the eraser.'); return; }
+  const what = node.label || PROFILE.catalog[node.type].name || node.type;
+  selectId(node.id);
+  deleteSelection();
+  flashStatus('Erased ' + what + '. Ctrl+Z puts it back.');
+});
 
 // The other half of the same problem. GLFW's mouseup listener is on the canvas,
 // so a release that lands anywhere else (another element, outside the window,

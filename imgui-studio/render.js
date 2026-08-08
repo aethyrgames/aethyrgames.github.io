@@ -155,6 +155,10 @@ function paletteButton(type, spec) {
     e.preventDefault();
     drag = { kind: 'palette', type, started: false, startX: e.clientX, startY: e.clientY, drop: null };
   });
+  // 'move', so a tap still inserts through the compatibility pair the way it
+  // always has. Replaying a press on contact would give a tap two of them and
+  // append the widget twice.
+  bridgePointerDrag(b);
   // A real mouse click never reaches here: it inserts through the mousedown
   // above plus the document-level mouseup that resolves an un-moved drag.
   // Keyboard activation (Enter/Space on a focused button) fires only a click,
@@ -1052,7 +1056,10 @@ function renderTree() {
       if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSelected(node.id);
       else selectId(node.id);
     };
-    if (parent) row.addEventListener('mousedown', e => startTreeDrag(e, node.id));
+    // 'move', so row.onclick above still selects on a tap. The rows are rebuilt
+    // mid-drag by the repaint that draws the drop indicator, which is why the
+    // bridge watches window rather than capturing this element.
+    if (parent) { row.addEventListener('mousedown', e => startTreeDrag(e, node.id)); bridgePointerDrag(row); }
     row.oncontextmenu = e => {
       e.preventDefault();
       if (!selection.has(node.id)) selectId(node.id);

@@ -123,6 +123,11 @@
   /* the top and bottom docks are wide and short, so their panels sit side by
      side rather than stacking */
   #dockTop, #dockBottom { flex-direction: row; height: 200px; }
+  /* Portrait puts every panel in the bottom dock, so it stacks them and their
+     own collapse headers become the accordion. Side by side would give five
+     panels 192px each on a 960 wide tablet, which is narrower than the strip
+     this reflow exists to get rid of. */
+  :root[data-posture="portrait"] #dockBottom { flex-direction: column; }
   #dockTop { border-bottom: 1px solid var(--mk-border); }
   #dockBottom { border-top: 1px solid var(--mk-border); }
   #dockTop > .panel, #dockBottom > .panel {
@@ -468,6 +473,14 @@
   .clearfilter:hover { color: var(--mk-pink); }
   /* only worth offering once there is something to clear */
   .filterwrap.filled:hover .clearfilter, .filterwrap.filled:focus-within .clearfilter { display: block; }
+  /* The one control in the whole stylesheet that HOVER alone reveals.
+     Measured: of 51 :hover rules, three touch visibility and two of those are
+     splitter highlights. So this is the entire "hover reveals" problem rather
+     than the 55 affordances it was written up as. A finger cannot hover, and
+     focus-within does not help either, because tapping the ✕ is how you would
+     reach it and it is not on screen to be tapped. */
+  :root[data-input="touch"] .filterwrap.filled .clearfilter,
+  :root[data-input="pen"] .filterwrap.filled .clearfilter { display: block; }
   .filterwrap.filled input { padding-right: 22px; }
   /* The ellipsis lives on an inner span, not the button: Chrome collapses a
      <button>'s content box to zero height when overflow:hidden is set on the
@@ -1374,7 +1387,7 @@
          overwrites the text from STUDIO_VERSION at runtime and hangs the cut
          date off the title, which is what makes a stale copy here visible. -->
     <a class="ver" id="versionLink" href="changelog.html" target="_blank" rel="noopener"
-      title="Studio version">v0.5.17</a>
+      title="Studio version">v0.5.18</a>
     <nav id="menubar">
       <button class="menutop" data-menu="file" aria-haspopup="menu" aria-expanded="false">File</button>
       <button class="menutop" data-menu="view" aria-haspopup="menu" aria-expanded="false">View</button>
@@ -1644,7 +1657,7 @@
      read it, editor-codemirror.js and lang-cpp-lezer.js, decide whether to
      register at all by whether the global is there. See README for the swap. -->
 <script src="vendor/editor.bundle.js?v=a8987e801e"></script>
-<script src="version.js?v=96c9c4fcb2"></script>
+<script src="version.js?v=69e5d31f59"></script>
 <script src="profile-imgui.js?v=d4201158dd"></script>
 <script src="widgets.js?v=cfc0268e8a"></script>
 <script src="imguidocs.js?v=50da266d44"></script>
@@ -1670,7 +1683,8 @@
 <script src="editor-textarea.js?v=2e39a4184d"></script>
 <script src="editor-codemirror.js?v=0596c1a2e6"></script>
 <script src="doc.js?v=e26d7b2960"></script>
-<script src="canvas.js?v=daaa5560a0"></script>
+<script src="pointerdrag.js?v=b51d41fa61"></script>
+<script src="canvas.js?v=b2f7baa368"></script>
 <!-- Ahead of keys.js, which is the one place in this list where load order is
      about listener order rather than dependency order. Both files register a
      capture-phase keydown listener on window, those run in registration order,
@@ -1681,10 +1695,10 @@
 <script src="keys.js?v=e783148dcf"></script>
 <script src="generate.js?v=cef9c6f489"></script>
 <script src="theme.js?v=74ae270bb5"></script>
-<script src="layout.js?v=c709fffafe"></script>
-<script src="render.js?v=a11845eef3"></script>
+<script src="layout.js?v=8f1663a9ab"></script>
+<script src="render.js?v=90a40fdc45"></script>
 <script src="codepane.js?v=a77ffdc082"></script>
-<script src="templates.js?v=9848af86cc"></script>
+<script src="templates.js?v=74822370e1"></script>
 <script src="settings.js?v=619e526199"></script>
 <script src="testhooks.js?v=2dec08869a"></script>
 <script src="boot.js?v=ece0f956f0"></script>

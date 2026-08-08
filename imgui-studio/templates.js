@@ -626,6 +626,8 @@ function renderTemplates() {
     row.dataset.index = String(ordered.indexOf(t));
     row.dataset.cat = templateCat(t);
     row.addEventListener('mousedown', e => startTemplateDrag(e, ordered.indexOf(t), t));
+    // 'move', so a tap still applies the template through its own click path.
+    bridgePointerDrag(row);
     row.oncontextmenu = e => {
       e.preventDefault();
       const others = templateCategories().filter(c => c !== templateCat(t));
