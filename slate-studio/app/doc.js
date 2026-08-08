@@ -10,6 +10,26 @@
 
 let nextId = 100;
 let selectedId = null;
+// Which column of the selected Table is being edited, as { id, i }, or null.
+//
+// A SECOND channel rather than a value in `selection`, because a column is not
+// a node: it has no id to put in that set, and everything reading it (Delete,
+// Duplicate, the hierarchy, the drop targeting) would then have to learn about
+// a member that cannot be deleted, duplicated, listed or dropped into.
+//
+// It carries the table's id as well as the index so it can be dropped the
+// moment the selection moves elsewhere. An index alone would survive a change
+// of selection and quietly point at a different table's column.
+let selectedCol = null;
+function selectColumn(id, i) {
+  selectedCol = id === null || i === null ? null : { id, i };
+  refresh();
+}
+// Called wherever the selection changes. A column override belongs to the table
+// it was picked on, so anything that moves off that table drops it.
+function syncSelectedColumn() {
+  if (selectedCol && selectedCol.id !== selectedId) selectedCol = null;
+}
 
 // Declared up here because the keymap binds these keys well before the hotbar's
 // rendering code appears further down the file.
@@ -747,6 +767,37 @@ const PROP_KINDS = {
 
   int: numberKind(true),
   float: numberKind(false),
+
+  // A SET of ImGui flag bits, held as a comma-separated list of their bare
+  // names ("Borders, RowBg"), with the allowed names in the catalog row the way
+  // an enum carries its members.
+  //
+  // Names rather than a packed integer, because a saved document is meant to be
+  // readable and a bitmask cannot be read without the enum beside it. One prop
+  // rather than one bool per flag, because the parser attributes ONE argument
+  // to ONE property: thirty bools all feeding BeginTable's third argument would
+  // leave the differential probe unable to tell which of them it had changed.
+  flags: {
+    cap: 600,
+    needsOptions: true,
+    listOfOptions: true,
+    // A different SET, not a different string. Adding an option that is off
+    // gives a value no ordering or spacing difference could fake.
+    probe: (def, opts) => {
+      const on = flagList(def);
+      const off = optionValues(opts).map(String).find(v => !on.includes(v));
+      return off ? on.concat(off).join(', ') : on.slice(0, -1).join(', ');
+    },
+    // Unknown names are dropped rather than kept: they would emit an
+    // ImGuiTableFlags_ identifier that does not exist and fail to compile.
+    // Order follows the option list, so two documents with the same set of
+    // flags on hold the same string and the round trip cannot churn.
+    coerce: (raw, def, opts) => {
+      if (typeof raw !== 'string') return def;
+      const on = new Set(flagList(raw));
+      return optionValues(opts).map(String).filter(v => on.has(v)).join(', ');
+    },
+  },
 };
 
 // Options live in the CATALOG ROW, never in the arguments here: this takes
@@ -821,7 +872,18 @@ function validateCatalog(catalog) {
       const vals = optionValues(opts);
       if (k.needsOptions) {
         if (!vals.length) { out.push(`${where}: ${kind} with no options`); continue; }
-        if (!vals.includes(def)) out.push(`${where}: default ${JSON.stringify(def)} is not one of its options`);
+        // A list kind's default names SEVERAL options, so every member is
+        // checked rather than the whole string. Asking `vals.includes(def)` of
+        // one would report a perfectly good "Borders, RowBg" as not being one
+        // of its own options, and the gates assert this list is empty.
+        const missing = k.listOfOptions
+          ? flagList(def).filter(v => !vals.map(String).includes(v))
+          : (vals.includes(def) ? [] : [def]);
+        if (missing.length) {
+          out.push(`${where}: default ${JSON.stringify(def)} names `
+            + `${missing.length > 1 ? 'values that are not options' : 'a value that is not an option'}: `
+            + missing.join(', '));
+        }
       }
       // The DECLARED DEFAULT has to be valid for its own kind. Coercing it
       // against itself proves nothing, because an invalid default is handed
@@ -875,6 +937,40 @@ function coerce(t, raw, def, opts) {
 const TEXT_CAP = Object.fromEntries(
   Object.entries(PROP_KINDS).filter(([, k]) => k.cap).map(([t, k]) => [t, k.cap]));
 
+// Per-column overrides on a Table, indexed by column. A side structure like
+// `colors` rather than a property with a kind, because a column is not a node
+// and there is no fixed number of them.
+//
+// This rebuild drops anything it does not copy, so a table's columns would be
+// erased on every load without this. It is written against the SANITISED node,
+// so the column count it trims to is the one that survived coercion rather
+// than whatever the file claimed.
+//
+// A hole is normal and kept as null: a table with flags on its third column
+// alone holds nothing for the first two, and collapsing the array would move
+// those flags onto column 1.
+function sanitizeColumns(node, raw) {
+  if (node.type !== 'table' || !Array.isArray(raw)) return null;
+  const max = Math.max(1, Math.min(64, Math.trunc(Number(node.cols)) || 1));
+  const allowed = typeof TABLE_COLUMN_FLAGS !== 'undefined' ? TABLE_COLUMN_FLAGS : [];
+  const out = [];
+  let any = false;
+  for (let i = 0; i < max; i++) {
+    const c = raw[i];
+    if (!c || typeof c !== 'object') { out.push(null); continue; }
+    const on = String(c.flags ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    const flags = allowed.filter(fl => on.includes(fl)).join(', ');
+    const w = Number(c.width);
+    const width = Number.isFinite(w) && w > 0 ? Math.min(9999, w) : 0;
+    if (!flags && !width) { out.push(null); continue; }
+    out.push({ flags, width });
+    any = true;
+  }
+  // Nothing worth carrying reads as no overrides at all, so an emptied-out
+  // table does not keep an array of nulls in its save file forever.
+  return any ? out : null;
+}
+
 // Keep only the slots this widget type actually reads, as four finite 0..1
 // floats. Anything else would push a color the engine can't map.
 function sanitizeColors(type, raw) {
@@ -918,6 +1014,8 @@ function sanitize(list, ids, atRoot) {
     if (n.sameline === true) c.sameline = true;
     const cols = sanitizeColors(n.type, n.colors);
     if (cols) c.colors = cols;
+    const columns = sanitizeColumns(c, n.columns);
+    if (columns) c.columns = columns;
     if (spec.container) c.children = sanitize(n.children, ids, false);
     out.push(c);
   }

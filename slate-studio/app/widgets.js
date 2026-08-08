@@ -154,6 +154,194 @@ const PLOT_SAMPLES = () => {
 const plotField = v => `float ${v}[64] = {   // sample data, replace with your own\n`
   + `${PLOT_SAMPLES()},\n};`;
 
+// ------------------------------------------------------------------- Tables
+// Read by the generator, the parser and the inspector. The grid the emitted C++
+// declares and the grid the canvas draws have to be the same grid, and the only
+// way to guarantee that is for one function to answer the question.
+//
+// 64 both ways: columns because IMGUI_TABLE_MAX_COLUMNS is 64 and BeginTable
+// asserts past it, rows because the emitter writes two lines per cell and an
+// unbounded row count is a way to generate a megabyte of padding by typing into
+// a number field. A designer laying out more than 64 rows by hand wants a loop
+// in their own code, not 64 more of these.
+const TABLE_MAX = 64;
+const tableCols = n => clamp(n.cols, 1, TABLE_MAX);
+const tableRows = n => clamp(n.rows, 1, TABLE_MAX);
+// 0 means one standard line. Emitted as the CALL rather than the pixel count it
+// measures to right now, so the row still holds exactly one line after a font
+// or DPI change. min_row_height is a floor, so a taller cell still grows.
+const tableRowHeight = n =>
+  (Number(n.rowHeight) > 0 ? f(n.rowHeight) : 'ImGui::GetTextLineHeightWithSpacing()');
+// Exactly one label per column, always. A short list is padded and a long one is
+// ignored, so TableSetupColumn is called exactly `cols` times no matter what is
+// typed in the field. Calling it a different number of times than the column
+// count is an assert inside ImGui, not a cosmetic mismatch.
+const tableColLabels = (n) => {
+  const given = String(n.colLabels ?? '').split(',');
+  const out = [];
+  for (let i = 0; i < tableCols(n); i++) out.push((given[i] || '').trim() || `Column ${i + 1}`);
+  return out;
+};
+// Whether to write the TableSetupColumn calls at all.
+//
+// A header row needs them, since TableHeadersRow draws what they registered.
+// Named columns need them too, even with no header: they are the ONLY place the
+// emitted C++ can hold a column name, so without them a name typed while the
+// header was on is silently reset by the next Apply. Columns still at their
+// "Column N" defaults hold nothing worth carrying, so those stay unwritten and
+// an ordinary table keeps generating the same two lines it always did.
+// Per-column settings need the setup calls too, for the same reason names do:
+// TableSetupColumn is the only place the emitted C++ can hold them.
+const tableWantsSetup = n =>
+  !!n.header
+  || tableColLabels(n).some((l, i) => l !== `Column ${i + 1}`)
+  || (Array.isArray(n.columns) && n.columns.some((c, i) =>
+    i < tableCols(n) && c && (flagList(c.flags).length || Number(c.width) > 0)));
+
+// The names in a flag-set value. Lives here rather than in doc.js because the
+// default loadApp list carries widgets.js and not doc.js, so a helper the
+// catalog's own code() reaches for has to be on this side of that line.
+// Tolerant of spacing, and of the empty string, which is a legitimate "no
+// flags" value rather than a missing one.
+function flagList(v) {
+  return String(v ?? '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
+// The 30 settable ImGuiTableFlags bits, grouped the way the inspector shows
+// them. Bits only: the named combinations (Borders, BordersH, SizingMask_ and
+// the rest) are aliases over these, not separate switches, so offering both
+// would let you turn one thing on twice. docs/LAYOUT.md § The Table Widget
+// argues the grouping, and scripts/unit/table.test.mjs counts this list against
+// the pinned header so it cannot drift from what ImGui actually offers.
+const TABLE_FLAG_GROUPS = [
+  ['Decoration', ['BordersInnerH', 'BordersOuterH', 'BordersInnerV', 'BordersOuterV',
+    'RowBg', 'NoBordersInBody', 'NoBordersInBodyUntilResize',
+    'PadOuterX', 'NoPadOuterX', 'NoPadInnerX', 'NoClip']],
+  ['Sizing', ['SizingFixedFit', 'SizingFixedSame', 'SizingStretchProp', 'SizingStretchSame',
+    'NoHostExtendX', 'NoHostExtendY', 'NoKeepColumnsVisible', 'PreciseWidths']],
+  ['Interaction', ['Resizable', 'Reorderable', 'Hideable', 'ContextMenuInBody',
+    'HighlightHoveredColumn', 'NoSavedSettings']],
+  ['Scrolling', ['ScrollX', 'ScrollY']],
+  ['Sorting', ['Sortable', 'SortMulti', 'SortTristate']],
+];
+const TABLE_FLAGS = TABLE_FLAG_GROUPS.flatMap(([, names]) => names);
+
+// The four sizing policies share ImGuiTableFlags_SizingMask_, so at most one can
+// be on. The inspector clears the others rather than letting you tick two and
+// silently get whichever bit pattern happens to win.
+const TABLE_FLAGS_EXCLUSIVE = ['SizingFixedFit', 'SizingFixedSame',
+  'SizingStretchProp', 'SizingStretchSame'];
+
+// Flags that do nothing on their own, and what has to be true for them to mean
+// something. The inspector greys these out with the reason rather than offering
+// a control that changes nothing, which is the same rule that keeps
+// TableHeaderBg out of the swatch list while the header row is off.
+const TABLE_FLAG_NEEDS = {
+  SortMulti: ['Sortable', 'sorting is off'],
+  SortTristate: ['Sortable', 'sorting is off'],
+  Reorderable: ['header', 'there is no header row to drag'],
+};
+
+// ------------------------------------------------------- per-column flags
+// The 19 settable ImGuiTableColumnFlags. The four trailing Is* are read-only
+// status that TableGetColumnFlags reports back, and the trailing-underscore
+// ones are internal, so neither is a switch anyone can set.
+//
+// A column is NOT a node in the document: it has no id, no children and no
+// rect of its own to drop onto. Its overrides live in an array on the table,
+// indexed by column, the same way `colors` is a side structure on any node
+// rather than a property with a kind. docs/LAYOUT.md § The Table Widget.
+const TABLE_COLUMN_FLAG_GROUPS = [
+  ['Width', ['WidthStretch', 'WidthFixed']],
+  ['Visibility', ['Disabled', 'DefaultHide', 'NoHide']],
+  ['Header', ['NoHeaderLabel', 'NoHeaderWidth', 'AngledHeader']],
+  ['Sorting', ['DefaultSort', 'NoSort', 'NoSortAscending', 'NoSortDescending',
+    'PreferSortAscending', 'PreferSortDescending']],
+  ['Behaviour', ['NoResize', 'NoReorder', 'NoClip', 'IndentEnable', 'IndentDisable']],
+];
+const TABLE_COLUMN_FLAGS = TABLE_COLUMN_FLAG_GROUPS.flatMap(([, names]) => names);
+
+// Sets where ImGui reads one bit or the other, never both. Width is
+// ImGuiTableColumnFlags_WidthMask_, indent is _IndentMask_, and the two sort
+// preferences are a direction rather than a pair of independent switches.
+const TABLE_COLUMN_EXCLUSIVE = [
+  ['WidthStretch', 'WidthFixed'],
+  ['IndentEnable', 'IndentDisable'],
+  ['PreferSortAscending', 'PreferSortDescending'],
+];
+
+// A per-column flag only means something when the TABLE allows it, so these
+// gate on the table's own flags rather than on a sibling column flag.
+const TABLE_COLUMN_NEEDS = {
+  DefaultSort: ['Sortable', 'the table is not sortable'],
+  NoSort: ['Sortable', 'the table is not sortable'],
+  NoSortAscending: ['Sortable', 'the table is not sortable'],
+  NoSortDescending: ['Sortable', 'the table is not sortable'],
+  PreferSortAscending: ['Sortable', 'the table is not sortable'],
+  PreferSortDescending: ['Sortable', 'the table is not sortable'],
+  NoHide: ['Hideable', 'the table does not allow hiding columns'],
+  NoReorder: ['Reorderable', 'the table does not allow reordering'],
+  NoHeaderLabel: ['header', 'there is no header row'],
+  NoHeaderWidth: ['header', 'there is no header row'],
+  AngledHeader: ['header', 'there is no header row'],
+};
+
+// One column's overrides, defaulted. Missing entries are normal: a table with
+// flags on its third column alone holds nothing for the first two.
+const tableColumn = (n, i) => (Array.isArray(n.columns) && n.columns[i]) || {};
+const tableColumnFlags = (n, i) =>
+  flagList(tableColumn(n, i).flags).filter(f => TABLE_COLUMN_FLAGS.includes(f));
+// A width means different things per policy: pixels for WidthFixed, a weight
+// for WidthStretch. One number either way, which is what TableSetupColumn's
+// third argument is.
+const tableColumnWidth = (n, i) => {
+  const w = Number(tableColumn(n, i).width);
+  return Number.isFinite(w) && w > 0 ? w : 0;
+};
+
+// One TableSetupColumn call. The label-only form stays exactly what it was, so
+// a table nobody has given per-column settings to generates the same line it
+// generated before columns were selectable at all.
+const tableColSetupCall = (n, i, label) => {
+  const on = tableColumnFlags(n, i);
+  const w = tableColumnWidth(n, i);
+  if (!on.length && !w) return `ImGui::TableSetupColumn(${q(label)});`;
+  const expr = on.length
+    ? on.map(x => `ImGuiTableColumnFlags_${x}`).join(' | ')
+    : 'ImGuiTableColumnFlags_None';
+  return w
+    ? `ImGui::TableSetupColumn(${q(label)}, ${expr}, ${f(w)});`
+    : `ImGui::TableSetupColumn(${q(label)}, ${expr});`;
+};
+
+// Aliases, for reading and writing the C++ only. The DOCUMENT always holds
+// individual bits, so the checkboxes stay independent of each other. The
+// generated code reads better as Borders than as four names, and a hand-written
+// Borders has to come back as the four bits it stands for or the round trip
+// loses it. Longest first, so Borders wins over BordersH.
+const TABLE_FLAG_ALIASES = [
+  ['Borders', ['BordersInnerH', 'BordersOuterH', 'BordersInnerV', 'BordersOuterV']],
+  ['BordersH', ['BordersInnerH', 'BordersOuterH']],
+  ['BordersV', ['BordersInnerV', 'BordersOuterV']],
+  ['BordersInner', ['BordersInnerH', 'BordersInnerV']],
+  ['BordersOuter', ['BordersOuterH', 'BordersOuterV']],
+];
+
+// The third argument to BeginTable.
+const tableFlagsExpr = (n) => {
+  let on = flagList(n.flags).filter(f => TABLE_FLAGS.includes(f));
+  const named = [];
+  for (const [alias, bits] of TABLE_FLAG_ALIASES) {
+    if (bits.every(b => on.includes(b))) {
+      named.push(alias);
+      on = on.filter(b => !bits.includes(b));
+    }
+  }
+  const all = named.concat(on);
+  // ImGuiTableFlags_None rather than 0, so the argument still says what it is.
+  return all.length ? all.map(f => `ImGuiTableFlags_${f}`).join(' | ') : 'ImGuiTableFlags_None';
+};
+
 const WIDGETS = {
   // ---------------------------------------------------------------- Window
   // The document root. Holds windows and nothing else, and never appears in
@@ -536,13 +724,56 @@ const WIDGETS = {
     name: 'Tab item', cat: 'Containers', container: true, props: [['label', 'text', 'Tab']],
     code: (n, v, id) => ({ open: [`if (ImGui::BeginTabItem(${id}))`], pop: 'ImGui::EndTabItem();', braced: true }),
   },
+  // A Table is a grid of `rows` x `cols` cells that its children fill in flow
+  // order. There is no Cell node: a child's cell is its index, and a cell nobody
+  // filled is a bare TableNextColumn with nothing after it. docs/LAYOUT.md says
+  // why, under "The Table Widget".
   table: {
     name: 'Table', cat: 'Containers', container: true, cells: true,
-    props: [['label', 'text', 'table'], ['cols', 'int', 2]],
-    code: (n, v, id) => ({
-      open: [`if (ImGui::BeginTable(${id}, ${clamp(n.cols, 1, 64)}, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))`],
-      pop: 'ImGui::EndTable();', braced: true,
-    }),
+    props: [
+      ['label', 'text', 'table'],
+      // Stepped rather than typed. The ceiling is TABLE_MAX in both, so the
+      // field cannot offer a number the emitters would clamp away underneath it.
+      ['rows', 'int', 1, { min: 1, max: 64, stepper: true }],
+      ['cols', 'int', 2, { min: 1, max: 64, stepper: true }],
+      ['header', 'bool', false],
+      // 0 means one standard line, emitted as GetTextLineHeightWithSpacing()
+      // rather than the pixels it currently measures to, so a font or DPI change
+      // does not leave the table laid out for the old one. A positive value is
+      // an explicit override in pixels. min_row_height is a FLOOR in ImGui, so a
+      // cell holding something taller still grows past it.
+      ['rowHeight', 'float', 0, { min: 0, unit: 'px' }],
+      // Column names, for the header row. A comma-separated list rather than a
+      // per-column entity, because a column is not a node in the document and
+      // giving it one would cost a node type and a drag-and-drop special case
+      // for no gain the header row can use.
+      ['colLabels', 'items', 'Column 1, Column 2'],
+      // The default is what this widget hardcoded before the flags were
+      // settable, spelled as the bits Borders stands for. coerce orders a flag
+      // set by the option list, so the default has to be written in that order
+      // or it would not survive being coerced against itself.
+      ['flags', 'flags', 'BordersInnerH, BordersOuterH, BordersInnerV, BordersOuterV, RowBg',
+        TABLE_FLAGS],
+    ],
+    code: (n, v, id) => {
+      const cols = tableCols(n);
+      const head = [];
+      // TableHeadersRow builds its cells out of what TableSetupColumn
+      // registered, so a header row is only reachable through these. The setup
+      // calls also go out for named columns without a header, which is what
+      // keeps those names from being reset on the next Apply.
+      if (tableWantsSetup(n)) {
+        tableColLabels(n).forEach((label, i) => head.push(tableColSetupCall(n, i, label)));
+      }
+      if (n.header) head.push('ImGui::TableHeadersRow();');
+      return {
+        open: [`if (ImGui::BeginTable(${id}, ${cols}, ${tableFlagsExpr(n)}))`],
+        head,
+        pop: 'ImGui::EndTable();',
+        braced: true,
+        cells: { cols, rows: tableRows(n), height: tableRowHeight(n) },
+      };
+    },
   },
 
   // ----------------------------------------------------------------- Menus
@@ -640,6 +871,10 @@ const PROP_HELP = {
   fraction: 'How full the bar is, from 0 to 1.',
   items: 'The choices, separated by commas.',
   cols: 'How many columns the table has.',
+  rows: 'How many rows the table has. Cells nobody fills are left empty rather than dropped.',
+  header: 'Adds a header row that names each column, via TableSetupColumn and TableHeadersRow.',
+  rowHeight: 'The shortest a row may be. 0 means one standard line. A taller cell still grows past it.',
+  colLabels: 'Column names for the header row, separated by commas. Short lists are padded with "Column N".',
   dir: 'Which way the arrow points.',
   format: 'A printf format string. The arguments below fill in its placeholders.',
   args: 'C++ expressions passed to the format string, separated by commas. Written through to the generated code as typed.',
@@ -700,11 +935,16 @@ const COLOR_SLOTS_BY_TYPE = {
   // the inspector offered five swatches on it, none of which any consumer reads
   // and all of which the save path drops.
   root:          [],
-  // No TableHeaderBg. Neither the engine nor the generator calls
-  // TableSetupColumn/TableHeadersRow, so there is no header row for it to
-  // color and the swatch could never change anything. The comment above this
-  // table says exactly why that is worse than not offering it.
-  table:         ['Text', 'TableBorderStrong', 'TableRowBg'],
+  // TableHeaderBg is reachable now that a Table can carry a header row. It was
+  // withheld for as long as nothing called TableSetupColumn/TableHeadersRow,
+  // because a swatch that can never change anything is worse than no swatch.
+  //
+  // It stays in the STATIC list even so, because this answers "is this slot
+  // valid for this type" for the parser and the generator as well, and those
+  // two run over documents whose header flag is off and on. The inspector is
+  // what hides it while `header` is off, which is the only place the dead-swatch
+  // objection actually applied.
+  table:         ['Text', 'TableHeaderBg', 'TableBorderStrong', 'TableRowBg'],
   tabbar:        ['Tab', 'TabHovered', 'TabSelected', 'Text'],
   tabitem:       ['Tab', 'TabHovered', 'TabSelected', 'Text'],
   group:         [],            // a group draws nothing of its own

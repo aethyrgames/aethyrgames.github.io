@@ -11,9 +11,9 @@
 // than confirmed-live on purpose: if a publish fails you keep seeing the
 // older build, and this is that build's date, so the tooltip always
 // describes what you are actually running rather than what was attempted.
-const STUDIO_PUBLISHED = '2026-08-07';
+const STUDIO_PUBLISHED = '2026-08-08';
 
-const STUDIO_VERSION = '0.5.16';
+const STUDIO_VERSION = '0.5.17';
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { STUDIO_VERSION, STUDIO_PUBLISHED };

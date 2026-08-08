@@ -1,4 +1,4 @@
-<!-- GENERATED from app/index.html (70da45b236f91140) by scripts/gen_slate_page.mjs. Do not edit. -->
+<!-- GENERATED from app/index.html (82d66bcdaf015eb7) by scripts/gen_slate_page.mjs. Do not edit. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -607,6 +607,65 @@
   }
   .numwrap:has(.unit) input { padding-right: 26px; }
 
+  /* A +/- pair for counts you nudge rather than measurements you type. Real
+     buttons after the field rather than an overlay, so they take a pointer and
+     can go disabled at the ends of the range. The field keeps the tab stop. */
+  .numstep {
+    flex: 0 0 auto; width: 20px; align-self: stretch; margin-left: 3px;
+    background: var(--mk-surface); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: 3px;
+    font-size: 12px; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .numstep:hover:not(:disabled) { background: var(--mk-hover); }
+  .numstep:disabled { opacity: .4; cursor: default; }
+  /* the unit would sit under the buttons otherwise */
+  .numwrap:has(.numstep) .unit { right: 49px; }
+
+  /* A flag set. Grouped, and narrow enough that the names are the content
+     rather than the checkboxes. A gated flag stays visible and greyed with its
+     reason in the tooltip, so it reads as "not yet" rather than "missing". */
+  .flagsbox { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  /* A group header is a real button: it toggles its rows, so it has to take a
+     pointer and a Tab stop rather than only looking like a heading. */
+  .flaggroup {
+    display: block; width: 100%; margin-top: 5px; padding: 1px 0; text-align: left;
+    font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--mk-comment); background: none; border: 0; cursor: pointer;
+    font-family: inherit;
+  }
+  .flaggroup:hover { color: var(--mk-fg); }
+  .flaggroup:first-child { margin-top: 0; }
+  .flagrows { display: flex; flex-direction: column; gap: 1px; }
+  .flagrows[hidden] { display: none; }
+
+  /* The collapsed form of an empty longtext. Reads as an invitation rather
+     than as a four-row box holding nothing but its own placeholder. */
+  .longadd {
+    flex: 1; min-width: 0; text-align: left; padding: 2px 6px; cursor: pointer;
+    font-size: 11px; font-family: inherit;
+    background: var(--mk-surface); color: var(--mk-comment);
+    border: 1px dashed var(--mk-border); border-radius: 3px;
+  }
+  .longadd:hover { color: var(--mk-fg); border-color: var(--mk-cyan); }
+  .flagrow {
+    display: flex; align-items: center; gap: 5px; font-size: 11px;
+    cursor: pointer; min-width: 0;
+  }
+  .flagrow span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .flagrow input { flex: 0 0 auto; margin: 0; }
+  .flagrow.off { color: var(--mk-comment); cursor: default; }
+
+  /* The column picker: one segment per column, like the alignment row. Wraps,
+     because a 20-column table would otherwise push the panel sideways. */
+  .colpick { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; min-width: 0; }
+  .colseg {
+    min-width: 20px; height: 18px; padding: 0 3px; font-size: 10px; cursor: pointer;
+    background: var(--mk-surface); color: var(--mk-fg);
+    border: 1px solid var(--mk-border); border-radius: 3px;
+  }
+  .colseg:hover { border-color: var(--mk-cyan); }
+  .colseg.on { background: var(--mk-cyan); color: var(--mk-bg); border-color: var(--mk-cyan); }
+
   .colorrow { display: flex; align-items: center; gap: 6px; }
   /* the swatch is the control, so the color fills it edge to edge and the
      border is the only chrome */
@@ -817,12 +876,110 @@
   /* hierarchy visibility eye; a hidden widget dims its whole row */
   #tree .row .eye { opacity: 0.75; }
   #tree .row.dimrow .wtype, #tree .row.dimrow .wlabel { opacity: 0.45; }
+  /* The empty document's one clear next move. Centred on the VIEWPORT rather
+     than the sheet, so panning does not carry it off screen, and it sits above
+     the grid rather than replacing it: the rulers and the grid are still the
+     answer to "where am I". */
+  #canvasempty {
+    position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+    z-index: 5; text-align: center; max-width: 22rem; padding: 0 1rem;
+  }
+  #canvasempty[hidden] { display: none; }
+  #canvasempty p {
+    margin: 0 0 12px; color: var(--mk-comment); font-size: 13px; line-height: 1.5;
+  }
+  #canvasempty .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  #canvasempty button {
+    min-height: 30px; padding: 0 14px; border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 12px;
+    background: var(--mk-cyan); color: var(--mk-bg); border: 1px solid var(--mk-cyan);
+  }
+  #canvasempty button.quiet {
+    background: transparent; color: var(--mk-comment); border-color: var(--mk-border);
+  }
+  #canvasempty button.quiet:hover { color: var(--mk-fg); border-color: var(--mk-cyan); }
+
   #selbox {
     position: absolute; display: none; pointer-events: none;
     border: 1px solid var(--mk-cyan);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--mk-cyan) 30%, transparent), 0 0 12px color-mix(in srgb, var(--mk-cyan) 15%, transparent);
   }
+  /* A selected COLUMN. A translucent band rather than an outline with grips,
+     because a column is not a node: it cannot be deleted, duplicated or
+     dragged, and the node outline would offer all three. */
+  #colbox {
+    position: absolute; display: none; pointer-events: none;
+    background: color-mix(in srgb, var(--mk-cyan) 16%, transparent);
+    border-left: 1px solid var(--mk-cyan); border-right: 1px solid var(--mk-cyan);
+  }
+
   /* secondary members of a multi-selection: same hue, quieter */
+  /* The browser owns a touch gesture until told otherwise, and what it does
+     with one on a canvas is pan and zoom the page. Without this, a finger drag
+     scrolls instead of reaching the editor at all. `none` rather than
+     `manipulation`, because the two-finger and pinch gestures belong to the
+     canvas as well. */
+  #canvashost, #canvas { touch-action: none; }
+
+  /* ---- hit targets for a finger or a pen ----
+     WCAG 2.5.8 puts the floor at 24x24 CSS px. Measured at 1440x960, 40 of the
+     129 visible controls were under it, the smallest 11x16, with the canvas
+     resize grips at 8x8 and the inspector checkboxes at 15x15.
+
+     Applied only under [data-input], which canvas.js stamps from the last
+     press, so a mouse session keeps the dense panel it has always had and the
+     spacing is spent only when a finger is actually being used.
+
+     The ::before technique grows the HIT area without growing the control, so
+     nothing reflows and the panel does not jump when you switch hands. It needs
+     a positioned parent, and it cannot be used on <input>, which is a replaced
+     element with no pseudo-elements: those are scaled instead. */
+  :root[data-input="touch"] .numstep,
+  :root[data-input="pen"] .numstep,
+  :root[data-input="touch"] .colseg,
+  :root[data-input="pen"] .colseg,
+  :root[data-input="touch"] #tree .row button,
+  :root[data-input="pen"] #tree .row button,
+  :root[data-input="touch"] .gs b,
+  :root[data-input="pen"] .gs b {
+    position: relative;
+  }
+  :root[data-input="touch"] .numstep::before,
+  :root[data-input="pen"] .numstep::before,
+  :root[data-input="touch"] .colseg::before,
+  :root[data-input="pen"] .colseg::before,
+  :root[data-input="touch"] #tree .row button::before,
+  :root[data-input="pen"] #tree .row button::before,
+  :root[data-input="touch"] .gs b::before,
+  :root[data-input="pen"] .gs b::before {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, 24px); height: max(100%, 24px);
+  }
+  /* Replaced elements take no ::before, so the control itself grows. */
+  :root[data-input="touch"] #propbody input[type="checkbox"],
+  :root[data-input="pen"] #propbody input[type="checkbox"] {
+    width: 24px; height: 24px;
+  }
+  /* The canvas grips are 8x8 and are dragged, not tapped, so they get the
+     largest relative jump of anything here. */
+  :root[data-input="touch"] .rh,
+  :root[data-input="pen"] .rh {
+    width: 24px; height: 24px; margin: -8px;
+    background: transparent;
+    box-shadow: inset 0 0 0 8px var(--mk-cyan);
+    border-color: transparent;
+  }
+  /* A two-finger swipe at the edge of a scroll area is a back/forward
+     navigation on Windows touch devices, which loses whatever is unsaved.
+     `contain` keeps the gesture inside the app. */
+  html, body { overscroll-behavior: contain; }
+  /* A long press on the chrome selects text and raises the callout instead of
+     doing what it was pressed for. The canvas and panels are controls, not
+     prose; the code pane and text fields opt back in below. */
+  #apphead, #palette, #tree, #propbody, #tpllist, .panel > header { user-select: none; }
+  #code, input, textarea { user-select: text; }
+
   #selboxes { position: absolute; inset: 0; pointer-events: none; }
   #selboxes .sb {
     position: absolute; border: 1px dashed var(--mk-cyan); opacity: 0.75;
@@ -850,6 +1007,23 @@
   #selbox:not(.win) .winonly { display: none; }
   #selbox.noh .rh, #selbox.now .rh-r, #selbox.now .rh-c { display: none; }
   #selbox.noh .rh-r { display: block; }
+
+  /* A Table's grid steppers. Shown only on .grid, which canvas.js sets for a
+     widget whose spec declares rows and cols, so this is not table-specific
+     markup so much as a control any grid-shaped widget would get. */
+  .gs { position: absolute; display: none; gap: 2px; pointer-events: auto; }
+  #selbox.grid .gs { display: flex; }
+  /* transform-origin so counter-scaling pulls the pair toward the edge it
+     belongs to instead of drifting away from it as you zoom out */
+  #selbox.grid .gs-cols { left: 100%; top: 0; margin-left: 6px; transform-origin: left top; }
+  #selbox.grid .gs-rows { top: 100%; left: 0; margin-top: 6px; transform-origin: left top; }
+  .gs b {
+    display: block; width: 15px; height: 15px; line-height: 13px; text-align: center;
+    font-weight: 500; font-size: 12px; cursor: pointer; border-radius: 3px;
+    background: var(--mk-surface); color: var(--mk-fg);
+    border: 1px solid var(--mk-cyan);
+  }
+  .gs b:hover { background: var(--mk-cyan); color: var(--mk-bg); }
   /* a forgiving grab area around each grip, so aiming at an edge does not land
      on the canvas and start a selection instead */
   .rh::after { content: ''; position: absolute; inset: -5px; }
@@ -1015,6 +1189,8 @@
      counter-scale to keep the same size on screen. Without this they are specks
      at 25% and slabs at 400%. */
   #selbox .rh { transform: scale(var(--inv-zoom, 1)); }
+  #selbox .gs { transform: scale(var(--inv-zoom, 1)); }
+  #colbox { border-left-width: calc(1px * var(--inv-zoom, 1)); border-right-width: calc(1px * var(--inv-zoom, 1)); }
   /* The inline label editor counter-scales its WHOLE box, not just a border:
      beginInlineEdit sizes it in screen pixels (floored at 80x18) and this
      transform cancels the ambient viewport zoom back out, so that size (and
@@ -1128,6 +1304,12 @@
      and they cannot be clicked. Truncate, then disappear entirely rather than
      showing a useless stub. Same fix the palette's hover readout already has. */
   #apphead #modeHint {
+    /* It became a <button> so a pointer can reach Live mode without a keyboard.
+       Every bit of the default button chrome is reset: the UA background is what
+       the colour below is measured against, and leaving it made the label sit at
+       1.03:1 on nord, which the contrast gate caught. */
+    background: none; border: 0; padding: 0; appearance: none;
+    cursor: pointer; font-family: inherit; min-height: 24px;
     /* 2.33-4.47:1 across nine themes with plain --mk-comment. Sits on
        #apphead's gutter background, not the workspace background #zoomctl
        button/.tplcount do, so it needs their tighter 98% mix (menutop's,
@@ -1194,7 +1376,7 @@
          overwrites the text from STUDIO_VERSION at runtime and hangs the cut
          date off the title, which is what makes a stale copy here visible. -->
     <a class="ver" id="versionLink" href="changelog.html" target="_blank" rel="noopener"
-      title="Studio version">v0.5.16</a>
+      title="Studio version">v0.5.17</a>
     <nav id="menubar">
       <button class="menutop" data-menu="file" aria-haspopup="menu" aria-expanded="false">File</button>
       <button class="menutop" data-menu="view" aria-haspopup="menu" aria-expanded="false">View</button>
@@ -1207,7 +1389,11 @@
         title="Open the tutorial in a new tab">Tutorial</button>
     </nav>
     <span class="spacer"></span>
-    <span id="modeHint">hold <b>Space</b> to test interaction</span><!-- key filled in from the binding -->
+    <!-- A real two-state control, not a caption. Holding Space is the fast way
+         and it needs a keyboard, which a detached tablet does not have, so the
+         one idea that decides whether a press selects or activates was
+         unreachable there. The key is still named in the label. -->
+    <button id="modeHint" type="button" aria-pressed="false">hold <b>Space</b> to test interaction</button>
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
     <button class="headbtn" id="resetViewBtn" title="Recenter the canvas (Shift+F)">Reset view</button>
   </div>
@@ -1288,6 +1474,16 @@
         <div class="rulercorner" id="cornerTR"></div>
         <canvas class="ruler" id="rulerLeft"></canvas>
         <div id="canvashost">
+            <!-- Shown only while the document holds no window. A widget cannot
+                 exist outside one, so without this the canvas is a grid with no
+                 next move and the palette's first button silently refuses. -->
+            <div id="canvasempty" hidden>
+              <p>Nothing here yet. A widget lives inside a window, so start with one.</p>
+              <div class="row">
+                <button id="emptyAddWindow" type="button">Add a Window</button>
+                <button id="emptyTemplates" type="button" class="quiet">Or start from a template</button>
+              </div>
+            </div>
           <!-- everything in canvas space lives in #viewport, so panning is one
                transform and the coordinate math below never has to know -->
           <div id="viewport">
@@ -1296,6 +1492,7 @@
                  surface is drawing -->
             <canvas id="canvas" tabindex="0" role="img" aria-label="Preview canvas"></canvas>
             <div id="selboxes"></div>
+            <div id="colbox"></div>
             <div id="selbox">
               <i class="rh rh-r" data-axis="w"></i>
               <i class="rh rh-b" data-axis="h"></i>
@@ -1305,6 +1502,15 @@
               <i class="rh rh-tl winonly" data-axis="WH"></i>
               <i class="rh rh-tr winonly" data-axis="Hw"></i>
               <i class="rh rh-bl winonly" data-axis="Wh"></i>
+              <!-- Grid steppers, for a Table. Off the right edge for columns and
+                   under the bottom edge for rows, so the control sits beside the
+                   thing it changes rather than in a panel across the app. -->
+              <span class="gs gs-cols">
+                <b data-grid="cols-1" title="One fewer column">−</b><b data-grid="cols+1" title="One more column">+</b>
+              </span>
+              <span class="gs gs-rows">
+                <b data-grid="rows-1" title="One fewer row">−</b><b data-grid="rows+1" title="One more row">+</b>
+              </span>
             </div>
             <div id="dropbox"></div>
             <div id="dropline"></div>
@@ -1440,16 +1646,16 @@
      read it, editor-codemirror.js and lang-cpp-lezer.js, decide whether to
      register at all by whether the global is there. See README for the swap. -->
 <script src="app/vendor/editor.bundle.js?v=a8987e801e"></script>
-<script src="app/version.js?v=5c47523644"></script>
+<script src="app/version.js?v=96c9c4fcb2"></script>
 <script src="slate/slate-widgets.js?v=5ccdacbe48"></script>
 <script src="slate/slate-layout.js?v=cce51f5ae8"></script>
 <script src="slate/slate-generate.js?v=c828b4e104"></script>
 <script src="slate/slate-parse.js?v=38829d1b19"></script>
 <script src="slate/slate-templates.js?v=81240d63a4"></script>
 <script src="slate/profile-slate.js?v=85e4787d2b"></script>
-<script src="app/widgets.js?v=7f1a35f54b"></script>
+<script src="app/widgets.js?v=cfc0268e8a"></script>
 <script src="app/imguidocs.js?v=50da266d44"></script>
-<script src="app/cpp.js?v=3867a0ddab"></script>
+<script src="app/cpp.js?v=780826ee62"></script>
 <script src="app/codeintel.js?v=1140d40c85"></script>
 <!-- The two seams, each an interface followed by its implementations. The
      interface files register nothing and depend on nothing, so they load
@@ -1470,8 +1676,8 @@
 <script src="app/editor-api.js?v=56cc7be192"></script>
 <script src="app/editor-textarea.js?v=2e39a4184d"></script>
 <script src="app/editor-codemirror.js?v=0596c1a2e6"></script>
-<script src="app/doc.js?v=82e1a48f3e"></script>
-<script src="app/canvas.js?v=e1cb2fa296"></script>
+<script src="app/doc.js?v=e26d7b2960"></script>
+<script src="app/canvas.js?v=daaa5560a0"></script>
 <!-- Ahead of keys.js, which is the one place in this list where load order is
      about listener order rather than dependency order. Both files register a
      capture-phase keydown listener on window, those run in registration order,
@@ -1480,14 +1686,14 @@
      time, never at load. See the Escape note at the bottom of the file. -->
 <script src="app/codeview.js?v=4c92a095ed"></script>
 <script src="app/keys.js?v=e783148dcf"></script>
-<script src="app/generate.js?v=b3750ec656"></script>
+<script src="app/generate.js?v=cef9c6f489"></script>
 <script src="app/theme.js?v=74ae270bb5"></script>
 <script src="app/layout.js?v=c709fffafe"></script>
-<script src="app/render.js?v=cb9347fa40"></script>
-<script src="app/codepane.js?v=30564ec228"></script>
+<script src="app/render.js?v=a11845eef3"></script>
+<script src="app/codepane.js?v=a77ffdc082"></script>
 <script src="app/templates.js?v=9848af86cc"></script>
-<script src="app/settings.js?v=fd8e984934"></script>
-<script src="app/testhooks.js?v=03c4e524cc"></script>
+<script src="app/settings.js?v=619e526199"></script>
+<script src="app/testhooks.js?v=2dec08869a"></script>
 <script src="app/boot.js?v=ece0f956f0"></script>
 <!-- engine.js intentionally absent: the slate engine lands in W3 -->
 </body>

@@ -11,6 +11,7 @@
 let engineReady = false;
 let editMode = true;
 let latestRects = [];
+let latestCols = [];
 let engineWantsText = false;
 
 function pushDoc() {
@@ -428,6 +429,26 @@ function rectFor(id) {
 // draw order, which is ImGui's z-order, so the last window containing the point
 // is the top one and only it and the rects drawn after it (its own contents) are
 // candidates.
+// The column band of `tableId` under a world point, or null.
+//
+// Straight off what the engine published, which is ImGui's own resolved
+// geometry. Computing edges here from the column count would be a second
+// implementation of the sizing rules, and it would be wrong the moment a
+// stretch policy or a user resize made the columns uneven.
+function colAt(p, tableId) {
+  for (const c of latestCols) {
+    if (c.table !== tableId) continue;
+    if (p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h) return c;
+  }
+  return null;
+}
+
+// The band for a specific column, for the overlay and for the inspector's
+// picker, which selects a column without there being a pointer involved.
+function colBand(tableId, i) {
+  return latestCols.find(c => c.table === tableId && c.i === i) || null;
+}
+
 function hitTest(p) {
   const hits = [];
   latestRects.forEach((r, i) => {
@@ -443,6 +464,7 @@ function hitTest(p) {
 }
 
 const selboxes = document.getElementById('selboxes');
+const colbox = document.getElementById('colbox');
 
 function updateSelectionOverlay() {
   const primary = editMode && selectedId ? rectFor(selectedId) : null;
@@ -472,7 +494,26 @@ function updateSelectionOverlay() {
     selbox.classList.toggle('win', !!node && node.type === 'window');
     selbox.classList.toggle('now', !hasW);
     selbox.classList.toggle('noh', !hasH);
+    // A grid-shaped widget gets its row and column steppers on the canvas.
+    // Keyed on the SPEC declaring both, not on the type being 'table', so this
+    // is a control any grid-shaped widget picks up rather than a special case.
+    selbox.classList.toggle('grid',
+      selection.size <= 1 && props.some(p => p[0] === 'rows') && props.some(p => p[0] === 'cols'));
   }
+  // The selected column, drawn as a band over the table rather than as another
+  // selection box. It is not a node, and giving it the node outline would say
+  // it can be deleted, duplicated and dragged, none of which it can.
+  const band = editMode && selectedCol ? colBand(selectedCol.id, selectedCol.i) : null;
+  if (!band) {
+    colbox.style.display = 'none';
+  } else {
+    colbox.style.display = 'block';
+    colbox.style.left = vpX(band.x) + 'px';
+    colbox.style.top = vpY(band.y) + 'px';
+    colbox.style.width = band.w + 'px';
+    colbox.style.height = band.h + 'px';
+  }
+
   // secondary members of the selection
   const others = [...selection].filter(id => id !== selectedId);
   if (!editMode || !others.length) { selboxes.innerHTML = ''; return; }
@@ -507,6 +548,11 @@ function pollEngine() {
     // value made every rect jump by the difference.
     const ox = Number(payload.ox) || 0, oy = Number(payload.oy) || 0;
     latestRects = (payload.rects || []).map(r => (ox || oy)
+      ? { ...r, x: r.x + ox, y: r.y + oy } : r);
+    // Column bands, converted the same way and for the same reason. They arrive
+    // on their own key rather than mixed into rects, because every consumer of
+    // that list assumes an entry is a node and a column is not one.
+    latestCols = (payload.cols || []).map(r => (ox || oy)
       ? { ...r, x: r.x + ox, y: r.y + oy } : r);
     engineWantsText = !!payload.wantText;
   } catch (e) {
@@ -787,6 +833,37 @@ function paintDuringGesture(withCode) {
   });
 }
 
+// The grid steppers. mousedown is stopped as well as the click, or the press
+// would fall through to the canvas and start dragging the widget out from under
+// the button before the click ever lands.
+//
+// One pushHistory per press, so growing a grid and taking it back is two
+// undos rather than one, and so removing a row that HELD widgets is a single
+// step you can walk back. That is the escape hatch for a destructive nudge,
+// which is why there is no confirmation on it.
+for (const b of selbox.querySelectorAll('.gs b')) {
+  b.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+  b.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const node = selectedId && findNode(selectedId);
+    if (!node) return;
+    const m = /^(rows|cols)([-+]\d+)$/.exec(b.dataset.grid || '');
+    if (!m) return;
+    const [, key, delta] = m;
+    // The catalog's own floor and ceiling, so the button can never set a number
+    // the emitters would clamp away underneath it.
+    const meta = ((PROFILE.catalog[node.type].props || []).find(p => p[0] === key) || [])[3] || {};
+    const lo = meta.min === undefined ? 1 : meta.min;
+    const hi = meta.max === undefined ? 64 : meta.max;
+    const next = Math.min(hi, Math.max(lo, (Math.trunc(Number(node[key])) || lo) + Number(delta)));
+    if (next === node[key]) return;   // already at the end of the range
+    node[key] = next;
+    pushHistory();
+    refresh();
+  });
+}
+
 // Resize is anchored to the size captured at drag start: reading the live rect
 // mid-drag reflows the row and the rect moves under the cursor a frame later.
 for (const h of selbox.querySelectorAll('.rh')) {
@@ -815,6 +892,64 @@ for (const h of selbox.querySelectorAll('.rh')) {
   });
 }
 
+// The grips take a pen and a finger, which they did not.
+//
+// The same defect the canvas had, one layer up, and it survived that fix
+// because the fix was scoped to the canvas element on purpose. A grip is an
+// <i> inside #selbox, so shellOwnsTouch below leaves its touches alone and
+// GLFW never sees them either, since every GLFW handler begins by testing the
+// target. Nothing cancels the touch, so the browser synthesises the WHOLE
+// compatibility mouse sequence at touchend: mousedown and mouseup arrive
+// together, at the position the gesture ENDED. The handler above runs, captures
+// startX at that final point, and the mouseup one tick later ends the resize
+// with a delta of exactly zero. So the grip highlighted, the widget never
+// changed size, and nothing anywhere reported an error. Reported from a Surface
+// Pro, where the pen is the only pointer there is.
+//
+// Replayed rather than migrated, matching the canvas bridge below: the mouse
+// resize path stays byte-identical, and that path carries the eight-grip window
+// case with its move-and-size-together edges.
+//
+// setPointerCapture on the grip, not on #canvas. Capture retargets the moves,
+// and the moves have to keep arriving at an element inside #selbox: the grip is
+// 24px under a pen and the drag leaves it immediately.
+for (const h of selbox.querySelectorAll('.rh')) {
+  h.addEventListener('pointerdown', e => {
+    // Mouse already works. Replaying it would start the resize twice.
+    if (e.pointerType === 'mouse') return;
+    try { h.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
+    h.dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 1,
+      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
+    }));
+  });
+  // On document, because that is where the resize is driven from. Guarded on
+  // `resizing` rather than replayed unconditionally: a pen hovers, so a bare
+  // move over a grip with nothing grabbed would otherwise drive the drag and
+  // ghost branches of the same handler.
+  h.addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse' || !resizing) return;
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 1,
+      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
+    }));
+  });
+  // pointercancel as well as pointerup. A palm landing mid-drag cancels the pen
+  // with no pointerup and no compatibility mouseup, and without this the resize
+  // would still be following a pointer that no longer exists.
+  for (const t of ['pointerup', 'pointercancel']) {
+    h.addEventListener(t, e => {
+      if (e.pointerType === 'mouse' || !resizing) return;
+      document.dispatchEvent(new MouseEvent('mouseup', {
+        bubbles: true, cancelable: true, view: window,
+        clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 0,
+      }));
+    });
+  }
+}
+
 // emscripten's GLFW binds every mouse listener to the canvas element itself,
 // mousemove and mouseup included. So dragging an ImGui widget and leaving the
 // canvas stopped delivering moves, and releasing outside never arrived at all.
@@ -826,6 +961,172 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointerup', e => {
   try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
 });
+
+// What the last press was made WITH, on the document root, so the stylesheet can
+// size hit targets for it.
+//
+// A runtime attribute rather than a `(pointer: coarse)` media query, because a
+// Surface Pro is a mouse device and a touch device inside one session: the
+// query answers a question about the hardware when the useful question is which
+// one is in your hand right now. Detaching the keyboard does not change the
+// media query either, and there is no web API that reports posture.
+//
+// Capture phase and on window, so it is stamped before any handler that might
+// want to read it. Mouse is the default, which is what a keyboard-only session
+// and a fresh load both get.
+document.documentElement.dataset.input = 'mouse';
+window.addEventListener('pointerdown', e => {
+  const t = e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse';
+  if (document.documentElement.dataset.input !== t) document.documentElement.dataset.input = t;
+}, true);
+
+// ---------- touch and pen reach the canvas ----------
+//
+// The shipped Emscripten GLFW glue in app/engine.js registers touchstart,
+// touchmove, touchend and touchcancel on the canvas with useCapture and calls
+// preventDefault() on them. Cancelling touchstart suppresses the compatibility
+// mouse events the browser would otherwise synthesise, and every canvas gesture
+// in this file listens for mousedown. So a finger reached nothing at all:
+// measured, a tap at the exact pixel where a mouse click selects a widget
+// selected nothing, and a finger drag changed nothing.
+//
+// In LIVE mode that interception is right. The touch is meant to reach ImGui and
+// GLFW's own mapping is what delivers it. In EDIT mode the shell owns the
+// gesture, so the touch is taken away from GLFW and replayed as the mouse events
+// the shell already understands.
+//
+// Replayed rather than migrating twenty-two mousedown handlers to Pointer
+// Events. This is one place to reason about, and it leaves every existing mouse
+// path byte-identical, which matters because those paths carry select, drag,
+// marquee, resize and window-move.
+function shellOwnsTouch(e) {
+  // The canvas itself, and the resize grips floating over it, which are bridged
+  // by hand just above.
+  //
+  // NOT the grid steppers and NOT the inline label editor. Those are driven by
+  // `click` and by focus, and both of those ARRIVE as compatibility events, so
+  // cancelling their touches would take away the only input they have. The
+  // grips are the opposite case: their compatibility events are worse than
+  // useless, because the pair lands at touchend together.
+  return editMode && (e.target === canvas
+    || (e.target instanceof Element && e.target.closest('.rh')));
+}
+
+// Capture phase and NOT passive, or preventDefault is ignored. Registered on
+// #canvashost rather than document or window, because listeners on those three
+// are passive by default and the guard would be a silent no-op that still looks
+// correct in DevTools touch emulation.
+for (const t of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+  canvasHost.addEventListener(t, e => {
+    if (!shellOwnsTouch(e)) return;
+    // Both. stopPropagation alone keeps GLFW out, but then nothing cancels the
+    // touch, so the browser synthesises a click at touchend and the canvas
+    // selects a widget on top of whatever gesture just finished.
+    e.preventDefault();
+    e.stopPropagation();
+  }, { capture: true, passive: false });
+}
+
+// ---------- two fingers pan and pinch ----------
+//
+// On a detached tablet these are the ONLY way to pan or zoom. Panning is
+// middle-drag or Ctrl+Alt+drag and zooming is Ctrl+wheel, so both need a button
+// or a modifier key the hardware does not have, and four of the five canvas
+// gestures are unreachable without a keyboard.
+//
+// Tracked from pointer events rather than Touch Events, because the canvas is
+// already taking touches away from GLFW above and the pointer stream is the one
+// that survives that.
+const livePointers = new Map();          // pointerId -> {x, y}, touch and pen only
+let pinch = null;                        // {dist, cx, cy, zoom} at the last frame
+
+const pointerCentroid = () => {
+  let x = 0, y = 0;
+  for (const p of livePointers.values()) { x += p.x; y += p.y; }
+  return { x: x / livePointers.size, y: y / livePointers.size };
+};
+const pointerSpread = () => {
+  const [a, b] = [...livePointers.values()];
+  return Math.hypot(a.x - b.x, a.y - b.y);
+};
+
+canvasHost.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  livePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (livePointers.size === 2) {
+    // The first finger has already started a select or a drag through the
+    // bridge below. Close it cleanly before taking over, or the widget it
+    // grabbed keeps following the gesture that is now a pan.
+    canvas.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 0,
+    }));
+    const c = pointerCentroid();
+    pinch = { dist: pointerSpread(), cx: c.x, cy: c.y, zoom };
+    canvasHost.classList.add('panning');
+  }
+}, true);
+
+canvasHost.addEventListener('pointermove', e => {
+  if (!livePointers.has(e.pointerId)) return;
+  livePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (livePointers.size !== 2 || !pinch) return;
+  e.preventDefault();
+  const c = pointerCentroid();
+  const d = pointerSpread();
+  // Pan on the centroid every frame, so the sheet tracks the fingers even when
+  // the spread is unchanged.
+  panBy(c.x - pinch.cx, c.y - pinch.cy);
+  // Zoom continuously rather than along ZOOM_STEPS: a pinch is an analogue
+  // gesture and snapping it to the ladder makes it feel broken. The ladder is
+  // still what the +/- buttons and the wheel use.
+  //
+  // A floor on the starting distance, because two fingers landing almost on top
+  // of each other give a tiny divisor and one pixel of movement would then be a
+  // huge zoom jump.
+  if (pinch.dist > 24 && d > 24) zoomTo(pinch.zoom * (d / pinch.dist), c.x, c.y);
+  pinch.cx = c.x;
+  pinch.cy = c.y;
+}, true);
+
+// pointercancel as well as pointerup: a palm landing mid-pinch cancels one of
+// the two, and without this the gesture would be stuck believing both are down.
+for (const t of ['pointerup', 'pointercancel']) {
+  canvasHost.addEventListener(t, e => {
+    if (!livePointers.delete(e.pointerId)) return;
+    if (livePointers.size < 2) {
+      pinch = null;
+      canvasHost.classList.remove('panning');
+    }
+  }, true);
+}
+window.addEventListener('blur', () => {
+  livePointers.clear();
+  pinch = null;
+  canvasHost.classList.remove('panning');
+});
+
+// Pointer events fire before touch events, so the shell is reached whatever
+// GLFW does afterwards. Mouse is left alone: it already works, and replaying it
+// would double every press.
+const POINTER_TO_MOUSE = { pointerdown: 'mousedown', pointermove: 'mousemove', pointerup: 'mouseup' };
+for (const [from, to] of Object.entries(POINTER_TO_MOUSE)) {
+  canvas.addEventListener(from, e => {
+    if (e.pointerType === 'mouse' || !editMode) return;
+    // Two fingers are a pan or a pinch, not a drag. Replaying either of them as
+    // a mouse press would fight the gesture above for the same pixels.
+    if (livePointers.size >= 2) return;
+    canvas.dispatchEvent(new MouseEvent(to, {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY,
+      // A pen barrel press reports button 2 and should still open the context
+      // menu the mouse path already builds.
+      button: e.button < 0 ? 0 : e.button,
+      buttons: to === 'mouseup' ? 0 : (e.buttons || 1),
+      ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
+    }));
+  });
+}
 
 // The other half of the same problem. GLFW's mouseup listener is on the canvas,
 // so a release that lands anywhere else (another element, outside the window,
@@ -845,6 +1146,32 @@ document.addEventListener('mouseup', e => {
   if (e.target !== canvas) releaseCanvasButton(e);
 }, true);
 window.addEventListener('blur', () => releaseCanvasButton(null));
+
+// The third door into the same stuck-button state, and the one nothing covered.
+// pointercancel fires with NO pointerup and no compatibility mouseup: on palm
+// rejection, when the browser claims the gesture for its own scroll or zoom, and
+// on device disconnect. Every one of those is reachable on a tablet, and the
+// first is reachable just by resting a hand on the screen.
+//
+// button: 0 EXPLICITLY, never e.button. A pointercancel carries button === -1,
+// releaseCanvasButton forwards whatever it is handed, and GLFW clears the bit
+// with `buttons &= ~(1 << eventButton)`. In JS `1 << -1` is -2147483648, so
+// forwarding -1 clears bit 31 and leaves the left button exactly as stuck as it
+// was. The obvious version of this fix looks right and does nothing.
+canvas.addEventListener('pointercancel', e => {
+  releaseCanvasButton({ button: 0, clientX: e.clientX, clientY: e.clientY });
+});
+// NOT lostpointercapture. That was here as a backstop, on the reasoning that
+// releasing an already-released button costs nothing. It is not free: it fires
+// on the NORMAL path too, including whenever the browser hands capture back
+// mid-gesture, and the mouseup it then dispatches tells ImGui the button is up
+// while a window is still being dragged. The drag stops dead where it is.
+//
+// Measured over three runs each: the preview window-drag check failed 1 of 3
+// before this listener existed and 2 of 3 with it. Small samples, so the counts
+// are a hint rather than a proof, but the mechanism is concrete and
+// pointercancel already covers every case this was added for. A backstop that
+// can end a live gesture is not a backstop.
 
 // Middle-drag pans, and so does Ctrl+Alt+left, for a trackpad or any mouse
 // without a comfortable wheel button.
@@ -877,9 +1204,19 @@ canvasHost.addEventListener('mousedown', e => {
     canvasHost.classList.remove('panning');
     document.removeEventListener('mousemove', move);
     document.removeEventListener('mouseup', up);
+    document.removeEventListener('pointercancel', up);
+    window.removeEventListener('blur', up);
   };
   document.addEventListener('mousemove', move);
   document.addEventListener('mouseup', up);
+  // Recovery. This closure used to end only on its own mouseup, so a release
+  // the document never saw left the canvas panning until reload, and NEITHER
+  // existing net reached it: releaseCanvasButton dispatches a MouseEvent with
+  // no `bubbles`, which therefore never reaches a document listener, and the
+  // window blur handler below clears panready and the armed window drag while
+  // leaving the pan running.
+  document.addEventListener('pointercancel', up);
+  window.addEventListener('blur', up);
 }, true);
 canvasHost.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
 
@@ -949,6 +1286,18 @@ canvas.addEventListener('mousedown', e => {
   const hit = hitTest(p);
   if (hit && hit.id !== doc.id) {
     if (e.shiftKey) { toggleSelected(hit.id); return; }
+    // A second click on an already-selected Table picks the COLUMN under the
+    // cursor: the first click selects the table the way it always did, so this
+    // costs nothing anyone was already doing and reads as going one level in.
+    //
+    // Only when the click landed on the table ITSELF. hitTest returns the
+    // widget in a cell when there is one, and clicking a button still selects
+    // that button rather than the column it happens to sit in.
+    if (hit.id === selectedId && selection.size <= 1) {
+      const node0 = findNode(hit.id);
+      const band = node0 && node0.type === 'table' ? colAt(p, hit.id) : null;
+      if (band) { selectColumn(hit.id, band.i); return; }
+    }
     if (!selection.has(hit.id)) selectId(hit.id);
     else { selectedId = hit.id; refresh(); }
     // A title-bar press on a window moves it. On imgui the ENGINE owns that
@@ -1471,10 +1820,18 @@ function setLiveMode(live) {
   hint.innerHTML = live
     ? '<b>LIVE</b>: widgets respond'
     : 'hold <b>' + comboLabel(peekEntry() || { key: ' ' }) + '</b> to test interaction';
+  hint.setAttribute('aria-pressed', String(live));
+  hint.title = live
+    ? 'Live: presses reach the widgets. Press to go back to editing.'
+    : 'Edit: presses select and move. Press to test interaction instead.';
   if (live) disarm();
   if (engineReady) PROFILE.engine.call('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
   updateSelectionOverlay();
 }
+
+// Latching, not spring-loaded. Space and Tab keep their hold-to-peek behaviour;
+// this is the route for a pointer, which cannot hold anything.
+document.getElementById('modeHint').addEventListener('click', () => setLiveMode(editMode));
 
 let tabTimer = null;
 let tabHeld = false;

@@ -30,6 +30,78 @@ const NEEDS_CONTAINER = {
   menu: ['menubar', 'a Menu bar'],
 };
 
+// What blockedReason() below actually depends on, as a short string.
+//
+// The palette's blocked state is a function of the DOCUMENT, but renderPalette
+// only ran on palette-LOCAL events: the filter box, folding a category, pinning
+// to the hotbar. So it was computed once at boot and never again. Delete the
+// last window, or switch to a freshly created project, and every widget button
+// still looked insertable. Clicking one inserted nothing and said nothing
+// either, which is the first thing a new user does on a blank document.
+//
+// A signature rather than an unconditional re-render, because refresh() runs on
+// every keystroke in a property field and rebuilding sixty buttons per
+// character is work nobody asked for.
+//
+// Derived from NEEDS_CONTAINER rather than listing the container types again,
+// so a new entry there cannot leave this watching the wrong thing.
+const PALETTE_HOLDERS = new Set(Object.values(NEEDS_CONTAINER).map(v => v[0]));
+let paletteSig = null;
+
+function paletteSignature() {
+  const has = new Set();
+  if ((doc.children || []).some(n => n.type === 'window')) has.add('window');
+  walk(doc, n => { if (PALETTE_HOLDERS.has(n.type)) has.add(n.type); });
+  return [...has].sort().join(',');
+}
+
+// Called from refresh(), which is the one hook every document change goes
+// through. Cheap enough to run there, and correct for every path into it:
+// delete, undo, redo, import, a share link, and switching or adding a project.
+// The empty-document prompt, shown exactly when the palette is blocked: a widget
+// cannot exist outside a window, so with none there is one legal next move and
+// the canvas should say what it is rather than being a grid with no affordance.
+//
+// Two buttons because there are genuinely two first moves, and because the
+// twenty templates that answer this better than an empty window do are docked
+// collapsed at the bottom of the left column, where a newcomer never finds them.
+// The panel is not force-opened: presented and ignorable beats hijacked.
+function syncEmptyCanvas() {
+  const el = document.getElementById('canvasempty');
+  if (!el) return;
+  el.hidden = (doc.children || []).some(n => n.type === 'window');
+}
+
+{
+  const add = document.getElementById('emptyAddWindow');
+  const tpl = document.getElementById('emptyTemplates');
+  // Through the same insert path the palette uses, so the new window is
+  // selected and undoable exactly as one dropped by hand.
+  if (add) add.onclick = () => { addNode('window'); };
+  // Reveals the Templates panel rather than opening a picker of its own. The
+  // panel already lists all twenty with categories and search, and a second
+  // surface over the same data is a second thing to keep in step.
+  if (tpl) {
+    tpl.onclick = () => {
+      // The same two fields the panel header's own toggle sets, then
+      // applyLayout, which is what persists and redraws it.
+      const p = layout.panels.templates;
+      p.hidden = false;
+      p.collapsed = false;
+      applyLayout();
+      const list = document.getElementById('tpllist');
+      if (list) list.scrollIntoView({ block: 'nearest' });
+    };
+  }
+}
+
+function syncPalette() {
+  const sig = paletteSignature();
+  if (sig === paletteSig) return;
+  paletteSig = sig;
+  renderPalette();
+}
+
 function blockedReason(type) {
   const wins = doc.children.filter(n => n.type === 'window');
   if (!wins.length && type !== 'window') {
@@ -244,6 +316,10 @@ function MENUS() {
       { group: '2', label: (PROFILE.manual && PROFILE.manual.label) || 'Dear ImGui manual',
         run: () => window.open((PROFILE.manual && PROFILE.manual.url) || IMGUI_MANUAL, '_blank', 'noopener') },
       { group: '3', label: 'Changelog', run: () => openPage('changelog.html') },
+      // Opened ON the tablet, not here: it characterises the browser's own
+      // input, which is exactly what this machine cannot tell you about that
+      // one. Ships with the bundle so it is reachable at the deployed URL.
+      { group: '3', label: 'Input probe (pen / touch)', run: () => openPage('probe.html') },
     ],
   };
 }
@@ -1096,6 +1172,14 @@ const LABEL_NAMES = {
   args: 'Arguments', fmt: 'Format', r: 'R', g: 'G', b: 'B',
   // a Function container's label names the generated function, not a caption
   'section.label': 'Name',
+  // Splitting camelCase gives "P Open", which is not a phrase. The property is
+  // a visibility variable of your own passed to Begin as p_open, so the panel
+  // says what it does and the tooltip names the argument.
+  pOpen: 'Visibility flag',
+  // "Col Labels" reads as an abbreviation nobody chose; the field holds the
+  // names of the columns.
+  colLabels: 'Column names',
+  rowHeight: 'Row height',
 };
 
 // "sliderfloat" -> "SliderFloat", from the spec's own name so it matches the
@@ -1118,6 +1202,88 @@ function labelFor(key, type) {
   if (LABEL_NAMES[key]) return LABEL_NAMES[key];
   if (key.length <= 2) return key.toUpperCase();       // w, h, n
   return titleCase(String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2'));
+}
+
+// A set of ImGui bits as grouped, gated checkboxes.
+//
+// Shared by the table's own flags and by a column's, because they are the same
+// control over a different store: one reads a property on the node, the other
+// an entry in its `columns` array. `get`/`set` are what let the second exist
+// without a second copy of the grouping, exclusivity and gating rules.
+//
+// `exclusive` is a list of SETS, not one set: a column has three independent
+// ones (width policy, indent, sort direction), and ticking a width flag must
+// not clear an indent flag.
+function flagBox({ all, prefix, groups, exclusive, needs, get, set, met }) {
+  const on = new Set(String(get() ?? '').split(',').map(s => s.trim()).filter(Boolean));
+  const box = document.createElement('div');
+  box.className = 'flagsbox';
+  // Ordered by the option list, the same way coerce orders it, so the stored
+  // value does not churn as boxes are ticked in a different order.
+  const commit = () => set(all.filter(f => on.has(f)).join(', '));
+  for (const [gname, names] of groups) {
+    const members = names.filter(f => all.includes(f));
+    if (!members.length) continue;
+    // A group opens when it holds something, and stays shut when it does not.
+    //
+    // 30 table flags and 19 column ones, all expanded, made the flag editor
+    // the tallest thing in the panel by a wide margin: a Table's properties
+    // came to 1075px, nearly all of it unticked checkboxes. Everything is one
+    // click away and anything you have actually set is visible without the
+    // click, which is what docs/LAYOUT.md's own mockup showed before this
+    // shipped expanded.
+    const anyOn = members.some(f => on.has(f));
+    let rows = box;
+    if (gname) {
+      const h = document.createElement('button');
+      h.type = 'button';
+      h.className = 'flaggroup';
+      // Every member gated off means the group cannot do anything yet, which
+      // is worth saying rather than leaving it to look merely empty.
+      const allBlocked = members.every(f => needs[f] && !met(needs[f][0], on));
+      h.textContent = (anyOn ? '▾ ' : '▸ ') + gname
+        + (anyOn ? ` (${members.filter(f => on.has(f)).length})` : (allBlocked ? ' (off)' : ''));
+      rows = document.createElement('div');
+      rows.className = 'flagrows';
+      if (!anyOn) rows.hidden = true;
+      h.onclick = () => {
+        rows.hidden = !rows.hidden;
+        h.textContent = (rows.hidden ? '▸ ' : '▾ ') + h.textContent.slice(2);
+      };
+      box.appendChild(h);
+      box.appendChild(rows);
+    }
+    for (const f of members) {
+      const need = needs[f];
+      const ok = !need || met(need[0], on);
+      const row = document.createElement('label');
+      row.className = 'flagrow' + (ok ? '' : ' off');
+      row.title = ok ? prefix + f : `Does nothing while ${need[1]}`;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = on.has(f);
+      cb.disabled = !ok;
+      cb.onchange = () => {
+        if (!cb.checked) on.delete(f);
+        else {
+          on.add(f);
+          // Members of one exclusive set share a mask in ImGui, so two ticked
+          // is not "both", it is whichever bit pattern wins. Only the set this
+          // flag belongs to is cleared.
+          for (const set2 of exclusive) {
+            if (set2.includes(f)) for (const o of set2) if (o !== f) on.delete(o);
+          }
+        }
+        commit();
+      };
+      row.appendChild(cb);
+      const name = document.createElement('span');
+      name.textContent = f;
+      row.appendChild(name);
+      rows.appendChild(row);
+    }
+  }
+  return box;
 }
 
 function renderProps() {
@@ -1194,12 +1360,19 @@ function renderProps() {
   // what is selected, said plainly, so the panel is self-explanatory
   const ident = document.createElement('div');
   ident.className = 'propident';
+  const typeName = spec.name || node.type;
+  const own = node === doc ? 'Document' : (node.label || typeName);
   const nb = document.createElement('b');
-  nb.textContent = node === doc ? 'Document' : (node.label || spec.name || node.type);
+  nb.textContent = own;
   ident.appendChild(nb);
-  const ns = document.createElement('span');
-  ns.textContent = spec.name || node.type;
-  ident.appendChild(ns);
+  // The type only when it says something the name did not. A widget with no
+  // label prop falls back to its type name for both halves, and the panel read
+  // "Raw C++Raw C++".
+  if (own !== typeName) {
+    const ns = document.createElement('span');
+    ns.textContent = typeName;
+    ident.appendChild(ns);
+  }
   host.appendChild(ident);
 
   const propDefs = spec.props || [];
@@ -1280,6 +1453,35 @@ function renderProps() {
       }
       return row;
     }
+    // A set of ImGui bits. Thirty checkboxes in one flat column is a wall
+    // nobody reads, so they come grouped, the mutually exclusive ones behave
+    // that way, and the ones that cannot do anything yet say why instead of
+    // offering a control that changes nothing.
+    if (type === 'flags') {
+      const all = (opts || []).map(String);
+      // Grouping, exclusivity and gating belong to the imgui table catalog, so
+      // they are reached by name and guarded. Another profile with none of them
+      // gets one plain list, which is still a working editor.
+      //
+      // `typeof` on the bare name, NOT a lookup on window. A top-level const in
+      // a classic script is a lexical binding in the global environment and
+      // never becomes a property of the global object, so `in window` answers
+      // false for all three of these and the editor silently degrades to one
+      // flat ungrouped list with no gating and no exclusivity.
+      return flagBox({
+        all,
+        prefix: 'ImGuiTableFlags_',
+        groups: (node.type === 'table' && typeof TABLE_FLAG_GROUPS !== 'undefined'
+          && TABLE_FLAG_GROUPS) || [['', all]],
+        exclusive: typeof TABLE_FLAGS_EXCLUSIVE !== 'undefined' ? [TABLE_FLAGS_EXCLUSIVE] : [],
+        needs: typeof TABLE_FLAG_NEEDS !== 'undefined' ? TABLE_FLAG_NEEDS : {},
+        get: () => node[key],
+        set: (v) => { node[key] = v; refresh(false, key); },
+        // `header` is a sibling property of the table, anything else is one of
+        // the table's own flags.
+        met: (need, on) => (need === 'header' ? !!node.header : on.has(need)),
+      });
+    }
     if (type === 'int' || type === 'float') {
       const meta = (opts && typeof opts === 'object' && !Array.isArray(opts)) ? opts : {};
       const wrap = document.createElement('span');
@@ -1312,6 +1514,41 @@ function renderProps() {
       };
       inp.onblur = () => { if (String(node[key]) !== inp.value) inp.value = node[key]; };
       wrap.appendChild(inp);
+      // A +/- pair for properties that are a COUNT you nudge rather than a
+      // measurement you type. A Table's rows and columns are what this is for:
+      // changing the shape of a grid by selecting the text in a number field
+      // and typing over it is the wrong gesture for the job.
+      if (meta.stepper) {
+        const nudge = (by, glyph, title) => {
+          const clamped = () => {
+            let v = Math.trunc(Number(node[key]) || 0) + by;
+            if (meta.min !== undefined) v = Math.max(meta.min, v);
+            if (meta.max !== undefined) v = Math.min(meta.max, v);
+            return v;
+          };
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'numstep';
+          b.textContent = glyph;
+          b.title = title;
+          // The field is the tab stop. Two more per number would triple the
+          // keyboard cost of walking the inspector, and the arrow keys already
+          // step a number input.
+          b.tabIndex = -1;
+          // At the end of the range the button would silently do nothing, so
+          // it says so instead. Recomputed on each render, which refresh()
+          // below triggers, so it cannot go stale.
+          b.disabled = clamped() === Math.trunc(Number(node[key]) || 0);
+          b.onclick = () => {
+            node[key] = clamped();
+            inp.value = node[key];
+            refresh(false, key);
+          };
+          return b;
+        };
+        wrap.appendChild(nudge(-1, '−', 'One fewer'));
+        wrap.appendChild(nudge(1, '+', 'One more'));
+      }
       if (meta.unit) {
         const u = document.createElement('span');
         u.className = 'unit';
@@ -1326,14 +1563,40 @@ function renderProps() {
     // newline and caps at 200 characters. Opening the inspector on a Raw block
     // and touching the field flattened it.
     if (type === 'longtext') {
-      const ta = document.createElement('textarea');
-      ta.className = 'longtext';
-      ta.rows = 4;
-      ta.spellcheck = false;
-      ta.value = node[key] ?? '';
-      ta.placeholder = (opts && opts.placeholder) || '';
-      ta.oninput = () => { node[key] = ta.value; refresh(false, key); };
-      return ta;
+      const build = () => {
+        const ta = document.createElement('textarea');
+        ta.className = 'longtext';
+        ta.rows = 4;
+        ta.spellcheck = false;
+        ta.value = node[key] ?? '';
+        ta.placeholder = (opts && opts.placeholder) || '';
+        ta.oninput = () => { node[key] = ta.value; refresh(false, key); };
+        return ta;
+      };
+      // An EMPTY one collapses to a single line you click to open.
+      //
+      // A window's Preamble is raw C++ emitted before ImGui::Begin: real, and
+      // empty on virtually every window anyone builds. Left expanded it is a
+      // four-row box whose only content is the placeholder text describing what
+      // could go in it, tall enough to overlap the Size row under it. A field
+      // nobody fills should not be the largest thing on the panel.
+      //
+      // Not when it is the widget's ONLY property, which is the Raw C++ block:
+      // collapsing that leaves a panel with nothing in it but a button to
+      // reveal the one field the widget exists for.
+      const sole = propDefsAll.length === 1;
+      if (sole || String(node[key] ?? '') !== '') return build();
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'longadd';
+      open.textContent = (opts && opts.addLabel) || 'Add…';
+      open.title = (opts && opts.placeholder) || 'Open the editor for this field';
+      open.onclick = () => {
+        const ta = build();
+        open.replaceWith(ta);
+        ta.focus();
+      };
+      return open;
     }
     const inp = document.createElement('input');
     inp.type = 'text';
@@ -1383,28 +1646,8 @@ function renderProps() {
     if (byKey[a] && byKey[b]) { paired.add(a); paired.add(b); }
   }
 
-  const renderDefs = list => {
-    for (const def of list) {
-      const key = def[0];
-      if (paired.has(key)) continue;
-      addField(labelFor(key, node.type), mark(editorFor(def), key), changed(key),
-        changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
-    }
-  };
-  if (slotDefs.length) {
-    // named for the panel that OWNS the slot, the way UMG says
-    // "Slot (Vertical Box Slot)": slot rules belong to the parent in the
-    // code, to the child in the editor, and the header is where both truths
-    // fit in one line
-    const parent = findParent(node.id);
-    const pSpec = parent && parent !== doc && PROFILE.catalog[parent.type];
-    addHead(pSpec && pSpec.name ? `Slot (${pSpec.name} Slot)` : 'Slot');
-    renderDefs(slotDefs);
-    addHead(titleCase('properties'));
-  }
-  renderDefs(ownDefs);
-  for (const [a, b] of PAIRS) {
-    if (!byKey[a] || !byKey[b]) continue;
+  // One pair on one row, the way a vector reads.
+  const renderPair = ([a, b]) => {
     const row = document.createElement('div');
     row.className = 'vecrow';
     for (const k of [a, b]) {
@@ -1421,8 +1664,59 @@ function renderProps() {
     addField(a === 'w' ? 'Size' : 'Range', row, pairChanged,
       pairChanged ? () => { node[a] = defaultOf(a); node[b] = defaultOf(b); } : null,
       a === 'w' ? PROP_HELP.w : 'The range the control is allowed to produce.');
-  }
+  };
 
+  // The order the panel SHOWS properties in, which is not quite the order the
+  // catalog declares them. Two corrections, both so the panel reads the same
+  // way whatever you have selected.
+  //
+  // `label` leads, because it names the thing you just clicked. 16 of the
+  // catalog's specs declare ITEMW first and 30 declare label first, so the top
+  // field of the panel changed identity depending on which widget you picked:
+  // Width for a slider, Label for a button.
+  //
+  // Everything else keeps catalog order, so a spec still controls its own
+  // reading order. That is the point of correcting it HERE rather than
+  // reordering 16 catalog rows: the parser's differential probe seeds int and
+  // float props positionally, so moving them would change what it probes with
+  // for no reason connected to this.
+  const orderedDefs = (list) => {
+    const out = [];
+    const seen = new Set();
+    const push = (def) => { if (!seen.has(def[0])) { seen.add(def[0]); out.push(def); } };
+    const lab = list.find(d => d[0] === 'label');
+    if (lab) push(lab);
+    for (const def of list) push(def);
+    return out;
+  };
+
+  const renderDefs = list => {
+    for (const def of orderedDefs(list)) {
+      const key = def[0];
+      if (paired.has(key)) {
+        // A pair renders where its FIRST member is declared, not after every
+        // other property. Trailing them left a window's Size below its raw C++
+        // preamble, three fields away from the X and Y it belongs beside.
+        const pair = PAIRS.find(([a, b]) => byKey[a] && byKey[b] && a === key);
+        if (pair) renderPair(pair);
+        continue;
+      }
+      addField(labelFor(key, node.type), mark(editorFor(def), key), changed(key),
+        changed(key) ? restoreFn(key) : null, helpFor(node.type, key));
+    }
+  };
+  if (slotDefs.length) {
+    // named for the panel that OWNS the slot, the way UMG says
+    // "Slot (Vertical Box Slot)": slot rules belong to the parent in the
+    // code, to the child in the editor, and the header is where both truths
+    // fit in one line
+    const parent = findParent(node.id);
+    const pSpec = parent && parent !== doc && PROFILE.catalog[parent.type];
+    addHead(pSpec && pSpec.name ? `Slot (${pSpec.name} Slot)` : 'Slot');
+    renderDefs(slotDefs);
+    addHead(titleCase('properties'));
+  }
+  renderDefs(ownDefs);
   if (node !== doc) {
     addHead('layout');
     const parent = findParent(node.id);
@@ -1445,8 +1739,118 @@ function renderProps() {
       'Puts this widget on the same row as the one before it, via ImGui::SameLine().');
   }
 
+  // ---- columns ----
+  // A column has no id, so it cannot be selected the way a node is. The canvas
+  // gesture is a second click on an already-selected table; this picker is the
+  // same thing reachable from the keyboard, and it is also what makes the
+  // feature discoverable at all, since nothing about a table says "click me
+  // again".
+  if (node.type === 'table' && typeof TABLE_COLUMN_FLAGS !== 'undefined') {
+    const count = Math.max(1, Math.min(64, Math.trunc(Number(node.cols)) || 1));
+    const pickedRaw = selectedCol && selectedCol.id === node.id ? selectedCol.i : null;
+    // A column that no longer exists is not picked. Shrinking the table with
+    // its last column selected would otherwise draw an editor writing into a
+    // slot sanitizeColumns throws away on the next load.
+    const picked = pickedRaw !== null && pickedRaw < count ? pickedRaw : null;
+    addHead('columns' + (picked === null ? '' : ` (${picked + 1} of ${count})`));
+
+    const pick = document.createElement('div');
+    pick.className = 'colpick';
+    for (let i = 0; i < count; i++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'colseg' + (i === picked ? ' on' : '');
+      b.textContent = String(i + 1);
+      b.title = `Select column ${i + 1}`;
+      // Clicking the picked one again lets go, so there is a way back to
+      // editing the table itself without hunting for empty canvas.
+      b.onclick = () => selectColumn(node.id, i === picked ? null : i);
+      pick.appendChild(b);
+    }
+    // Through addField like every other row. It was a hand-rolled div with a
+    // `proprow` class that has no CSS anywhere, so the one row in the panel
+    // that named a thing sat outside the label/control grid the rest align to.
+    addField('Column', pick, picked !== null, null,
+      'Which column the flags and size below apply to.');
+
+    if (picked !== null) {
+      // The label lives in the table's own comma-separated colLabels, edited
+      // one slot at a time here. Two stores for one thing would be a second
+      // source of truth, and colLabels already round-trips.
+      const labels = String(node.colLabels ?? '').split(',').map(s => s.trim());
+      while (labels.length < count) labels.push('');
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = labels[picked] || '';
+      nameInput.placeholder = `Column ${picked + 1}`;
+      nameInput.maxLength = kindCap('items');
+      nameInput.oninput = () => {
+        // Commas separate the columns, so one inside a name would silently
+        // become a column break and shift every name after it along by one.
+        labels[picked] = nameInput.value.replace(/,/g, ' ');
+        node.colLabels = labels.slice(0, count).join(', ');
+        refresh(false, 'colLabels');
+      };
+      addField('Name', nameInput, !!labels[picked], null,
+        'This column\'s name in the header row. Stored in the table\'s Column names.');
+
+      const col = (Array.isArray(node.columns) && node.columns[picked]) || {};
+      const write = (patch) => {
+        const arr = Array.isArray(node.columns) ? node.columns.slice() : [];
+        while (arr.length < count) arr.push(null);
+        arr[picked] = Object.assign({ flags: '', width: 0 }, arr[picked] || {}, patch);
+        // An entry holding nothing is dropped back to null, so clearing a
+        // column's settings really clears them instead of leaving {flags:'',
+        // width:0} behind for the generator to reason about.
+        if (!arr[picked].flags && !(Number(arr[picked].width) > 0)) arr[picked] = null;
+        node.columns = arr.some(Boolean) ? arr : undefined;
+        if (!node.columns) delete node.columns;
+        refresh(false, 'columns');
+      };
+
+      const widthInput = document.createElement('input');
+      widthInput.type = 'number';
+      widthInput.min = 0;
+      widthInput.step = 'any';
+      widthInput.value = Number(col.width) || 0;
+      widthInput.oninput = () => {
+        if (widthInput.value === '') return;
+        const v = Number(widthInput.value);
+        if (Number.isFinite(v)) write({ width: Math.max(0, v) });
+      };
+      const widthWrap = document.createElement('span');
+      widthWrap.className = 'numwrap';
+      widthWrap.appendChild(widthInput);
+      addField('Size', widthWrap, Number(col.width) > 0, null,
+        'Pixels for a Fixed column, a weight for a Stretch one. 0 leaves it to the table.');
+
+      addField('Flags', flagBox({
+        all: TABLE_COLUMN_FLAGS,
+        prefix: 'ImGuiTableColumnFlags_',
+        groups: TABLE_COLUMN_FLAG_GROUPS,
+        exclusive: TABLE_COLUMN_EXCLUSIVE,
+        needs: TABLE_COLUMN_NEEDS,
+        get: () => col.flags,
+        set: (v) => write({ flags: v }),
+        // A column flag is gated on the TABLE, not on its sibling column flags:
+        // sorting needs the table sortable, hiding needs it hideable, and the
+        // header options need a header row to appear in.
+        met: (need) => (need === 'header'
+          ? !!node.header
+          : String(node.flags ?? '').split(',').map(s => s.trim()).includes(need)),
+      }), !!col.flags, null, 'Per-column ImGuiTableColumnFlags for this column.');
+    }
+  }
+
   // ---- color overrides ----
-  const slots = colorSlots(node.type);
+  // Slots the node can actually reach right now, which is not always every slot
+  // valid for its type. A Table only draws a header row when `header` is on, so
+  // offering TableHeaderBg while it is off would put back exactly the swatch
+  // that changes nothing which widgets.js spent a comment removing. The static
+  // list stays whole for the parser and the generator, and the narrowing is
+  // here because this is the only place a person sees it.
+  const slots = colorSlots(node.type)
+    .filter(s => s !== 'TableHeaderBg' || node.type !== 'table' || !!node.header);
   if (!slots.length) return;
   const overridden = slots.filter(s => node.colors && node.colors[s]).length;
   addHead('colors' + (overridden ? ' (' + overridden + ' overridden)' : ''));
