@@ -472,6 +472,10 @@ function refresh(rebuildProps = true, prop) {
   // refresh that follows the selection moving elsewhere has to drop it, or the
   // inspector would draw a column panel for a widget that has no columns.
   syncSelectedColumn();
+  // The palette's blocked state is a function of the document too, and this is
+  // the hook every document change goes through. It re-renders only when what
+  // blockedReason reads has actually changed.
+  syncPalette();
   renderTree();
   if (rebuildProps) renderProps();
   renderCode();

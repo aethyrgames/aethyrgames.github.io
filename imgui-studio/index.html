@@ -623,11 +623,28 @@
      rather than the checkboxes. A gated flag stays visible and greyed with its
      reason in the tooltip, so it reads as "not yet" rather than "missing". */
   .flagsbox { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  /* A group header is a real button: it toggles its rows, so it has to take a
+     pointer and a Tab stop rather than only looking like a heading. */
   .flaggroup {
-    margin-top: 5px; font-size: 10px; text-transform: uppercase;
-    letter-spacing: .04em; color: var(--mk-comment);
+    display: block; width: 100%; margin-top: 5px; padding: 1px 0; text-align: left;
+    font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--mk-comment); background: none; border: 0; cursor: pointer;
+    font-family: inherit;
   }
+  .flaggroup:hover { color: var(--mk-fg); }
   .flaggroup:first-child { margin-top: 0; }
+  .flagrows { display: flex; flex-direction: column; gap: 1px; }
+  .flagrows[hidden] { display: none; }
+
+  /* The collapsed form of an empty longtext. Reads as an invitation rather
+     than as a four-row box holding nothing but its own placeholder. */
+  .longadd {
+    flex: 1; min-width: 0; text-align: left; padding: 2px 6px; cursor: pointer;
+    font-size: 11px; font-family: inherit;
+    background: var(--mk-surface); color: var(--mk-comment);
+    border: 1px dashed var(--mk-border); border-radius: 3px;
+  }
+  .longadd:hover { color: var(--mk-fg); border-color: var(--mk-cyan); }
   .flagrow {
     display: flex; align-items: center; gap: 5px; font-size: 11px;
     cursor: pointer; min-width: 0;
@@ -1556,8 +1573,8 @@
 <script src="generate.js?v=cef9c6f489"></script>
 <script src="theme.js?v=74ae270bb5"></script>
 <script src="layout.js?v=c709fffafe"></script>
-<script src="render.js?v=6d50ae62de"></script>
-<script src="codepane.js?v=dc7135a343"></script>
+<script src="render.js?v=ad48169122"></script>
+<script src="codepane.js?v=ea68e9c95a"></script>
 <script src="templates.js?v=9848af86cc"></script>
 <script src="settings.js?v=fd8e984934"></script>
 <script src="testhooks.js?v=2dec08869a"></script>
