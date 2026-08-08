@@ -892,6 +892,64 @@ for (const h of selbox.querySelectorAll('.rh')) {
   });
 }
 
+// The grips take a pen and a finger, which they did not.
+//
+// The same defect the canvas had, one layer up, and it survived that fix
+// because the fix was scoped to the canvas element on purpose. A grip is an
+// <i> inside #selbox, so shellOwnsTouch below leaves its touches alone and
+// GLFW never sees them either, since every GLFW handler begins by testing the
+// target. Nothing cancels the touch, so the browser synthesises the WHOLE
+// compatibility mouse sequence at touchend: mousedown and mouseup arrive
+// together, at the position the gesture ENDED. The handler above runs, captures
+// startX at that final point, and the mouseup one tick later ends the resize
+// with a delta of exactly zero. So the grip highlighted, the widget never
+// changed size, and nothing anywhere reported an error. Reported from a Surface
+// Pro, where the pen is the only pointer there is.
+//
+// Replayed rather than migrated, matching the canvas bridge below: the mouse
+// resize path stays byte-identical, and that path carries the eight-grip window
+// case with its move-and-size-together edges.
+//
+// setPointerCapture on the grip, not on #canvas. Capture retargets the moves,
+// and the moves have to keep arriving at an element inside #selbox: the grip is
+// 24px under a pen and the drag leaves it immediately.
+for (const h of selbox.querySelectorAll('.rh')) {
+  h.addEventListener('pointerdown', e => {
+    // Mouse already works. Replaying it would start the resize twice.
+    if (e.pointerType === 'mouse') return;
+    try { h.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
+    h.dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 1,
+      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
+    }));
+  });
+  // On document, because that is where the resize is driven from. Guarded on
+  // `resizing` rather than replayed unconditionally: a pen hovers, so a bare
+  // move over a grip with nothing grabbed would otherwise drive the drag and
+  // ghost branches of the same handler.
+  h.addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse' || !resizing) return;
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 1,
+      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
+    }));
+  });
+  // pointercancel as well as pointerup. A palm landing mid-drag cancels the pen
+  // with no pointerup and no compatibility mouseup, and without this the resize
+  // would still be following a pointer that no longer exists.
+  for (const t of ['pointerup', 'pointercancel']) {
+    h.addEventListener(t, e => {
+      if (e.pointerType === 'mouse' || !resizing) return;
+      document.dispatchEvent(new MouseEvent('mouseup', {
+        bubbles: true, cancelable: true, view: window,
+        clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 0,
+      }));
+    });
+  }
+}
+
 // emscripten's GLFW binds every mouse listener to the canvas element itself,
 // mousemove and mouseup included. So dragging an ImGui widget and leaving the
 // canvas stopped delivering moves, and releasing outside never arrived at all.
@@ -942,9 +1000,16 @@ window.addEventListener('pointerdown', e => {
 // path byte-identical, which matters because those paths carry select, drag,
 // marquee, resize and window-move.
 function shellOwnsTouch(e) {
-  // Only the canvas itself. The resize grips, the grid steppers and the inline
-  // label editor all live inside #canvashost and handle their own input.
-  return editMode && e.target === canvas;
+  // The canvas itself, and the resize grips floating over it, which are bridged
+  // by hand just above.
+  //
+  // NOT the grid steppers and NOT the inline label editor. Those are driven by
+  // `click` and by focus, and both of those ARRIVE as compatibility events, so
+  // cancelling their touches would take away the only input they have. The
+  // grips are the opposite case: their compatibility events are worse than
+  // useless, because the pair lands at touchend together.
+  return editMode && (e.target === canvas
+    || (e.target instanceof Element && e.target.closest('.rh')));
 }
 
 // Capture phase and NOT passive, or preventDefault is ignored. Registered on
