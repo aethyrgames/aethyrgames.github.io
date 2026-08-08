@@ -119,6 +119,7 @@ var seen = {
 var log = [];
 var pending = { pen: false, touch: false };
 var penGestureSawTouch = false;
+var lastPointerType = null;
 var gestureIds = null;
 
 function esc(v) { return v === undefined ? '' : String(v); }
@@ -150,6 +151,7 @@ function pad(s, w) { s = String(s); while (s.length < w) s += ' '; return s; }
 
 function record(e, where) {
   var pt = e.pointerType;
+  if (pt) lastPointerType = pt;
   if (pt) {
     seen.pointerTypes[pt] = (seen.pointerTypes[pt] || 0) + 1;
     if (e.width !== undefined) {
@@ -187,9 +189,13 @@ function record(e, where) {
   // A compatibility mousedown arriving after a touch sequence, rather than from
   // a real mouse, is what the app relied on before the bridge existed.
   if (e.type === 'mousedown' && (pending.touch || pending.pen)) seen.compatMouseAfterTouch = true;
+  // Attributed to the last pointer SEEN, not to one still pending. A contextmenu
+  // arrives after the pointerup that ends the gesture, and pending is cleared
+  // there, so keying on it reported every pen right-click as a mouse one: a
+  // Surface Pro run showed "contextmenu raised by: mouse" while its own log had
+  // the pen raising both a long-press and a barrel-button menu.
   if (e.type === 'contextmenu') {
-    var by = pending.pen ? 'pen' : pending.touch ? 'touch' : 'mouse';
-    seen.contextmenuBy[by] = true;
+    seen.contextmenuBy[e.pointerType || lastPointerType || 'mouse'] = true;
   }
   if (e.type === 'pointerup' || e.type === 'pointercancel') {
     pending.pen = pending.touch = false;

@@ -1302,6 +1302,12 @@
      and they cannot be clicked. Truncate, then disappear entirely rather than
      showing a useless stub. Same fix the palette's hover readout already has. */
   #apphead #modeHint {
+    /* It became a <button> so a pointer can reach Live mode without a keyboard.
+       Every bit of the default button chrome is reset: the UA background is what
+       the colour below is measured against, and leaving it made the label sit at
+       1.03:1 on nord, which the contrast gate caught. */
+    background: none; border: 0; padding: 0; appearance: none;
+    cursor: pointer; font-family: inherit; min-height: 24px;
     /* 2.33-4.47:1 across nine themes with plain --mk-comment. Sits on
        #apphead's gutter background, not the workspace background #zoomctl
        button/.tplcount do, so it needs their tighter 98% mix (menutop's,
@@ -1381,7 +1387,11 @@
         title="Open the tutorial in a new tab">Tutorial</button>
     </nav>
     <span class="spacer"></span>
-    <span id="modeHint">hold <b>Space</b> to test interaction</span><!-- key filled in from the binding -->
+    <!-- A real two-state control, not a caption. Holding Space is the fast way
+         and it needs a keyboard, which a detached tablet does not have, so the
+         one idea that decides whether a press selects or activates was
+         unreachable there. The key is still named in the label. -->
+    <button id="modeHint" type="button" aria-pressed="false">hold <b>Space</b> to test interaction</button>
     <button class="headbtn" id="shareTopBtn" title="Copy a link that carries this document">Share</button>
     <button class="headbtn" id="resetViewBtn" title="Recenter the canvas (Shift+F)">Reset view</button>
   </div>
@@ -1660,7 +1670,7 @@
 <script src="editor-textarea.js?v=2e39a4184d"></script>
 <script src="editor-codemirror.js?v=0596c1a2e6"></script>
 <script src="doc.js?v=e26d7b2960"></script>
-<script src="canvas.js?v=166e529ce2"></script>
+<script src="canvas.js?v=0b9ec98eb5"></script>
 <!-- Ahead of keys.js, which is the one place in this list where load order is
      about listener order rather than dependency order. Both files register a
      capture-phase keydown listener on window, those run in registration order,

@@ -962,6 +962,85 @@ for (const t of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
   }, { capture: true, passive: false });
 }
 
+// ---------- two fingers pan and pinch ----------
+//
+// On a detached tablet these are the ONLY way to pan or zoom. Panning is
+// middle-drag or Ctrl+Alt+drag and zooming is Ctrl+wheel, so both need a button
+// or a modifier key the hardware does not have, and four of the five canvas
+// gestures are unreachable without a keyboard.
+//
+// Tracked from pointer events rather than Touch Events, because the canvas is
+// already taking touches away from GLFW above and the pointer stream is the one
+// that survives that.
+const livePointers = new Map();          // pointerId -> {x, y}, touch and pen only
+let pinch = null;                        // {dist, cx, cy, zoom} at the last frame
+
+const pointerCentroid = () => {
+  let x = 0, y = 0;
+  for (const p of livePointers.values()) { x += p.x; y += p.y; }
+  return { x: x / livePointers.size, y: y / livePointers.size };
+};
+const pointerSpread = () => {
+  const [a, b] = [...livePointers.values()];
+  return Math.hypot(a.x - b.x, a.y - b.y);
+};
+
+canvasHost.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  livePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (livePointers.size === 2) {
+    // The first finger has already started a select or a drag through the
+    // bridge below. Close it cleanly before taking over, or the widget it
+    // grabbed keeps following the gesture that is now a pan.
+    canvas.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 0,
+    }));
+    const c = pointerCentroid();
+    pinch = { dist: pointerSpread(), cx: c.x, cy: c.y, zoom };
+    canvasHost.classList.add('panning');
+  }
+}, true);
+
+canvasHost.addEventListener('pointermove', e => {
+  if (!livePointers.has(e.pointerId)) return;
+  livePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (livePointers.size !== 2 || !pinch) return;
+  e.preventDefault();
+  const c = pointerCentroid();
+  const d = pointerSpread();
+  // Pan on the centroid every frame, so the sheet tracks the fingers even when
+  // the spread is unchanged.
+  panBy(c.x - pinch.cx, c.y - pinch.cy);
+  // Zoom continuously rather than along ZOOM_STEPS: a pinch is an analogue
+  // gesture and snapping it to the ladder makes it feel broken. The ladder is
+  // still what the +/- buttons and the wheel use.
+  //
+  // A floor on the starting distance, because two fingers landing almost on top
+  // of each other give a tiny divisor and one pixel of movement would then be a
+  // huge zoom jump.
+  if (pinch.dist > 24 && d > 24) zoomTo(pinch.zoom * (d / pinch.dist), c.x, c.y);
+  pinch.cx = c.x;
+  pinch.cy = c.y;
+}, true);
+
+// pointercancel as well as pointerup: a palm landing mid-pinch cancels one of
+// the two, and without this the gesture would be stuck believing both are down.
+for (const t of ['pointerup', 'pointercancel']) {
+  canvasHost.addEventListener(t, e => {
+    if (!livePointers.delete(e.pointerId)) return;
+    if (livePointers.size < 2) {
+      pinch = null;
+      canvasHost.classList.remove('panning');
+    }
+  }, true);
+}
+window.addEventListener('blur', () => {
+  livePointers.clear();
+  pinch = null;
+  canvasHost.classList.remove('panning');
+});
+
 // Pointer events fire before touch events, so the shell is reached whatever
 // GLFW does afterwards. Mouse is left alone: it already works, and replaying it
 // would double every press.
@@ -969,6 +1048,9 @@ const POINTER_TO_MOUSE = { pointerdown: 'mousedown', pointermove: 'mousemove', p
 for (const [from, to] of Object.entries(POINTER_TO_MOUSE)) {
   canvas.addEventListener(from, e => {
     if (e.pointerType === 'mouse' || !editMode) return;
+    // Two fingers are a pan or a pinch, not a drag. Replaying either of them as
+    // a mouse press would fight the gesture above for the same pixels.
+    if (livePointers.size >= 2) return;
     canvas.dispatchEvent(new MouseEvent(to, {
       bubbles: true, cancelable: true, view: window,
       clientX: e.clientX, clientY: e.clientY,
@@ -1014,11 +1096,17 @@ window.addEventListener('blur', () => releaseCanvasButton(null));
 canvas.addEventListener('pointercancel', e => {
   releaseCanvasButton({ button: 0, clientX: e.clientX, clientY: e.clientY });
 });
-// Fires on the cancelled path AND the normal one, so it is a backstop rather
-// than a duplicate: releasing a button that is already up costs nothing.
-canvas.addEventListener('lostpointercapture', e => {
-  releaseCanvasButton({ button: 0, clientX: e.clientX, clientY: e.clientY });
-});
+// NOT lostpointercapture. That was here as a backstop, on the reasoning that
+// releasing an already-released button costs nothing. It is not free: it fires
+// on the NORMAL path too, including whenever the browser hands capture back
+// mid-gesture, and the mouseup it then dispatches tells ImGui the button is up
+// while a window is still being dragged. The drag stops dead where it is.
+//
+// Measured over three runs each: the preview window-drag check failed 1 of 3
+// before this listener existed and 2 of 3 with it. Small samples, so the counts
+// are a hint rather than a proof, but the mechanism is concrete and
+// pointercancel already covers every case this was added for. A backstop that
+// can end a live gesture is not a backstop.
 
 // Middle-drag pans, and so does Ctrl+Alt+left, for a trackpad or any mouse
 // without a comfortable wheel button.
@@ -1667,10 +1755,18 @@ function setLiveMode(live) {
   hint.innerHTML = live
     ? '<b>LIVE</b>: widgets respond'
     : 'hold <b>' + comboLabel(peekEntry() || { key: ' ' }) + '</b> to test interaction';
+  hint.setAttribute('aria-pressed', String(live));
+  hint.title = live
+    ? 'Live: presses reach the widgets. Press to go back to editing.'
+    : 'Edit: presses select and move. Press to test interaction instead.';
   if (live) disarm();
   if (engineReady) PROFILE.engine.call('engine_set_edit_mode', null, ['number'], [editMode ? 1 : 0]);
   updateSelectionOverlay();
 }
+
+// Latching, not spring-loaded. Space and Tab keep their hold-to-peek behaviour;
+// this is the route for a pointer, which cannot hold anything.
+document.getElementById('modeHint').addEventListener('click', () => setLiveMode(editMode));
 
 let tabTimer = null;
 let tabHeld = false;
