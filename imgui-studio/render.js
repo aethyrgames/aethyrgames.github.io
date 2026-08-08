@@ -316,6 +316,10 @@ function MENUS() {
       { group: '2', label: (PROFILE.manual && PROFILE.manual.label) || 'Dear ImGui manual',
         run: () => window.open((PROFILE.manual && PROFILE.manual.url) || IMGUI_MANUAL, '_blank', 'noopener') },
       { group: '3', label: 'Changelog', run: () => openPage('changelog.html') },
+      // Opened ON the tablet, not here: it characterises the browser's own
+      // input, which is exactly what this machine cannot tell you about that
+      // one. Ships with the bundle so it is reachable at the deployed URL.
+      { group: '3', label: 'Input probe (pen / touch)', run: () => openPage('probe.html') },
     ],
   };
 }

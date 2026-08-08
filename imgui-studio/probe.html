@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Input probe — ImGui Studio</title>
+<style>
+  /* Deliberately self-contained: no shared stylesheet, no app scripts. This page
+     exists to characterise the browser's input, so it must not be able to fail
+     for a reason that belongs to the app it is diagnosing. */
+  :root {
+    --bg: #16181d; --fg: #e6e6e6; --dim: #8b93a1; --line: #2c313c;
+    --ok: #6ccb5f; --no: #e06c75; --wait: #d6b45a; --hi: #61d6d6;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overscroll-behavior: contain; }
+  body {
+    background: var(--bg); color: var(--fg); font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    display: flex; flex-direction: column; gap: 10px; padding: 10px;
+  }
+  h1 { font-size: 15px; margin: 0; }
+  h1 small { color: var(--dim); font-weight: normal; }
+  .cols { display: flex; gap: 10px; flex: 1; min-height: 0; flex-wrap: wrap; }
+  .col { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-height: 0; }
+  .card h2 { font-size: 12px; margin: 0 0 8px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* The two targets. `touch-action: none` on the pad so the browser does not
+     take the gesture before we can see it; the button deliberately does NOT set
+     it, so the two can be compared. */
+  #pad {
+    touch-action: none; user-select: none;
+    height: 190px; border: 2px dashed var(--line); border-radius: 6px;
+    display: grid; place-items: center; text-align: center; color: var(--dim);
+    background: #12141a;
+  }
+  #pad.live { border-color: var(--hi); color: var(--hi); }
+  #btn {
+    width: 100%; min-height: 44px; margin-top: 8px; cursor: pointer;
+    background: #1e222b; color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; font: inherit;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 3px 0; vertical-align: top; }
+  td:first-child { color: var(--dim); padding-right: 10px; white-space: nowrap; }
+  .v-yes { color: var(--ok); } .v-no { color: var(--no); } .v-wait { color: var(--wait); }
+
+  #log {
+    flex: 1; min-height: 140px; overflow: auto; background: #12141a;
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px;
+    font-size: 11px; white-space: pre; -webkit-overflow-scrolling: touch;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row button {
+    flex: 1 1 auto; min-height: 40px; padding: 0 14px; cursor: pointer;
+    background: #1e222b; color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; font: inherit;
+  }
+  .row button.primary { background: var(--hi); color: #10131a; border-color: var(--hi); }
+  #copied { color: var(--ok); }
+</style>
+</head>
+<body>
+
+<h1>Input probe <small>— open this on the device, then press Copy and paste the result back</small></h1>
+
+<div class="cols">
+  <div class="col">
+    <div class="card">
+      <h2>1. Draw here with a pen, then a finger, then a mouse</h2>
+      <div id="pad">press and drag inside this box</div>
+      <button id="btn" type="button">2. Then press this ordinary button</button>
+    </div>
+
+    <div class="card">
+      <h2>Findings</h2>
+      <table id="findings"></table>
+    </div>
+
+    <div class="card">
+      <h2>Device</h2>
+      <table id="device"></table>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+      <h2>Event log <span id="count"></span></h2>
+      <div id="log"></div>
+      <div class="row" style="margin-top:8px">
+        <button id="copy" class="primary" type="button">Copy everything</button>
+        <button id="clear" type="button">Clear</button>
+        <span id="copied"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// The four questions docs/plans/TABLET.md asks, answered from evidence as it
+// arrives rather than left for the reader to infer from a log. A tablet has no
+// console worth reading, so the page has to draw its own conclusions.
+//
+// Each finding is 'wait' until something proves it either way. That distinction
+// matters: "no pen seen yet" and "pen produces no touch events" look identical
+// in a raw log and mean opposite things.
+var seen = {
+  pointerTypes: {},          // which pointerTypes ever arrived
+  touchWithPen: null,        // did a pen ALSO raise Touch Events?
+  compatMouseAfterTouch: null,
+  widths: {},                // pointerType -> [min, max] of PointerEvent.width
+  pressures: {},
+  contextmenuBy: {},         // what raised a contextmenu
+  buttonsSeen: {},
+  pointerIdChurn: {},        // pointerType -> count of distinct ids per gesture
+};
+var log = [];
+var pending = { pen: false, touch: false };
+var penGestureSawTouch = false;
+var gestureIds = null;
+
+function esc(v) { return v === undefined ? '' : String(v); }
+function n(v) { return typeof v === 'number' ? Math.round(v * 100) / 100 : v; }
+
+function push(line) {
+  log.push(line);
+  if (log.length > 900) log.shift();
+  var el = document.getElementById('log');
+  el.textContent = log.join('\n');
+  el.scrollTop = el.scrollHeight;
+  document.getElementById('count').textContent = '(' + log.length + ')';
+}
+
+function note(e, where) {
+  var t = e.pointerType || (e.type.indexOf('touch') === 0 ? 'touch?' : 'mouse?');
+  var bits = [
+    pad(e.type, 14), pad(where, 7), pad(t, 6),
+    'btn=' + esc(e.button), 'btns=' + esc(e.buttons),
+  ];
+  if (e.pressure !== undefined) bits.push('pres=' + n(e.pressure));
+  if (e.width !== undefined) bits.push('w=' + n(e.width) + 'x' + n(e.height));
+  if (e.tiltX !== undefined && (e.tiltX || e.tiltY)) bits.push('tilt=' + e.tiltX + ',' + e.tiltY);
+  if (e.pointerId !== undefined) bits.push('id=' + e.pointerId);
+  if (e.touches) bits.push('touches=' + e.touches.length);
+  push(bits.join(' '));
+}
+function pad(s, w) { s = String(s); while (s.length < w) s += ' '; return s; }
+
+function record(e, where) {
+  var pt = e.pointerType;
+  if (pt) {
+    seen.pointerTypes[pt] = (seen.pointerTypes[pt] || 0) + 1;
+    if (e.width !== undefined) {
+      var w = seen.widths[pt] || (seen.widths[pt] = [Infinity, -Infinity]);
+      w[0] = Math.min(w[0], e.width); w[1] = Math.max(w[1], e.width);
+    }
+    if (e.pressure !== undefined && e.pressure > 0) {
+      var p = seen.pressures[pt] || (seen.pressures[pt] = [Infinity, -Infinity]);
+      p[0] = Math.min(p[0], e.pressure); p[1] = Math.max(p[1], e.pressure);
+    }
+    if (e.type === 'pointerdown') {
+      gestureIds = { type: pt, ids: {} };
+      pending[pt === 'pen' ? 'pen' : pt === 'touch' ? 'touch' : 'mouse'] = true;
+      if (e.button >= 0) seen.buttonsSeen[pt + ':' + e.button] = true;
+      if (pt === 'pen') penGestureSawTouch = false;
+    }
+    if (gestureIds && gestureIds.type === pt && e.pointerId !== undefined) {
+      gestureIds.ids[e.pointerId] = true;
+      var c = Object.keys(gestureIds.ids).length;
+      if (c > (seen.pointerIdChurn[pt] || 0)) seen.pointerIdChurn[pt] = c;
+    }
+  }
+  // Did a PEN raise a Touch Event? This is the question that decides whether the
+  // pen is broken by the same GLFW touch cancellation the finger is.
+  //
+  // Concluded when a pen gesture ENDS, not only when a touchstart arrives. The
+  // first version set this inside the touchstart branch alone, so the answer
+  // stayed at "press with a PEN to answer" forever in the case where no touch
+  // event ever fires. That case is the whole point of asking: it is the good
+  // news, and it was the one verdict the page could never reach.
+  if (e.type === 'touchstart' && pending.pen) penGestureSawTouch = true;
+  if (e.type === 'pointerup' && pt === 'pen' && seen.touchWithPen !== true) {
+    seen.touchWithPen = penGestureSawTouch;
+  }
+  // A compatibility mousedown arriving after a touch sequence, rather than from
+  // a real mouse, is what the app relied on before the bridge existed.
+  if (e.type === 'mousedown' && (pending.touch || pending.pen)) seen.compatMouseAfterTouch = true;
+  if (e.type === 'contextmenu') {
+    var by = pending.pen ? 'pen' : pending.touch ? 'touch' : 'mouse';
+    seen.contextmenuBy[by] = true;
+  }
+  if (e.type === 'pointerup' || e.type === 'pointercancel') {
+    pending.pen = pending.touch = false;
+    gestureIds = null;
+  }
+  draw();
+}
+
+function verdict(state, yes, no, waiting) {
+  if (state === true) return ['v-yes', yes];
+  if (state === false) return ['v-no', no];
+  return ['v-wait', waiting];
+}
+
+function draw() {
+  var types = Object.keys(seen.pointerTypes);
+  var rows = [];
+
+  rows.push(['pointerTypes seen', types.length
+    ? types.map(function (t) { return t + ' x' + seen.pointerTypes[t]; }).join(', ')
+    : 'none yet', types.length ? 'v-yes' : 'v-wait']);
+
+  var penSeen = types.indexOf('pen') >= 0;
+  var v1 = verdict(penSeen ? seen.touchWithPen : null,
+    'YES - a pen raises Touch Events, so GLFW cancels it like a finger',
+    'NO - a pen raises no Touch Events, so it already drove the app before the bridge',
+    'press with a PEN to answer');
+  rows.push(['Does a pen raise Touch Events?', v1[1], v1[0]]);
+
+  var v2 = verdict(seen.compatMouseAfterTouch,
+    'YES - compatibility mouse events follow a touch here',
+    'not observed - only Pointer events arrived',
+    'press with a finger or pen to answer');
+  rows.push(['Compatibility mouse events?', v2[1], v2[0]]);
+
+  // PointerEvent.width: a palm filter is only possible if this is real.
+  var wrows = Object.keys(seen.widths).map(function (t) {
+    var w = seen.widths[t];
+    return t + ' ' + n(w[0]) + '..' + n(w[1]);
+  });
+  var flat = Object.keys(seen.widths).length
+    && Object.keys(seen.widths).every(function (t) { return seen.widths[t][0] === seen.widths[t][1]; });
+  rows.push(['PointerEvent.width range',
+    wrows.length ? wrows.join('; ') + (flat ? '  (CONSTANT - no palm filter possible)' : '  (varies - a palm filter is possible)') : 'nothing yet',
+    wrows.length ? (flat ? 'v-no' : 'v-yes') : 'v-wait']);
+
+  var prows = Object.keys(seen.pressures).map(function (t) {
+    var p = seen.pressures[t];
+    return t + ' ' + n(p[0]) + '..' + n(p[1]);
+  });
+  rows.push(['Pressure range', prows.length ? prows.join('; ') : 'nothing yet',
+    prows.length ? 'v-yes' : 'v-wait']);
+
+  var cm = Object.keys(seen.contextmenuBy);
+  rows.push(['contextmenu raised by', cm.length ? cm.join(', ') : 'nothing yet',
+    cm.length ? 'v-yes' : 'v-wait']);
+
+  var churn = Object.keys(seen.pointerIdChurn).map(function (t) {
+    return t + ' ' + seen.pointerIdChurn[t];
+  });
+  var churned = Object.keys(seen.pointerIdChurn).some(function (t) { return seen.pointerIdChurn[t] > 1; });
+  rows.push(['pointerId per gesture', churn.length ? churn.join('; ') : 'nothing yet',
+    churn.length ? (churned ? 'v-no' : 'v-yes') : 'v-wait']);
+
+  var btns = Object.keys(seen.buttonsSeen);
+  rows.push(['buttons seen', btns.length ? btns.join(', ') : 'nothing yet',
+    btns.length ? 'v-yes' : 'v-wait']);
+
+  document.getElementById('findings').innerHTML = rows.map(function (r) {
+    return '<tr><td>' + r[0] + '</td><td class="' + (r[2] || '') + '">' + r[1] + '</td></tr>';
+  }).join('');
+}
+
+function deviceTable() {
+  var mq = function (q) { return window.matchMedia(q).matches; };
+  var d = [
+    ['userAgent', navigator.userAgent],
+    ['viewport (css px)', window.innerWidth + ' x ' + window.innerHeight],
+    ['devicePixelRatio', window.devicePixelRatio],
+    ['screen', screen.width + ' x ' + screen.height],
+    ['maxTouchPoints', navigator.maxTouchPoints],
+    ['pointer: coarse / fine', mq('(pointer: coarse)') + ' / ' + mq('(pointer: fine)')],
+    ['any-pointer: coarse / fine', mq('(any-pointer: coarse)') + ' / ' + mq('(any-pointer: fine)')],
+    ['hover: none / hover', mq('(hover: none)') + ' / ' + mq('(hover: hover)')],
+    ['orientation', (screen.orientation && screen.orientation.type) || 'unknown'],
+  ];
+  document.getElementById('device').innerHTML = d.map(function (r) {
+    return '<tr><td>' + r[0] + '</td><td>' + String(r[1]) + '</td></tr>';
+  }).join('');
+  return d;
+}
+
+// Every event on both targets. Touch listeners are explicitly non-passive so
+// the log reflects what a real handler would be able to do, and nothing here
+// calls preventDefault: the point is to observe the browser's own behaviour,
+// not to change it.
+var PTR = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel',
+  'pointerover', 'pointerout', 'lostpointercapture'];
+var TCH = ['touchstart', 'touchmove', 'touchend', 'touchcancel'];
+var MSE = ['mousedown', 'mousemove', 'mouseup', 'contextmenu', 'dblclick', 'click'];
+
+function wire(el, where) {
+  var moves = 0;
+  PTR.concat(MSE).forEach(function (t) {
+    el.addEventListener(t, function (e) {
+      // Moves are throttled or the log is nothing but moves.
+      if (t === 'pointermove' || t === 'mousemove') { if (++moves % 12) { record(e, where); return; } }
+      note(e, where); record(e, where);
+    });
+  });
+  TCH.forEach(function (t) {
+    el.addEventListener(t, function (e) {
+      if (t === 'touchmove' && (++moves % 12)) { record(e, where); return; }
+      note(e, where); record(e, where);
+    }, { passive: false });
+  });
+}
+
+var pad_ = document.getElementById('pad');
+wire(pad_, 'pad');
+wire(document.getElementById('btn'), 'button');
+pad_.addEventListener('pointerdown', function () { pad_.classList.add('live'); });
+pad_.addEventListener('pointerup', function () { pad_.classList.remove('live'); });
+pad_.addEventListener('pointercancel', function () { pad_.classList.remove('live'); });
+
+document.getElementById('clear').onclick = function () {
+  log = []; document.getElementById('log').textContent = '';
+  document.getElementById('count').textContent = '';
+};
+
+document.getElementById('copy').onclick = function () {
+  var out = ['ImGuiStudio input probe', new Date().toISOString(), ''];
+  out.push('== DEVICE ==');
+  deviceTable().forEach(function (r) { out.push(r[0] + ': ' + r[1]); });
+  out.push('', '== FINDINGS ==');
+  [].forEach.call(document.querySelectorAll('#findings tr'), function (tr) {
+    out.push(tr.children[0].textContent + ': ' + tr.children[1].textContent);
+  });
+  out.push('', '== LOG (' + log.length + ' lines) ==');
+  out = out.concat(log);
+  var text = out.join('\n');
+  var done = function () {
+    document.getElementById('copied').textContent = 'copied';
+    setTimeout(function () { document.getElementById('copied').textContent = ''; }, 2000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+  } else fallback(text, done);
+};
+
+// Clipboard access needs a secure context, and this page may well be opened over
+// plain http on a LAN address. Selecting the text is the fallback that always
+// works, including on a tablet with no keyboard.
+function fallback(text, done) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:60%;z-index:99';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { /* leave it selected */ }
+  setTimeout(function () { ta.remove(); }, 200);
+}
+
+deviceTable();
+draw();
+window.addEventListener('resize', deviceTable);
+if (screen.orientation) screen.orientation.addEventListener('change', deviceTable);
+</script>
+</body>
+</html>
