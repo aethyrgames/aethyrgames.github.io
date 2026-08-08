@@ -476,6 +476,7 @@ function refresh(rebuildProps = true, prop) {
   // the hook every document change goes through. It re-renders only when what
   // blockedReason reads has actually changed.
   syncPalette();
+  syncEmptyCanvas();
   renderTree();
   if (rebuildProps) renderProps();
   renderCode();

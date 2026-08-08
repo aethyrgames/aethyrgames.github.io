@@ -350,10 +350,38 @@ function wheelDelta(e) {
   return { x: e.deltaX * k, y: e.deltaY * k };
 }
 
+// A pinch on a precision trackpad arrives as a dense stream of ctrlKey wheel
+// events carrying small fractional deltas, not as one notch per gesture. Taking
+// a whole ZOOM_STEPS notch per event walked the entire ladder, 25% to 400%, on
+// one flick. That is a bug on a Type Cover with no touchscreen anywhere near it.
+//
+// So the deltas accumulate and a notch is spent only once they cross a
+// threshold, with the remainder carried. A real mouse wheel sends |deltaY| of
+// 100 or so per detent and still steps once per detent, which is why the
+// threshold sits below that. Direction changes reset, or the leftovers of a
+// zoom-in would eat the first step of the zoom-out after it.
+let wheelZoomAcc = 0;
+const WHEEL_ZOOM_NOTCH = 40;
+
 canvasHost.addEventListener('wheel', e => {
   if (e.ctrlKey || e.metaKey) {
     e.preventDefault();
-    zoomStep(e.deltaY < 0 ? 1 : -1, e.clientX, e.clientY);
+    // deltaMode 1 is lines and 2 is pages; normalise both to something in the
+    // same order of magnitude as pixels before they are added up.
+    const px = e.deltaMode === 1 ? e.deltaY * 16
+      : e.deltaMode === 2 ? e.deltaY * 100 : e.deltaY;
+    if (px === 0) return;
+    if ((px > 0) !== (wheelZoomAcc > 0)) wheelZoomAcc = 0;
+    wheelZoomAcc += px;
+    // At most ONE notch per event, and the remainder is dropped rather than
+    // carried. Draining the accumulator in a loop instead made a single mouse
+    // detent, which is |deltaY| of about 100, spend two notches at once: the
+    // fix for the pinch broke the wheel. Resetting also stops a fast pinch
+    // banking overshoot it would spend later.
+    if (Math.abs(wheelZoomAcc) >= WHEEL_ZOOM_NOTCH) {
+      wheelZoomAcc = 0;
+      zoomStep(px < 0 ? 1 : -1, e.clientX, e.clientY);
+    }
     return;
   }
   const d = wheelDelta(e);

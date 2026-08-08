@@ -874,6 +874,29 @@
   /* hierarchy visibility eye; a hidden widget dims its whole row */
   #tree .row .eye { opacity: 0.75; }
   #tree .row.dimrow .wtype, #tree .row.dimrow .wlabel { opacity: 0.45; }
+  /* The empty document's one clear next move. Centred on the VIEWPORT rather
+     than the sheet, so panning does not carry it off screen, and it sits above
+     the grid rather than replacing it: the rulers and the grid are still the
+     answer to "where am I". */
+  #canvasempty {
+    position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+    z-index: 5; text-align: center; max-width: 22rem; padding: 0 1rem;
+  }
+  #canvasempty[hidden] { display: none; }
+  #canvasempty p {
+    margin: 0 0 12px; color: var(--mk-comment); font-size: 13px; line-height: 1.5;
+  }
+  #canvasempty .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  #canvasempty button {
+    min-height: 30px; padding: 0 14px; border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 12px;
+    background: var(--mk-cyan); color: var(--mk-bg); border: 1px solid var(--mk-cyan);
+  }
+  #canvasempty button.quiet {
+    background: transparent; color: var(--mk-comment); border-color: var(--mk-border);
+  }
+  #canvasempty button.quiet:hover { color: var(--mk-fg); border-color: var(--mk-cyan); }
+
   #selbox {
     position: absolute; display: none; pointer-events: none;
     border: 1px solid var(--mk-cyan);
@@ -889,6 +912,72 @@
   }
 
   /* secondary members of a multi-selection: same hue, quieter */
+  /* The browser owns a touch gesture until told otherwise, and what it does
+     with one on a canvas is pan and zoom the page. Without this, a finger drag
+     scrolls instead of reaching the editor at all. `none` rather than
+     `manipulation`, because the two-finger and pinch gestures belong to the
+     canvas as well. */
+  #canvashost, #canvas { touch-action: none; }
+
+  /* ---- hit targets for a finger or a pen ----
+     WCAG 2.5.8 puts the floor at 24x24 CSS px. Measured at 1440x960, 40 of the
+     129 visible controls were under it, the smallest 11x16, with the canvas
+     resize grips at 8x8 and the inspector checkboxes at 15x15.
+
+     Applied only under [data-input], which canvas.js stamps from the last
+     press, so a mouse session keeps the dense panel it has always had and the
+     spacing is spent only when a finger is actually being used.
+
+     The ::before technique grows the HIT area without growing the control, so
+     nothing reflows and the panel does not jump when you switch hands. It needs
+     a positioned parent, and it cannot be used on <input>, which is a replaced
+     element with no pseudo-elements: those are scaled instead. */
+  :root[data-input="touch"] .numstep,
+  :root[data-input="pen"] .numstep,
+  :root[data-input="touch"] .colseg,
+  :root[data-input="pen"] .colseg,
+  :root[data-input="touch"] #tree .row button,
+  :root[data-input="pen"] #tree .row button,
+  :root[data-input="touch"] .gs b,
+  :root[data-input="pen"] .gs b {
+    position: relative;
+  }
+  :root[data-input="touch"] .numstep::before,
+  :root[data-input="pen"] .numstep::before,
+  :root[data-input="touch"] .colseg::before,
+  :root[data-input="pen"] .colseg::before,
+  :root[data-input="touch"] #tree .row button::before,
+  :root[data-input="pen"] #tree .row button::before,
+  :root[data-input="touch"] .gs b::before,
+  :root[data-input="pen"] .gs b::before {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, 24px); height: max(100%, 24px);
+  }
+  /* Replaced elements take no ::before, so the control itself grows. */
+  :root[data-input="touch"] #propbody input[type="checkbox"],
+  :root[data-input="pen"] #propbody input[type="checkbox"] {
+    width: 24px; height: 24px;
+  }
+  /* The canvas grips are 8x8 and are dragged, not tapped, so they get the
+     largest relative jump of anything here. */
+  :root[data-input="touch"] .rh,
+  :root[data-input="pen"] .rh {
+    width: 24px; height: 24px; margin: -8px;
+    background: transparent;
+    box-shadow: inset 0 0 0 8px var(--mk-cyan);
+    border-color: transparent;
+  }
+  /* A two-finger swipe at the edge of a scroll area is a back/forward
+     navigation on Windows touch devices, which loses whatever is unsaved.
+     `contain` keeps the gesture inside the app. */
+  html, body { overscroll-behavior: contain; }
+  /* A long press on the chrome selects text and raises the callout instead of
+     doing what it was pressed for. The canvas and panels are controls, not
+     prose; the code pane and text fields opt back in below. */
+  #apphead, #palette, #tree, #propbody, #tpllist, .panel > header { user-select: none; }
+  #code, input, textarea { user-select: text; }
+
   #selboxes { position: absolute; inset: 0; pointer-events: none; }
   #selboxes .sb {
     position: absolute; border: 1px dashed var(--mk-cyan); opacity: 0.75;
@@ -1373,6 +1462,16 @@
         <div class="rulercorner" id="cornerTR"></div>
         <canvas class="ruler" id="rulerLeft"></canvas>
         <div id="canvashost">
+            <!-- Shown only while the document holds no window. A widget cannot
+                 exist outside one, so without this the canvas is a grid with no
+                 next move and the palette's first button silently refuses. -->
+            <div id="canvasempty" hidden>
+              <p>Nothing here yet. A widget lives inside a window, so start with one.</p>
+              <div class="row">
+                <button id="emptyAddWindow" type="button">Add a Window</button>
+                <button id="emptyTemplates" type="button" class="quiet">Or start from a template</button>
+              </div>
+            </div>
           <!-- everything in canvas space lives in #viewport, so panning is one
                transform and the coordinate math below never has to know -->
           <div id="viewport">
@@ -1561,7 +1660,7 @@
 <script src="editor-textarea.js?v=2e39a4184d"></script>
 <script src="editor-codemirror.js?v=0596c1a2e6"></script>
 <script src="doc.js?v=e26d7b2960"></script>
-<script src="canvas.js?v=9974049828"></script>
+<script src="canvas.js?v=166e529ce2"></script>
 <!-- Ahead of keys.js, which is the one place in this list where load order is
      about listener order rather than dependency order. Both files register a
      capture-phase keydown listener on window, those run in registration order,
@@ -1573,10 +1672,10 @@
 <script src="generate.js?v=cef9c6f489"></script>
 <script src="theme.js?v=74ae270bb5"></script>
 <script src="layout.js?v=c709fffafe"></script>
-<script src="render.js?v=ad48169122"></script>
-<script src="codepane.js?v=ea68e9c95a"></script>
+<script src="render.js?v=90e3084769"></script>
+<script src="codepane.js?v=a77ffdc082"></script>
 <script src="templates.js?v=9848af86cc"></script>
-<script src="settings.js?v=fd8e984934"></script>
+<script src="settings.js?v=619e526199"></script>
 <script src="testhooks.js?v=2dec08869a"></script>
 <script src="boot.js?v=ece0f956f0"></script>
 <script src="engine.js?v=37eb5fe16a"></script>

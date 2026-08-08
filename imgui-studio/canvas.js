@@ -904,6 +904,83 @@ canvas.addEventListener('pointerup', e => {
   try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
 });
 
+// What the last press was made WITH, on the document root, so the stylesheet can
+// size hit targets for it.
+//
+// A runtime attribute rather than a `(pointer: coarse)` media query, because a
+// Surface Pro is a mouse device and a touch device inside one session: the
+// query answers a question about the hardware when the useful question is which
+// one is in your hand right now. Detaching the keyboard does not change the
+// media query either, and there is no web API that reports posture.
+//
+// Capture phase and on window, so it is stamped before any handler that might
+// want to read it. Mouse is the default, which is what a keyboard-only session
+// and a fresh load both get.
+document.documentElement.dataset.input = 'mouse';
+window.addEventListener('pointerdown', e => {
+  const t = e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse';
+  if (document.documentElement.dataset.input !== t) document.documentElement.dataset.input = t;
+}, true);
+
+// ---------- touch and pen reach the canvas ----------
+//
+// The shipped Emscripten GLFW glue in app/engine.js registers touchstart,
+// touchmove, touchend and touchcancel on the canvas with useCapture and calls
+// preventDefault() on them. Cancelling touchstart suppresses the compatibility
+// mouse events the browser would otherwise synthesise, and every canvas gesture
+// in this file listens for mousedown. So a finger reached nothing at all:
+// measured, a tap at the exact pixel where a mouse click selects a widget
+// selected nothing, and a finger drag changed nothing.
+//
+// In LIVE mode that interception is right. The touch is meant to reach ImGui and
+// GLFW's own mapping is what delivers it. In EDIT mode the shell owns the
+// gesture, so the touch is taken away from GLFW and replayed as the mouse events
+// the shell already understands.
+//
+// Replayed rather than migrating twenty-two mousedown handlers to Pointer
+// Events. This is one place to reason about, and it leaves every existing mouse
+// path byte-identical, which matters because those paths carry select, drag,
+// marquee, resize and window-move.
+function shellOwnsTouch(e) {
+  // Only the canvas itself. The resize grips, the grid steppers and the inline
+  // label editor all live inside #canvashost and handle their own input.
+  return editMode && e.target === canvas;
+}
+
+// Capture phase and NOT passive, or preventDefault is ignored. Registered on
+// #canvashost rather than document or window, because listeners on those three
+// are passive by default and the guard would be a silent no-op that still looks
+// correct in DevTools touch emulation.
+for (const t of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+  canvasHost.addEventListener(t, e => {
+    if (!shellOwnsTouch(e)) return;
+    // Both. stopPropagation alone keeps GLFW out, but then nothing cancels the
+    // touch, so the browser synthesises a click at touchend and the canvas
+    // selects a widget on top of whatever gesture just finished.
+    e.preventDefault();
+    e.stopPropagation();
+  }, { capture: true, passive: false });
+}
+
+// Pointer events fire before touch events, so the shell is reached whatever
+// GLFW does afterwards. Mouse is left alone: it already works, and replaying it
+// would double every press.
+const POINTER_TO_MOUSE = { pointerdown: 'mousedown', pointermove: 'mousemove', pointerup: 'mouseup' };
+for (const [from, to] of Object.entries(POINTER_TO_MOUSE)) {
+  canvas.addEventListener(from, e => {
+    if (e.pointerType === 'mouse' || !editMode) return;
+    canvas.dispatchEvent(new MouseEvent(to, {
+      bubbles: true, cancelable: true, view: window,
+      clientX: e.clientX, clientY: e.clientY,
+      // A pen barrel press reports button 2 and should still open the context
+      // menu the mouse path already builds.
+      button: e.button < 0 ? 0 : e.button,
+      buttons: to === 'mouseup' ? 0 : (e.buttons || 1),
+      ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
+    }));
+  });
+}
+
 // The other half of the same problem. GLFW's mouseup listener is on the canvas,
 // so a release that lands anywhere else (another element, outside the window,
 // or an alt-tab mid-drag) never reaches ImGui. It then believes the button is
@@ -922,6 +999,26 @@ document.addEventListener('mouseup', e => {
   if (e.target !== canvas) releaseCanvasButton(e);
 }, true);
 window.addEventListener('blur', () => releaseCanvasButton(null));
+
+// The third door into the same stuck-button state, and the one nothing covered.
+// pointercancel fires with NO pointerup and no compatibility mouseup: on palm
+// rejection, when the browser claims the gesture for its own scroll or zoom, and
+// on device disconnect. Every one of those is reachable on a tablet, and the
+// first is reachable just by resting a hand on the screen.
+//
+// button: 0 EXPLICITLY, never e.button. A pointercancel carries button === -1,
+// releaseCanvasButton forwards whatever it is handed, and GLFW clears the bit
+// with `buttons &= ~(1 << eventButton)`. In JS `1 << -1` is -2147483648, so
+// forwarding -1 clears bit 31 and leaves the left button exactly as stuck as it
+// was. The obvious version of this fix looks right and does nothing.
+canvas.addEventListener('pointercancel', e => {
+  releaseCanvasButton({ button: 0, clientX: e.clientX, clientY: e.clientY });
+});
+// Fires on the cancelled path AND the normal one, so it is a backstop rather
+// than a duplicate: releasing a button that is already up costs nothing.
+canvas.addEventListener('lostpointercapture', e => {
+  releaseCanvasButton({ button: 0, clientX: e.clientX, clientY: e.clientY });
+});
 
 // Middle-drag pans, and so does Ctrl+Alt+left, for a trackpad or any mouse
 // without a comfortable wheel button.
@@ -954,9 +1051,19 @@ canvasHost.addEventListener('mousedown', e => {
     canvasHost.classList.remove('panning');
     document.removeEventListener('mousemove', move);
     document.removeEventListener('mouseup', up);
+    document.removeEventListener('pointercancel', up);
+    window.removeEventListener('blur', up);
   };
   document.addEventListener('mousemove', move);
   document.addEventListener('mouseup', up);
+  // Recovery. This closure used to end only on its own mouseup, so a release
+  // the document never saw left the canvas panning until reload, and NEITHER
+  // existing net reached it: releaseCanvasButton dispatches a MouseEvent with
+  // no `bubbles`, which therefore never reaches a document listener, and the
+  // window blur handler below clears panready and the armed window drag while
+  // leaving the pan running.
+  document.addEventListener('pointercancel', up);
+  window.addEventListener('blur', up);
 }, true);
 canvasHost.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
 

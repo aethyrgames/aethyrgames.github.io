@@ -58,6 +58,43 @@ function paletteSignature() {
 // Called from refresh(), which is the one hook every document change goes
 // through. Cheap enough to run there, and correct for every path into it:
 // delete, undo, redo, import, a share link, and switching or adding a project.
+// The empty-document prompt, shown exactly when the palette is blocked: a widget
+// cannot exist outside a window, so with none there is one legal next move and
+// the canvas should say what it is rather than being a grid with no affordance.
+//
+// Two buttons because there are genuinely two first moves, and because the
+// twenty templates that answer this better than an empty window do are docked
+// collapsed at the bottom of the left column, where a newcomer never finds them.
+// The panel is not force-opened: presented and ignorable beats hijacked.
+function syncEmptyCanvas() {
+  const el = document.getElementById('canvasempty');
+  if (!el) return;
+  el.hidden = (doc.children || []).some(n => n.type === 'window');
+}
+
+{
+  const add = document.getElementById('emptyAddWindow');
+  const tpl = document.getElementById('emptyTemplates');
+  // Through the same insert path the palette uses, so the new window is
+  // selected and undoable exactly as one dropped by hand.
+  if (add) add.onclick = () => { addNode('window'); };
+  // Reveals the Templates panel rather than opening a picker of its own. The
+  // panel already lists all twenty with categories and search, and a second
+  // surface over the same data is a second thing to keep in step.
+  if (tpl) {
+    tpl.onclick = () => {
+      // The same two fields the panel header's own toggle sets, then
+      // applyLayout, which is what persists and redraws it.
+      const p = layout.panels.templates;
+      p.hidden = false;
+      p.collapsed = false;
+      applyLayout();
+      const list = document.getElementById('tpllist');
+      if (list) list.scrollIntoView({ block: 'nearest' });
+    };
+  }
+}
+
 function syncPalette() {
   const sig = paletteSignature();
   if (sig === paletteSig) return;
