@@ -141,6 +141,39 @@ function editDistance(a, b, cap) {
   return prev[b.length];
 }
 
+// ImGui names are CamelCase compounds, so the mistake they invite is not a typo
+// at all: it is a MISSING OR EXTRA WORD. GetLineHeightWithSpacing for
+// GetTextLineHeightWithSpacing, GetContentRegion for GetContentRegionAvail.
+// Edit distance cannot see those. Dropping "Text" is four edits, and the cap
+// below is two, so the one case where a suggestion is most useful got none:
+// "There is no ImGui::GetLineHeightWithSpacing", full stop, next to a name that
+// differs by one word. Reported from the editor.
+//
+// Splitting on the capitals and asking for one inserted or deleted TOKEN is
+// exact rather than fuzzy, which is why the cap does not simply get raised. A
+// looser distance would start offering ColorEdit3 for ColorEdit4.
+function nameWords(n) {
+  return n.split(/(?=[A-Z0-9])/).filter(Boolean).map(s => s.toLowerCase());
+}
+function wordNeighbours(name, names) {
+  const a = nameWords(name);
+  const hits = [];
+  for (const cand of names) {
+    const b = nameWords(cand);
+    if (Math.abs(a.length - b.length) !== 1) continue;
+    const [short, long] = a.length < b.length ? [a, b] : [b, a];
+    let i = 0, extra = 0;
+    for (const t of long) {
+      if (i < short.length && short[i] === t) i++;
+      else extra++;
+    }
+    // Every word of the shorter name present, in order, with exactly one word
+    // over. Anything else is a different function.
+    if (i === short.length && extra === 1) hits.push(cand);
+  }
+  return hits;
+}
+
 // The closest known spelling, but only when it is close enough to be an obvious
 // typo rather than a different function.
 function nearestName(name, names) {
@@ -153,7 +186,15 @@ function nearestName(name, names) {
     if (d < bestD) { bestD = d; tied = [cand]; }
     else if (d === bestD) tied.push(cand);
   }
-  if (bestD > cap) return null;
+  if (bestD > cap) {
+    // Nothing within a typo's reach. Try the word-shaped mistake before giving
+    // up, and hold it to the same rule about ties: name them and offer no
+    // one-click fix.
+    const words = wordNeighbours(name, names);
+    if (words.length === 1) return words[0];
+    if (words.length > 1) return { ambiguous: words.slice(0, 4) };
+    return null;
+  }
   // A tie is not a typo anyone can correct on the user's behalf. ImGui::ColorEdit
   // is exactly as close to ColorEdit3 as to ColorEdit4, and picking the shorter
   // one silently dropped the alpha channel in code that then compiled. Name them

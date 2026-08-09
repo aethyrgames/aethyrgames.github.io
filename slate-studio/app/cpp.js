@@ -137,7 +137,25 @@ function advancePastCall(src, closeParen, to) {
 
 // Non-braced containers are emitted as a bare Begin/End statement pair rather
 // than an if-block, so their extent has to be found by counting nested pairs.
-const PAIRED = { group: ['BeginGroup', 'EndGroup'], child: ['BeginChild', 'EndChild'] };
+const PAIRED = {
+  group: ['BeginGroup', 'EndGroup'],
+  child: ['BeginChild', 'EndChild'],
+  // Scoped modifiers. Same shape as the two above: a statement pair with the
+  // children between them rather than an if-block, so the extent is found by
+  // counting nested pairs.
+  stylevar: ['PushStyleVar', 'PopStyleVar'],
+  itemwidth: ['PushItemWidth', 'PopItemWidth'],
+  textwrap: ['PushTextWrapPos', 'PopTextWrapPos'],
+};
+
+// Opening call name -> the widget type that owns it. Derived rather than
+// written twice: the scan below used to carry its own hardcoded
+// `(BeginGroup|BeginChild)` alternation and a ternary mapping it back to a
+// type, so every new pair meant editing a regex in a third place and there was
+// nothing to catch forgetting.
+const PAIR_OPENERS = Object.fromEntries(
+  Object.entries(PAIRED).map(([type, [open]]) => [open, type]));
+const PAIR_OPEN_RE = new RegExp('^ImGui::(' + Object.keys(PAIR_OPENERS).join('|') + ')\\s*\\(');
 
 // Mirrors WINDOW_FLAGS in index.html's generator. Both directions have to agree
 // or a flag round-trips to nothing. MenuBar is not here on purpose: the
@@ -268,9 +286,55 @@ function buildSchema(WIDGETS, makeNode) {
   for (const [type, spec] of Object.entries(WIDGETS)) {
     if (spec.hidden || !spec.code) continue;
     const hasN = (spec.props || []).some(p => p[0] === 'n');
+    // A property that changes the FUNCTION NAME rather than an argument.
+    //
+    // `n` has always done it: ColorEdit3 against ColorEdit4. A flags property
+    // can too, and Tree node is the case that found this: with no flags it
+    // emits TreeNode, with any it emits TreeNodeEx. The differential mapping
+    // below gives up the moment a perturbed property changes the name
+    // (`altCall.fn !== baseCall.fn`), so the second name was never registered
+    // at all and a flagged Tree node parsed back as raw code, losing its
+    // children into a text blob on the first Apply.
+    //
+    // One entry per name the widget can emit, and the mapping is derived
+    // separately for each, because the arguments differ too: TreeNodeEx carries
+    // the flags that TreeNode has no room for.
+    // Every property that can change the FUNCTION NAME rather than an argument.
+    //
+    // This started as a special case for `n` (ColorEdit3 against ColorEdit4),
+    // grew a second for `flags` (TreeNode against TreeNodeEx), and a third
+    // turned up immediately after: Cursor position's `axis` picks between
+    // SetCursorPos, SetCursorPosX and SetCursorPosY. Three instances is enough
+    // to stop naming them.
+    //
+    // So the sweep is over every ENUM and FLAGS property's own declared values,
+    // which subsumes all three, `n` included since it is itself an enum of
+    // 1..4. One property varied at a time rather than a full cross product:
+    // linear in the catalog, and a name that only appears when two properties
+    // are set together has never existed in this API.
+    //
+    // Strings only, out of the flags lists: TABLE_FLAGS and TREE_FLAGS are flat
+    // arrays of names, but the grouped `[label, [names…]]` shape lives in the
+    // same neighbourhood, and String() on one of those would seed a garbage
+    // name and fail the probe silently.
+    const nameVariants = [];
+    for (const p of spec.props || []) {
+      if (p[0] === 'n' || (p[1] !== 'enum' && p[1] !== 'flags')) continue;
+      for (const opt of p[3] || []) {
+        const v = Array.isArray(opt) ? opt[1] : opt;
+        if (p[1] === 'flags' && typeof v !== 'string') continue;
+        nameVariants.push([p[0], v]);
+      }
+    }
+    const seeds = [];
     for (const nv of hasN ? [1, 2, 3, 4] : [null]) {
+      seeds.push([nv, null]);
+      for (const v of nameVariants) seeds.push([nv, v]);
+    }
+    for (const [nv, override] of seeds) {
       const base = makeNode(type);
       if (nv !== null) base.n = nv;
+      if (override) base[override[0]] = override[1];
       // Some arguments are only emitted when a property is non-default (a
       // Button's ImVec2 size, for one). Seed the baseline with distinct
       // in-range numbers so those arguments exist to be attributed, and so two
@@ -322,6 +386,22 @@ function buildSchema(WIDGETS, makeNode) {
           }
         }
       }
+      // A name already claimed by a DIFFERENT widget type keeps its first
+      // entry and gains an alternate, resolved by argument SHAPE at parse time.
+      //
+      // PushStyleVar is the case: ImGui gives it a float overload and an ImVec2
+      // one, so `Style var scope` and `Style var scope (pair)` are two widget
+      // types emitting one function name with two argument shapes. Keeping only
+      // the first meant every ImVec2 push parsed back as the float type, with
+      // its var reset to the default and its two numbers collapsed to one. That
+      // is a silent rewrite of the user's layout on the first Apply, which is
+      // the failure this whole file exists to prevent.
+      if (byFn[baseCall.fn] && byFn[baseCall.fn].type !== type) {
+        (byFn[baseCall.fn].alts = byFn[baseCall.fn].alts || []).push({
+          type, n: nv, args, container: !!spec.container, fieldProp,
+          argc: baseCall.args.length, preset: override || null,
+        });
+      }
       if (!byFn[baseCall.fn]) {
         // argc is how many arguments the generator itself writes. A call with a
         // different count is hand-written in some other shape, and the alias
@@ -329,6 +409,15 @@ function buildSchema(WIDGETS, makeNode) {
         byFn[baseCall.fn] = {
           type, n: nv, args, container: !!spec.container, fieldProp,
           argc: baseCall.args.length,
+          // What had to be true for this NAME to be emitted at all.
+          //
+          // `n` has always been carried for this reason: matching ColorEdit4
+          // means the node's n is 4, and nothing in the argument list says so.
+          // The same holds for any property that selects a name. Matching
+          // SetCursorPosX means axis is "X only", and without recording it the
+          // node came back with axis at its default and regenerated as
+          // SetCursorPos, quietly moving the widget on the first Apply.
+          preset: override || null,
         };
       }
     }
@@ -1089,10 +1178,11 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       /^if\s*\(\s*ImGui::Button\s*\(\s*"Open [^"]*"\s*\)\s*\)\s*(?:\{\s*ImGui::OpenPopup\s*\([^;]*\)\s*;\s*\}|ImGui::OpenPopup\s*\([^;]*\)\s*;)/);
     if (trigger) { i += trigger[0].length; continue; }
 
-    // Bare Begin/End pair: Group and Child region.
-    const bare = rest.match(/^ImGui::(BeginGroup|BeginChild)\s*\(/);
+    // A bare open/close statement pair: Group, Child region, and the scoped
+    // modifiers. Names and mapping both come from PAIRED.
+    const bare = rest.match(PAIR_OPEN_RE);
     if (bare) {
-      const type = bare[1] === 'BeginGroup' ? 'group' : 'child';
+      const type = PAIR_OPENERS[bare[1]];
       const [bFn, eFn] = PAIRED[type];
       const pair = findPairEnd(src, i, to, bFn, eFn);
       const argsText = balancedArgs(rest.slice(bare[0].length - 1));
@@ -1194,8 +1284,12 @@ function parse(src, from, to, errors, newId, schema, colorSlots, WIDGETS, makeNo
       // A null back from nodeFromCall means an argument was an expression the
       // document cannot hold, so the statement drops through to raw rather than
       // coming back with a default standing in for the user's code.
-      const exact = entry && !entry.container
-        && splitTopLevel(argsText).length === entry.argc
+      // The arity test consults the ALTERNATES too. A name shared by two widget
+      // types can have two arities, and testing only the first entry's sent the
+      // other shape down the hand-written path.
+      const arityFits = entry && (splitTopLevel(argsText).length === entry.argc
+        || (entry.alts || []).some(a => splitTopLevel(argsText).length === a.argc));
+      const exact = entry && !entry.container && arityFits
         ? nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) : null;
       if (exact) {
         attach(exact, argsText);
@@ -1350,9 +1444,15 @@ function nodeFromAlias(fn, argsText, newId, WIDGETS, makeNode) {
 // Remove only the container's OWN closing call, at the end of its body. A
 // global strip would delete matching calls out of hand-written code too.
 const POP_OF = {
-  TreeNode: 'TreePop', BeginTabBar: 'EndTabBar', BeginTabItem: 'EndTabItem',
+  // Keyed by the function NAME, so every name a container can be emitted under
+  // needs its own entry. TreeNodeEx is TreeNode with flags and takes the same
+  // TreePop, and without this line the pop stayed inside the body and came back
+  // as a raw-code child of the node it was closing.
+  TreeNode: 'TreePop', TreeNodeEx: 'TreePop',
+  BeginTabBar: 'EndTabBar', BeginTabItem: 'EndTabItem',
   BeginTable: 'EndTable', BeginMenu: 'EndMenu', BeginMenuBar: 'EndMenuBar',
   BeginPopup: 'EndPopup', BeginPopupModal: 'EndPopup', BeginItemTooltip: 'EndTooltip',
+  BeginCombo: 'EndCombo', BeginListBox: 'EndListBox',
 };
 
 function stripTrailingPop(body, fn) {
@@ -1478,10 +1578,43 @@ function readTableProps(node, body, helpers) {
   node.rows = Math.max(1, rows || Math.ceil(cells / cols));
 }
 
-function nodeFromCall(entry, argsText, newId, WIDGETS, makeNode, fields) {
+// Which of a name's entries the arguments actually fit.
+//
+// Only ever consulted when one function name is emitted by more than one widget
+// type, which today is PushStyleVar's two overloads. The signal is whether a
+// slot expects a NESTED call (an ImVec2 the probe decomposed into parts) and
+// whether the argument in that position is one. That is exactly what separates
+// `PushStyleVar(v, 0.5f)` from `PushStyleVar(v, ImVec2(12, 6))`, and it needs no
+// per-widget knowledge.
+function pickEntry(entry, given) {
+  if (!entry || !entry.alts) return entry;
+  const nested = a => /^\w+\s*\(/.test(String(a || '').trim());
+  const score = e => {
+    if (given.length !== e.argc) return -1;
+    let s = 0;
+    (e.args || []).forEach((slot, i) => {
+      if (!slot) return;
+      if (!!slot.parts === nested(given[i])) s++;
+    });
+    return s;
+  };
+  let best = entry;
+  let bestScore = score(entry);
+  for (const alt of entry.alts) {
+    const s = score(alt);
+    if (s > bestScore) { best = alt; bestScore = s; }
+  }
+  return best;
+}
+
+function nodeFromCall(rawEntry, argsText, newId, WIDGETS, makeNode, fields) {
+  const entry = pickEntry(rawEntry, splitTopLevel(argsText));
   const node = makeNode(entry.type);
   node.id = newId();
   if (entry.n !== null && entry.n !== undefined) node.n = entry.n;
+  // Before the arguments, so a property that also appears in the argument list
+  // is still read from what was written rather than pinned to the seed.
+  if (entry.preset) node[entry.preset[0]] = entry.preset[1];
   const spec = WIDGETS[entry.type];
   const propDefs = Object.fromEntries((spec.props || []).map(p => [p[0], p]));
   const given = splitTopLevel(argsText);

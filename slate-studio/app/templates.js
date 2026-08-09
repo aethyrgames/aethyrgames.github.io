@@ -244,6 +244,9 @@ function builtinTemplates() {
       tn('bullet'),
       tn('text', { label: 'after a bare bullet', sameline: true }),
       tn('separatortext', { label: 'Separator with a title' }),
+      tn('textlink', { label: 'A text link' }),
+      tn('textlinkurl', { label: 'Dear ImGui on GitHub',
+        url: 'https://github.com/ocornut/imgui' }),
     ]],
 
     ['Buttons and toggles', () => [
@@ -252,6 +255,10 @@ function builtinTemplates() {
       tn('arrowbutton', { sameline: true }),
       tn('separator'),
       tn('checkbox', { label: 'Checkbox' }),
+      // Two bits of one int, which is the arrangement CheckboxFlags exists for.
+      tn('checkboxflags', { label: 'Flag: bold', bit: 1 }),
+      tn('checkboxflags', { label: 'Flag: italic', bit: 2, sameline: true }),
+      tn('invisiblebutton', { label: 'hotspot', w: 120, h: 20 }),
       tn('radiobutton', { label: 'First', group: 'pick', value: 0 }),
       tn('radiobutton', { label: 'Second', group: 'pick', value: 1, sameline: true }),
       tn('separator'),
@@ -297,6 +304,15 @@ function builtinTemplates() {
       tn('listbox', { label: 'List box', items: 'First, Second, Third' }),
       tn('separator'),
       tn('selectable', { label: 'Selectable' }),
+      tn('separator'),
+      kids(tn('combocustom', { label: 'Combo (custom)', preview: 'Pick one' }), [
+        tn('selectable', { label: 'Alpha' }),
+        tn('selectable', { label: 'Beta' }),
+      ]),
+      kids(tn('listboxcustom', { label: 'List box (custom)', h: 70 }), [
+        tn('selectable', { label: 'One' }),
+        tn('selectable', { label: 'Two' }),
+      ]),
     ]],
 
     ['Plots', () => [
@@ -305,6 +321,8 @@ function builtinTemplates() {
     ]],
 
     ['Layout and spacing', () => [
+      tn('cursorpos', { axis: 1, x: 140 }),
+      tn('text', { label: 'placed at x=140 by a cursor move' }),
       tn('text', { label: 'Above a separator' }),
       tn('separator'),
       tn('text', { label: 'Below it' }),
@@ -337,12 +355,33 @@ function builtinTemplates() {
       kids(tn('treenode', { label: 'Tree node' }), [
         tn('text', { label: 'Nested under the node' }),
       ]),
+      kids(tn('treenode', { label: 'Open, framed', flags: 'DefaultOpen, Framed' }), [
+        tn('text', { label: 'Flags emit TreeNodeEx instead of TreeNode' }),
+      ]),
+      // The scoped modifiers. They draw nothing themselves and change what is
+      // inside them, so each holds something whose difference is visible.
+      kids(tn('stylevar2', { var: 2, x: 16, y: 10 }), [
+        tn('button', { label: 'Roomy' }),
+        tn('button', { label: 'Spacing pushed', sameline: true }),
+      ]),
+      kids(tn('stylevar', { var: 0, x: 0.5 }), [
+        tn('text', { label: 'Half alpha inside this scope' }),
+      ]),
+      kids(tn('itemwidth', { w: -1 }), [
+        tn('sliderfloat', { label: 'Full width' }),
+      ]),
+      kids(tn('textwrap', { w: 220 }), [
+        tn('textwrapped', { label: 'A wrap position scoped to this block rather than the whole window.' }),
+      ]),
       kids(tn('collapsingheader', { label: 'Collapsing header' }), [
         tn('text', { label: 'Nested under the header' }),
       ]),
       kids(tn('tabbar', { label: 'Tabs' }), [
         kids(tn('tabitem', { label: 'First tab' }), [tn('text', { label: 'First page' })]),
         kids(tn('tabitem', { label: 'Second tab' }), [tn('text', { label: 'Second page' })]),
+        // A tab that acts as a button rather than a page, which is what the "+"
+        // on a tab strip usually is.
+        tn('tabitembutton', { label: '+' }),
       ]),
       kids(tn('table', { label: 'grid', cols: 2 }), [
         tn('text', { label: 'Row 1' }), tn('text', { label: 'Cell' }),
@@ -375,6 +414,8 @@ function builtinTemplates() {
       kids(tn('tooltip'), [
         tn('textwrapped', { label: 'A tooltip attaches to the item before it.' }),
       ]),
+      tn('button', { label: 'And me' }),
+      tn('tooltiptext', { label: 'The one-line form, for a sentence' }),
       tn('separator'),
       kids(tn('popup', { label: 'Popup' }), [
         tn('menuitem', { label: 'An item' }),

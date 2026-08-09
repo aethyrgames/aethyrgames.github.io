@@ -133,6 +133,40 @@ const SEC = { min: 0, unit: 's' };
 // rest, so nearly everything can be resized on the canvas.
 const ITEMW = ['itemw', 'float', 0, { min: 0, unit: 'px' }];
 
+// The tree-node flags worth exposing in a LAYOUT tool. Deliberately not the
+// whole enum: the navigation and storage bits (NavLeftJumpsBackHere,
+// AllowOverlap, the ID-stack ones) describe runtime behaviour rather than how
+// the node is laid out or drawn, and a designer cannot show any difference for
+// them. DefaultOpen is here, which is why SetNextItemOpen is not: the flag
+// covers the design-time case and the function is a runtime control.
+const TREE_FLAGS = ['DefaultOpen', 'Framed', 'Leaf', 'Bullet', 'SpanAvailWidth',
+  'SpanFullWidth', 'OpenOnArrow', 'OpenOnDoubleClick', 'NoTreePushOnOpen'];
+
+// The style vars worth scoping in a layout, and how many numbers each takes.
+// PushStyleVar has two overloads and picking the wrong one is a compile error,
+// so the arity is data here rather than something the emitter guesses: the
+// comment column in imgui.h's ImGuiStyleVar_ enum is the source, and every
+// entry below was read off it.
+//
+// Curated rather than the whole enum. The ones left out (WindowMinSize, the
+// scrollbar and grab metrics, the tab-bar overline) style chrome a document
+// does not draw, so scoping them around a widget changes nothing anyone can
+// see, and an option that does nothing is worse than an absent one.
+const STYLE_VARS = [
+  ['Alpha', 1], ['DisabledAlpha', 1],
+  ['WindowPadding', 2], ['WindowRounding', 1],
+  ['ChildRounding', 1], ['ChildBorderSize', 1],
+  ['FramePadding', 2], ['FrameRounding', 1], ['FrameBorderSize', 1],
+  ['ItemSpacing', 2], ['ItemInnerSpacing', 2],
+  ['IndentSpacing', 1], ['CellPadding', 2],
+  ['TabRounding', 1], ['ButtonTextAlign', 2], ['SelectableTextAlign', 2],
+  ['SeparatorTextAlign', 2], ['SeparatorTextPadding', 2],
+];
+// Split by arity, because the two PushStyleVar overloads become two widget
+// types. Derived from the one table above so the split cannot drift from it.
+const STYLE_VARS_1 = STYLE_VARS.filter(([, k]) => k === 1).map(([n]) => n);
+const STYLE_VARS_2 = STYLE_VARS.filter(([, k]) => k === 2).map(([n]) => n);
+
 const vecN = [['n', 'enum', 1, [1, 2, 3, 4]]];
 const DIRS = [['Left', 0], ['Right', 1], ['Up', 2], ['Down', 3]];
 
@@ -424,6 +458,20 @@ const WIDGETS = {
     code: n => [`ImGui::SeparatorText(${q(n.label)});`],
   },
   bullet: { name: 'Bullet', cat: 'Text', props: [], code: () => ['ImGui::Bullet();'] },
+  // Text that behaves like a button and draws like a link. The click is yours
+  // to handle, same as every other button in this catalog.
+  textlink: {
+    name: 'Text link', cat: 'Text', props: [['label', 'text', 'Read the docs']],
+    code: (n, v, id) => [`if (ImGui::TextLink(${id})) { /* TODO: ${v} */ }`],
+  },
+  // The same thing with the handler already written: ImGui opens the URL itself
+  // through the platform hook, so this one emits no TODO.
+  textlinkurl: {
+    name: 'Link to a URL', cat: 'Text',
+    props: [['label', 'text', 'Dear ImGui'],
+      ['url', 'text', 'https://github.com/ocornut/imgui']],
+    code: n => [`ImGui::TextLinkOpenURL(${q(n.label)}, ${q(n.url)});`],
+  },
 
   // --------------------------------------------------------------- Buttons
   button: {
@@ -456,6 +504,42 @@ const WIDGETS = {
   smallbutton: {
     name: 'Small button', cat: 'Buttons', props: [['label', 'text', 'Small']],
     code: (n, v, id) => [`if (ImGui::SmallButton(${id})) { /* TODO: ${v} */ }`],
+  },
+  // A hit area with no visuals. It is the one button whose SIZE is the whole
+  // point, since there is nothing else to see, so w and h are not optional the
+  // way they are on a regular button.
+  //
+  // Zero in either axis is an ImGui assert rather than an auto-size, unlike
+  // almost every other size in this catalog, so the floor is 1 and not 0.
+  invisiblebutton: {
+    name: 'Invisible button', cat: 'Buttons',
+    props: [['label', 'text', 'hotspot'],
+      ['w', 'float', 80, { min: 1, unit: 'px' }],
+      ['h', 'float', 24, { min: 1, unit: 'px' }]],
+    code: (n, v, id) => [
+      `if (ImGui::InvisibleButton(${id}, ImVec2(${f(Math.max(1, Number(n.w) || 1))}, `
+      + `${f(Math.max(1, Number(n.h) || 1))}))) { /* TODO: ${v} */ }`,
+    ],
+  },
+  // Sets and clears ONE bit of an int, which is how ImGui's own flag editors are
+  // built. The int is the backing field and `bit` is the mask, so several of
+  // these over the same field is the usual arrangement.
+  checkboxflags: {
+    name: 'Checkbox (flag bit)', cat: 'Buttons',
+    props: [['label', 'text', 'Option'],
+      // A power of two by default. Any mask is legal (one covering several bits
+      // shows as mixed), so this is not an enum.
+      //
+      // The floor is 1, not 0. CheckboxFlags tests `(*flags & mask) == mask`,
+      // and every value satisfies that against a mask of zero, so a bit of 0
+      // draws a checkbox that is permanently ticked and cannot be changed. It is
+      // a meaningless value rather than a dangerous one, and the inspector
+      // simply should not offer it.
+      ['bit', 'int', 1, { min: 1 }]],
+    field: (n, v) => `int ${v} = 0;`,
+    code: (n, v, id) => [
+      `ImGui::CheckboxFlags(${id}, &state.${v}, ${Math.trunc(Number(n.bit)) || 0});`,
+    ],
   },
   arrowbutton: {
     name: 'Arrow button', cat: 'Buttons',
@@ -708,8 +792,18 @@ const WIDGETS = {
     }),
   },
   treenode: {
-    name: 'Tree node', cat: 'Containers', container: true, props: [['label', 'text', 'Tree node']],
-    code: (n, v, id) => ({ open: [`if (ImGui::TreeNode(${id}))`], pop: 'ImGui::TreePop();', braced: true }),
+    name: 'Tree node', cat: 'Containers', container: true,
+    props: [['label', 'text', 'Tree node'], ['flags', 'flags', '', TREE_FLAGS]],
+    // TreeNode with no flags, TreeNodeEx with any. Both take TreePop, and the
+    // plain form stays byte-identical for every document that predates the
+    // flags property.
+    code: (n, v, id) => {
+      const on = flagList(n.flags).filter(x => TREE_FLAGS.includes(x));
+      const call = on.length
+        ? `ImGui::TreeNodeEx(${id}, ${on.map(x => 'ImGuiTreeNodeFlags_' + x).join(' | ')})`
+        : `ImGui::TreeNode(${id})`;
+      return { open: [`if (${call})`], pop: 'ImGui::TreePop();', braced: true };
+    },
   },
   collapsingheader: {
     name: 'Collapsing header', cat: 'Containers', container: true, props: [['label', 'text', 'Header']],
@@ -723,6 +817,90 @@ const WIDGETS = {
   tabitem: {
     name: 'Tab item', cat: 'Containers', container: true, props: [['label', 'text', 'Tab']],
     code: (n, v, id) => ({ open: [`if (ImGui::BeginTabItem(${id}))`], pop: 'ImGui::EndTabItem();', braced: true }),
+  },
+  // A tab that acts as a button rather than a page: it cannot be selected and
+  // holds nothing, so it is a leaf and not a container. Lives in a tab bar
+  // beside the real tabs, which is what the "+" on a tab strip usually is.
+  tabitembutton: {
+    name: 'Tab button', cat: 'Containers', props: [['label', 'text', '+']],
+    code: (n, v, id) => [`if (ImGui::TabItemButton(${id})) { /* TODO: ${v} */ }`],
+  },
+  // The custom-contents forms of the two Choice widgets. `combo` and `listbox`
+  // above take a list of strings and own the selection; these two hold whatever
+  // you put in them, which is how ImGui's own demo builds a combo with icons or
+  // a list of Selectables carrying more than a label.
+  combocustom: {
+    name: 'Combo (custom)', cat: 'Containers', container: true,
+    props: [ITEMW, ['label', 'text', 'Mode'], ['preview', 'text', 'Choose…']],
+    code: (n, v, id) => ({
+      open: [`if (ImGui::BeginCombo(${id}, ${q(n.preview)}))`],
+      pop: 'ImGui::EndCombo();', braced: true,
+    }),
+  },
+  listboxcustom: {
+    name: 'List box (custom)', cat: 'Containers', container: true,
+    props: [['label', 'text', 'Items'], ['w', 'float', 0, PX], ['h', 'float', 0, PX]],
+    code: (n, v, id) => ({
+      open: [`if (ImGui::BeginListBox(${id}, ImVec2(${f(n.w)}, ${f(n.h)})))`],
+      pop: 'ImGui::EndListBox();', braced: true,
+    }),
+  },
+  // ---- scoped modifiers -------------------------------------------------
+  //
+  // Containers whose whole job is to change something for the widgets inside
+  // them and put it back afterwards, which is how ImGui's push/pop stacks are
+  // meant to be used. They draw nothing of their own.
+  //
+  // Not braced: these emit a bare statement pair rather than an if-block, the
+  // same shape Group and Child region use.
+  // TWO types, not one with a variable shape, and the reason is the parser
+  // rather than the inspector.
+  //
+  // PushStyleVar has a float overload and an ImVec2 one, and which applies is
+  // decided by WHICH VAR you picked. A single widget would emit
+  // `PushStyleVar(ImGuiStyleVar_Alpha, 0.5f)` for one var and
+  // `PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 6))` for another: one
+  // function name, two argument shapes. The parser derives one schema entry per
+  // NAME, so it can only learn one of those shapes, and the other came back
+  // with its var reset to the default and its value replaced. Splitting on
+  // arity gives each a stable shape.
+  //
+  // It reads better too: a float var has no Y to offer.
+  stylevar: {
+    name: 'Style var scope', cat: 'Containers', container: true,
+    props: [['var', 'enum', 0, STYLE_VARS_1.map((n, i) => [n, i])], ['x', 'float', 1]],
+    code: n => ({
+      open: [`ImGui::PushStyleVar(ImGuiStyleVar_${STYLE_VARS_1[clamp(n.var, 0, STYLE_VARS_1.length - 1)]}, ${f(n.x)});`],
+      close: 'ImGui::PopStyleVar();', braced: false,
+    }),
+  },
+  stylevar2: {
+    name: 'Style var scope (pair)', cat: 'Containers', container: true,
+    props: [['var', 'enum', 0, STYLE_VARS_2.map((n, i) => [n, i])],
+      ['x', 'float', 8], ['y', 'float', 4]],
+    code: n => ({
+      open: [`ImGui::PushStyleVar(ImGuiStyleVar_${STYLE_VARS_2[clamp(n.var, 0, STYLE_VARS_2.length - 1)]}, ImVec2(${f(n.x)}, ${f(n.y)}));`],
+      close: 'ImGui::PopStyleVar();', braced: false,
+    }),
+  },
+  itemwidth: {
+    name: 'Item width scope', cat: 'Containers', container: true,
+    // Negative is meaningful and is the common case: ImGui reads it as "this
+    // far from the right edge", so -1 is the idiom for filling the line. That
+    // is why there is no min here.
+    props: [['w', 'float', -1, { unit: 'px' }]],
+    code: n => ({
+      open: [`ImGui::PushItemWidth(${f(n.w)});`],
+      close: 'ImGui::PopItemWidth();', braced: false,
+    }),
+  },
+  textwrap: {
+    name: 'Text wrap scope', cat: 'Containers', container: true,
+    props: [['w', 'float', 0, PX]],
+    code: n => ({
+      open: [`ImGui::PushTextWrapPos(${f(n.w)});`],
+      close: 'ImGui::PopTextWrapPos();', braced: false,
+    }),
   },
   // A Table is a grid of `rows` x `cols` cells that its children fill in flow
   // order. There is no Cell node: a child's cell is its index, and a cell nobody
@@ -794,6 +972,21 @@ const WIDGETS = {
 
   // Holds C++ the parser recognized as valid but doesn't model as a widget.
   // Kept byte-for-byte and re-emitted verbatim so a round trip never loses it.
+  // Absolute placement inside the window, which is the one escape from flow
+  // order ImGui gives you. The axis picks which of the three calls goes out,
+  // because moving only X is the common case (lining a column up) and
+  // SetCursorPos would drag Y along with it.
+  cursorpos: {
+    name: 'Cursor position', cat: 'Layout',
+    props: [['axis', 'enum', 0, [['Both', 0], ['X only', 1], ['Y only', 2]]],
+      ['x', 'float', 0, POS], ['y', 'float', 0, POS]],
+    code: (n) => {
+      const axis = clamp(n.axis, 0, 2);
+      if (axis === 1) return [`ImGui::SetCursorPosX(${f(n.x)});`];
+      if (axis === 2) return [`ImGui::SetCursorPosY(${f(n.y)});`];
+      return [`ImGui::SetCursorPos(ImVec2(${f(n.x)}, ${f(n.y)}));`];
+    },
+  },
   rawcode: {
     name: 'Raw C++', cat: 'Layout', hidden: true,
     props: [['code', 'longtext', '']],
@@ -838,6 +1031,13 @@ const WIDGETS = {
     name: 'Tooltip', cat: 'Popups', container: true, props: [],
     // attaches to whatever item precedes it
     code: () => ({ open: ['if (ImGui::BeginItemTooltip())'], pop: 'ImGui::EndTooltip();', braced: true }),
+  },
+  // The one-line form. BeginItemTooltip above is the container you put widgets
+  // in; this is for the common case where the tooltip is a sentence, and it
+  // attaches to the preceding item the same way.
+  tooltiptext: {
+    name: 'Tooltip (text)', cat: 'Popups', props: [['label', 'text', 'What this does']],
+    code: n => [`ImGui::SetItemTooltip("%s", ${q(n.label)});`],
   },
 };
 
