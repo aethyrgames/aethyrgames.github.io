@@ -1060,6 +1060,26 @@ function applyDocData(raw, savedNextId) {
   delete doc.pre; delete doc.post;
   if (typeof d.pre === 'string' && d.pre.trim()) doc.pre = d.pre;
   if (typeof d.post === 'string' && d.post.trim()) doc.post = d.post;
+  // Picked image files, keyed by name, with an Image's `src` holding the name.
+  //
+  // On the ROOT rather than on the node that uses them, and that is what makes
+  // a code Apply safe: Apply replaces doc.children and nothing else, so the
+  // bytes are still here when the re-parsed Image asks for them by name. It is
+  // also why two Images can share one file without storing it twice.
+  //
+  // Only data: URIs are kept. This map is written from a file picker and read
+  // as an image source, so anything else in it arrived from a hand-edited or
+  // hostile file and would be handed straight to an <img> src.
+  delete doc.assets;
+  if (d.assets && typeof d.assets === 'object') {
+    const keep = {};
+    for (const [name, val] of Object.entries(d.assets)) {
+      if (typeof val === 'string' && /^data:image\/[a-z0-9.+-]+;base64,/i.test(val)) {
+        keep[String(name).slice(0, 200)] = val;
+      }
+    }
+    if (Object.keys(keep).length) doc.assets = keep;
+  }
   // a whole new document re-asserts its window size, even onto a window the
   // user had dragged to some other size, and starts from clean widget state:
   // ids restart per document, so the new n7 would otherwise inherit the old n7

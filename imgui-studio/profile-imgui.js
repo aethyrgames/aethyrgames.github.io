@@ -147,6 +147,7 @@ const PROFILE = {
       'engine_cancel_move', 'engine_reset_window_size',
       'engine_min_draw_x', 'engine_min_draw_y',
       'engine_get_bool', 'engine_get_float', 'engine_get_int', 'engine_popup_depth',
+      'engine_set_image', 'engine_drop_image', 'engine_image_buffer', 'engine_has_image',
     ],
   },
 };

@@ -480,6 +480,10 @@ function refresh(rebuildProps = true, prop) {
   renderTree();
   if (rebuildProps) renderProps();
   renderCode();
+  // Textures follow the document. Decoding is async, so this starts the work
+  // and the frame that shows the picture arrives a moment later; everything
+  // below runs on the document as it is now.
+  syncImages();
   pushDoc();
   saveLocal();
   pushHistory(!rebuildProps, prop);

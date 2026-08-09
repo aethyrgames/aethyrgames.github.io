@@ -509,14 +509,20 @@ function createParser(WIDGETS, makeNode, colorSlots) {
         }
         if (structEnd > 0) {
           const body = region.slice(structStart, structEnd);
-          const re = /^\s*\w[\w:]*\s+(\w+)\s*(?:\[[^\]]*\])?\s*=\s*([^;]+);[ 	]*(?:\/\/[ 	]*group:[ 	]*(.*?))?[ 	]*$/gm;
+          // The trailing note is captured by KEY now rather than only matching
+          // `group:`. Two properties live there: a radio group's real name, and
+          // an Image's source, which is the only place in the emitted C++ that
+          // can hold it at all.
+          const re = /^\s*\w[\w:]*\s+(\w+)\s*(?:\[[^\]]*\])?\s*=\s*([^;]+);[ 	]*(?:\/\/[ 	]*(\w+):[ 	]*(.*?))?[ 	]*$/gm;
+          const fieldNotes = (fields['::notes'] = {});
           let m;
           while ((m = re.exec(body))) {
             fields[m[1]] = m[2].trim();
             // The generator hangs a radio group's real name off its declaration
             // when the camelCased variable cannot carry it, so "Audio Mode" is
             // not renamed to "audioMode" on the first Apply.
-            if (m[3]) fieldGroups[m[1]] = m[3];
+            if (m[3] === 'group') fieldGroups[m[1]] = m[4];
+            else if (m[3]) fieldNotes[m[1]] = (m[4] || '').trim();
           }
         }
       }
@@ -1738,8 +1744,23 @@ function nodeFromCall(rawEntry, argsText, newId, WIDGETS, makeNode, fields) {
   if (entry.fieldProp && fields) {
     const ref = given.find(a => /state\.\w+/.test(a));
     const m = ref && ref.match(/state\.(\w+)/);
-    const init = m && fields[m[1]];
-    if (init !== undefined && /^[-+0-9.]/.test(init)) node[entry.fieldProp] = litNum(init);
+    if (m) {
+      const def = propDefs[entry.fieldProp];
+      const textual = def && (def[1] === 'text' || def[1] === 'longtext');
+      if (textual) {
+        // Off the trailing note, not the initializer. An Image's source cannot
+        // be an initializer: the field is a texture handle the host application
+        // fills in, and the source is what tells them WHICH picture to load.
+        // The elided form is emitted for an embedded image, and reading it back
+        // as a source would replace the real one with the words "(embedded
+        // image)", so it is left alone and the document keeps what it had.
+        const note = ((fields['::notes'] || {})[m[1]] || '').trim();
+        if (note && !/^\(embedded/.test(note)) node[entry.fieldProp] = note;
+      } else {
+        const init = fields[m[1]];
+        if (init !== undefined && /^[-+0-9.]/.test(init)) node[entry.fieldProp] = litNum(init);
+      }
+    }
   }
 
   // Radio groups live only in the backing variable name, never in an argument.

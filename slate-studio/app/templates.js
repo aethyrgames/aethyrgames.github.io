@@ -245,6 +245,10 @@ function builtinTemplates() {
       tn('text', { label: 'after a bare bullet', sameline: true }),
       tn('separatortext', { label: 'Separator with a title' }),
       tn('textlink', { label: 'A text link' }),
+      // A real picture, drawn by real ImGui through a GL texture the shell
+      // uploads. The generated C++ names an ImTextureID for you to fill in
+      // and carries this path as a comment beside it.
+      tn('image', { src: 'img/at-rest.png', w: 160, h: 90 }),
       tn('textlinkurl', { label: 'Dear ImGui on GitHub',
         url: 'https://github.com/ocornut/imgui' }),
     ]],
@@ -259,6 +263,7 @@ function builtinTemplates() {
       tn('checkboxflags', { label: 'Flag: bold', bit: 1 }),
       tn('checkboxflags', { label: 'Flag: italic', bit: 2, sameline: true }),
       tn('invisiblebutton', { label: 'hotspot', w: 120, h: 20 }),
+      tn('imagebutton', { label: 'Picture button', src: 'img/at-rest.png', w: 48, h: 27 }),
       tn('radiobutton', { label: 'First', group: 'pick', value: 0 }),
       tn('radiobutton', { label: 'Second', group: 'pick', value: 1, sameline: true }),
       tn('separator'),
@@ -960,11 +965,28 @@ async function buildShareLink() {
   // you were looking at, and a panel out in negative space opens on empty
   // ground without it. Only when it is not the default: that one is what the
   // app opens at anyway, and every byte here is a byte of URL.
-  const payload = { v: 1, doc };
+  // Embedded image files are LEFT OUT, and this is the one place they are.
+  //
+  // A link carries its whole document in the URL fragment, and one picked
+  // screenshot is tens of kilobytes of base64 before compression. Browsers and
+  // chat apps cut long URLs at wildly different lengths, so including them
+  // would not produce a big link, it would produce a link that silently
+  // truncates and opens as a broken document. The Image nodes still arrive with
+  // their source NAME, so the recipient sees the layout with a placeholder
+  // where the picture goes, and copyShareLink says so.
+  const shareDoc = { ...doc };
+  delete shareDoc.assets;
+  const payload = { v: 1, doc: shareDoc };
   const view = getView();
   if (!isDefaultView(view)) payload.view = view;
   const code = await encodeShare(payload);
   return location.origin + location.pathname + '#d=' + code;
+}
+
+// How many picked files a link is leaving behind, so copyShareLink can say so
+// rather than letting the recipient wonder where the pictures went.
+function sharedAssetsDropped() {
+  return Object.keys((typeof doc !== 'undefined' && doc && doc.assets) || {}).length;
 }
 
 async function copyShareLink() {
@@ -975,7 +997,16 @@ async function copyShareLink() {
     // write flashed "could not reach the clipboard" and was immediately painted
     // over with "Link copied", the one message that is definitely false.
     const ok = await copyText(url, 'Share link');
-    if (ok && url.length > 1800) {
+    const dropped = sharedAssetsDropped();
+    if (ok && dropped) {
+      // Said plainly rather than left to be discovered. The layout travels, the
+      // picked image files do not, because one of them would make the URL long
+      // enough to be truncated somewhere along the way and arrive broken.
+      flashStatus(`Link copied. ${dropped} embedded image file`
+        + `${dropped > 1 ? 's are' : ' is'} not included, so the layout arrives with `
+        + `${dropped > 1 ? 'placeholders' : 'a placeholder'} where `
+        + `${dropped > 1 ? 'they go' : 'it goes'}.`);
+    } else if (ok && url.length > 1800) {
       flashStatus(`Link copied (${url.length} characters, `
         + 'which some chat apps will truncate).');
     }

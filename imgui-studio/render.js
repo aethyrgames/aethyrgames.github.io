@@ -1643,7 +1643,54 @@ function renderProps() {
       inp.value = node[key] ?? '';
       markValidity();
     };
-    return inp;
+    // An asset field takes a URL or a path by typing, and a file off this
+    // machine by picking. A browser cannot read a path like C:\pics\logo.png,
+    // so a picked file has to be read through the picker and kept somewhere.
+    //
+    // It goes in the DOCUMENT's asset map under the file's own name, and the
+    // property holds the name. Two reasons, both about the output: a data URI
+    // in the property would be written into the generated C++ as forty
+    // kilobytes of base64 in a struct comment, and the asset map hangs off the
+    // document rather than its children, so Apply, which replaces only the
+    // children, leaves the bytes alone and the picture survives a code edit.
+    if (!opts || !opts.asset) return inp;
+    const wrap = document.createElement('span');
+    wrap.className = 'assetfield';
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'longadd';
+    pick.textContent = 'File…';
+    pick.title = 'Use an image file from this machine';
+    pick.onclick = () => {
+      const file = document.createElement('input');
+      file.type = 'file';
+      file.accept = 'image/*';
+      file.onchange = () => {
+        const f = file.files && file.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          doc.assets = doc.assets || {};
+          // Keyed by name, so the same file picked twice does not store twice
+          // and two different files with one name cannot silently share bytes.
+          let name = f.name;
+          for (let i = 2; doc.assets[name] && doc.assets[name] !== reader.result; i++) {
+            name = f.name.replace(/(\.[^.]+)?$/, ` ${i}$1`);
+          }
+          doc.assets[name] = reader.result;
+          node[key] = name;
+          inp.value = name;
+          markValidity();
+          refresh(false, key);
+        };
+        reader.onerror = () => flashStatus(`Could not read ${f.name}.`);
+        reader.readAsDataURL(f);
+      };
+      file.click();
+    };
+    wrap.appendChild(inp);
+    wrap.appendChild(pick);
+    return wrap;
   };
 
   // Properties that describe one thing sit on one row, the way a vector reads.

@@ -167,6 +167,23 @@ const STYLE_VARS = [
 const STYLE_VARS_1 = STYLE_VARS.filter(([, k]) => k === 1).map(([n]) => n);
 const STYLE_VARS_2 = STYLE_VARS.filter(([, k]) => k === 2).map(([n]) => n);
 
+// The `// image: …` note hung off an ImTextureID declaration.
+//
+// Deliberately NOT a data: URI, however the picture got here. A picked file is
+// stored under its own name in the project's asset map and the note carries the
+// NAME, so the generated C++ stays a file a person can read. Pasting forty
+// kilobytes of base64 into a struct declaration would technically round-trip
+// and would ruin the output this tool exists to produce.
+//
+// One line, no newlines, so the field regex that reads it back cannot be
+// derailed by a source string containing one.
+const imageNote = (n) => {
+  const src = String(n.src ?? '').trim();
+  if (!src) return '';
+  const shown = /^data:/i.test(src) ? '(embedded image)' : src;
+  return `   // image: ${shown.replace(/[\r\n]+/g, ' ')}`;
+};
+
 const vecN = [['n', 'enum', 1, [1, 2, 3, 4]]];
 const DIRS = [['Left', 0], ['Right', 1], ['Up', 2], ['Down', 3]];
 
@@ -972,6 +989,38 @@ const WIDGETS = {
 
   // Holds C++ the parser recognized as valid but doesn't model as a widget.
   // Kept byte-for-byte and re-emitted verbatim so a round trip never loses it.
+  // ---- images -----------------------------------------------------------
+  //
+  // The one widget whose generated code CANNOT carry the thing it draws. A
+  // texture is a runtime resource the host application loads, so the honest
+  // output is an ImTextureID field for you to fill in, and the source is
+  // written beside it as a comment saying which file to load into it.
+  //
+  // That comment is not decoration: it is how `src` survives a round trip
+  // through the code pane. The field declaration is the only place in the
+  // emitted C++ that can hold it, and the parser reads it back off the same
+  // line, so editing the C++ and applying it does not blank the picture.
+  //
+  // 0 in either axis means the image's own size, the way an <img> with no width
+  // attribute behaves.
+  image: {
+    name: 'Image', cat: 'Text',
+    props: [['src', 'text', '', { placeholder: 'URL, or pick a file…', asset: true }],
+      ['w', 'float', 0, PX], ['h', 'float', 0, PX]],
+    field: (n, v) => `ImTextureID ${v} = 0;${imageNote(n)}`,
+    code: (n, v) => [`ImGui::Image(state.${v}, ImVec2(${f(n.w)}, ${f(n.h)}));`],
+  },
+  imagebutton: {
+    name: 'Image button', cat: 'Buttons',
+    props: [['label', 'text', 'imgbtn'],
+      ['src', 'text', '', { placeholder: 'URL, or pick a file…', asset: true }],
+      ['w', 'float', 0, PX], ['h', 'float', 0, PX]],
+    field: (n, v) => `ImTextureID ${v} = 0;${imageNote(n)}`,
+    code: (n, v, id) => [
+      `if (ImGui::ImageButton(${id}, state.${v}, ImVec2(${f(n.w)}, ${f(n.h)}))) `
+      + `{ /* TODO: ${v} */ }`,
+    ],
+  },
   // Absolute placement inside the window, which is the one escape from flow
   // order ImGui gives you. The axis picks which of the three calls goes out,
   // because moving only X is the common case (lining a column up) and

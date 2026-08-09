@@ -269,6 +269,13 @@ window.__test = {
   hitAt: (x, y) => { const h = hitTest({ x, y }); return h ? h.id : null; },
   // whether ImGui itself has a window under the cursor, which is the only way to
   // tell a title-bar drag that engaged from one that silently did not
+  // Whether the engine holds a GL texture for this node. The image placeholder
+  // occupies the same rect as the real picture, so the rects cannot tell a
+  // loaded image from a failed one and this is the only honest observable.
+  hasImage: id => {
+    try { return PROFILE.engine.call('engine_has_image', 'number', ['string'], [id]) === 1; }
+    catch (e) { return false; }
+  },
   moving: () => {
     try { return PROFILE.engine.call('engine_moving_window', 'number', [], []) === 1; }
     catch (e) { return false; }
