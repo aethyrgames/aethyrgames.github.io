@@ -45,10 +45,9 @@
     "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting, no C++, and <strong>nothing that can corrupt your assets.</strong>",
     "cta": [
       {
-        "href": "https://github.com/defessler/Aethyr-MCP/releases",
+        "href": "/download/",
         "label": "↓ Download free",
-        "class": "btn btn-primary",
-        "target": "_blank"
+        "class": "btn btn-primary"
       },
       {
         "href": "/docs/",
@@ -169,7 +168,7 @@
   "snippet": {
     "heading": "Paste and go.",
     "caption": "Add to your MCP client config. Replace the path with wherever you unpacked the plugin.",
-    "code": "{\n  \"mcpServers\": {\n    \"aethyr-ue5\": {\n      \"command\": \"C:\\\\path\\\\to\\\\aethyr-mcp.exe\",\n      \"env\": {\n        \"UE_PROJECT\": \"C:\\\\Game\\\\MyGame.uproject\"\n      }\n    }\n  }\n}"
+    "code": "{\n  \"mcpServers\": {\n    \"aethyr-ue5\": {\n      \"command\": \"C:\\\\Game\\\\Plugins\\\\Aethyr\\\\Binaries\\\\Win64\\\\AethyrMcp.exe\",\n      \"env\": {\n        \"AETHYR_PROJECT\": \"C:\\\\Game\\\\MyGame.uproject\"\n      }\n    }\n  }\n}"
   },
   "compare": {
     "kicker": "VS THE FIELD",
@@ -241,10 +240,9 @@
     "body": "A single, focused build with only the tools we'd stake our reputation on, every one verified against real projects.",
     "cta": [
       {
-        "href": "https://github.com/defessler/Aethyr-MCP/releases",
+        "href": "/download/",
         "label": "↓ Download free",
-        "class": "btn btn-primary big",
-        "target": "_blank"
+        "class": "btn btn-primary big"
       },
       {
         "href": "/docs/",
@@ -279,7 +277,7 @@
         "label": "License"
       },
       {
-        "href": "https://github.com/defessler/Aethyr-MCP",
+        "href": "https://github.com/aethyrgames/aethyr-mcp-releases",
         "label": "GitHub"
       }
     ]

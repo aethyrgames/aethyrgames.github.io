@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title id="page-title">Download · Aethyr</title>
+<meta name="description" id="page-desc" content="Download the Aethyr plugin for Unreal Engine 5. The Unreal modules come as source for any engine version, and the MCP server comes precompiled." />
+<link rel="canonical" href="https://aethyr.gg/download/" />
+<meta property="og:title" content="Download Aethyr for Unreal Engine 5" />
+<meta property="og:description" content="The Aethyr plugin: Unreal modules as source for any engine version, MCP server precompiled." />
+<meta property="og:url" content="https://aethyr.gg/download/" />
+<meta property="og:site_name" content="Aethyr" />
+<meta property="og:image" content="https://aethyr.gg/img/brand/aethyr-icon-512.png" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500..900&family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../docs/docs.css" />
+<link rel="icon" type="image/svg+xml" href="../img/brand/aethyr-crystal.svg" />
+<link rel="icon" type="image/png" sizes="48x48" href="../img/brand/aethyr-favicon-48.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="../img/brand/aethyr-favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="../img/brand/aethyr-favicon-16.png" />
+<link rel="apple-touch-icon" href="../img/brand/aethyr-icon-512.png" />
+<meta name="theme-color" content="#0b0c1a" />
+<style>
+  .doc .dl + .dl { margin-top: 14px; }
+  .doc .rel-line { font-family: var(--f-mono); font-size: .78rem; color: var(--ink-dim); }
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="wrap">
+  <aside class="side" id="sidebar"></aside>
+  <div class="main" id="main-content"></div>
+</div>
+<script src="../js/docs.js"></script>
+<script>
+// The download links use GitHub's releases/latest/download/<name> form, so they work
+// with no script at all. This only adds the newest tag and date, and sends a card to
+// the release page when that release doesn't carry its zip yet (the precompiled
+// build can lag a tag).
+loadDocsPage('../data/download.json').then(function () {
+  var repo = 'aethyrgames/aethyr-mcp-releases';
+  fetch('https://api.github.com/repos/' + repo + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (rel) {
+      var names = (rel.assets || []).map(function (a) { return a.name; });
+      document.querySelectorAll('a.dl[data-asset]').forEach(function (a) {
+        if (names.indexOf(a.getAttribute('data-asset')) !== -1) return;
+        a.href = rel.html_url;
+        var small = a.querySelector('.dl-lab small');
+        if (small) small.textContent = 'not in this release yet';
+      });
+      var line = document.querySelector('[data-rel]');
+      if (line && rel.tag_name) {
+        var date = (rel.published_at || '').slice(0, 10);
+        line.innerHTML = 'Latest release: <b>' + esc(rel.tag_name) + '</b>' + (date ? ', published ' + esc(date) : '')
+          + ' · <a href="' + esc(rel.html_url) + '">release notes</a>'
+          + ' · <a href="https://github.com/' + repo + '/releases">all releases</a>';
+      }
+    })
+    .catch(function (err) { console.warn('release lookup skipped:', err); });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "title": "Download · Aethyr",
+    "description": "Download the Aethyr plugin for Unreal Engine 5. The Unreal modules come as source for any engine version, and the MCP server comes precompiled."
+  },
+  "sidebar": {
+    "brand": { "href": "/", "label": "Aethyr" },
+    "backHref": "/",
+    "sections": [
+      {
+        "heading": "Download",
+        "items": [
+          { "href": "#get", "label": "Get the plugin" },
+          { "href": "#which", "label": "Which zip?" },
+          { "href": "#contents", "label": "What's in the zip" },
+          { "href": "#install", "label": "Install" },
+          { "href": "#build", "label": "Build for your engine" },
+          { "href": "#verify", "label": "Check the download" }
+        ]
+      },
+      {
+        "heading": "Resources",
+        "items": [
+          { "href": "/docs/", "label": "Documentation" },
+          { "href": "/changelog/", "label": "Changelog" },
+          { "href": "/licensing/", "label": "License" },
+          { "href": "/", "label": "← Back to site" }
+        ]
+      }
+    ]
+  },
+  "topbar": {
+    "crumbs": ["aethyr.gg", { "label": "download", "current": true }]
+  },
+  "article": {
+    "heading": "Summon <span class=\"arc\">Aethyr</span>.",
+    "lead": "Two zips, one plugin. Both carry the MCP server already compiled. The difference is whether the Unreal modules come as source, ready to build against your engine, or prebuilt for UE 5.8.",
+    "sections": [
+      {
+        "id": "get",
+        "heading": "Get the plugin",
+        "html": "<a class='dl' data-asset='Aethyr-plugin.zip' href='https://github.com/aethyrgames/aethyr-mcp-releases/releases/latest/download/Aethyr-plugin.zip'><span class='dl-aura' aria-hidden='true'></span><span class='dl-mark' aria-hidden='true'><img src='/img/brand/aethyr-crystal.svg' alt='' width='40' height='40' /></span><span class='dl-body'><span class='dl-kicker'>◈ Any engine version</span><span class='dl-title'>Aethyr plugin</span><span class='dl-meta'><span class='chip'><b>UE</b> 5.6+</span><span class='chip'><b>modules</b> as source</span><span class='chip'><b>server</b> precompiled</span></span></span><span class='dl-btn'><span class='dl-ico' aria-hidden='true'>↓</span><span class='dl-lab'>Download<small>Aethyr-plugin.zip</small></span></span></a><a class='dl' data-asset='Aethyr-plugin-precompiled.zip' href='https://github.com/aethyrgames/aethyr-mcp-releases/releases/latest/download/Aethyr-plugin-precompiled.zip'><span class='dl-aura' aria-hidden='true'></span><span class='dl-mark' aria-hidden='true'><img src='/img/brand/aethyr-crystal.svg' alt='' width='40' height='40' /></span><span class='dl-body'><span class='dl-kicker'>◈ Drop-in for UE 5.8</span><span class='dl-title'>Aethyr plugin, precompiled</span><span class='dl-meta'><span class='chip'><b>UE</b> 5.8</span><span class='chip'><b>no</b> build step</span><span class='chip'><b>server</b> precompiled</span></span></span><span class='dl-btn'><span class='dl-ico' aria-hidden='true'>↓</span><span class='dl-lab'>Download<small>Aethyr-plugin-precompiled.zip</small></span></span></a><p class='rel-line' data-rel>Every release lives at <a href='https://github.com/aethyrgames/aethyr-mcp-releases/releases'>aethyrgames/aethyr-mcp-releases</a> on GitHub.</p>"
+      },
+      {
+        "id": "which",
+        "heading": "Which zip?",
+        "html": "<ul><li><strong>On UE 5.8?</strong> Take the precompiled zip. Unzip it and launch the editor, nothing to build.</li><li><strong>On another engine version, or you'd rather build it yourself?</strong> Take <code>Aethyr-plugin.zip</code>. The Unreal modules come as C++ source and compile against your engine.</li></ul><p>At time of writing the source zip compiles on UE 5.7 and 5.8. UE 5.6 is supported too, but no automated check covers it.</p>"
+      },
+      {
+        "id": "contents",
+        "heading": "What's in the zip",
+        "html": "<ul><li><code>Source/AethyrEditor</code> and <code>Source/AethyrRuntime</code>: the two Unreal modules, as C++ source.</li><li><code>Binaries/Win64/AethyrMcp.exe</code>: the MCP server. It doesn't link against the engine, which lets one build cover every engine version.</li><li><code>Claude/</code>: skills and an audit agent that teach your AI assistant to use the tools well.</li><li><code>SETUP.md</code>, <code>AGENTS.md</code>, and <code>README.md</code>: setup and usage guides, written so an AI assistant can follow them.</li></ul><p>The precompiled zip adds the built module DLLs and leaves out <code>SETUP.md</code>.</p>"
+      },
+      {
+        "id": "install",
+        "heading": "Install",
+        "html": "<ol><li><strong>Unzip into your project's <code>Plugins</code> folder.</strong> You should end up with <code>Plugins/Aethyr/Aethyr.uplugin</code>.</li><li><strong>Source zip only: build the modules</strong> (next section). In a C++ project you can also open the project and let the editor rebuild them when it asks.</li><li><strong>Connect your AI client.</strong> Point your assistant at <code>Plugins/Aethyr/SETUP.md</code> and ask it to set the plugin up, or follow <a href='/docs/#connect'>Connect your AI</a> by hand.</li></ol><div class='note arc'><p><strong>Writes are on in this build.</strong> Every write tool works out of the box. Set <code>AETHYR_READ_ONLY=1</code> in the server's environment for a session that can only read.</p></div><div class='note tip'><p><strong>Engine not found?</strong> If <code>AethyrMcp.exe doctor</code> reports \"engine directory not configured\", set <code>AETHYR_ENGINE_DIR</code> to your engine root, like <code>C:\\Program Files\\Epic Games\\UE_5.8</code>. At time of writing the server only finds engines registered by a source build, not Launcher installs.</p></div>"
+      },
+      {
+        "id": "build",
+        "heading": "Build for your engine",
+        "html": "<p>This compiles the plugin against the engine you run it from. You'll need that engine and Visual Studio's C++ build tools.</p><pre><code>\"&lt;Engine&gt;\\Engine\\Build\\BatchFiles\\RunUAT.bat\" BuildPlugin -Plugin=\"&lt;Unzipped&gt;\\Aethyr\\Aethyr.uplugin\" -Package=\"C:\\AethyrBuild\" -TargetPlatforms=Win64</code></pre><p>The package folder gets the built modules without the server exe or the docs. Copy its binaries into the plugin you unzipped:</p><pre><code>robocopy \"C:\\AethyrBuild\\Binaries\" \"&lt;YourProject&gt;\\Plugins\\Aethyr\\Binaries\" /E /XF *.pdb</code></pre><div class='note tip'><p><strong>Keep the package path short.</strong> Unreal Build Tool fails without printing a compiler error once an intermediate file path passes 260 characters. A folder like <code>C:\\AethyrBuild</code> stays well under that.</p></div>"
+      },
+      {
+        "id": "verify",
+        "heading": "Check the download",
+        "html": "<p>Every release carries a <code>SHA256SUMS</code> file. Hash your download in PowerShell:</p><pre><code>Get-FileHash .\\Aethyr-plugin.zip -Algorithm SHA256</code></pre><p>The hash should match that file's line in <a href='https://github.com/aethyrgames/aethyr-mcp-releases/releases/latest/download/SHA256SUMS'>SHA256SUMS</a>. Case doesn't matter. Older versions are on the <a href='https://github.com/aethyrgames/aethyr-mcp-releases/releases'>releases page</a>.</p>"
+      }
+    ],
+    "pager": {
+      "prev": { "href": "/", "label": "← Back to site" },
+      "next": { "href": "/docs/", "label": "Read the docs →" }
+    }
+  }
+}

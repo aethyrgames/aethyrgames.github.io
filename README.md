@@ -9,6 +9,8 @@ Live at https://aethyr.gg
 | Path | URL | What it is |
 |---|---|---|
 | `index.html` | `/` | Main product landing page |
+| `download/index.html` | `/download/` | Download page. Links to `releases/latest/download/` on the public `aethyrgames/aethyr-mcp-releases` repo |
+| `data/download.json` | - | Content for the download page |
 | `docs/index.html` | `/docs/` | Get Started (quickstart, concepts) |
 | `docs/tutorials/index.html` | `/docs/tutorials/` | User-story tutorials |
 | `docs/reference/index.html` | `/docs/reference/` | Tool and config reference |
