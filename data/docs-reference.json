@@ -33,7 +33,7 @@
   },
   "topbar": {
     "crumbs": ["docs", "reference"],
-    "badge": "82 tools"
+    "badge": "free build"
   },
   "article": {
     "heading": "The grimoire.",
@@ -41,7 +41,7 @@
       {
         "id": "tools",
         "heading": "Tools by category",
-        "html": "<p class=\"lead\">Every tool this build ships, grouped by category, plus the skills, the audit agent, the environment flags, and how the backends route. This is the whole surface; what you see is what you get.</p><div class=\"note arc\"><p><strong>One package, the proven core.</strong> These 82 tools are the ones verified safe against real projects. Read tools can't mutate; every write saves through a compile gate and a backup. Tools that could corrupt a project (or that aren't fully proven) simply aren't in this build.</p></div>",
+        "html": "<p class=\"lead\">The tools this build ships, grouped by category, plus the skills, the audit agent, the environment flags, and how the backends route.</p><div class=\"note arc\"><p><strong>Read tools can't mutate.</strong> Every write saves through a compile gate and a backup. <code>tools/list</code> starts with a small core set plus meta-tools, and your AI widens it with <code>enable_tool_category</code> or calls any tool directly with <code>call_tool</code>, so the catalog below is broader than the first listing a client sees.</p></div>",
         "categories": [
           {
             "name": "Blueprint",
@@ -250,7 +250,7 @@
       {
         "id": "skills",
         "heading": "Skills & the audit agent",
-        "html": "<p>Ship with the plugin under <code>Claude/</code>; install with <code>Install-ClaudeAssets.ps1</code> or point your client's skills folder at it.</p>",
+        "html": "<p>These ship with the plugin under <code>Claude/</code>. Copy them into your project's <code>.claude/</code> folder (from a source checkout, <code>Install-ClaudeAssets.ps1</code> does it), or point your client's skills folder at them.</p>",
         "skills": [
           { "name": "aethyr", "description": "Core skill: inspect, edit, and operate on Blueprints: the wire format, package paths, per-tool guidance.", "badge": null },
           { "name": "bp-batches", "description": "Multi-step edits as one transaction: <code>apply_ops</code> / <code>preview_ops</code> / <code>compile_function</code>, with rollback-on-failure.", "badge": null },
@@ -264,7 +264,8 @@
         "html": "<p>Set these in your MCP client's <code>env</code> block. The defaults are safe.</p>",
         "flags": [
           { "name": "AETHYR_PROJECT", "description": "Path to the `.uproject` to drive. Auto-discovered above the server if unset." },
-          { "name": "AETHYR_ALLOW_WRITE", "description": "Set `1` to enable write tools. **Off by default**: read-only until you opt in." },
+          { "name": "AETHYR_READ_ONLY", "description": "Set `1` for a read-only session: every write tool refuses before touching a file. The free build allows writes by default." },
+          { "name": "AETHYR_ENGINE_DIR", "description": "Engine root. Auto-discovered from the `.uproject`'s EngineAssociation. Set it when discovery can't find your engine (Aethyr 0.1.1 can't find a Launcher install)." },
           { "name": "AETHYR_BACKEND", "description": "`auto` (default) · `live` · `commandlet` · `mock`. Auto routes per call." },
           { "name": "AETHYR_BACKUP", "description": "`1` by default: copies an asset to a backup ring before its first save each session." },
           { "name": "AETHYR_AUTO_CHECKOUT", "description": "`1` by default: auto-checks-out an asset from source control before a write." },

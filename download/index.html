@@ -38,21 +38,49 @@
 <script src="../js/docs.js"></script>
 <script>
 // The download links use GitHub's releases/latest/download/<name> form, so they work
-// with no script at all. This only adds the newest tag and date, and sends a card to
-// the release page when that release doesn't carry its zip yet (the precompiled
-// build can lag a tag).
+// with no script at all. This adds the newest tag and date. When the latest release
+// doesn't carry a card's zip yet (the precompiled build can trail a tag), the card
+// points at the newest published release that does, or at the releases page.
 loadDocsPage('../data/download.json').then(function () {
   var repo = 'aethyrgames/aethyr-mcp-releases';
-  fetch('https://api.github.com/repos/' + repo + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
-    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  var api = 'https://api.github.com/repos/' + repo;
+  var getJson = function (url) {
+    return fetch(url, { headers: { Accept: 'application/vnd.github+json' } })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  };
+  var retarget = function (card, hit) {
+    var small = card.querySelector('.dl-lab small');
+    if (hit) {
+      card.href = hit.asset.browser_download_url;
+      if (small) small.textContent = hit.asset.name + ' from ' + hit.rel.tag_name;
+    } else {
+      card.href = 'https://github.com/' + repo + '/releases';
+      if (small) small.textContent = 'not in the latest release yet';
+    }
+  };
+  getJson(api + '/releases/latest')
     .then(function (rel) {
       var names = (rel.assets || []).map(function (a) { return a.name; });
-      document.querySelectorAll('a.dl[data-asset]').forEach(function (a) {
-        if (names.indexOf(a.getAttribute('data-asset')) !== -1) return;
-        a.href = rel.html_url;
-        var small = a.querySelector('.dl-lab small');
-        if (small) small.textContent = 'not in this release yet';
+      var missing = Array.prototype.filter.call(document.querySelectorAll('a.dl[data-asset]'), function (card) {
+        return names.indexOf(card.getAttribute('data-asset')) === -1;
       });
+      if (missing.length) {
+        getJson(api + '/releases?per_page=20')
+          .then(function (list) {
+            missing.forEach(function (card) {
+              var name = card.getAttribute('data-asset');
+              var hit = null;
+              (list || []).some(function (r) {
+                if (r.draft || r.prerelease) return false;
+                var asset = (r.assets || []).filter(function (x) { return x.name === name; })[0];
+                if (asset) hit = { rel: r, asset: asset };
+                return !!asset;
+              });
+              retarget(card, hit);
+            });
+          })
+          .catch(function () { missing.forEach(function (card) { retarget(card, null); }); });
+      }
       var line = document.querySelector('[data-rel]');
       if (line && rel.tag_name) {
         var date = (rel.published_at || '').slice(0, 10);

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Security & Privacy — Aethyr",
-    "description": "How Aethyr protects your Unreal Engine project: no telemetry, read-only by default, automatic backups, compile gate."
+    "description": "How Aethyr protects your Unreal Engine project: no telemetry, a read-only mode, automatic backups, compile gate."
   },
   "sidebar": {
     "brand": { "href": "/", "label": "Aethyr" },
@@ -11,7 +11,7 @@
         "heading": "Security",
         "items": [
           { "href": "#no-telemetry", "label": "No telemetry" },
-          { "href": "#read-only", "label": "Read-only by default" },
+          { "href": "#read-only", "label": "Read-only mode" },
           { "href": "#backup-ring", "label": "Backup ring" },
           { "href": "#compile-gate", "label": "Compile gate" },
           { "href": "#local-only", "label": "Local only" }
@@ -41,8 +41,8 @@
       },
       {
         "id": "read-only",
-        "heading": "Read-only by default",
-        "html": "<p>Out of the box, Aethyr is a read-only tool. All 32 read tools work immediately. Write operations—adding variables, wiring nodes, saving assets—are gated behind an environment variable:</p><pre><code>AETHYR_ALLOW_WRITE=1</code></pre><p>Without this variable set, any write request returns an error before touching any file. Set it only in the sessions where you want edits to happen.</p>"
+        "heading": "Read-only mode",
+        "html": "<p>Aethyr can run as a strictly read-only tool. Set one environment variable and every write tool (adding variables, wiring nodes, saving assets) returns an error before touching any file:</p><pre><code>AETHYR_READ_ONLY=1</code></pre><p>The free build from the <a href='/download/'>download page</a> allows writes by default. Set this in any session where you only want to look. The paid marketplace server build starts read-only instead. There, <code>AETHYR_ALLOW_WRITE=1</code> turns writes on.</p>"
       },
       {
         "id": "backup-ring",

@@ -66,14 +66,14 @@
         "label": "corruption vectors"
       },
       {
-        "value": "5.6+",
+        "value": "5.7 · 5.8",
         "label": "Unreal Engine"
       }
     ],
     "badges": [
       {
         "icon": "🔒",
-        "label": "Read-only by default"
+        "label": "Read-only mode, one env var"
       },
       {
         "icon": "⛨",
@@ -167,8 +167,8 @@
   },
   "snippet": {
     "heading": "Paste and go.",
-    "caption": "Add to your MCP client config. Replace the path with wherever you unpacked the plugin.",
-    "code": "{\n  \"mcpServers\": {\n    \"aethyr-ue5\": {\n      \"command\": \"C:\\\\Game\\\\Plugins\\\\Aethyr\\\\Binaries\\\\Win64\\\\AethyrMcp.exe\",\n      \"env\": {\n        \"AETHYR_PROJECT\": \"C:\\\\Game\\\\MyGame.uproject\"\n      }\n    }\n  }\n}"
+    "caption": "Add to your MCP client config with your own paths. Run AethyrMcp.exe config --client=<name> to print this filled in for your client.",
+    "code": "{\n  \"mcpServers\": {\n    \"aethyr\": {\n      \"command\": \"C:\\\\Game\\\\Plugins\\\\Aethyr\\\\Binaries\\\\Win64\\\\AethyrMcp.exe\",\n      \"env\": {\n        \"AETHYR_PROJECT\": \"C:\\\\Game\\\\MyGame.uproject\"\n      }\n    }\n  }\n}"
   },
   "compare": {
     "kicker": "VS THE FIELD",
@@ -218,7 +218,7 @@
       },
       {
         "q": "Can I use it read-only?",
-        "a": "Yes. By default Aethyr only reads. Write operations are gated behind the AETHYR_ALLOW_WRITE=1 environment variable. Set it only when you want edits to happen."
+        "a": "Yes. Set AETHYR_READ_ONLY=1 in the server's environment and every write tool refuses before touching a file. The free build allows writes by default. Set it for any session where you only want to look."
       },
       {
         "q": "Does it need the Unreal Editor open?",
@@ -230,7 +230,7 @@
       },
       {
         "q": "Which UE versions are supported?",
-        "a": "UE 5.6 through 5.8 are verified against real projects. Earlier UE 5 versions may work but are untested."
+        "a": "UE 5.7 and 5.8 are compile-checked at time of writing. UE 5.6 is meant to work too, though no automated check covers it yet. Earlier UE 5 versions are untested."
       }
     ]
   },
