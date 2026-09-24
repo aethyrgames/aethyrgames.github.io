@@ -10,6 +10,8 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-3-0", "label": "0.3.0, September 2026" },
+          { "href": "#v0-2-0", "label": "0.2.0, September 2026" },
           { "href": "#v0-1-1", "label": "0.1.1, July 2026" },
           { "href": "#initial-release", "label": "Initial release — June 2026" }
         ]
@@ -31,6 +33,16 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-3-0",
+        "heading": "0.3.0, September 2026",
+        "html": "<p>Aethyr can now read custom graph assets, not just Blueprints. <code>get_graph</code> and the new <code>list_graphs</code> read any asset that owns editor graphs, and the new <code>list_subobjects</code> shows how a custom graph's nodes reference each other. <code>read_actor_instance</code> reads a nested object by its full object path instead of returning the parent asset.</p><p>You can compare an asset against an older source-control revision. <code>get_asset_history</code> lists its revisions through Unreal's own provider, so Perforce, Git, and Plastic all work. <code>load_asset_revision</code> loads one for the normal read tools, and <code>unload_packages</code> cleans up afterward.</p><p>A plugin that breaks the headless editor now gets quarantined automatically, and <code>AETHYR_PLUGIN_DENYLIST</code> finally takes effect. <code>run_python_script</code> and the four <code>ui_*</code> tools are on by default. Set <code>AETHYR_ALLOW_PYTHON=0</code> or <code>AETHYR_ALLOW_UI=0</code> to turn one off. <code>health_check</code> also recovers after an editor restart instead of reporting it unreachable.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
+      {
+        "id": "v0-2-0",
+        "heading": "0.2.0, September 2026",
+        "html": "<p>Write tools report whether the write landed, <code>implement_interface</code> no longer takes down the headless editor on a bare interface name, and free-text arguments keep their double quotes. The server finds a Launcher-installed engine on its own, so <code>AETHYR_ENGINE_DIR</code> is no longer required for a stock install.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-1-1",
         "heading": "0.1.1, July 2026",
