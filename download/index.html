@@ -58,8 +58,21 @@ loadDocsPage('../data/download.json').then(function () {
       if (small) small.textContent = 'not in the latest release yet';
     }
   };
+  var addVersion = function (rel) {
+    // Every card's label reads "Download<small>...</small>". Swap in the current
+    // release's tag so the label and the releases/latest/download link always agree.
+    // Leave the label alone (today's text) if the lookup came back empty.
+    if (!rel.tag_name) return;
+    Array.prototype.forEach.call(document.querySelectorAll('.dl-lab'), function (lab) {
+      var t = lab.firstChild;
+      if (t && t.nodeType === 3 && /^Download\b/.test(t.data)) {
+        t.data = 'Download ' + rel.tag_name + t.data.slice('Download'.length);
+      }
+    });
+  };
   getJson(api + '/releases/latest')
     .then(function (rel) {
+      addVersion(rel);
       var names = (rel.assets || []).map(function (a) { return a.name; });
       var missing = Array.prototype.filter.call(document.querySelectorAll('a.dl[data-asset]'), function (card) {
         return names.indexOf(card.getAttribute('data-asset')) === -1;
