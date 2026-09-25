@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-4-1", "label": "0.4.1, September 2026" },
           { "href": "#v0-4-0", "label": "0.4.0, September 2026" },
           { "href": "#v0-3-0", "label": "0.3.0, September 2026" },
           { "href": "#v0-2-0", "label": "0.2.0, September 2026" },
@@ -34,6 +35,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-4-1",
+        "heading": "0.4.1, September 2026",
+        "html": "<p>A patch release. Six tools that could crash the headless editor when no editor was open, <code>get_landscape_paint_state</code>, <code>get_foliage_paint_state</code>, <code>get_mesh_paint_state</code>, <code>get_texture_paint_state</code>, <code>get_modeling_state</code>, and <code>focus_actor</code>, now answer that they need a running editor instead. The selection tools say the same. <code>reset_project_setting</code> no longer wipes your per-user settings file.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-4-0",
         "heading": "0.4.0, September 2026",
