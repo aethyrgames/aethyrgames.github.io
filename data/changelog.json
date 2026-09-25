@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-4-0", "label": "0.4.0, September 2026" },
           { "href": "#v0-3-0", "label": "0.3.0, September 2026" },
           { "href": "#v0-2-0", "label": "0.2.0, September 2026" },
           { "href": "#v0-1-1", "label": "0.1.1, July 2026" },
@@ -33,6 +34,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-4-0",
+        "heading": "0.4.0, September 2026",
+        "html": "<p>Every tool now has a functional test that drives it against a real editor and checks the result with a separate read. That pass found and fixed more than twenty tools that reported the wrong result or did less than they said, among them <code>move_asset</code> on the headless editor, <code>bind_widget_event</code>, <code>set_component_property</code> with a <code>false</code> bool, and the DataTable tools on Blueprint structs.</p><p>The 25 editor-state tools that used to answer <code>valid:false</code> now read real state: the outliner, the details panel, the paint and modeling modes, Take Recorder, the Movie Render Queue, changelists, cook progress, DDC usage, and more. <code>set_active_cook_target</code> and <code>reset_project_setting</code> are new, and <code>health_check</code> no longer reports \"auth rejected\" when two editors start on one machine.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-3-0",
         "heading": "0.3.0, September 2026",
