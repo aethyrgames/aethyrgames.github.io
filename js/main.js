@@ -177,8 +177,9 @@
     }
 
     /* ---- download CTA version: one fetch, shared across every "/download/" button
-       on this page. Swaps "free" for the tag on success; on any failure (offline,
-       rate limit, bad JSON) the label already in the page stays exactly as it is. ---- */
+       on this page. Appends the tag on success ("Download free · v0.4.1"), so the
+       label's own copy stays. On any failure (offline, rate limit, bad JSON) the
+       label already in the page stays exactly as it is. ---- */
     const dlSpans = document.querySelectorAll('a[href="/download/"] > span');
     if (dlSpans.length) {
       fetch('https://api.github.com/repos/aethyrgames/aethyr-mcp-releases/releases/latest', {
@@ -187,7 +188,7 @@
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(rel => {
           if (!rel?.tag_name) return;
-          dlSpans.forEach(s => { s.textContent = s.textContent.replace(/\bfree\b/, rel.tag_name); });
+          dlSpans.forEach(s => { s.textContent = s.textContent.trimEnd() + ' · ' + rel.tag_name; });
         })
         .catch(err => console.warn('release lookup skipped:', err));
     }
