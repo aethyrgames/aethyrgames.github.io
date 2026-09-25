@@ -49,21 +49,30 @@ loadDocsPage('../data/download.json').then(function () {
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   };
   var retarget = function (card, hit) {
-    var small = card.querySelector('.dl-lab small');
+    var lab = card.querySelector('.dl-lab');
+    var small = lab && lab.querySelector('small');
     if (hit) {
       card.href = hit.asset.browser_download_url;
+      var t = lab && lab.firstChild;
+      if (t && t.nodeType === 3 && /^Download\b/.test(t.data)) {
+        t.data = 'Download ' + hit.rel.tag_name + t.data.slice('Download'.length);
+      }
       if (small) small.textContent = hit.asset.name + ' from ' + hit.rel.tag_name;
     } else {
       card.href = 'https://github.com/' + repo + '/releases';
       if (small) small.textContent = 'not in the latest release yet';
     }
   };
-  var addVersion = function (rel) {
+  var addVersion = function (rel, skipCards) {
     // Every card's label reads "Download<small>...</small>". Swap in the current
     // release's tag so the label and the releases/latest/download link always agree.
+    // Skip cards whose asset isn't in the latest release (retarget() below stamps
+    // those instead, once it knows which older release they actually point at).
     // Leave the label alone (today's text) if the lookup came back empty.
     if (!rel.tag_name) return;
     Array.prototype.forEach.call(document.querySelectorAll('.dl-lab'), function (lab) {
+      var card = lab.closest('a.dl');
+      if (skipCards && skipCards.indexOf(card) !== -1) return;
       var t = lab.firstChild;
       if (t && t.nodeType === 3 && /^Download\b/.test(t.data)) {
         t.data = 'Download ' + rel.tag_name + t.data.slice('Download'.length);
@@ -72,11 +81,11 @@ loadDocsPage('../data/download.json').then(function () {
   };
   getJson(api + '/releases/latest')
     .then(function (rel) {
-      addVersion(rel);
       var names = (rel.assets || []).map(function (a) { return a.name; });
       var missing = Array.prototype.filter.call(document.querySelectorAll('a.dl[data-asset]'), function (card) {
         return names.indexOf(card.getAttribute('data-asset')) === -1;
       });
+      addVersion(rel, missing);
       if (missing.length) {
         getJson(api + '/releases?per_page=20')
           .then(function (list) {
