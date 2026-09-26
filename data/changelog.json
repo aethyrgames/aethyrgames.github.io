@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-4-2", "label": "0.4.2, September 2026" },
           { "href": "#v0-4-1", "label": "0.4.1, September 2026" },
           { "href": "#v0-4-0", "label": "0.4.0, September 2026" },
           { "href": "#v0-3-0", "label": "0.3.0, September 2026" },
@@ -35,6 +36,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-4-2",
+        "heading": "0.4.2, September 2026",
+        "html": "<p>Every MCP client on a project now shares one Aethyr server instead of starting its own. Aethyr also finds your engine without relying on the <code>.uproject</code>'s per-machine engine ID, so a custom or source-built engine works on a fresh machine.</p><p>Aethyr can now update itself: <code>health_check</code> and a notice at connect tell your assistant when a new release is out, and <code>apply_update</code> installs it once you say yes, with an automatic rollback if the new version fails its check. Setup got easier too: a plugin your machine doesn't have no longer stops the headless editor, a failed headless start is reported instead of showing empty results, and <code>doctor</code> checks that your MCP client has Aethyr registered.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-4-1",
         "heading": "0.4.1, September 2026",
