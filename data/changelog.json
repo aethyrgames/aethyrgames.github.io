@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-5-0", "label": "0.5.0, September 2026" },
           { "href": "#v0-4-2", "label": "0.4.2, September 2026" },
           { "href": "#v0-4-1", "label": "0.4.1, September 2026" },
           { "href": "#v0-4-0", "label": "0.4.0, September 2026" },
@@ -36,6 +37,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-5-0",
+        "heading": "0.5.0, September 2026",
+        "html": "<p>Aethyr now bridges to Unreal's own tools. The Engine Toolset Bridge talks to Epic's ModelContextProtocol server inside a running UE 5.8 editor, so your assistant can reach Epic's toolsets (Niagara, Sequencer, GAS, UMG, Slate UI, play-in-editor, and more) through Aethyr. It's on by default in every build, including Fab. Turn on Epic's ModelContextProtocol plugin and the toolsets you want in your project, then use <code>epic_list_toolsets</code>, <code>epic_describe_toolset</code>, and <code>epic_call_tool</code>.</p><p>Every Epic tool is sorted into reads and writes, and anything unclear counts as a write. The Fab build stays read-only. It refuses bridged writes until you turn writes on, and it backs up the target asset before any bridged write.</p><p>28 tools that needed a live editor anyway, and that Unreal now does just as well, are removed. Calling one tells your assistant which Epic tool replaces it and which plugin to enable. Tools that work without an editor open all stay. Aethyr now needs UE 5.8 or later.</p><p>Downloads and the full notes, including the migration table and known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-4-2",
         "heading": "0.4.2, September 2026",

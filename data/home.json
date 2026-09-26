@@ -230,7 +230,7 @@
       },
       {
         "q": "Which UE versions are supported?",
-        "a": "UE 5.7 and 5.8 are compile-checked at time of writing. UE 5.6 is meant to work too, though no automated check covers it yet. Earlier UE 5 versions are untested."
+        "a": "Aethyr 0.5.0 and later need UE 5.8 or later, which is compile-checked and live-tested on every release."
       }
     ]
   },
