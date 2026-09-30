@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-5-2", "label": "0.5.2, September 2026" },
           { "href": "#v0-5-1", "label": "0.5.1, September 2026" },
           { "href": "#v0-5-0", "label": "0.5.0, September 2026" },
           { "href": "#v0-4-2", "label": "0.4.2, September 2026" },
@@ -38,6 +39,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-5-2",
+        "heading": "0.5.2, September 2026",
+        "html": "<p>A field-report release. With two engines installed, Aethyr could launch the wrong one and fail every headless tool call because a project plugin was built for the other engine. Aethyr now checks the engine against the one your project was built with. It sets aside a stale project plugin instead of failing the launch, and it tells you which engine to use when the better match is a different engine version. Updating the plugin now clears its old generated headers, which fixes the <code>GENERATED_BODY</code> \"missing type specifier\" build error after an update.</p><p><code>health_check</code> now says in one sentence whether you have a healthy live editor or a headless editor that can't start, and why. It reports the live editor and the headless daemon separately, and names the engine Aethyr launches.</p><p><code>list_assets</code> can return a whole folder tree as one readable inventory. It groups by folder or class, includes redirectors, flags broken redirectors, redirector chains, and duplicate names, and can export the full list to CSV, JSON, or Markdown.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-5-1",
         "heading": "0.5.1, September 2026",
