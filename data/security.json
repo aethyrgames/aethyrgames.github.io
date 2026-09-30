@@ -42,7 +42,7 @@
       {
         "id": "read-only",
         "heading": "Read-only mode",
-        "html": "<p>Aethyr can run as a strictly read-only tool. Set one environment variable and every write tool (adding variables, wiring nodes, saving assets) returns an error before touching any file:</p><pre><code>AETHYR_READ_ONLY=1</code></pre><p>The free build from the <a href='/download/'>download page</a> allows writes by default. Set this in any session where you only want to look. The paid marketplace server build starts read-only instead. There, <code>AETHYR_ALLOW_WRITE=1</code> turns writes on.</p>"
+        "html": "<p>Aethyr can run as a strictly read-only tool. Set one environment variable and every write tool (adding variables, wiring nodes, saving assets) returns an error before touching any file:</p><pre><code>AETHYR_READ_ONLY=1</code></pre><p>The free build from the <a href='/download/'>download page</a> allows writes by default. Set this in any session where you only want to look. Since 0.5.1 the Fab marketplace build allows writes by default too.</p>"
       },
       {
         "id": "backup-ring",

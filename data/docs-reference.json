@@ -264,7 +264,7 @@
         "html": "<p>Set these in your MCP client's <code>env</code> block. The defaults are safe.</p>",
         "flags": [
           { "name": "AETHYR_PROJECT", "description": "Path to the `.uproject` to drive. Auto-discovered above the server if unset." },
-          { "name": "AETHYR_READ_ONLY", "description": "Set `1` for a read-only session: every write tool refuses before touching a file. The free build allows writes by default." },
+          { "name": "AETHYR_READ_ONLY", "description": "Set `1` for a read-only session: every write tool refuses before touching a file. Every build allows writes by default, the Fab build included since 0.5.1." },
           { "name": "AETHYR_ENGINE_DIR", "description": "Engine root. Auto-discovered from the `.uproject`'s EngineAssociation. Set it when discovery can't find your engine (Aethyr 0.1.1 can't find a Launcher install)." },
           { "name": "AETHYR_BACKEND", "description": "`auto` (default) · `live` · `commandlet` · `mock`. Auto routes per call." },
           { "name": "AETHYR_BACKUP", "description": "`1` by default: copies an asset to a backup ring before its first save each session." },

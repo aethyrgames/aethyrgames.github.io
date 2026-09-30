@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-5-1", "label": "0.5.1, September 2026" },
           { "href": "#v0-5-0", "label": "0.5.0, September 2026" },
           { "href": "#v0-4-2", "label": "0.4.2, September 2026" },
           { "href": "#v0-4-1", "label": "0.4.1, September 2026" },
@@ -37,6 +38,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-5-1",
+        "heading": "0.5.1, September 2026",
+        "html": "<p>Every one of Aethyr's tools is now proven against a real UE 5.8 editor. Each tool's test was run normally and again with the tool deliberately broken, and every test caught the broken version. That work found and fixed a long list of real bugs, including an editor crash, a move that silently failed on Blueprints with breakpoints, dependency lookups that came back empty, and changelist tools that always reported zero files.</p><p>The Fab build now allows writes by default and carries every tool, the same as the full build. Fab installs still update through Fab. While Aethyr is working, the editor keeps running at full speed even in the background, and it goes back to normal a few seconds after the last request. The bridge now finds Epic's server on whatever port your project uses.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-5-0",
         "heading": "0.5.0, September 2026",
