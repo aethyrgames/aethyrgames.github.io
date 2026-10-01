@@ -6,7 +6,7 @@ Aethyr is an MCP server plus an Unreal editor plugin. It lets an AI assistant re
 
 ## Ground rules
 
-- Work on one project at a time. Everything below only touches the project you name.
+- Work on one project at a time. Setup writes inside that project, plus the MCP client config files it lists in its summary (some of those live in the user's profile, like Claude Desktop's or Codex's).
 - You don't need admin rights.
 - Show the user the dry-run summary first and get one yes for the whole run. Don't ask again for each step it lists.
 - Don't pipe anything into `iex`. Save the script, read it, then run it.
@@ -42,7 +42,11 @@ The script's parameters:
 | `-DryRun` | Preview. Stages the zip, then runs setup with `--dry-run`. |
 | `-SetupArgs '<string>'` | Extra `setup` flags as one quoted string, like `'--no-epic-mcp --deny StalePlugin'`. |
 
-It exits with setup's exit code: 0 when setup succeeded, 1 when it refused or failed.
+`-SetupArgs` can't carry a path with a space, and it refuses `--zip` and `--project` (use `-Zip` and `-Project`).
+
+Setup's exit code passes through: 0 when setup succeeded, 1 when it refused or failed. The bootstrap also exits 1 when it refuses on its own. An exit code of 2 means the staged exe predates `setup` (older than 0.6.0), so the command wasn't recognized.
+
+Each run stages into `Saved/Aethyr/setup-staging/<timestamp>-<pid>/`. The three newest folders are kept. A local zip passed with `-Zip` is copied into staging and the original is never touched.
 
 ## Flow 2: "Update Aethyr"
 
@@ -52,6 +56,7 @@ It exits with setup's exit code: 0 when setup succeeded, 1 when it refused or fa
    2. Tell the user what it reported and ask for a yes.
    3. After the yes, call `apply_update` with `confirm:true`. It downloads the matching zip, verifies it against `SHA256SUMS`, and swaps it in once every MCP client using the current exe has closed. A failed health check on the new exe rolls back on its own.
    4. Then follow "Next steps" below.
+   A Fab build has `health_check` but no `apply_update`. It updates through Fab, not here.
 3. **If they don't** (old server, the server won't start, or no tools in this session): run Flow 1. The bootstrap detects the existing install and updates it. `setup` stops this project's own Aethyr servers by pid so the files can be replaced.
 
 `apply_update` swaps the server exe. `setup` does a fuller job: it also mirrors the whole plugin folder, refreshes skills and client configs, and applies the Epic MCP settings. If the user wants those, or the update needs a new plugin build, prefer `setup`.
@@ -87,7 +92,7 @@ These are `AethyrMcp.exe setup` flags. Pass them through the bootstrap with `-Se
 | Flag | What it does |
 | --- | --- |
 | `--project <dir or .uproject>` | The project to set up. The bootstrap sets this for you. |
-| `--zip <path>` | Install from this release zip and don't download. |
+| `--zip <path>` | Install from this release zip and don't download. Setup uses it only when its flavor fits the engine. Otherwise it downloads and verifies the matching flavor of the same version and says so. The summary's `flavor` shows what was installed. |
 | `--flavor auto\|precompiled\|source` | `auto` picks precompiled when `<Engine>/Engine/Build/InstalledBuild.txt` exists. |
 | `--release <tag>` | Release to install. Default is the latest. |
 | `--clients auto\|none\|<id>,...` | Which MCP clients to register. `auto` means every client with an existing config file or a detected CLI or app. |
@@ -124,7 +129,7 @@ Setup stops with a `refused.code` instead of guessing. Report the message to the
 | `engine_not_found` | Setup couldn't find the engine. Open the project once in the editor, or set `AETHYR_ENGINE_DIR` to the engine root. |
 | `editor_running` | Ask the user to close the Unreal Editor for this project, then run it again. |
 | `aethyr_source_checkout` | The folder is the maintainers' source repo. Setup won't overwrite it. |
-| `download_failed` | Check the network, or download the zip by hand and use `-Zip`. |
+| `download_failed` | Check the network, or download the zip by hand and use `-Zip`. Put the release's `SHA256SUMS` beside the zip so it gets verified. Without it the bootstrap warns that verification was skipped. |
 | `checksum_mismatch` | The zip doesn't match `SHA256SUMS`. Don't use it. Download again. |
 | `locked_files` | Something holds files in the plugin folder open. Close it and retry. |
 | `servers_running` | Only with `--no-stop-servers`. Close the project's Aethyr servers, or drop the flag. |

@@ -7,17 +7,22 @@
     1. Finds the project (a .uproject, or a folder holding exactly one).
     2. Downloads the precompiled release zip and SHA256SUMS from
        github.com/aethyrgames/aethyr-mcp-releases, and checks the hash.
-       Both zips carry AethyrMcp.exe. The setup command fetches the source
-       flavor itself if your engine needs it.
+       Both zips carry AethyrMcp.exe. Setup uses the zip only when its flavor
+       fits your engine. If it doesn't (say, a precompiled zip on a
+       source-built engine), setup downloads and verifies the matching flavor
+       of the same version itself and says so. The summary's "flavor" field
+       reports what was installed.
     3. Unblocks the zip and extracts it to
        <Project>/Saved/Aethyr/setup-staging/<timestamp>/.
     4. Runs the staged AethyrMcp.exe "setup" command for that project and prints
        its summary: steps, scc, clients, next steps. The script exits with
        setup's exit code.
 
-  It only touches the project you name. The staging folder lives under that
-  project's Saved/ folder, and setup writes only inside the project and to the
-  MCP client config files it reports. It needs no admin rights.
+  This script writes only to the project's Saved/Aethyr/setup-staging folder.
+  Setup then writes inside the project, plus the MCP client config files it
+  lists in its summary (some of those live in your user profile). It never
+  modifies a zip you pass with -Zip, and it needs no admin rights. The three
+  newest staging folders are kept and older ones are pruned.
 
   It runs on Windows PowerShell 5.1 and PowerShell 7.
 
@@ -34,8 +39,9 @@
   release.
 
 .PARAMETER Zip
-  Use this local release zip and skip the download. If a SHA256SUMS file sits
-  next to it, the hash is checked.
+  Use this local release zip and skip the download. The script copies it into
+  the staging folder and works on the copy. If a SHA256SUMS file sits next to
+  the zip, the hash is checked. If not, it warns that verification was skipped.
 
 .PARAMETER DryRun
   Preview. It still downloads and stages the zip (setup needs its exe), then
@@ -45,8 +51,10 @@
 .PARAMETER SetupArgs
   Extra arguments passed to "AethyrMcp.exe setup". Give them as one quoted
   string, for example -SetupArgs '--no-epic-mcp --deny StalePlugin'. A real
-  array works too when you call the script from inside PowerShell. Setup's
-  flags are listed at https://aethyr.gg/install.md.
+  array works too when you call the script from inside PowerShell. Values are
+  split on spaces, so this can't carry a path that contains a space. --zip and
+  --project are refused here. Use -Zip and -Project. Setup's flags are listed
+  at https://aethyr.gg/install.md.
 
 .NOTES
   Set AETHYR_UPDATE_REPO (owner/name) to download from a different releases repo.
@@ -64,9 +72,25 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $tag = '[Aethyr/install]'
 
+$staging = $null
 function Stop-Install([string]$Message) {
     Write-Host "$tag REFUSED: $Message"
+    # Don't leave an empty staging folder behind.
+    if ($staging -and (Test-Path -LiteralPath $staging)) {
+        if (@(Get-ChildItem -LiteralPath $staging -Force -ErrorAction SilentlyContinue).Count -eq 0) {
+            Remove-Item -LiteralPath $staging -Force -ErrorAction SilentlyContinue
+        }
+    }
     exit 1
+}
+
+# Setup owns these two. Take them from -Zip and -Project instead.
+foreach ($a in @($SetupArgs)) {
+    foreach ($w in @("$a" -split '\s+')) {
+        if ($w -ieq '--zip' -or $w -ieq '--project') {
+            Stop-Install "-SetupArgs can't carry $w. Use the script's own -Zip and -Project parameters."
+        }
+    }
 }
 
 # TLS 1.2 for Windows PowerShell 5.1, which defaults to older protocols.
@@ -94,8 +118,9 @@ $projectDir = Split-Path -Parent $uproject
 Write-Host "$tag Project: $uproject"
 
 # ---- 2. Get the zip and check it -------------------------------------------
-$stamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
-$staging = Join-Path $projectDir "Saved\Aethyr\setup-staging\$stamp"
+$stamp = (Get-Date).ToString('yyyyMMdd-HHmmss') + "-$PID"
+$stagingRoot = Join-Path $projectDir 'Saved\Aethyr\setup-staging'
+$staging = Join-Path $stagingRoot $stamp
 $assetName = 'Aethyr-plugin-precompiled.zip'
 $repo = 'aethyrgames/aethyr-mcp-releases'
 if ($env:AETHYR_UPDATE_REPO) { $repo = $env:AETHYR_UPDATE_REPO }
@@ -115,22 +140,37 @@ function Test-ZipHash([string]$ZipPath, [string]$SumsPath, [string]$Name) {
     try { $actual = ([BitConverter]::ToString($sha.ComputeHash($fs)) -replace '-', '').ToLower() }
     finally { $fs.Dispose(); $sha.Dispose() }
     if ($actual -ne $expected) {
+        if ($ZipPath.StartsWith($stagingRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $ZipPath -Force -ErrorAction SilentlyContinue
+        }
         Stop-Install "checksum mismatch for $Name (expected $expected, got $actual). Nothing was installed."
     }
     return $true
 }
 
+# Keep the 3 newest staging folders, counting the one we're about to make.
+if (Test-Path -LiteralPath $stagingRoot) {
+    $old = @(Get-ChildItem -LiteralPath $stagingRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($old.Count -gt 2) {
+        foreach ($d in $old[0..($old.Count - 3)]) {
+            Remove-Item -LiteralPath $d.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
 New-Item -ItemType Directory -Force $staging | Out-Null
 
 if ($Zip) {
     if (-not (Test-Path -LiteralPath $Zip)) { Stop-Install "zip not found: $Zip" }
-    $zipPath = (Resolve-Path -LiteralPath $Zip).Path
-    $sumsBeside = Join-Path (Split-Path -Parent $zipPath) 'SHA256SUMS'
+    $srcZip = (Resolve-Path -LiteralPath $Zip).Path
+    # Work on a copy so nothing outside the project is ever modified.
+    $zipPath = Join-Path $staging (Split-Path -Leaf $srcZip)
+    Copy-Item -LiteralPath $srcZip -Destination $zipPath
+    $sumsBeside = Join-Path (Split-Path -Parent $srcZip) 'SHA256SUMS'
     if (Test-Path -LiteralPath $sumsBeside) {
-        [void](Test-ZipHash $zipPath $sumsBeside (Split-Path -Leaf $zipPath))
+        [void](Test-ZipHash $zipPath $sumsBeside (Split-Path -Leaf $srcZip))
         Write-Host "$tag SHA256 verified against $sumsBeside."
     } else {
-        Write-Host "$tag Using local zip $zipPath. No SHA256SUMS beside it, so the hash was not checked."
+        Write-Host "$tag WARNING: no SHA256SUMS beside $srcZip, so the hash was NOT checked. Put the release's SHA256SUMS next to the zip to verify it."
     }
 } else {
     if ($Release) {
