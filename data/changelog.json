@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-1", "label": "0.6.1, October 2026" },
           { "href": "#v0-6-0", "label": "0.6.0, October 2026" },
           { "href": "#v0-5-2", "label": "0.5.2, September 2026" },
           { "href": "#v0-5-1", "label": "0.5.1, September 2026" },
@@ -40,6 +41,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-1",
+        "heading": "0.6.1, October 2026",
+        "html": "<p>A small follow-up to 0.6.0. If an editor was still open when an update finished, its new editor DLLs could stay staged for good. Now the next <code>setup</code>, a confirmed <code>apply_update</code>, or a server start finishes the swap once nothing holds them and they match the release, and <code>doctor</code> and <code>health_check</code> tell you while any are waiting. <code>setup --dry-run</code> also now says \"would add\" for MCP client configs instead of reading as if it had written them.</p><p>Downloads and the full notes are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-0",
         "heading": "0.6.0, October 2026",
