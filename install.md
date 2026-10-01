@@ -44,7 +44,7 @@ The script's parameters:
 
 `-SetupArgs` can't carry a path with a space, and it refuses `--zip` and `--project` (use `-Zip` and `-Project`).
 
-Setup's exit code passes through: 0 when setup succeeded, 1 when it refused or failed. The bootstrap also exits 1 when it refuses on its own. An exit code of 2 means the staged exe predates `setup` (older than 0.6.0), so the command wasn't recognized.
+Setup's exit code passes through: 0 when setup succeeded, 1 when it refused or failed. The bootstrap also exits 1 when it refuses on its own. An exit code of 2 means a usage error, such as a mistyped flag in `-SetupArgs`. It also shows up when the staged exe predates `setup` (older than 0.6.0), so the command wasn't recognized.
 
 Each run stages into `Saved/Aethyr/setup-staging/<timestamp>-<pid>/`. The three newest folders are kept. A local zip passed with `-Zip` is copied into staging and the original is never touched.
 
@@ -96,6 +96,7 @@ These are `AethyrMcp.exe setup` flags. Pass them through the bootstrap with `-Se
 | `--flavor auto\|precompiled\|source` | `auto` picks precompiled when `<Engine>/Engine/Build/InstalledBuild.txt` exists. |
 | `--release <tag>` | Release to install. Default is the latest. |
 | `--clients auto\|none\|<id>,...` | Which MCP clients to register. `auto` means every client with an existing config file or a detected CLI or app. |
+| `--epic-mcp` | Opt in to the Epic MCP step explicitly. It's already the default. The last of `--epic-mcp` and `--no-epic-mcp` wins. |
 | `--no-epic-mcp` | Skip the Epic MCP step. |
 | `--epic-toolsets core\|all\|none\|<Name>,...` | Which Epic toolset plugins to enable. Default `core`, which is `EditorToolset`. |
 | `--deny <Plugin>,...` | Append to the project plugin denylist (below). |
@@ -124,7 +125,7 @@ Setup stops with a `refused.code` instead of guessing. Report the message to the
 
 | Code | What to do |
 | --- | --- |
-| `fab_install` | Aethyr came from Fab. **Update through Fab** (the Epic Games Launcher). Setup refuses, because a GitHub zip would replace the binaries Fab ships. |
+| `fab_install` | Aethyr came from Fab. Setup refuses when the engine has a Fab copy under `Engine/Plugins/Marketplace` or the project's copy is a Fab package. **Update through Fab** (the Epic Games Launcher), because a GitHub zip would replace the binaries Fab ships. |
 | `project_not_found` | Check the path. Pass the `.uproject` or its folder. |
 | `engine_not_found` | Setup couldn't find the engine. Open the project once in the editor, or set `AETHYR_ENGINE_DIR` to the engine root. |
 | `editor_running` | Ask the user to close the Unreal Editor for this project, then run it again. |
@@ -133,6 +134,7 @@ Setup stops with a `refused.code` instead of guessing. Report the message to the
 | `checksum_mismatch` | The zip doesn't match `SHA256SUMS`. Don't use it. Download again. |
 | `locked_files` | Something holds files in the plugin folder open. Close it and retry. |
 | `servers_running` | Only with `--no-stop-servers`. Close the project's Aethyr servers, or drop the flag. |
+| `internal_error` | Setup hit an unexpected error. The message says where. Run with `-DryRun` to see how far it gets, then report it. |
 
 The bootstrap itself also refuses when it can't find the project or the checksum doesn't match, and it stops before it changes anything.
 

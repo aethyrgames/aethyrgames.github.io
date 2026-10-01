@@ -41,7 +41,8 @@
 .PARAMETER Zip
   Use this local release zip and skip the download. The script copies it into
   the staging folder and works on the copy. If a SHA256SUMS file sits next to
-  the zip, the hash is checked. If not, it warns that verification was skipped.
+  the zip, the hash is checked and the file is copied into staging too, so setup
+  checks it as well. If not, it warns that verification was skipped.
 
 .PARAMETER DryRun
   Preview. It still downloads and stages the zip (setup needs its exe), then
@@ -168,6 +169,8 @@ if ($Zip) {
     $sumsBeside = Join-Path (Split-Path -Parent $srcZip) 'SHA256SUMS'
     if (Test-Path -LiteralPath $sumsBeside) {
         [void](Test-ZipHash $zipPath $sumsBeside (Split-Path -Leaf $srcZip))
+        # Setup looks for SHA256SUMS beside the zip it is given, which is the copy in staging.
+        Copy-Item -LiteralPath $sumsBeside -Destination (Join-Path $staging 'SHA256SUMS') -Force
         Write-Host "$tag SHA256 verified against $sumsBeside."
     } else {
         Write-Host "$tag WARNING: no SHA256SUMS beside $srcZip, so the hash was NOT checked. Put the release's SHA256SUMS next to the zip to verify it."
