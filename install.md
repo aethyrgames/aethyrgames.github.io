@@ -67,7 +67,7 @@ Each run stages into `Saved/Aethyr/setup-staging/<timestamp>-<pid>/`. The three 
 - **`Plugins/Aethyr/Intermediate` is cleared**, so stale generated headers can't break the next build.
 - **Client configs** (Claude Code `.mcp.json`, VS Code, Cursor, Codex, and so on) only get the `aethyr` key. Other servers and settings stay. A config that isn't valid JSON is refused and never overwritten. A `.bak` is kept.
 - **Skills, agents, and the `AGENTS.md` section.** The Claude skills and agent go to the project's `.claude/`, and the Aethyr section goes into the project's `AGENTS.md` between `aethyr:start` and `aethyr:end`. `--no-skills` skips this.
-- **Epic MCP is on by default.** Setup adds `ModelContextProtocol` and the `EditorToolset` plugin to the `.uproject` (each with `TargetAllowList: ["Editor"]`) and sets `bAutoStartServer=True` and `bEnableToolSearch=True` in `Config/DefaultEditorPerProjectUserSettings.ini`. This is what makes the Engine Toolset Bridge reachable. `--no-epic-mcp` skips all of it.
+- **Epic MCP is on by default.** Setup adds `ModelContextProtocol` and the `EditorToolset` plugin to the `.uproject` (each with `TargetAllowList: ["Editor"]`) and sets `bAutoStartServer=True` and `bEnableToolSearch=True` in `Config/DefaultEditorPerProjectUserSettings.ini`. This is what makes the Engine Toolset Bridge reachable. `--no-epic-mcp` skips all of it. If the user doesn't want their `.uproject` or config edited, pass `--epic-mcp=launch` instead. It edits no project file and writes a launcher script (see "Start the editor without editing the project" below).
 - **Running servers.** This project's Aethyr processes are stopped by pid so the exe can be replaced. `--no-stop-servers` makes setup refuse instead.
 - **Perforce.** Read-only files that setup needs to replace are made writable. They are not checked out and Perforce is not touched. The user reconciles them in P4V afterward.
 
@@ -78,6 +78,7 @@ Setup ends with a `next_steps` list. Do these in order, and tell the user about 
 1. `build_editor`: run the command setup gives. It shows up for a source install, a custom engine, or a project with C++ modules.
 2. `restart_clients`: close and reopen every MCP client so it launches the new server.
 3. `restart_editor`: restart the Unreal Editor so it loads the plugins and Epic's MCP server.
+   With `--epic-mcp=launch` you get `launch_editor` instead: start the editor through `Saved/Aethyr/Launch-Editor.bat` so Epic's MCP server is on for that session.
 4. `approve_server`: in Claude Code, approve the new `aethyr` server when it asks.
 5. `reconcile_scc`: Perforce users reconcile the files setup made writable.
 
@@ -96,14 +97,33 @@ These are `AethyrMcp.exe setup` flags. Pass them through the bootstrap with `-Se
 | `--flavor auto\|precompiled\|source` | `auto` picks precompiled when `<Engine>/Engine/Build/InstalledBuild.txt` exists. |
 | `--release <tag>` | Release to install. Default is the latest. |
 | `--clients auto\|none\|<id>,...` | Which MCP clients to register. `auto` means every client with an existing config file or a detected CLI or app. |
-| `--epic-mcp` | Opt in to the Epic MCP step explicitly. It's already the default. The last of `--epic-mcp` and `--no-epic-mcp` wins. |
-| `--no-epic-mcp` | Skip the Epic MCP step. |
-| `--epic-toolsets core\|all\|none\|<Name>,...` | Which Epic toolset plugins to enable. Default `core`, which is `EditorToolset`. |
+| `--epic-mcp[=project\|launch\|off]` | How Epic's MCP gets turned on. `project` is the default, and a bare `--epic-mcp` means `project`. It edits the `.uproject` and the settings ini. `launch` edits no project file. It writes `Saved/Aethyr/Launch-Editor.bat` and adds a `launch_editor` next step. `off` skips the step. The last of the `--epic-mcp` and `--no-epic-mcp` flags wins. |
+| `--no-epic-mcp` | Same as `--epic-mcp=off`. |
+| `--private-epic-build` | Only with `--epic-mcp=launch`. The launcher builds private copies of Epic's plugins under `Saved/Aethyr/EpicMcp` and loads those, so a source engine's own plugin folders are never written to. |
+| `--epic-toolsets core\|all\|none\|<Name>,...` | Which Epic toolset plugins to enable. Default `core`, which is `EditorToolset`. It applies in every `--epic-mcp` mode. |
 | `--deny <Plugin>,...` | Append to the project plugin denylist (below). |
 | `--no-skills` | Skip skills, agents, and the `AGENTS.md` section. |
 | `--no-stop-servers` | Refuse instead of stopping this project's Aethyr processes. |
 | `--dry-run` | Report every step as `dry_run`. No download, no write, no process stop. |
 | `--json` | Print only the summary JSON on stdout. The bootstrap always sets this. |
+
+## Start the editor without editing the project
+
+`setup --epic-mcp=launch` leaves the `.uproject` and the config files alone. Epic's `ModelContextProtocol` plugin and its server are switched on for one editor session through command line arguments. Setup writes `<Project>/Saved/Aethyr/Launch-Editor.bat`, which runs the launcher. You can run it yourself too:
+
+```
+<Project>/Plugins/Aethyr/Binaries/Win64/AethyrMcp.exe launch-editor --project <Project> [--epic-toolsets core|all|none|<Name>,...] [--no-epic-mcp] [--build] [--private-epic-build] [--dry-run] [-- <extra editor args>]
+```
+
+It starts `UnrealEditor.exe` detached, so the command returns right away. Everything after a bare `--` goes to the editor, for example `-RenderOffScreen -unattended -nosplash`. `--dry-run` prints the command and starts nothing. It prints JSON with `ok`, `pid`, `command`, `engine` and `mcp_binaries`.
+
+Before it starts the editor it checks that Epic's plugin binaries exist and were built for this engine, by comparing the `BuildId` in each plugin's `UnrealEditor.modules` with the engine's. `mcp_binaries` is `present`, `built_now`, `missing`, `stale` or `not_checked`.
+
+- **Installed engine (Launcher build).** It ships the binaries, so launch arguments are enough. If they are missing or stale the launcher refuses and says why.
+- **Source engine.** The launcher refuses with the exact build command, the project's editor target plus `-BuildPlugin=ModelContextProtocol+<toolsets>`. `--build` runs it. That writes build output into the engine's plugin folders. Setup adds the same argument to its `build_editor` command on a source engine.
+- **Source engine, engine untouched (`--private-epic-build`).** The launcher copies Epic's plugins (source only) into `<Project>/Saved/Aethyr/EpicMcp`, raises each copy's `Version` by one so it wins over the engine's copy, builds each copy with `RunUAT BuildPlugin`, and launches with `-PLUGIN=` pointing at the builds. The first build takes about 3 minutes per plugin. Later launches reuse it until the engine's BuildId changes. BuildPlugin makes very long paths and Unreal Build Tool refuses anything over 260 characters, so for a deep project path set `AETHYR_EPIC_PRIVATE_DIR` to a short folder.
+
+`doctor` and `health_check` report the same check as `epic_mcp_binaries`.
 
 ## Plugin denylist
 
