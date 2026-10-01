@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-0", "label": "0.6.0, October 2026" },
           { "href": "#v0-5-2", "label": "0.5.2, September 2026" },
           { "href": "#v0-5-1", "label": "0.5.1, September 2026" },
           { "href": "#v0-5-0", "label": "0.5.0, September 2026" },
@@ -39,6 +40,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-0",
+        "heading": "0.6.0, October 2026",
+        "html": "<p>Tell your AI assistant \"get Aethyr from aethyr.gg\" or \"update Aethyr\" and it can now do the whole job. The new <a href=\"/install.md\">install page</a> walks an assistant through it, and the <code>AethyrMcp.exe setup</code> command does the work in one run. It picks and verifies the right zip for your engine, stops only your project's Aethyr servers, and replaces the plugin folder cleanly. It also installs the skills, registers Aethyr with your MCP clients, sets up Epic's MCP bridge, and finishes with a health check. Use <code>--dry-run</code> to see the plan first.</p><p><code>apply_update</code> now removes files a release dropped, updates the precompiled editor DLLs, and works in projects inside a git repository. A plugin denylist can live in <code>Config/DefaultAethyr.ini</code>, list replies stay under about 16 KB with an honest cursor, and <code>doctor</code> no longer raises false errors for platform-folder plugins.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-5-2",
         "heading": "0.5.2, September 2026",
