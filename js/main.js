@@ -45,6 +45,24 @@
       ).join('');
     }
 
+    const heroInstall = document.getElementById('hero-install');
+    if (heroInstall && data.hero?.install) {
+      const inst = data.hero.install;
+      heroInstall.innerHTML =
+        '<p class="hero-install-lead"><strong>' + inst.lead + '</strong> ' + inst.clients + '</p>' +
+        '<div class="hero-install-prompt"><code id="hero-install-text"></code>' +
+        '<button type="button" class="hero-install-copy" aria-label="Copy the prompt">Copy</button></div>' +
+        '<p class="hero-install-note">' + inst.note + '</p>';
+      heroInstall.querySelector('#hero-install-text').textContent = inst.prompt;
+      const copyBtn = heroInstall.querySelector('.hero-install-copy');
+      copyBtn.addEventListener('click', () => {
+        const done = () => { copyBtn.textContent = 'Copied'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1600); };
+        try {
+          navigator.clipboard.writeText(inst.prompt).then(done, () => {});
+        } catch (e) { /* no clipboard access: the text is still selectable */ }
+      });
+    }
+
     const heroStats = document.getElementById('hero-stats');
     if (heroStats && data.hero?.stats) {
       heroStats.innerHTML = data.hero.stats.map((s, i) =>

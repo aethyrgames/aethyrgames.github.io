@@ -55,6 +55,12 @@
         "class": "btn btn-ghost"
       }
     ],
+    "install": {
+      "lead": "Or let your assistant install it.",
+      "clients": "Paste this into Claude Code, Copilot, Cursor, or Codex:",
+      "prompt": "Get Aethyr from aethyr.gg and set it up for my Unreal project.",
+      "note": "It reads <a href=\"/install.md\">aethyr.gg/install.md</a>, shows you the plan, and asks before changing anything. Say <em>\"update Aethyr\"</em> any time to get the latest."
+    },
     "stats": [
       {
         "value": "82",
