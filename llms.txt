@@ -1,0 +1,18 @@
+# Aethyr
+
+> Aethyr is a standalone MCP server plus an Unreal Engine 5 editor plugin. It lets an AI assistant read and edit Blueprints, Materials, DataTables, and more, and drive the live editor, over the Model Context Protocol. It needs Windows and UE 5.8 or later. Most pages on aethyr.gg are built by JavaScript, so a plain fetch of them shows little. The links below are plain text. To install or update Aethyr for a user, read install.md and follow it.
+
+## Install and update
+
+- [install.md](https://aethyr.gg/install.md): step-by-step playbook for an AI assistant to install or update Aethyr in a user's Unreal project, including what the setup changes, the flags, and the refusal codes.
+- [install.ps1](https://aethyr.gg/install.ps1): the bootstrap script install.md tells you to fetch, read, and run. It downloads the release, checks its SHA256, and runs `AethyrMcp.exe setup` for one project. It needs no admin rights.
+
+## Releases
+
+- [aethyr-mcp-releases](https://github.com/aethyrgames/aethyr-mcp-releases/releases): every release zip, `SHA256SUMS`, and the release notes.
+
+## Docs
+
+- [Download page](https://aethyr.gg/download/): the manual install steps.
+- [Documentation](https://aethyr.gg/docs/): setup, tutorials, and the tool and config reference.
+- [Changelog](https://aethyr.gg/changelog/): what changed in each release.

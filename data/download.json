@@ -10,12 +10,14 @@
       {
         "heading": "Download",
         "items": [
+          { "href": "#assistant", "label": "Let your AI install it" },
           { "href": "#get", "label": "Get the plugin" },
           { "href": "#which", "label": "Which zip?" },
           { "href": "#contents", "label": "What's in the zip" },
           { "href": "#install", "label": "Install" },
           { "href": "#build", "label": "Build for your engine" },
-          { "href": "#verify", "label": "Check the download" }
+          { "href": "#verify", "label": "Check the download" },
+          { "href": "#updating", "label": "Updating" }
         ]
       },
       {
@@ -36,6 +38,11 @@
     "heading": "Summon <span class=\"arc\">Aethyr</span>.",
     "lead": "Two zips, one plugin. Both carry the MCP server already compiled. The difference is whether the Unreal modules come as source, ready to build against your engine, or prebuilt for UE 5.8.",
     "sections": [
+      {
+        "id": "assistant",
+        "heading": "Let your AI assistant install it",
+        "html": "<p>Open your AI assistant in your Unreal project and say <strong>\"get Aethyr from aethyr.gg\"</strong>. It reads <a href='/install.md'>aethyr.gg/install.md</a>, downloads and checks the release, and sets the plugin up for your project: the files, your MCP client config, the bundled skills, and Epic's own MCP server. It shows you a preview and asks for one yes first, then lists what's left for you, like restarting the editor.</p><p>Prefer to read the script yourself? It's <a href='/install.ps1'>aethyr.gg/install.ps1</a>. Save it, read it, and run it with <code>powershell -ExecutionPolicy Bypass -File install.ps1 -Project &lt;YourProject&gt;</code>. It needs no admin rights. It writes inside that project, plus the MCP client config files it lists (some live in your user profile).</p><div class='note tip'><p><strong>On Fab?</strong> A Fab install updates through Fab, and this setup refuses to replace it.</p></div><p>The manual steps below still work if you'd rather do it by hand.</p>"
+      },
       {
         "id": "get",
         "heading": "Get the plugin",
@@ -65,6 +72,11 @@
         "id": "verify",
         "heading": "Check the download",
         "html": "<p>Every release carries a <code>SHA256SUMS</code> file. Hash your download in PowerShell:</p><pre><code>Get-FileHash .\\Aethyr-plugin.zip -Algorithm SHA256</code></pre><p>The hash should match that file's line in <a href='https://github.com/aethyrgames/aethyr-mcp-releases/releases/latest/download/SHA256SUMS'>SHA256SUMS</a>. Case doesn't matter. Older versions are on the <a href='https://github.com/aethyrgames/aethyr-mcp-releases/releases'>releases page</a>.</p>"
+      },
+      {
+        "id": "updating",
+        "heading": "Updating",
+        "html": "<ol><li><strong>Ask your assistant.</strong> Say <strong>\"update Aethyr\"</strong>. If Aethyr's tools respond, it previews with <code>apply_update</code>, asks you, and applies it. If they don't, it runs the same setup as a first install, which detects the existing install and updates it.</li><li><strong>Or run the script.</strong> <a href='/install.ps1'>install.ps1</a> updates an existing install the same way it installs a new one.</li><li><strong>Or do it by hand.</strong> Close the editor and your MCP client, download the new zip, and replace the <code>Plugins/Aethyr</code> folder with its contents. Delete <code>Plugins/Aethyr/Intermediate</code> first, so stale generated files can't break the build. Source zip users rebuild afterward.</li></ol><p>After an update, restart your MCP client and the editor. <code>health_check</code> reports the new version. Fab installs update through Fab.</p>"
       }
     ],
     "pager": {
