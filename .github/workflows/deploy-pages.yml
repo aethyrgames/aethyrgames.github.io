@@ -33,6 +33,29 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      # GA4 tag (aethyr.gg property), injected into the published copy rather than the
+      # source so local previews never report to Analytics.
+      - name: Inject Google Analytics tag
+        run: |
+          python3 - . <<'PY'
+          import pathlib, sys
+          ga = b"G-979T7SWPCD"
+          tag = (b'<script async src="https://www.googletagmanager.com/gtag/js?id=' + ga + b'"></script>'
+                 b"<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}"
+                 b"gtag('js',new Date());gtag('config','" + ga + b"');</script>")
+          n = 0
+          for p in pathlib.Path(sys.argv[1]).rglob("*.html"):
+              s = p.read_bytes()
+              i = s.lower().find(b"</head>")
+              if i < 0 or ga in s:
+                  continue
+              p.write_bytes(s[:i] + tag + s[i:])
+              n += 1
+          print(f"GA tag injected into {n} page(s)")
+          if not n:
+              sys.exit("no pages were tagged")
+          PY
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
