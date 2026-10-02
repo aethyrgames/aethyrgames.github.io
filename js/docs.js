@@ -54,9 +54,10 @@ function renderSkills(skills) {
 }
 
 function renderFlags(flags) {
+  // flag descriptions may contain intentional HTML (e.g. <code> tags), left unescaped like skills. name stays escaped.
   let h = '<table class="flag-table"><thead><tr><th scope="col">Name</th><th scope="col">Description</th></tr></thead><tbody>';
   for (const f of flags) {
-    h += '<tr><td><code>' + esc(f.name) + '</code></td><td>' + esc(f.description) + '</td></tr>';
+    h += '<tr><td><code>' + esc(f.name) + '</code></td><td>' + (f.description || '') + '</td></tr>';
   }
   return h + '</tbody></table>';
 }

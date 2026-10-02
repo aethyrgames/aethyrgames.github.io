@@ -24,8 +24,21 @@ Live at https://aethyr.gg
 | `js/main.js` | — | Site interactions (scroll reveals, typewriter, count-up) |
 | `css/styles.css` | — | Shared site styles (Arcane Terminal design system) |
 | `img/brand/` | — | Aethyr lockup, crystal mark, and favicons |
+| `changelog/index.html` | `/changelog/` | Release history. Content in `data/changelog.json` |
+| `security/index.html` | `/security/` | Security and privacy page. Content in `data/security.json` |
+| `licensing/index.html` | `/licensing/` | License summary and brand guidance. Content in `data/license.json` |
+| `reweave/` | `/reweave/` | Reweave, HTML to UMG Widget Blueprint tool page |
+| `imgui-studio/` | `/imgui-studio/` | ImGui Studio, an in-browser app |
+| `slate-studio/` | `/slate-studio/` | Slate Studio, an in-browser app |
+| `install.md` | `/install.md` | Install guide written for AI assistants |
+| `install.ps1` | `/install.ps1` | Install script the guide runs |
+| `llms.txt` | `/llms.txt` | Site summary for LLM crawlers |
+| `data/release.json` | - | Latest release info for the download page |
+| `js/release.js` | - | Reads `data/release.json` and fills in version and download links |
 
 Docs pages are minimal JS-rendered templates. All page content lives in the corresponding `data/*.json` file and is hydrated at load time by `js/docs.js`. To change copy, edit the JSON — no HTML required.
+
+**Each release:** run `python scripts/sync-reference.py <path to Aethyr-MCP>/docs/tools.json` to refresh the tool list in `data/docs-reference.json`, then update `data/release.json`.
 
 ## Running locally
 
@@ -45,7 +58,7 @@ Push to `master`. GitHub Pages serves the repo root automatically. Deployment ty
 
 See the project wiki for contributor references:
 
-- **[Style Guide](https://github.com/aethyr-mcp/aethyr-mcp.github.io/wiki/Style-Guide)** — writing rules, voice, brand identity, code and commit conventions
-- **[Brand Integration](https://github.com/aethyr-mcp/aethyr-mcp.github.io/wiki/Brand-Integration)** — how to use the Aethyr lockup, crystal mark, and color tokens correctly
+- **[Style Guide](https://github.com/aethyrgames/aethyrgames.github.io/wiki/Style-Guide)**: writing rules, voice, brand identity, code and commit conventions
+- **[Brand Integration](https://github.com/aethyrgames/aethyrgames.github.io/wiki/Brand-Integration)**: how to use the Aethyr lockup, crystal mark, and color tokens correctly
 
 The `img/brand/` assets are the source of truth for the logo system. Do not recolor or re-set the wordmark.

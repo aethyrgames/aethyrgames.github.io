@@ -25,7 +25,7 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 - [Ghost in the Shell FUI Design — HUDS+GUIS](https://www.hudsandguis.com/home/2017/4/17/ghostintheshell-fui) — Specific breakdown of the holographic interface language: transparent layers, radial reticles, monochrome-on-void.
 
 **Where it shows up in the codebase:**
-- `css/styles.css` `:root`: `--void:#070710`, `--cyan:#1ce6ff`, `--magenta:#ff2bd6`
+- `css/styles.css` `:root`: `--void:#0b0c1a`, `--cyan:#2fb9ff`, `--magenta:#ff2bd6`
 - Glitch text effect: `.glitch` pseudo-elements with `data-text` attribute, channel-shifting in `--cyan` and `--magenta` — literally simulating chromatic aberration on a corrupted CRT
 - `--line:rgba(130,150,230,.16)` — the cool lavender tint of structural borders, referencing the faint phosphor glow of a monitor edge
 - Scanlines overlay (`.scanlines` in `index.html`, `opacity:.30`, `mix-blend-mode:overlay`) — CRT phosphor scan reference
@@ -94,18 +94,18 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 - [Beyond the Bonfire: FromSoftware UI/UX Brilliance (Medium)](https://medium.com/@andrejafajfar/beyond-the-bonfire-unveiling-the-ui-ux-brilliance-of-fromsoftware-games-de55432b230f) — Detailed analysis of how contextual UI, staged revelation, and consequence-driven design create ceremony. Key insight: "victories feel earned because the interface itself demands mastery and presence."
 - [The UX of Elden Ring (Medium)](https://medium.com/@lizzie_41951/the-ux-of-elden-ring-cdbf75eb8d84) — How Elden Ring uses minimal HUD, sparse information, and discovery to create weight.
 - [Elden Ring Minimal UI Discussion (Kotaku)](https://kotaku.com/elden-ring-ui-ux-user-experience-interface-fromsoftware-1848637410) — Industry reaction to FromSoftware treating UI sparseness as a statement.
-- [Cinzel on GitHub](https://github.com/NDISCOVER/Cinzel) — The font itself: "Typeface inspired in First Century Roman Inscriptions." Natanael Gama took the carved letterforms of monuments like Trajan's Column — generally regarded as the finest serif letterform ever cut — and translated them to digital type. This is the visual weight behind "BLUEPRINT" in the hero.
+- [Fraunces on Google Fonts](https://fonts.google.com/specimen/Fraunces). The variable "Old Style soft-serif" family by Undercase Type that carries the hero's most powerful word.
 - [Chakra Petch on Google Fonts](https://fonts.google.com/specimen/Chakra%2BPetch) — Designed by Cadson Demak using "ninety straight line and forty five degree method to avoid the curves," giving "a touch of computeristic to the overall design." A Thai-script typeface whose strict geometric constraint creates the futuristic rigidity in display usage.
 
-**The Cinzel + Chakra Petch pairing:** Cinzel carries two thousand years of stone-cut authority. Chakra Petch is built entirely from right angles. Placing them together on the same page (Cinzel for "BLUEPRINT", Chakra Petch for "AI THAT SPEAKS") creates the "arcane terminal" tension in a single glance: the ancient and the machine, neither fully in control. Neither font works alone for this purpose. Cinzel alone reads as a history book. Chakra Petch alone reads as a sci-fi game UI. Together they create something that has no obvious category.
+**The Fraunces + Chakra Petch pairing:** Fraunces is a warm, high-contrast soft serif. Chakra Petch is built entirely from right angles. Placing them together on the same page (Fraunces for "BLUEPRINT", Chakra Petch for "AI THAT SPEAKS") creates the "arcane terminal" tension in a single glance: the old-world and the machine, neither fully in control. Neither font works alone for this purpose.
 
 **Where it shows up in the codebase:**
 - `data/home.json`: `"kicker": "// THE RITUAL"`, `"// THE POWERS"`, `"// ACQUIRE"`, `"// COMPATIBILITY"`, `"// VS THE FIELD"` — the slashed-comment kicker format borrows the code-comment syntax (`//`) while using ceremony vocabulary
 - Docs metaphor system: `"spells"`, `"incant"`, `"spell-grid"`, `"spell-tools"`, `"grimoire"` throughout `data/docs-*.json` and rendered in `js/docs.js`
-- `css/styles.css`: `--f-arcane:'Cinzel',serif` used for `.glitch.arcane` (the "BLUEPRINT" word), `--f-display:'Chakra Petch'` for everything else display-weight
+- `css/styles.css`: `--f-arcane:'Fraunces',serif` used for `.glitch.arcane` (the "BLUEPRINT" word), `--f-display:'Chakra Petch'` for everything else display-weight
 
 **Rules:**
-1. Cinzel (`--f-arcane`) is used exactly once per page: the hero's most powerful word. It must never appear in body copy, navigation, or UI chrome. Scarcity is what gives it weight.
+1. Fraunces (`--f-arcane`) is used exactly once per page: the hero's most powerful word. It must never appear in body copy, navigation, or UI chrome. Scarcity is what gives it weight.
 2. Kicker labels use the `// WORD` format. The slash-comment prefix is the only place code syntax and ceremony vocabulary mix directly. Don't use it in body copy or headings.
 3. The grimoire/spell vocabulary is for the docs system only. The marketing site uses ritual vocabulary (`The Ritual`, `The Powers`, `Acquire`) but avoids game-world nouns. Docs can say "spellbook"; the homepage should not.
 
@@ -150,7 +150,7 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 - The `grad` class (cyan-to-violet gradient) on heading spans: used exactly twice on the homepage ("wield", "grimoire"). Hades applies its most saturated colors to the most important elements, then steps back.
 
 **Rules:**
-1. The historical vocabulary (Cinzel, arcane nouns) and the neon palette must coexist without either apologizing for the other. Don't "soften" the neon with pastels. Don't make the arcane language ironic. Both are sincere.
+1. The historical vocabulary (arcane nouns) and the neon palette must coexist without either apologizing for the other. Don't "soften" the neon with pastels. Don't make the arcane language ironic. Both are sincere.
 2. `--ember` is the rarest accent. It appears to mark warmth, humanity, or anomaly — never as a primary action color. If it starts appearing more than once per page section, it's been overused.
 3. This tradition is the guard against generic. If a new design decision would look at home on any Linear Look SaaS site without modification, check it against this lens: does it have the arcane-neon fusion's specificity?
 
@@ -160,12 +160,12 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 
 | Face | Variable | Role | Never use for |
 |------|----------|------|---------------|
-| Cinzel | `--f-arcane` | Hero's most powerful word. Stone-cut authority. | Body text, nav, more than one element per page |
+| Fraunces | `--f-arcane` | Hero's most powerful word. Soft serif authority. | Body text, nav, more than one element per page |
 | Chakra Petch | `--f-display` | All display headings, kickers, card titles, stats | Body paragraphs, anything over 2 lines of running text |
 | JetBrains Mono | `--f-mono` | Code, terminal output, technical tags, stats values, table values | Headings, body prose |
 | Sora | `--f-body` | All body paragraphs, FAQ answers, descriptions | Headings, anything that needs visual weight |
 
-**The pairing that makes it work:** Cinzel on "BLUEPRINT" + Chakra Petch on "AI THAT SPEAKS" creates the specific tension that defines the brand. One is cut from stone; the other is built from right angles and circuit geometry. Neither is metaphorical — Cinzel is literally derived from first-century Roman inscription letterforms. Chakra Petch is literally designed using only 90° and 45° angles ("to avoid the curves"). The design philosophy is embedded in the type construction.
+**The pairing that makes it work:** Fraunces on "BLUEPRINT" + Chakra Petch on "AI THAT SPEAKS" creates the specific tension that defines the brand. One is a soft, curved serif. The other is built from right angles and circuit geometry (Chakra Petch is designed using only 90° and 45° angles, "to avoid the curves").
 
 **Size and weight discipline:**
 - Chakra Petch: `600–700` weight for display, `500` for kickers. Below `500` it reads as generic sans-serif.
@@ -177,18 +177,18 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 ## Color System
 
 ```
---void: #070710        The stage. Pure space, slightly blue-shifted.
---void-2: #0b0b1a     For raised surfaces (cards, panels) on top of void.
---panel: rgba(20,22,46,.46)  Translucent panel surface. Blur behind it.
+--void: #0b0c1a        The stage. Pure space, slightly blue-shifted.
+--void-2: #12142a     For raised surfaces (cards, panels) on top of void.
+--panel: rgba(28,31,58,.5)  Translucent panel surface. Blur behind it.
 
---cyan: #1ce6ff        Primary data presence. Action. Terminal output. Links.
+--cyan: #2fb9ff        Primary data presence. Action. Terminal output. Links.
 --magenta: #ff2bd6     Disruption. The corrupted signal. Used for contrast, not comfort.
 --violet: #9b6bff      Depth. Mysticism. Secondary glow. Gradient endpoint.
 --ember: #ff8a4c       Warmth. The anomaly. One use per section maximum.
 
 --ink: #e8ecff         Primary text. Slightly lavender-shifted white.
 --ink-2: #c3c9ec       Secondary text. Feature descriptions, card bodies.
---ink-dim: #8b93c4     Tertiary text. Fine print, labels, metadata.
+--ink-dim: #a3aad3     Tertiary text. Fine print, labels, metadata.
 
 --line: rgba(130,150,230,.16)  Structural whisper. 1px borders. Almost invisible.
 ```
@@ -285,10 +285,10 @@ Three-step flow, already named in `data/home.json` as "Bind → Speak → Watch 
 ⛨ compile gate — save aborted
   Blueprint: BP_Enemy
   Error: pin type mismatch on node 'Set Timer by Event'
-  Backup preserved at: /Saved/Backups/BP_Enemy_20260620_143221.uasset
+  Backup preserved at: Saved/AethyrBackups/Game_AI_BP_Enemy-20260620-143221.uasset
   → Fix the pin type and retry.
 ```
-Monospace. Cyan for the path, `--ink-dim` for the technical detail, `--ember` for the error indicator (warmth as danger signal). The shield glyph (`⛨`) already in use on the safety feature card.
+This sample is a batch rollback (`apply_ops`), the case where the compile gate refuses the save by default. Monospace. Cyan for the path, `--ink-dim` for the technical detail, `--ember` for the error indicator (warmth as danger signal). The shield glyph (`⛨`) already in use on the safety feature card.
 
 ---
 
@@ -296,7 +296,7 @@ Monospace. Cyan for the path, `--ink-dim` for the technical detail, `--ember` fo
 
 **The legibility trap:** The dark atmospheric aesthetic starts working against reading at high text density. The docs pages in particular have long-form content. When a page is primarily text (not cards or visuals), reduce atmospheric elements: no constellation, lighter grain, more generous `--ink` (not `--ink-dim`) for body text.
 
-**Misapplying Cinzel:** Cinzel at small sizes or in body weight loses all its authority and just looks like a generic serif. If it's not at display scale (`1.8rem+`) in a heading context, it shouldn't be Cinzel.
+**Misapplying Fraunces:** Fraunces at small sizes or in body weight loses all its authority and just looks like a generic serif. If it's not at display scale (`1.8rem+`) in a heading context, it shouldn't be Fraunces.
 
 **Neon fatigue:** Three simultaneous neon colors (cyan + magenta + violet) at full saturation creates visual noise. The rule is: one color dominates per section, the others are at most present as glows or secondary accents. The homepage does this correctly — cyan dominates the hero, violet is the gradient endpoint, magenta is the glitch flare only.
 

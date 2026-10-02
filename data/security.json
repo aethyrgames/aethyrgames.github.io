@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Security & Privacy — Aethyr",
-    "description": "How Aethyr protects your Unreal Engine project: no telemetry, a read-only mode, automatic backups, compile gate."
+    "description": "No telemetry, a read-only mode, backups before first save, and a compile gate on batches."
   },
   "sidebar": {
     "brand": { "href": "/", "label": "Aethyr" },
@@ -14,7 +14,8 @@
           { "href": "#read-only", "label": "Read-only mode" },
           { "href": "#backup-ring", "label": "Backup ring" },
           { "href": "#compile-gate", "label": "Compile gate" },
-          { "href": "#local-only", "label": "Local only" }
+          { "href": "#local-only", "label": "Local only" },
+          { "href": "#setup-changes", "label": "What setup changes" }
         ]
       },
       {
@@ -37,27 +38,32 @@
       {
         "id": "no-telemetry",
         "heading": "No telemetry",
-        "html": "<p>Aethyr collects <strong>zero telemetry</strong>. There are no analytics calls, no crash reporters, no usage metrics, and no license pings. The server makes no outbound network connections of any kind during normal operation.</p><p>Your workflow data, Blueprint contents, and project structure never leave your machine.</p>"
+        "html": "<p>Aethyr collects <strong>zero telemetry</strong>. There are no analytics calls, no crash reporters and no usage metrics. Your Blueprint contents and project structure never leave your machine.</p><p>The one outbound call in the GitHub build is a once-a-day check of the public GitHub release feed for a newer version. Set <code>AETHYR_UPDATE_CHECK=0</code> to turn it off. The Fab build has no update check, since Fab handles updates. Installing or updating through <code>apply_update</code> or <code>setup</code> downloads the release zip from GitHub.</p>"
       },
       {
         "id": "read-only",
         "heading": "Read-only mode",
-        "html": "<p>Aethyr can run as a strictly read-only tool. Set one environment variable and every write tool (adding variables, wiring nodes, saving assets) returns an error before touching any file:</p><pre><code>AETHYR_READ_ONLY=1</code></pre><p>The free build from the <a href='/download/'>download page</a> allows writes by default. Set this in any session where you only want to look. Since 0.5.1 the Fab marketplace build allows writes by default too.</p>"
+        "html": "<p>Aethyr can run as a read-only tool. Set one environment variable and Aethyr's typed write tools (adding variables, wiring nodes, saving assets) return an error before touching any file:</p><pre><code>AETHYR_READ_ONLY=1</code></pre><p>Writes are on by default in every build, Fab included. Set this in any session where you only want to look.</p><p>Read-only mode stops Aethyr's typed write tools and bridged Epic writes. <code>console_command</code> is refused too, because a console command can change assets. Set <code>AETHYR_RO_ALLOW_CONSOLE=1</code> to allow it in a read-only session. <code>run_python_script</code> is on by default and still runs in a read-only session, so set <code>AETHYR_ALLOW_PYTHON=0</code> in the editor's environment if you need a hard stop. <code>AETHYR_ALLOW_UI=0</code> does the same for the UI tools.</p>"
       },
       {
         "id": "backup-ring",
         "heading": "Automatic backup ring",
-        "html": "<p>Before any write operation touches an asset, Aethyr creates a timestamped backup copy in a <code>.aethyr-backups/</code> directory adjacent to the asset. The backup ring stores the last <strong>N copies</strong> per asset and rotates automatically.</p><p>If something goes wrong after a write, restore any asset by copying the backup back. The backup predates the write by design—it is always a clean copy of the pre-edit state.</p><div class='note tip'><p><strong>No writes happen without a backup.</strong> The backup step is not optional and cannot be skipped.</p></div>"
+        "html": "<p>Before the first save of an existing asset in a session, Aethyr copies the file to <code>&lt;Project&gt;/Saved/AethyrBackups/&lt;Package&gt;-&lt;timestamp&gt;.uasset</code> and keeps the newest 5 copies per asset.</p><p>To restore, close the editor and copy a backup over the asset file. Set <code>AETHYR_BACKUP=0</code> to turn backups off. <code>run_python_script</code> doesn't make backups. Bridged Epic writes are backed up only when <code>AETHYR_EPIC_BACKUP</code> is on (on by default in the Fab build, off in the full build).</p><div class='note tip'><p>Backups cover the first save of each asset per session. Keep your project in source control as well.</p></div>"
       },
       {
         "id": "compile-gate",
         "heading": "Compile gate",
-        "html": "<p>Every write operation that modifies a Blueprint graph runs a compile check before saving. If the result would produce a compile error, the save is aborted and an error is returned to your AI client. The asset on disk is never written in this case.</p><p>This means Aethyr <strong>cannot save a broken Blueprint</strong>. A tool call either produces a clean, compiling, saved asset—or it produces nothing and tells you why.</p>"
+        "html": "<p>Batches (<code>apply_ops</code>, atomic by default) compile once before saving. If the compile has errors, the whole batch rolls back and nothing is written. Single-step writes save as they go, because a half-built graph legitimately has errors. Set <code>AETHYR_STRICT_COMPILE=1</code> to make single writes refuse to save on compile errors too.</p><p>Bridged Epic writes and <code>run_python_script</code> skip the compile gate.</p>"
       },
       {
         "id": "local-only",
         "heading": "Local only",
-        "html": "<p>Aethyr is a local server that runs on your development machine. It communicates with your AI client over a local stdio pipe—the same machine, no network hop. It communicates with the Unreal Editor over a local socket on loopback (127.0.0.1).</p><p>There is no Aethyr cloud service, no API key required, and no account to create. The server binary is a self-contained executable with no external runtime dependencies beyond the Unreal Editor itself.</p><div class='note arc'><p>Studio developers: Aethyr is safe to use on NDA projects. Your project data is physically incapable of leaving your machine because the server has no network egress path.</p></div>"
+        "html": "<p>Aethyr never sends your project data anywhere. The server talks to your AI client over a local stdio pipe and to the editor over loopback (127.0.0.1) only. The only internet access is the optional release check and updates described above, and neither carries project data. Your AI client's own provider still sees whatever the client sends it, so check that client's data policy for NDA work.</p><p>When the Epic bridge is on, Aethyr also calls Epic's MCP server on <code>127.0.0.1</code> (port 8000 by default).</p>"
+      },
+      {
+        "id": "setup-changes",
+        "heading": "What setup changes",
+        "html": "<p><code>setup</code> writes to Aethyr's own folder (<code>Plugins/Aethyr</code>) and the project's <code>Saved</code> folder, and to <code>Config/DefaultAethyr.ini</code> only if you pass <code>--deny</code>. It never edits your <code>.uproject</code>, other config files, <code>AGENTS.md</code>, <code>.github/</code> or the project's <code>.claude/</code>.</p><p>In your user profile it adds Aethyr skills and agents under <code>~/.claude</code>, guidance in the global instruction files of Copilot CLI, Codex and Gemini CLI (only for clients you have), and an MCP entry in each client's user-scope config. By default it lets Claude Code and Gemini CLI call Aethyr's tools without asking each time, and Copilot CLI entries list every tool as enabled. Pass <code>--read-only</code> to keep Aethyr read-only. <code>--dry-run</code> shows the plan first.</p>"
       }
     ],
     "pager": {

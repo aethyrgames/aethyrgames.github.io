@@ -21,8 +21,8 @@
           { "href": "#v0-4-0", "label": "0.4.0, September 2026" },
           { "href": "#v0-3-0", "label": "0.3.0, September 2026" },
           { "href": "#v0-2-0", "label": "0.2.0, September 2026" },
-          { "href": "#v0-1-1", "label": "0.1.1, July 2026" },
-          { "href": "#initial-release", "label": "Initial release — June 2026" }
+          { "href": "#v0-1-1", "label": "0.1.1, September 2026" },
+          { "href": "#v0-1-0", "label": "0.1.0, September 2026" }
         ]
       },
       {
@@ -45,7 +45,7 @@
       {
         "id": "v0-6-2",
         "heading": "0.6.2, October 2026",
-        "html": "<p>Setup now leaves your project alone. Asking your assistant to \"get Aethyr from aethyr.gg\" installs Aethyr, gives it full read and write access, and turns on Epic's MCP bridge, while writing only to Aethyr's own folder, the project's <code>Saved</code> folder, and config files in your user profile. Your <code>.uproject</code>, config files, <code>AGENTS.md</code> and other project files aren't touched.</p><p>Epic's MCP plugin now comes in through Aethyr's own plugin file, editor only, and Aethyr starts Epic's server for you. One MCP entry serves whichever project your AI client is opened in, and <code>AethyrMcp.exe launch-editor</code> can start the editor with the bridge on for a single session.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+        "html": "<p>Setup now leaves your project alone. Asking your assistant to \"get Aethyr from aethyr.gg\" installs Aethyr, gives it full read and write access, and turns on Epic's MCP bridge, while writing only to Aethyr's own folder, the project's <code>Saved</code> folder, <code>Config/DefaultAethyr.ini</code> only if you pass <code>--deny</code>, and config files in your user profile. Your <code>.uproject</code>, config files, <code>AGENTS.md</code> and other project files aren't touched.</p><p>Epic's MCP plugin now comes in through Aethyr's own plugin file, editor only, and Aethyr starts Epic's server for you. One MCP entry serves whichever project your AI client is opened in, and <code>AethyrMcp.exe launch-editor</code> can start the editor with the bridge on for a single session.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
       },
       {
         "id": "v0-6-1",
@@ -65,12 +65,12 @@
       {
         "id": "v0-5-1",
         "heading": "0.5.1, September 2026",
-        "html": "<p>Every one of Aethyr's tools is now proven against a real UE 5.8 editor. Each tool's test was run normally and again with the tool deliberately broken, and every test caught the broken version. That work found and fixed a long list of real bugs, including an editor crash, a move that silently failed on Blueprints with breakpoints, dependency lookups that came back empty, and changelist tools that always reported zero files.</p><p>The Fab build now allows writes by default and carries every tool, the same as the full build. Fab installs still update through Fab. While Aethyr is working, the editor keeps running at full speed even in the background, and it goes back to normal a few seconds after the last request. The bridge now finds Epic's server on whatever port your project uses.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+        "html": "<p>The Fab build now allows writes by default and carries every tool, the same as the full build. A bridged Epic write follows the same read-only rule as any other write. A live editor no longer crashes when <code>close_asset_editor</code> closes a Widget Blueprint editor, <code>move_asset</code> works on Blueprints with breakpoints, <code>delete_asset</code> finds referencers in every project mount, and the bridge follows a changed Epic MCP port.</p><p>Fab installs still update through Fab. While Aethyr is working, the editor keeps running at full speed even in the background, and it goes back to normal a few seconds after the last request.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
       },
       {
         "id": "v0-5-0",
         "heading": "0.5.0, September 2026",
-        "html": "<p>Aethyr now bridges to Unreal's own tools. The Engine Toolset Bridge talks to Epic's ModelContextProtocol server inside a running UE 5.8 editor, so your assistant can reach Epic's toolsets (Niagara, Sequencer, GAS, UMG, Slate UI, play-in-editor, and more) through Aethyr. It's on by default in every build, including Fab. Turn on Epic's ModelContextProtocol plugin and the toolsets you want in your project, then use <code>epic_list_toolsets</code>, <code>epic_describe_toolset</code>, and <code>epic_call_tool</code>.</p><p>Every Epic tool is sorted into reads and writes, and anything unclear counts as a write. The Fab build stays read-only. It refuses bridged writes until you turn writes on, and it backs up the target asset before any bridged write.</p><p>28 tools that needed a live editor anyway, and that Unreal now does just as well, are removed. Calling one tells your assistant which Epic tool replaces it and which plugin to enable. Tools that work without an editor open all stay. Aethyr now needs UE 5.8 or later.</p><p>Downloads and the full notes, including the migration table and known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+        "html": "<p>Aethyr now bridges to Unreal's own tools. The Engine Toolset Bridge talks to Epic's ModelContextProtocol server inside a running UE 5.8 editor, so your assistant can reach Epic's toolsets (Niagara, Sequencer, GAS, UMG, Slate UI, play-in-editor, and more) through Aethyr. It's on by default in every build, including Fab. Turn on Epic's ModelContextProtocol plugin and the toolsets you want in your project, then use <code>epic_list_toolsets</code>, <code>epic_describe_toolset</code>, and <code>epic_call_tool</code>.</p><p>Every Epic tool is sorted into reads and writes, and anything unclear counts as a write. The Fab build stays read-only (0.5.1 changed this). It refuses bridged writes until you turn writes on, and it backs up the target asset before any bridged write.</p><p>28 tools that needed a live editor anyway, and that Unreal now does just as well, are removed. Calling one tells your assistant which Epic tool replaces it and which plugin to enable. Tools that work without an editor open all stay. Aethyr now needs UE 5.8 or later.</p><p>Downloads and the full notes, including the migration table and known issues, are on the <a href=\"/download/\">download page</a>.</p>"
       },
       {
         "id": "v0-4-2",
@@ -99,13 +99,13 @@
       },
       {
         "id": "v0-1-1",
-        "heading": "0.1.1, July 2026",
+        "heading": "0.1.1, September 2026",
         "html": "<p>The two material Set tools now report the backend's real result. <code>set_material_parameter</code> and <code>set_material_instance_parameter</code> used to answer <code>ok:true</code> even when the write failed, for example on an unknown parameter or a value that wouldn't parse.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
       },
       {
-        "id": "initial-release",
-        "heading": "Initial release — June 2026",
-        "html": "<p><strong>Initial public release.</strong> The first build of the Aethyr MCP server with the full corruption-safe toolset.</p><h3>What's included</h3><ul><li><strong>The proven toolset</strong> — 32 read, 47 write, 3 batch/audit operations</li><li><strong>Compile gate</strong> — every write attempt is aborted if the Blueprint won't compile; broken graphs never get saved</li><li><strong>Backup ring</strong> — an automatic timestamped copy of every touched asset is created before any write</li><li><strong>Atomic batches</strong> — chain multiple edits into a single transaction; the whole batch rolls back if any step fails</li><li><strong>Headless support</strong> — auto-routes each tool call to a live editor session or drives a headless editor; no open editor window required</li><li><strong>Read-only mode</strong>: set <code>AETHYR_READ_ONLY=1</code> and every write tool refuses. Reads never touch the disk</li><li><strong>MCP client compatible</strong> — tested with Claude, Cursor, GitHub Copilot, Windsurf, and Cline; works with any stdio MCP transport client</li><li><strong>UE 5.6 to 5.8</strong>: 5.7 and 5.8 are compile-checked. Earlier UE 5 versions are untested</li></ul><h3>Known limitations in this build</h3><ul><li>Windows only (Linux and macOS headless builds planned)</li></ul>"
+        "id": "v0-1-0",
+        "heading": "0.1.0, September 2026",
+        "html": "<p>The first public release. Version numbering restarted at 0.1.0 on 2026-07-08, and the standalone desktop app that used to accompany releases was removed. The plugin, the server, and the scripts are the product.</p><p>It was published after 0.1.1, which supersedes it with a fix for a false success on the two material Set tools. Take the newest release unless you have a reason to pin this one.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
       }
     ],
     "pager": {

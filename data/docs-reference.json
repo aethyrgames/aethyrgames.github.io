@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Reference · Aethyr docs",
-    "description": "Every tool in the Aethyr build, grouped by category, plus the skills, the audit agent, configuration flags, and backends."
+    "description": "Every tool Aethyr ships, grouped by category, plus configuration and backends."
   },
   "sidebar": {
     "brand": { "href": "/", "label": "Aethyr" },
@@ -26,14 +26,15 @@
           { "href": "#tools", "label": "Tools by category" },
           { "href": "#skills", "label": "Skills & agent" },
           { "href": "#config", "label": "Configuration" },
-          { "href": "#backends", "label": "Backends" }
+          { "href": "#backends", "label": "Backends" },
+          { "href": "#cli", "label": "Command line" }
         ]
       }
     ]
   },
   "topbar": {
     "crumbs": ["docs", "reference"],
-    "badge": "free build"
+    "badge": "docs"
   },
   "article": {
     "heading": "The grimoire.",
@@ -41,35 +42,159 @@
       {
         "id": "tools",
         "heading": "Tools by category",
-        "html": "<p class=\"lead\">The tools this build ships, grouped by category, plus the skills, the audit agent, the environment flags, and how the backends route.</p><div class=\"note arc\"><p><strong>Read tools can't mutate.</strong> Every write saves through a compile gate and a backup. <code>tools/list</code> starts with a small core set plus meta-tools, and your AI widens it with <code>enable_tool_category</code> or calls any tool directly with <code>call_tool</code>, so the catalog below is broader than the first listing a client sees.</p></div>",
+        "html": "<p class=\"lead\">Every tool Aethyr ships, grouped by category.</p><div class=\"note arc\"><p><strong>Read tools can't mutate.</strong> Native write tools compile before they save, batches roll back on a compile error, and the first save of each asset per session is backed up. Bridged <code>epic_*</code> writes and <code>run_python_script</code> skip those safeguards, so read back what landed. <code>tools/list</code> starts with a small core set plus meta-tools, and your AI widens it with <code>enable_tool_category</code> or calls any tool directly with <code>call_tool</code>, so the catalog below is broader than the first listing a client sees.</p></div>",
         "categories": [
           {
+            "name": "Editor",
+            "count": 116,
+            "tools": [
+              { "name": "activate_game_feature", "description": "Request activation of a Game Feature Plugin by name or file:-protocol URL (async, fire-and-forget)." },
+              { "name": "build_lighting", "description": "Trigger a lighting build (Lightmass) on the currently-loaded level." },
+              { "name": "close_asset_editor", "description": "Close all editor windows for the given asset." },
+              { "name": "compile_blueprint", "description": "Force a fresh compile of a Blueprint and return live structured diagnostics: status (\"good\"/\"warning\"/\"error\"), error and warning counts, and a per-message array with severity, text." },
+              { "name": "console_command", "description": "Execute a UE console command (e.g. stat unit, showflag.bones 1, r.ScreenPercentage 75)." },
+              { "name": "deactivate_game_feature", "description": "Request deactivation of a Game Feature Plugin by name or file:-protocol URL (async, fire-and-forget)." },
+              { "name": "delete_actor", "description": "Destroy an actor by name." },
+              { "name": "get_active_asset", "description": "Asset whose editor was most recently activated: the one the user is most likely focused on." },
+              { "name": "get_active_cook_target", "description": "List the editor's active cook target platforms and the running platform, via ITargetPlatformManagerModule." },
+              { "name": "get_active_culture", "description": "Active editor culture/language: {language, culture, display_name} (e.g. en / en-US / \"English (United States)\")." },
+              { "name": "get_active_editor_mode", "description": "Active level-editor mode(s): what tool is the user working in?" },
+              { "name": "get_active_notifications", "description": "Live toast notifications (FSlateNotificationManager), read back from each notification window's own visible Slate text widgets (collapsed/hidden widgets are skipped)." },
+              { "name": "get_active_stats", "description": "Stat overlays enabled in the active level viewport (e.g. Unit, FPS, GPU, SceneRendering) via FViewportClient::GetEnabledStats." },
+              { "name": "get_active_viewport", "description": "Which level viewport has focus right now (1/2/4 layout)." },
+              { "name": "get_anim_editor_state", "description": "Persona / animation editor selection state: whether an editor is open for asset_path." },
+              { "name": "get_asset_registry_state", "description": "Asset-registry scan status: {is_loading_assets, search_all_assets, total_assets}." },
+              { "name": "get_async_compile_state", "description": "Async asset-compilation backlog (textures, static meshes, etc.) via FAssetCompilingManager." },
+              { "name": "get_autosave_status", "description": "Editor autosave status: {is_auto_saving} (true while an autosave is in progress)." },
+              { "name": "get_blueprint_breakpoints", "description": "Breakpoints set on a Blueprint (FKismetDebugUtilities)." },
+              { "name": "get_blueprint_editor_state", "description": "Per-Blueprint-editor state for the named BP asset." },
+              { "name": "get_buffer_visualization_mode", "description": "Active level viewport's buffer-visualization override (base_color, roughness, normals, metallic, etc.)." },
+              { "name": "get_camera_bookmarks", "description": "Saved viewport camera bookmarks (Ctrl-1..9 poses) from the world settings." },
+              { "name": "get_cinematic_camera", "description": "Currently-active camera in PIE: reads APlayerCameraManager::GetViewTarget() from the first PIE player controller." },
+              { "name": "get_compile_status", "description": "Blueprint compile status: wraps UBlueprint::Status into a stable string." },
+              { "name": "get_cook_progress", "description": "In-editor cook session state via UCookOnTheFlyServer (GUnrealEd->CookServer): whether a session is active, and its CookByTheBook/CookingInEditor mode flags." },
+              { "name": "get_curve_editor_selection", "description": "Generic curve editor selection: the selected key count (selected_key_count) and the display names of curves with a selection (selected_curve_names) for the first visible curve editor panel..." },
+              { "name": "get_cvar", "description": "Read a console variable's current value." },
+              { "name": "get_data_layer_states", "description": "World Partition data layers + per-layer effective runtime state (Unloaded/Loaded/Activated)." },
+              { "name": "get_ddc_state", "description": "Derived Data Cache hit/miss counts and sizes per asset type, via FDerivedDataCacheInterface::GatherResourceStats." },
+              { "name": "get_debug_instance", "description": "PIE-attached debug object for a Blueprint (UBlueprint::GetObjectBeingDebugged): {valid, has_debug_object, debug_object_name, debug_object_path}." },
+              { "name": "get_details_panel_state", "description": "The level editor's actor Details panel state: the selected-objects list, read through PropertyEditor's IDetailsView." },
+              { "name": "get_dirty_packages", "description": "List loaded packages with unsaved changes." },
+              { "name": "get_editor_events", "description": "Drain buffered editor events captured from UE delegates." },
+              { "name": "get_editor_state", "description": "One-call situational awareness: what assets are open in the editor (which is active), the currently-loaded level and its dirty state, the viewport camera transform, currently-selected actors." },
+              { "name": "get_editor_theme", "description": "Current editor theme id (UEditorStyleSettings::CurrentAppliedTheme GUID)." },
+              { "name": "get_file_lock_status", "description": "Whether an asset is checked out / locked by another user: {valid, checked_out_by_other, other_user}." },
+              { "name": "get_focused_widget", "description": "Slate widget the user is currently typing into / focused on." },
+              { "name": "get_focused_window", "description": "What the user is looking at in the editor right now." },
+              { "name": "get_foliage_paint_state", "description": "Foliage Edit Mode paint state." },
+              { "name": "get_game_feature_state", "description": "Look up a single Game Feature Plugin's state by name (case-insensitive match against plugin_name)." },
+              { "name": "get_gizmo_state", "description": "Translation gizmo state for the active level viewport." },
+              { "name": "get_hidden_actors", "description": "Names of actors hidden in the editor viewport (temporary or level hide)." },
+              { "name": "get_hidden_layers", "description": "Names of editor layers whose visibility is off (ULayersSubsystem)." },
+              { "name": "get_hover_target", "description": "Hit-proxy target at a pixel in the active level viewport." },
+              { "name": "get_isolate_mode", "description": "Show-only-selected / isolate mode state (UE 5.6+)." },
+              { "name": "get_landscape_paint_state", "description": "Landscape Edit Mode paint state: brush radius, paint brush radius, tool strength, paint tool strength, and the target-layers name filter." },
+              { "name": "get_lighting_build_progress", "description": "Static lighting build state via UEditorEngine::IsLightingBuildCurrentlyRunning/IsLightingBuildCurrentlyExporting." },
+              { "name": "get_live_coding_state", "description": "Live Coding (C++ hot-patch) state: {available, has_started, is_compiling}." },
+              { "name": "get_material_editor_state", "description": "Material editor selection state." },
+              { "name": "get_material_instance_params", "description": "Dump scalar/vector/texture parameter values from a UMaterialInstanceConstant asset." },
+              { "name": "get_mesh_paint_state", "description": "Mesh Paint mode state for the vertex color/weight sub-modes: active tool name, brush size/strength." },
+              { "name": "get_mesh_preview_state", "description": "Static mesh editor preview state: forced LOD level and currently-displayed LOD index." },
+              { "name": "get_modal_state", "description": "Is a modal Slate window blocking input right now?" },
+              { "name": "get_modeling_state", "description": "Modeling Tools Editor Mode state: active tool name, and brush size/strength when the active tool's property set derives from UBrushBaseProperties." },
+              { "name": "get_monitor_info", "description": "Connected monitors (FDisplayMetrics, or a raw Win32 fallback when the engine's own read can't see them, e.g. under -RenderOffScreen): each {name, native_width, native_height, is_primary, dpi}." },
+              { "name": "get_niagara_module_selection", "description": "Niagara system editor selection: the currently selected emitter(s) (selected_emitter_names) and stack module(s) (selected_module_names) in an open Niagara system editor." },
+              { "name": "get_outliner_state", "description": "World Outliner UI state: active filter count, column list, and the search-highlight text (a proxy for the live search string), read through the SceneOutliner module's public ISceneOutliner interface." },
+              { "name": "get_pending_changelist", "description": "The provider's default/pending changelist, via GetChangelists(ForceUpdate) (see list_changelists)." },
+              { "name": "get_pie_state", "description": "Is Play-In-Editor running right now?" },
+              { "name": "get_pinned_actors", "description": "Actors pinned in the World Outliner (World Partition pinning), found by asking UWorldPartition:." },
+              { "name": "get_plugin_dependencies", "description": "Plugins that plugin_name depends on (extracted from the Plugins: array in its descriptor)." },
+              { "name": "get_plugin_descriptor", "description": "Read the full .uplugin descriptor for plugin_name." },
+              { "name": "get_project_setting_values", "description": "All property values of one settings section (UDeveloperSettings CDO), each {name, value, type} where value is the reflection-exported text." },
+              { "name": "get_recently_opened_assets", "description": "Recently-opened assets from the editor MRU list, most-recent first (package paths)." },
+              { "name": "get_recently_saved_packages", "description": "Packages saved during this editor session, most-recent first (package paths)." },
+              { "name": "get_recovery_state", "description": "Crash-recovery state: {has_packages_to_restore, restore_file_present, packages_to_restore, source}." },
+              { "name": "get_render_queue", "description": "Movie Render Queue pending jobs: is_rendering (an active render in progress) and one entry per queued job (job_name, sequence_path, map_path, enabled, consumed)." },
+              { "name": "get_selected_folders", "description": "Currently-selected folder paths in the Content Browser tree (distinct from assets: folders are navigation rows)." },
+              { "name": "get_shader_compile_state", "description": "Shader-compilation backlog via GShaderCompilingManager: {is_compiling, outstanding_jobs, pending_jobs}." },
+              { "name": "get_show_flags", "description": "Read the active level viewport's commonly-toggled show flags." },
+              { "name": "get_snapping_settings", "description": "Editor snapping settings: grid + rotation snap toggles, current grid sizes (position + rotation), vertex snapping, snap-to-actor distance." },
+              { "name": "get_source_control_provider", "description": "Active source-control provider: {name, enabled, available}." },
+              { "name": "get_source_control_status", "description": "Per-file source-control status: {valid, controlled, checked_out, checked_out_other, modified, current}." },
+              { "name": "get_static_mesh_info", "description": "Static mesh LOD / triangle / vertex info." },
+              { "name": "get_status_bar_messages", "description": "The level editor status bar's current message text, read back from each live." },
+              { "name": "get_streaming_sources", "description": "World Partition streaming sources (camera/player providers driving cell streaming)." },
+              { "name": "get_take_recorder_state", "description": "Take Recorder state: whether a recording is currently active (is_recording), and, while recording." },
+              { "name": "get_texture_paint_state", "description": "Mesh Paint mode state for the texture color/asset sub-modes: active tool name, brush size/strength." },
+              { "name": "get_trace_state", "description": "Unreal Insights trace connection state via FTraceAuxiliary (Core): connected, paused, connection_type (network|file|none), destination (host or file path)." },
+              { "name": "get_umg_editor_state", "description": "Selection state for a UMG Widget Blueprint editor." },
+              { "name": "get_view_mode", "description": "Read the active level viewport's view mode (Lit / Unlit / Wireframe / DetailLighting / ShaderComplexity / LightingOnly / ReflectionOverride / VisualizeBuffer / etc.)." },
+              { "name": "get_viewport_camera_settings", "description": "Active level viewport's camera settings: FOV, camera speed multiplier, near/far clip planes." },
+              { "name": "get_viewport_realtime", "description": "Active level viewport's realtime flag: whether the viewport renders every frame (true) or only on user interaction (false)." },
+              { "name": "get_visible_actors", "description": "Actors visible in the active level viewport: frustum-tested against the camera, filtered by class substring (class_filter, case-sensitive) and max distance (max_distance in cm; 0 = no limit)." },
+              { "name": "get_watched_pins", "description": "Watched pins on a Blueprint (FKismetDebugUtilities)." },
+              { "name": "get_workspace_layout", "description": "The editor's current docking/workspace layout, serialized via FGlobalTabmanager::PersistLayout (layout string)." },
+              { "name": "goto_camera_bookmark", "description": "Jump the active viewport camera to a saved bookmark slot (0-based)." },
+              { "name": "health_check", "description": "Probe whether the live editor is responsive." },
+              { "name": "list_actor_abilities", "description": "Abilities granted to the named actor's UAbilitySystemComponent." },
+              { "name": "list_automation_tests", "description": "Registered automation tests (FAutomationTestFramework, synchronous)." },
+              { "name": "list_changelists", "description": "Source-control changelists via ISourceControlProvider::GetChangelists(ForceUpdate), a synchronous refresh so the list reflects the provider's current server state rather than a possibly-empty cache." },
+              { "name": "list_game_features", "description": "List all known Game Feature Plugins (GFPs) and their simplified state." },
+              { "name": "list_loaded_levels", "description": "All loaded levels (persistent + streaming sublevels) as package paths." },
+              { "name": "list_loaded_partition_cells", "description": "Loaded World Partition runtime cells for the current world (name, level_package, state: \"loaded\" or \"activated\", is_always_loaded, data_layers)." },
+              { "name": "list_plugins", "description": "Enumerate all discovered plugins via IPluginManager." },
+              { "name": "list_project_settings", "description": "All Project/Editor Settings sections (UDeveloperSettings CDOs): each {container, category, section, class_path}." },
+              { "name": "live_coding_compile", "description": "Trigger UE's Live Coding compile + patch." },
+              { "name": "open_asset_editor", "description": "Open the asset editor for the given asset (Blueprint, Material, etc.)." },
+              { "name": "read_output_log", "description": "Read recent entries from the editor's output log." },
+              { "name": "reset_project_setting", "description": "Resets one project setting (a config UPROPERTY on a UDeveloperSettings-style class) to its true class default." },
+              { "name": "run_python_script", "description": "LAST RESORT: execute an Unreal Python script in the editor." },
+              { "name": "set_active_cook_target", "description": "Validates \"platform\" against every installed target's own IniPlatformName (rejects a typo, and rejects a same-family flavor like \"WindowsEditor\" that a looser PlatformName..." },
+              { "name": "set_actor_visibility", "description": "Show or hide an actor in the editor viewport by name via SetIsTemporarilyHiddenInEditor (does not dirty the package)." },
+              { "name": "set_cvar", "description": "Set a UE console variable (e.g. r.ScreenPercentage)." },
+              { "name": "set_gizmo_mode", "description": "Set the transform gizmo mode in the active level viewport: translate, rotate, or scale (case-insensitive)." },
+              { "name": "set_layer_visibility", "description": "Show or hide an editor layer by name (ULayersSubsystem)." },
+              { "name": "set_plugin_enabled", "description": "Enable or disable a plugin in the project's .uproject descriptor (IProjectManager)." },
+              { "name": "set_project_setting", "description": "Set one property on a settings section by class_path + property name, importing value from text, then persisting to the class's Default*.ini." },
+              { "name": "set_selection", "description": "Replace (or extend) the editor viewport's actor selection." },
+              { "name": "set_show_flag", "description": "Toggle a viewport show flag (Bones, Bounds, Collision, Wireframe, Lighting)." },
+              { "name": "set_view_mode", "description": "Set the active level viewport's view mode." },
+              { "name": "set_viewport_realtime", "description": "Enable or disable realtime rendering in the active level viewport." },
+              { "name": "spawn_actor", "description": "Spawn an actor of the given UClass in the current level." },
+              { "name": "take_screenshot", "description": "Capture a high-res screenshot to disk." },
+              { "name": "ui_focus_tab", "description": "Focus (foreground) an editor dock tab by a substring of its label." },
+              { "name": "ui_invoke_menu", "description": "Execute an editor menu command by its registered UToolMenus menu name + entry: the most geometry-independent way to drive the editor (no clicking, no painted geometry, the menu need not be open)." }
+            ]
+          },
+          {
             "name": "Blueprint",
-            "count": 39,
+            "count": 41,
             "tools": [
               { "name": "add_component", "description": "Add a component (StaticMeshComponent, AudioComponent, etc.) to a Blueprint's SimpleConstructionScript tree: author-time component setup, not runtime spawning." },
               { "name": "add_function", "description": "Create a new BP function graph with the given name." },
               { "name": "add_function_input", "description": "Add an input parameter to an existing function." },
               { "name": "add_function_output", "description": "Add an output parameter to an existing function." },
               { "name": "add_node", "description": "Spawn a new K2 (Blueprint) node in a graph." },
+              { "name": "add_struct_member", "description": "Append a typed member to a User Defined Struct." },
               { "name": "add_variable", "description": "Add a member variable to a Blueprint class." },
               { "name": "apply_ops", "description": "Execute a batch of write operations sequentially in a single tool call." },
               { "name": "attach_component", "description": "Re-parent an SCS component on a Blueprint." },
               { "name": "auto_layout_graph", "description": "Auto-position the nodes in a Blueprint graph so they don't overlap." },
               { "name": "bp_structural_diff", "description": "Compare two Blueprints structurally: variables, components, function/macro/event-graph node signatures, connection counts." },
-              { "name": "clone_graph", "description": "Copy every node in `graph` from the `source` Blueprint into the same-named graph of the `target` Blueprint, preserving wiring." },
-              { "name": "create_blueprint", "description": "Create a new Blueprint asset under `/Game/...` extending `parent_class`." },
+              { "name": "clone_graph", "description": "Copy every node in graph from the source Blueprint into the same-named graph of the target Blueprint, preserving wiring." },
+              { "name": "create_blueprint", "description": "Create a new Blueprint asset under /Game/..." },
+              { "name": "create_struct", "description": "Create a new User Defined Struct asset (UUserDefinedStruct) under /Game/...." },
               { "name": "delete_function", "description": "Delete a Blueprint function graph by name." },
               { "name": "delete_node", "description": "Delete a K2 node by GUID." },
               { "name": "delete_variable", "description": "Remove a Blueprint member variable by name." },
               { "name": "find_dangling_references", "description": "Walk a Blueprint's function bodies (and optionally top-level graphs) for nodes referencing variables / intra-BP functions that no longer exist on the BP." },
-              { "name": "find_node", "description": "Search all nodes in a Blueprint by class name or title substring (case-insensitive); searches ALL graphs at once, unlike `get_graph` which reads one named graph." },
-              { "name": "find_overriders", "description": "Find Blueprints under `path` that match a structural query: extend `parent_class`, override `function_name`, and/or implement `interface`." },
+              { "name": "find_node", "description": "Search all nodes in a Blueprint by class name or title substring (case-insensitive): searches ALL graphs at once, unlike get_graph which reads one named graph." },
+              { "name": "find_overriders", "description": "Find Blueprints under path that match a structural query: extend parent_class, override function_name, and/or implement interface." },
               { "name": "get_components", "description": "List the SCS components (StaticMeshComponent, LightComponent, child actors, etc.) attached to a blueprint, with parent/child hierarchy." },
-              { "name": "get_function", "description": "Fetch a specific Blueprint function by name: signature (inputs, outputs, locals) + body graph." },
-              { "name": "get_graph", "description": "Fetch a Blueprint graph by name (default: EventGraph)." },
+              { "name": "get_function", "description": "Fetch a specific Blueprint function by name: signature (inputs, outputs, locals) + body graph (node list + connections)." },
+              { "name": "get_graph", "description": "Read one graph by name (default: EventGraph) or by full object path, from ANY asset that owns UEdGraph objects." },
               { "name": "get_node", "description": "Fetch a single K2 node by GUID inside a graph." },
-              { "name": "implement_interface", "description": "Add `interface` to the implemented-interfaces list of the `asset` Blueprint, generating the stub function graphs the interface requires." },
+              { "name": "implement_interface", "description": "Add interface to the implemented-interfaces list of the asset Blueprint, generating the stub function graphs the interface requires." },
               { "name": "list_blueprints", "description": "List Blueprint assets under a content path." },
               { "name": "list_timelines", "description": "List all Timeline nodes in a Blueprint (names, track counts, length, loop, auto_play)." },
               { "name": "list_variables", "description": "List all member variables on a Blueprint, with type, default, category, and replication state." },
@@ -83,90 +208,267 @@
               { "name": "set_node_position", "description": "Move a K2 node (by GUID) to (x, y) inside a Blueprint graph." },
               { "name": "set_pin_default", "description": "Set the literal default value on a node's input pin." },
               { "name": "set_variable_category", "description": "Change the My-Blueprint-panel category label on a Blueprint member variable (the \"Stats\" / \"Combat\" group header in the BP editor)." },
-              { "name": "set_variable_default", "description": "Change a Blueprint member variable's default value (string form, as displayed in the Details panel: e.g." },
+              { "name": "set_variable_default", "description": "Change a Blueprint member variable's default value (string form, as displayed in the Details panel: e.g. \"100.0\" for a float, \"true\"/\"false\" for a bool)." },
               { "name": "summarize_blueprint", "description": "Tiny orientation response for a Blueprint: parent class plus counts of variables, functions, graphs, macros, and interfaces." },
               { "name": "wire_pins", "description": "Connect two K2 pins." }
             ]
           },
           {
-            "name": "Editor",
-            "count": 5,
+            "name": "Audio",
+            "count": 26,
             "tools": [
-              { "name": "get_compile_status", "description": "Blueprint compile status: wraps `UBlueprint::Status` into a stable string." },
-              { "name": "get_dirty_packages", "description": "List loaded packages with unsaved changes." },
-              { "name": "get_material_instance_params", "description": "Dump scalar/vector/texture parameter values from a UMaterialInstanceConstant asset." },
-              { "name": "get_static_mesh_info", "description": "Static mesh LOD / triangle / vertex info." },
-              { "name": "health_check", "description": "Probe whether the live editor is responsive." }
+              { "name": "add_metasound_graph_io", "description": "Add a graph input (direction:\"input\", default) or output (direction:\"output\") vertex of the given data_type (a registered MetaSound data type name: Audio, Trigger, Float, Int32, Bool, String, ...)." },
+              { "name": "add_metasound_node", "description": "Add a node to a MetaSound graph, referencing a REGISTERED node class (standard-library DSP ops, or another MetaSound used as a node) by class_name in Namespace.Name[.Variant] form..." },
+              { "name": "add_sound_node", "description": "Add a USoundNode subclass (e.g. SoundNodeMixer, SoundNodeRandom, SoundNodeLooping, SoundNodeModulator, SoundNodeWavePlayer, any concrete engine USoundNode class) to a USoundCue's runtime node tree..." },
+              { "name": "connect_metasound_nodes", "description": "Wire one node's named output pin to another node's named input pin." },
+              { "name": "connect_sound_nodes", "description": "Wire a SoundCue node (added via add_sound_node) into the runtime tree." },
+              { "name": "create_metasound", "description": "Create a new MetaSound asset under /Game/...: a UMetaSoundSource (default) or UMetaSoundPatch (kind:\"patch\")." },
+              { "name": "create_sound_attenuation", "description": "Create a new USoundAttenuation asset under /Game/..." },
+              { "name": "create_sound_class", "description": "Create a new USoundClass asset under /Game/..." },
+              { "name": "create_sound_concurrency", "description": "Create a new USoundConcurrency asset under /Game/..." },
+              { "name": "create_sound_cue", "description": "Create a new USoundCue asset under /Game/..." },
+              { "name": "list_metasound_node_classes", "description": "Discovery companion to add_metasound_node (the list_node_kinds analogue for MetaSound)." },
+              { "name": "list_metasounds", "description": "List all UMetaSoundSource / UMetaSoundPatch assets under a content path." },
+              { "name": "list_sound_classes", "description": "List all USoundClass assets under a content path." },
+              { "name": "list_sound_cues", "description": "List all USoundCue assets under a content path." },
+              { "name": "list_sound_waves", "description": "List all USoundWave assets under a content path." },
+              { "name": "read_metasound", "description": "Read a MetaSound's graph: interfaces implemented, graph inputs/outputs (name, data type, owning node id, default value), every node (id, registered class name)." },
+              { "name": "read_sound_attenuation", "description": "Read a USoundAttenuation: properties projects every FSoundAttenuationSettings field..." },
+              { "name": "read_sound_class", "description": "Read a USoundClass: properties projects every FSoundClassProperties field (Volume, Pitch, LowPassFilterFrequency, bIsUISound, bIsMusic, ...) as {name: stringified_value}." },
+              { "name": "read_sound_concurrency", "description": "Read a USoundConcurrency: properties projects every FSoundConcurrencySettings field (MaxCount, ResolutionRule, RetriggerTime, VolumeScaleMode, ...) as {name: stringified_value}." },
+              { "name": "read_sound_cue", "description": "Walk a USoundCue's runtime USoundNode graph (via FirstNode/ChildNodes, the tree that actually plays; the editor-only visual layout is not read)." },
+              { "name": "read_sound_mix", "description": "Read a USoundMix: properties projects every top-level UPROPERTY (EQSettings, SoundClassEffects, InitialDelay, FadeInTime, Duration, FadeOutTime, ...) as {name: stringified_value}." },
+              { "name": "read_sound_wave", "description": "Read a USoundWave: properties projects every UPROPERTY (Volume, Pitch, NumChannels, SampleRate, Duration, SoundAssetCompressionType, LoadingBehavior, CuePoints, Subtitles, ...) as {name." },
+              { "name": "set_attenuation_property", "description": "Set a field of a USoundAttenuation's FSoundAttenuationSettings..." },
+              { "name": "set_metasound_input", "description": "Set a node input's default literal (used when nothing is wired to it)." },
+              { "name": "set_metasound_interface", "description": "Add (enabled:true, default) or remove (enabled:false) a MetaSound interface (e.g. UE.Source.OneShot) on an existing MetaSound document via the document builder's AddInterface/RemoveInterface..." },
+              { "name": "set_sound_class_property", "description": "Set a field of a USoundClass's FSoundClassProperties..." }
+            ]
+          },
+          {
+            "name": "Niagara",
+            "count": 16,
+            "tools": [
+              { "name": "add_niagara_emitter", "description": "Add an emitter handle to an existing UNiagaraSystem by loading a source UNiagaraEmitter asset and calling AddEmitterHandle (Niagara runtime module)." },
+              { "name": "add_niagara_module", "description": "Add a module script to an emitter's stage stack in a UNiagaraSystem." },
+              { "name": "add_niagara_renderer", "description": "Add a renderer to an emitter in a UNiagaraSystem." },
+              { "name": "add_niagara_script_node", "description": "Add a node to a UNiagaraScript module asset's NodeGraph." },
+              { "name": "connect_niagara_script_pins", "description": "Connect two pins in a UNiagaraScript module asset's NodeGraph." },
+              { "name": "create_niagara_module_script", "description": "Create a standalone UNiagaraScript module asset (ENiagaraScriptUsage::Module) under /Game/...." },
+              { "name": "create_niagara_system", "description": "Create an empty UNiagaraSystem asset under /Game/ via the Niagara system factory (UNiagaraSystemFactoryNew, NiagaraEditor module), then save it." },
+              { "name": "list_niagara_systems", "description": "List UNiagaraSystem assets under a content path (default /Game)." },
+              { "name": "read_niagara_system", "description": "Read a UNiagaraSystem: its emitter handles (name, enabled, backing emitter object path, renderers, spawn_modules, update_modules, sim_target, local_space) and its exposed/user parameters..." },
+              { "name": "remove_niagara_emitter", "description": "Remove an emitter handle from a UNiagaraSystem by name." },
+              { "name": "remove_niagara_module", "description": "Remove a module (UNiagaraNodeFunctionCall) from an emitter stage's stack in a UNiagaraSystem." },
+              { "name": "set_niagara_emitter_property", "description": "Set a config-level property on a named emitter handle inside a UNiagaraSystem asset." },
+              { "name": "set_niagara_module_input", "description": "Set a module input's value on an emitter stage in a UNiagaraSystem, in one of several MODES." },
+              { "name": "set_niagara_parameter", "description": "Set the value of an exposed/user parameter on a UNiagaraSystem's exposed parameter store, then save." },
+              { "name": "set_niagara_renderer_property", "description": "Set a property on an existing renderer in a UNiagaraSystem emitter." },
+              { "name": "set_niagara_system_property", "description": "Set a system-level UPROPERTY on a UNiagaraSystem asset directly (the 4th and final Niagara config-setter level, complementing set_niagara_emitter_property)." }
+            ]
+          },
+          {
+            "name": "Asset",
+            "count": 11,
+            "tools": [
+              { "name": "create_folder", "description": "Create a content-browser folder under /Game/." },
+              { "name": "delete_asset", "description": "Delete an asset." },
+              { "name": "duplicate_blueprint", "description": "File-level duplicate: source BP at asset_path → new BP at dest_asset_path." },
+              { "name": "get_dependencies", "description": "Return every asset (package path) that this asset DEPENDS on." },
+              { "name": "get_project_metadata", "description": "Read the project's .uproject file and return parsed metadata (project name, EngineAssociation, category, description, plus the raw JSON for anything else)." },
+              { "name": "get_referencers", "description": "Return every asset (package path) that REFERENCES this asset." },
+              { "name": "move_asset", "description": "Move or rename an asset." },
+              { "name": "read_config_value", "description": "Read a UE config (.ini) value." },
+              { "name": "recreate_blueprint", "description": "Server-side recreate: read the source BP at asset_path and rebuild an equivalent BP at dest_asset_path in ONE editor-side pass (variables, functions, graphs + wiring, components)." },
+              { "name": "save_all", "description": "Save every dirty package the editor has loaded." },
+              { "name": "set_config_value", "description": "Write a UE config (.ini) value + flush to disk." }
+            ]
+          },
+          {
+            "name": "Level Sequence",
+            "count": 10,
+            "tools": [
+              { "name": "add_sequence_binding", "description": "Add an object binding to a ULevelSequence and return its binding_guid (feed it to add_sequence_track to author per-object tracks)." },
+              { "name": "add_sequence_section", "description": "Add a section to an existing Sequencer track (master or object-binding)." },
+              { "name": "add_sequence_track", "description": "Add a track to a ULevelSequence (Sequencer)." },
+              { "name": "create_level_sequence", "description": "Create a new ULevelSequence asset under /Game/..." },
+              { "name": "list_level_sequences", "description": "List ULevelSequence assets under a content path." },
+              { "name": "read_level_sequence", "description": "Deep-read a Sequencer cinematic." },
+              { "name": "recreate_level_sequence", "description": "Recreate a ULevelSequence at a new path by deep-reading the source and replaying its bindings, tracks, sections, and channel keys (the Sequencer analog of recreate_blueprint)." },
+              { "name": "recreate_level_sequences", "description": "Batch form of recreate_level_sequence: recreate a LIST of ULevelSequence assets in ONE editor launch, amortizing the headless-editor startup cost the single-op path pays per call." },
+              { "name": "set_channel_keys", "description": "Set typed keyframes on one channel of one section of a ULevelSequence." },
+              { "name": "set_sequence_playback_range", "description": "Set the playback range of a ULevelSequence in seconds (start <= end)." }
+            ]
+          },
+          {
+            "name": "Material",
+            "count": 9,
+            "tools": [
+              { "name": "add_material_expression", "description": "Add a UMaterialExpression node to a Material graph." },
+              { "name": "compile_material", "description": "Recompile a material's shader code." },
+              { "name": "connect_material_expressions", "description": "Wire one expression's output pin to another expression's input pin, or to a master-material slot." },
+              { "name": "create_material", "description": "Create a new UMaterial asset under /Game/..." },
+              { "name": "create_material_instance", "description": "Create a UMaterialInstanceConstant under /Game/..., parented to parent (a material or material instance)." },
+              { "name": "list_materials", "description": "List all UMaterial / UMaterialInstance assets under a content path." },
+              { "name": "read_material", "description": "Read a material's expression graph: every UMaterialExpression node (id, class, parameter name, x/y)." },
+              { "name": "set_material_instance_parameter", "description": "Override a parameter on a UMaterialInstanceConstant." },
+              { "name": "set_material_parameter", "description": "Set the default value of a named scalar/vector parameter on a UMaterial (the base material)." }
+            ]
+          },
+          {
+            "name": "Class Info",
+            "count": 7,
+            "tools": [
+              { "name": "find_class", "description": "Search the UClass registry by substring." },
+              { "name": "find_function", "description": "Free-text search over the BlueprintCallable / BlueprintPure function surface: the discovery step before add_node kind=CallFunction, which needs the function_owner (owning class) you may not know." },
+              { "name": "get_class_info", "description": "Inspect a UClass: parent + ancestor chain + every UPROPERTY + UFUNCTION." },
+              { "name": "get_enum_info", "description": "Inspect a UEnum (e.g. EMovementMode): its enumerators with short name, DisplayName, and integer value, plus the enum's C++ form (Regular / Namespaced / EnumClass)." },
+              { "name": "get_interface_info", "description": "Inspect a native UInterface (e.g. Interactable): the functions a class must implement to satisfy it, each with its flag CSV." },
+              { "name": "get_struct_info", "description": "Inspect a native UScriptStruct (e.g. Vector, Rotator, Transform): its members with C++ type, byte offset, and size, plus the struct's total size + alignment." },
+              { "name": "list_functions", "description": "List every UFUNCTION on a class with its flags (BlueprintCallable, BlueprintPure, etc.)." }
+            ]
+          },
+          {
+            "name": "Gameplay Tag",
+            "count": 7,
+            "tools": [
+              { "name": "add_gameplay_tag", "description": "Add a tag to the project's gameplay tag dictionary." },
+              { "name": "find_tag_referencers", "description": "Return assets that reference a gameplay tag via asset-registry-indexed properties." },
+              { "name": "get_tag_info", "description": "Return metadata for one gameplay tag: whether it exists, its source (ini/native/plugin/data_table), developer comment, direct parent, and immediate child tags." },
+              { "name": "list_gameplay_tags", "description": "Query the project's GameplayTagsManager." },
+              { "name": "read_ability_set", "description": "Read a GAS ability-set DataAsset: every granted ability class + its level." },
+              { "name": "remove_gameplay_tag", "description": "Remove a project-defined gameplay tag from DefaultGameplayTags.ini." },
+              { "name": "rename_gameplay_tag", "description": "Rename a project-defined gameplay tag using UE's redirect mechanism." }
             ]
           },
           {
             "name": "Anim",
-            "count": 4,
+            "count": 6,
             "tools": [
+              { "name": "add_anim_state", "description": "Add a state to a named state machine inside a UAnimBlueprint." },
+              { "name": "compile_anim_blueprint", "description": "Compile a UAnimBlueprint." },
               { "name": "list_anim_blueprints", "description": "List UAnimBlueprint assets under a content path." },
-              { "name": "list_anim_montages", "description": "List UAnimMontage assets under a content path (default `/Game`)." },
+              { "name": "list_anim_montages", "description": "List UAnimMontage assets under a content path (default /Game)." },
               { "name": "read_anim_blueprint", "description": "Walk a UAnimBlueprint: parent class + each state machine's states (state / conduit / transition / entry)." },
               { "name": "read_anim_montage", "description": "Read a UAnimMontage: sections (name, start_time, next_section), notifies (name, trigger_time, duration, notify_class), slot tracks (slot_name, anim segments with anim_sequence path)." }
             ]
           },
           {
-            "name": "Asset",
+            "name": "Assets",
+            "count": 5,
+            "tools": [
+              { "name": "find_asset", "description": "Find assets whose name or package path contains query (case-insensitive)." },
+              { "name": "list_assets", "description": "List every asset (any UClass) under path." },
+              { "name": "list_graphs", "description": "Every UEdGraph object in an asset's package (nested objects included), Blueprint or not: name, full object path, graph class, schema class, outer path, and node count." },
+              { "name": "list_subobjects", "description": "Every object in an asset's package (nested subobjects included): object path, class, and outer path." },
+              { "name": "read_actor_instance", "description": "Read ANY object instance by package path: including a level-placed actor stored in its own external package under /<Mount>/__ExternalActors__/..." }
+            ]
+          },
+          {
+            "name": "Behavior Tree",
+            "count": 5,
+            "tools": [
+              { "name": "add_bt_node", "description": "Add a node (composite/decorator/service/task) to a UBehaviorTree." },
+              { "name": "compile_behavior_tree", "description": "Compile a behavior tree (recompiles + marks the asset dirty)." },
+              { "name": "list_behavior_trees", "description": "List UBehaviorTree assets under a content path (default /Game)." },
+              { "name": "read_behavior_tree", "description": "Walk a UBehaviorTree's node graph." },
+              { "name": "set_bt_node_property", "description": "Set a UPROPERTY on a UBehaviorTree node (e.g. MoveTo's AcceptableRadius, Blackboard decorator's KeyName)." }
+            ]
+          },
+          {
+            "name": "State Tree",
+            "count": 5,
+            "tools": [
+              { "name": "add_state_tree_state", "description": "Add a new state to a UStateTree asset." },
+              { "name": "compile_state_tree", "description": "Compile a UStateTree asset: validates and fixes up the editor data (creating a default schema if missing), then compiles and links." },
+              { "name": "list_state_trees", "description": "List UStateTree assets under a content path (default /Game)." },
+              { "name": "read_state_tree", "description": "Read a UStateTree asset's authored state hierarchy: every state's id, name, type, and parent, plus every transition (from/to/trigger)." },
+              { "name": "set_state_tree_transition", "description": "Add a transition from one state to another (both state_id values from read_state_tree)." }
+            ]
+          },
+          {
+            "name": "Widget",
+            "count": 5,
+            "tools": [
+              { "name": "add_widget", "description": "Add a UWidget node (Button, TextBlock, etc.) to a UWidgetBlueprint's UMG tree." },
+              { "name": "bind_widget_event", "description": "Bind a widget's event (e.g. OnClicked on a Button) to a named handler function in the widget blueprint's graph." },
+              { "name": "compile_widget_blueprint", "description": "Compile a UWidgetBlueprint." },
+              { "name": "read_widget_blueprint", "description": "Read a UWidgetBlueprint's widget tree: every UWidget node (name, class, parent name) and the root widget's name." },
+              { "name": "set_widget_property", "description": "Set a UPROPERTY on a UWidget in a UWidgetBlueprint." }
+            ]
+          },
+          {
+            "name": "Data Asset",
             "count": 4,
             "tools": [
-              { "name": "get_dependencies", "description": "Return every asset (package path) that this asset DEPENDS on." },
-              { "name": "get_project_metadata", "description": "Read the project's `.uproject` file and return parsed metadata (project name, EngineAssociation, category, description, plus the raw JSON for anything else)." },
-              { "name": "get_referencers", "description": "Return every asset (package path) that REFERENCES this asset." },
-              { "name": "read_config_value", "description": "Read a UE config (.ini) value." }
+              { "name": "create_data_asset", "description": "Create a new UDataAsset instance." },
+              { "name": "list_data_assets", "description": "List all UDataAsset subclass instances under a content path." },
+              { "name": "read_data_asset", "description": "Read every UPROPERTY on a UDataAsset." },
+              { "name": "set_data_asset_property", "description": "Set a UPROPERTY on a UDataAsset instance." }
             ]
           },
           {
-            "name": "Assets",
+            "name": "Data Table",
+            "count": 4,
+            "tools": [
+              { "name": "add_data_row", "description": "Add a row to an existing DataTable." },
+              { "name": "list_data_tables", "description": "List all UDataTable assets under a content path." },
+              { "name": "read_data_table", "description": "Load a DataTable and return its row-struct type, column names, and every row's field values." },
+              { "name": "set_data_row_value", "description": "Update a single field on an existing DataTable row." }
+            ]
+          },
+          {
+            "name": "Discover",
+            "count": 4,
+            "tools": [
+              { "name": "list_macro_library_functions", "description": "Enumerate the instantiable macro graphs in a Blueprint Macro Library (ForEachLoop, Gate, DoOnce, FlipFlop, IsValid, ...)." },
+              { "name": "list_node_kinds", "description": "List the kind values that add_node accepts, with required extras for each." },
+              { "name": "list_pin_categories", "description": "List the canonical BPPinType.category values + container modifiers." },
+              { "name": "shutdown_daemon", "description": "Force-terminate the backing editor daemon process." }
+            ]
+          },
+          {
+            "name": "Bridge",
             "count": 3,
             "tools": [
-              { "name": "find_asset", "description": "Find assets whose name or package path contains `query` (case-insensitive)." },
-              { "name": "list_assets", "description": "List every asset (any UClass) under `path`." },
-              { "name": "read_actor_instance", "description": "Read ANY object instance by package path, including a level-placed actor stored in its own external package under `/<Mount>/__ExternalActors__/...` (World Partition / One-File-Per-Actor), which `read_blueprint` can't open." }
+              { "name": "epic_call_tool", "description": "Invoke one Epic MCP tool by its wire name (\"<Toolset>.<Function>\", from epic_describe_toolset)." },
+              { "name": "epic_describe_toolset", "description": "Describe one Epic MCP toolset by name (from epic_list_toolsets): its version, description, and every function it exposes with that function's own JSON schema." },
+              { "name": "epic_list_toolsets", "description": "List every Epic MCP toolset the live editor's ModelContextProtocol plugin currently has enabled, by name and description." }
             ]
           },
           {
-            "name": "Class Info",
+            "name": "Profiling",
             "count": 3,
             "tools": [
-              { "name": "find_class", "description": "Search the UClass registry by substring." },
-              { "name": "get_class_info", "description": "Inspect a UClass: parent + ancestor chain + every UPROPERTY + UFUNCTION." },
-              { "name": "list_functions", "description": "List every UFUNCTION on a class with its flags (BlueprintCallable, BlueprintPure, etc.)." }
+              { "name": "get_stats", "description": "Toggle a stat group overlay in the editor." },
+              { "name": "start_profile", "description": "Start a profiling capture." },
+              { "name": "stop_profile", "description": "Stop the active profile capture and return its real output file path (a .utrace file for insights mode, .csv for csv mode)." }
             ]
           },
           {
-            "name": "Niagara",
-            "count": 2,
+            "name": "Read",
+            "count": 3,
             "tools": [
-              { "name": "list_niagara_systems", "description": "List UNiagaraSystem assets under a content path (default `/Game`)." },
-              { "name": "read_niagara_system", "description": "Read a UNiagaraSystem's emitter handles (each names an underlying UNiagaraEmitter) and its exposed user parameter names." }
+              { "name": "describe_function_node", "description": "Preview the REAL graph pins of a function-call node before placing it: given a function_owner (the class that declares the function, e.g. /Script/Engine.GameplayStatics) and a function name." },
+              { "name": "describe_k2node", "description": "Introspect a K2 node class (custom or engine): given a class path like /Script/BlueprintGraph.K2Node_FormatText (or a short name like K2Node_FormatText), spawns a transient instance." },
+              { "name": "read_struct", "description": "Read a User Defined Struct asset (UUserDefinedStruct) under /Game/...: returns struct_name, guid, and members[] where each member is {name, guid, type, default_value}." }
             ]
           },
           {
-            "name": "Material",
-            "count": 2,
+            "name": "Source Control",
+            "count": 3,
             "tools": [
-              { "name": "list_materials", "description": "List all UMaterial / UMaterialInstance assets under a content path." },
-              { "name": "read_material", "description": "Read a material's expression graph: every UMaterialExpression node (id, class, parameter name, x/y), every connection (from expression output → expression input or master-material slot like BaseColor / Roughness), and the names of all exposed scalar/vector parameters." }
+              { "name": "get_asset_history", "description": "Read an asset's revision history from the active source-control provider (Perforce, Git, Plastic, anything behind ISourceControlProvider), newest first." },
+              { "name": "load_asset_revision", "description": "Fetch a historical revision of an asset from source control and load it into a temporary, never-saved package the same way the editor's own \"Diff Against Depot\" does." },
+              { "name": "unload_packages", "description": "Unload packages (UPackageTools::UnloadPackages / UEditorLoadingAndSavingUtils::UnloadPackages) so their files can be deleted or replaced on disk, most commonly to clean up after load_asset_revision." }
             ]
           },
           {
-            "name": "Level Sequence",
+            "name": "Cook",
             "count": 2,
             "tools": [
-              { "name": "list_level_sequences", "description": "List ULevelSequence assets under a content path." },
-              { "name": "read_level_sequence", "description": "Read a sequence's playback range (start/end seconds) and its top-level tracks." }
-            ]
-          },
-          {
-            "name": "Gameplay Tag",
-            "count": 2,
-            "tools": [
-              { "name": "list_gameplay_tags", "description": "Query the project's GameplayTagsManager." },
-              { "name": "read_ability_set", "description": "Read a GAS ability-set DataAsset: every granted ability class + its level." }
+              { "name": "cook_content", "description": "Cook content for a target platform (Windows, Linux, etc.) via RunUAT BuildCookRun." },
+              { "name": "package_project", "description": "Package the project for a target platform via RunUAT BuildCookRun." }
             ]
           },
           {
@@ -178,47 +480,14 @@
             ]
           },
           {
-            "name": "State Tree",
-            "count": 2,
+            "name": "Asset Version",
+            "count": 1,
             "tools": [
-              { "name": "list_state_trees", "description": "List UStateTree assets under a content path (default `/Game`)." },
-              { "name": "read_state_tree", "description": "Read a UStateTree's hierarchy + transitions: every state (id, name, parent) and every transition (from, to, trigger)." }
+              { "name": "get_asset_version", "description": "Read a package's version stamp by serializing its FPackageFileSummary off disk (the linker header) without fully loading the asset." }
             ]
           },
           {
-            "name": "Data Table",
-            "count": 2,
-            "tools": [
-              { "name": "list_data_tables", "description": "List all UDataTable assets under a content path." },
-              { "name": "read_data_table", "description": "Load a DataTable and return its row-struct type, column names, and every row's field values." }
-            ]
-          },
-          {
-            "name": "Data Asset",
-            "count": 2,
-            "tools": [
-              { "name": "list_data_assets", "description": "List all UDataAsset subclass instances under a content path." },
-              { "name": "read_data_asset", "description": "Read every UPROPERTY on a UDataAsset." }
-            ]
-          },
-          {
-            "name": "Behavior Tree",
-            "count": 2,
-            "tools": [
-              { "name": "list_behavior_trees", "description": "List UBehaviorTree assets under a content path (default `/Game`)." },
-              { "name": "read_behavior_tree", "description": "Walk a UBehaviorTree's node graph." }
-            ]
-          },
-          {
-            "name": "Discover",
-            "count": 2,
-            "tools": [
-              { "name": "list_node_kinds", "description": "List the `kind` values that `add_node` accepts, with required extras for each." },
-              { "name": "list_pin_categories", "description": "List the canonical BPPinType.category values + container modifiers." }
-            ]
-          },
-          {
-            "name": "Cpp",
+            "name": "C++",
             "count": 1,
             "tools": [
               { "name": "compile_function", "description": "Compile a tiny pseudocode DSL into a fully-wired Blueprint function." }
@@ -232,17 +501,10 @@
             ]
           },
           {
-            "name": "Read",
+            "name": "Tests",
             "count": 1,
             "tools": [
-              { "name": "describe_k2node", "description": "Introspect a K2 node class (custom or engine): given a class path like `/Script/BlueprintGraph.K2Node_FormatText` (or a short name like `K2Node_FormatText`), spawns a transient instance, calls AllocateDefaultPins, and reports its pins (name/direction/type/defaults), purity, title, tooltip, menu category, parent class, and owning module." }
-            ]
-          },
-          {
-            "name": "Widget",
-            "count": 1,
-            "tools": [
-              { "name": "read_widget_blueprint", "description": "Read a UWidgetBlueprint's widget tree: every UWidget node (name, class, parent name) and the root widget's name." }
+              { "name": "run_automation_tests", "description": "Trigger UE's automation test framework." }
             ]
           }
         ]
@@ -250,26 +512,61 @@
       {
         "id": "skills",
         "heading": "Skills & the audit agent",
-        "html": "<p>These ship with the plugin under <code>Claude/</code>. Copy them into your project's <code>.claude/</code> folder (from a source checkout, <code>Install-ClaudeAssets.ps1</code> does it), or point your client's skills folder at them.</p>",
+        "html": "<p>These ship with the plugin under <code>Claude/</code>. <code>AethyrMcp.exe setup</code> installs them into <code>~/.claude/skills/</code> and <code>~/.claude/agents/</code>. From a source checkout, <code>Install-ClaudeAssets.ps1</code> does the same.</p>",
         "skills": [
-          { "name": "aethyr", "description": "Core skill: inspect, edit, and operate on Blueprints: the wire format, package paths, per-tool guidance.", "badge": null },
-          { "name": "bp-batches", "description": "Multi-step edits as one transaction: <code>apply_ops</code> / <code>preview_ops</code> / <code>compile_function</code>, with rollback-on-failure.", "badge": null },
-          { "name": "bp-debug", "description": "Failure triage: error codes, package-vs-object paths, did-you-mean, partial-write recovery.", "badge": null },
-          { "name": "bp-audit", "description": "Read-only structural auditor: \"audit /Game/AI\" fans out reads and returns a tight report; mutates nothing.", "badge": "agent" }
+          { "name": "aethyr-core", "description": "Reading and the wire format.", "badge": null },
+          { "name": "aethyr-edit", "description": "Writes and batches (<code>apply_ops</code>, <code>preview_ops</code>, <code>compile_function</code>).", "badge": null },
+          { "name": "aethyr-live", "description": "Driving the running editor.", "badge": null },
+          { "name": "aethyr-triage", "description": "Errors, recovery and updates.", "badge": null },
+          { "name": "bp-audit", "description": "A read-only auditor. Ask it \"audit /Game/AI\" and it fans out reads and returns a tight report without touching anything.", "badge": "agent" }
         ]
       },
       {
         "id": "config",
         "heading": "Configuration",
-        "html": "<p>Set these in your MCP client's <code>env</code> block. The defaults are safe.</p>",
+        "html": "<p>Most of these are optional. Set them in your MCP client's <code>env</code> block.</p>",
         "flags": [
-          { "name": "AETHYR_PROJECT", "description": "Path to the `.uproject` to drive. Auto-discovered above the server if unset." },
-          { "name": "AETHYR_READ_ONLY", "description": "Set `1` for a read-only session: every write tool refuses before touching a file. Every build allows writes by default, the Fab build included since 0.5.1." },
-          { "name": "AETHYR_ENGINE_DIR", "description": "Engine root. Auto-discovered from the `.uproject`'s EngineAssociation. Set it when discovery can't find your engine (Aethyr 0.1.1 can't find a Launcher install)." },
-          { "name": "AETHYR_BACKEND", "description": "`auto` (default) · `live` · `commandlet` · `mock`. Auto routes per call." },
-          { "name": "AETHYR_BACKUP", "description": "`1` by default: copies an asset to a backup ring before its first save each session." },
-          { "name": "AETHYR_AUTO_CHECKOUT", "description": "`1` by default: auto-checks-out an asset from source control before a write." },
-          { "name": "AETHYR_TIMEOUT_SECONDS", "description": "Per-call subprocess timeout (default `120`)." }
+          { "name": "AETHYR_PROJECT", "description": "Path to the <code>.uproject</code> to drive. If unset, the server uses the <code>.uproject</code> in the folder your client was opened in, or a parent folder. With none there, it starts without a project and says so. Setup pins it for VS Code and Cursor. Set it by hand for Claude Desktop and Windsurf." },
+          { "name": "AETHYR_READ_ONLY", "description": "Set <code>1</code> for a read-only session: Aethyr's typed write tools and bridged Epic writes refuse before touching a file. Every build allows writes by default, the Fab build included since 0.5.1." },
+          { "name": "AETHYR_ALLOW_WRITE", "description": "<code>1</code> by default in every build. Set <code>0</code> for a read-only session. An explicit <code>AETHYR_READ_ONLY</code> wins if both are set." },
+          { "name": "AETHYR_RO_ALLOW_CONSOLE", "description": "<code>0</code> by default. In a read-only session <code>console_command</code> is refused, because a console command can change assets. Set <code>1</code> to allow it for console diagnostics." },
+          { "name": "AETHYR_ENGINE_DIR", "description": "Engine root. Found automatically from the <code>.uproject</code>'s EngineAssociation, a source-build registry entry, or the Launcher's install list. Set it only if discovery fails." },
+          { "name": "AETHYR_ENGINE_SCAN", "description": "<code>1</code> by default. As a last step, Aethyr looks at every engine installed on the machine and picks the one that matches your project's compiled binaries. Set <code>0</code> to skip that step." },
+          { "name": "AETHYR_ENGINE_SCAN_DIRS", "description": "Extra folders for that scan, separated by semicolons, one level deep. For an engine installed outside the registry and the Launcher's list." },
+          { "name": "AETHYR_BACKEND", "description": "<code>auto</code> when a project is found (the default). With no project the server starts with no backend, and every tool call says to open your client in the project folder or set <code>AETHYR_PROJECT</code>. Other values are <code>live</code>, <code>commandlet</code> and <code>mock</code>. An explicit <code>mock</code> serves fixtures with no project." },
+          { "name": "AETHYR_BACKUP", "description": "<code>1</code> by default: copies an asset to a backup ring (the newest 5 copies) before its first save each session. Set <code>0</code> to turn backups off." },
+          { "name": "AETHYR_AUTO_CHECKOUT", "description": "<code>1</code> by default: auto-checks-out an asset from source control before a write." },
+          { "name": "AETHYR_TIMEOUT_SECONDS", "description": "Per-call subprocess timeout (default <code>120</code>)." },
+          { "name": "AETHYR_STARTUP_TIMEOUT_SECONDS", "description": "How long to wait for the headless editor's first ready signal. Default <code>600</code>. A big project with a cold cache can take 5 to 10 minutes the first time." },
+          { "name": "AETHYR_DAEMON", "description": "<code>1</code> by default. Set <code>0</code> to fall back to a one-shot editor launch per call." },
+          { "name": "AETHYR_DAEMON_IDLE_SECONDS", "description": "Default <code>300</code>. The headless editor exits after this many seconds with no connected clients. The minimum is 5." },
+          { "name": "AETHYR_DAEMON_MAX_LIFETIME_SECONDS", "description": "Default <code>3600</code>. The headless editor exits after this long no matter what. Set <code>0</code> to turn the limit off." },
+          { "name": "AETHYR_PREWARM", "description": "<code>0</code> by default. Set <code>1</code> to start the headless editor when the server starts, so the first call doesn't pay the cold start." },
+          { "name": "AETHYR_EDITOR_ARGS", "description": "Extra arguments added to the headless editor's command line, separated by spaces. Avoid <code>-EnableAllPlugins</code>." },
+          { "name": "AETHYR_EDITOR_CONFIG", "description": "Picks which <code>UnrealEditor-Cmd</code> build to run. Detected from the plugin DLL suffix, and <code>doctor</code> shows the result. Set it only if the guess is wrong, for example for a <code>DebugGame</code> editor build." },
+          { "name": "AETHYR_EDITOR_TARGET", "description": "Editor target name for projects with a unique build environment. Aethyr looks for <code>&lt;Project&gt;/Binaries/Win64/&lt;Target&gt;-Cmd.exe</code> before the engine's own <code>UnrealEditor-Cmd.exe</code>." },
+          { "name": "AETHYR_EDITOR_CMD", "description": "Full path to a <code>-Cmd.exe</code> that overrides both of the above." },
+          { "name": "AETHYR_PLUGIN_DENYLIST", "description": "Comma-separated plugin names to skip when the headless editor starts, for a plugin that crashes on load. Also read from <code>Config/DefaultAethyr.ini</code> under <code>[Aethyr]</code> as <code>PluginDenylist=</code>, and the two are combined." },
+          { "name": "AETHYR_PLUGIN_AUTO_QUARANTINE", "description": "<code>1</code> by default. Plugins that are predicted to be broken, or that break the headless editor's startup twice, are set aside along with the plugins that depend on them. Set <code>0</code> to report failures without quarantining." },
+          { "name": "AETHYR_CACHE_TTL_SECONDS", "description": "Default <code>30</code>. How long the server remembers read-tool answers. A write clears the entries for the asset it touched. Set <code>0</code> to turn the cache off." },
+          { "name": "AETHYR_LIST_MAX_BYTES", "description": "Default <code>16384</code>. The size budget for one list reply. A page that would go over is cut short, and <code>next_cursor</code> continues from there. Set <code>0</code> to turn the budget off." },
+          { "name": "AETHYR_LIVE_PORT", "description": "TCP port for the <code>live</code> backend. By default the editor picks a free port and publishes it in <code>&lt;Project&gt;/Saved/aethyr-live.json</code>, and the server reads it from there. Set it in both processes only if you need a fixed port." },
+          { "name": "AETHYR_LIVE_TOKEN", "description": "Shared secret for the live backend. By default the editor makes a random one and writes it to the same file. Set it only if you'd rather use an env var, for example in CI." },
+          { "name": "AETHYR_LIVE_DISABLED", "description": "<code>0</code> by default. Set <code>1</code> so the editor doesn't start its TCP listener, for a daemon-only setup." },
+          { "name": "AETHYR_ALLOW_PYTHON", "description": "Read in the editor's environment. <code>run_python_script</code> runs by default. Set <code>0</code> to turn it off. It still runs in a read-only session." },
+          { "name": "AETHYR_ALLOW_UI", "description": "Read in the editor's environment. <code>ui_focus_tab</code> and <code>ui_invoke_menu</code> run by default. Set <code>0</code> to turn them off. <code>ui_invoke_menu</code> is refused in a read-only session." },
+          { "name": "AETHYR_HTTP_PORT", "description": "Unset by default, so the server uses stdio. Set a port from 1 to 65535 to serve JSON-RPC over a localhost HTTP socket instead." },
+          { "name": "AETHYR_HTTP_TOKEN", "description": "Bearer token for the HTTP transport. If you leave it unset, the server makes a random one at startup and prints it once to stderr." },
+          { "name": "AETHYR_EPIC_INTEROP", "description": "<code>1</code> by default. Set <code>0</code> to turn the Engine Toolset Bridge off, so the <code>epic_*</code> tools are never offered." },
+          { "name": "AETHYR_EPIC_URL", "description": "Full loopback URL for Epic's MCP server, for example <code>http://127.0.0.1:8123/mcp</code>. By default Aethyr reads the port and path from your project's settings and falls back to <code>127.0.0.1:8000/mcp</code>. A non-loopback host is ignored." },
+          { "name": "AETHYR_EPIC_AUTOSTART", "description": "<code>1</code> by default, read by the editor module. Set <code>0</code> in the editor's environment to stop it starting Epic's MCP server on load." },
+          { "name": "AETHYR_EPIC_PRIVATE_DIR", "description": "Where <code>launch-editor --private-epic-build</code> keeps its private copies of Epic's plugins. The default is <code>&lt;Project&gt;/Saved/Aethyr/EpicMcp</code>. A folder inside the engine is refused." },
+          { "name": "AETHYR_EPIC_BACKUP", "description": "Copies the target <code>.uasset</code> to <code>Saved/AethyrBackups/epic-*</code> before a bridged write. On by default in the Fab build and off in the full build. A bridged write never gets Aethyr's own compile gate or atomic rollback." },
+          { "name": "AETHYR_HUB", "description": "On by default, so every client on a project shares one server. Set <code>0</code> for one server per client." },
+          { "name": "AETHYR_HUB_IDLE_SECONDS", "description": "Default <code>600</code>. How long the shared server keeps running with no attached clients." },
+          { "name": "AETHYR_HUB_BUSY_WAIT_MS", "description": "Default <code>5000</code>. How long a client's call waits for the shared backend to free up before it gets a retryable busy error." },
+          { "name": "AETHYR_UPDATE_CHECK", "description": "<code>1</code> by default. Controls the once-a-day release check and the \"update available\" notice at connect. Set <code>0</code> to turn both off. The Fab build has no update check." },
+          { "name": "AETHYR_UPDATE_REPO", "description": "Where the update check and <code>apply_update</code> look for releases, as <code>owner/repo</code>. For a private mirror." }
         ]
       },
       {
@@ -281,6 +578,11 @@
           { "name": "commandlet", "description": "Spawns a headless editor to serve calls when none is open." },
           { "name": "mock", "description": "Fixtures only, no engine; for trying the wire format without a project. Writes are blocked." }
         ]
+      },
+      {
+        "id": "cli",
+        "heading": "Command line",
+        "html": "<p>Run <code>AethyrMcp.exe</code> with one of these. With no arguments it runs the MCP server on stdio.</p><ul><li><code>setup --project &lt;dir or .uproject&gt;</code>: install or update Aethyr in one project and register it with your AI clients. See <a href='/install.md'>install.md</a>. <code>--dry-run</code> previews the plan.</li><li><code>launch-editor --project &lt;dir or .uproject&gt;</code>: start the editor with Epic's MCP on for one session.</li><li><code>doctor</code>: run setup checks. It exits 0 when everything is healthy.</li><li><code>config --client=&lt;name&gt;</code>: print a ready-to-paste config snippet for a client, with your paths filled in.</li><li><code>dump-tools [--md|--json]</code>: print the full tool catalog, offline.</li><li><code>call &lt;tool&gt; --args '&lt;json&gt;'</code>: run one tool and print the result.</li><li><code>--version</code>: print the build version.</li></ul><h3>Engine Toolset Bridge</h3><p>The three <code>epic_*</code> tools (<code>epic_list_toolsets</code>, <code>epic_describe_toolset</code> and <code>epic_call_tool</code>) reach Epic's own toolsets in a running UE 5.8 editor. Aethyr's plugin pulls Epic's MCP plugin in for the editor and starts its server. A Blueprint-only project on the precompiled zip uses <code>Saved/Aethyr/Launch-Editor.bat</code> instead. Set <code>AETHYR_EPIC_INTEROP=0</code> to turn the bridge off.</p>"
       }
     ],
     "pager": {

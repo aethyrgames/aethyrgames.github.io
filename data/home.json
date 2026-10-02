@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Aethyr for Unreal Engine 5: AI that speaks Blueprint",
-    "description": "A corruption-safe MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 82 proven tools. No editor scripting."
+    "description": "An MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 301 tools. No editor scripting."
   },
   "nav": {
     "links": [
@@ -42,7 +42,7 @@
       "glitch",
       "glitch arcane"
     ],
-    "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting, no C++, and <strong>nothing that can corrupt your assets.</strong>",
+    "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting and no C++. <strong>Batched Blueprint writes go through a compile gate, and a failed compile rolls the whole batch back.</strong>",
     "cta": [
       {
         "href": "/download/",
@@ -63,13 +63,13 @@
     },
     "stats": [
       {
-        "value": "82",
-        "dataCount": 82,
-        "label": "proven tools"
+        "value": "301",
+        "dataCount": 301,
+        "label": "tools"
       },
       {
-        "value": "0",
-        "label": "corruption vectors"
+        "value": "Gated",
+        "label": "batch writes"
       },
       {
         "value": "5.8+",
@@ -83,11 +83,11 @@
       },
       {
         "icon": "⛨",
-        "label": "Auto-backup before every write"
+        "label": "Auto-backup before each asset's first save"
       },
       {
         "icon": "✓",
-        "label": "Compile gate — never saves broken"
+        "label": "Compile gate on batches"
       }
     ]
   },
@@ -95,7 +95,7 @@
     "READ ANY BLUEPRINT",
     "AUTHOR SAFELY",
     "SPEAK IN PLAIN LANGUAGE",
-    "ATOMIC + BACKED-UP WRITES",
+    "COMPILE-GATED BATCHES",
     "WORKS HEADLESS",
     "ANY MCP CLIENT"
   ],
@@ -108,20 +108,20 @@
         "accent": "cyan",
         "title": "See everything",
         "body": "Variables, functions, graphs, nodes, components, interfaces, timelines: your AI reads the whole structure of a Blueprint, no guessing.",
-        "tag": "32 read tools"
+        "tag": "read tools"
       },
       {
         "glyph": "✶",
         "accent": "magenta",
         "title": "Author by asking",
         "body": "&ldquo;Add a dash ability with a 2-second cooldown.&rdquo; It spawns the variables, wires the nodes, and compiles—the way you'd do it by hand, but spoken.",
-        "tag": "47 write tools"
+        "tag": "write tools"
       },
       {
         "glyph": "⛨",
         "accent": "ember",
-        "title": "Corruption-safe by design",
-        "body": "Every write saves through a compile gate and an automatic backup ring. Anything that could damage a project simply isn't in this build.",
+        "title": "Safety rails built in",
+        "body": "Batched Blueprint writes compile before they save, and a failed compile rolls the batch back. Each asset is backed up before its first save. Powerful tools like Python, config edits and deletes are there too, and they're explicit. One env var turns on read-only.",
         "tag": "safe"
       },
       {
@@ -129,13 +129,13 @@
         "accent": "violet",
         "title": "All-or-nothing batches",
         "body": "Chain a dozen edits into one transaction. If step seven fails, the whole thing rolls back; your graph is never left half-rewritten.",
-        "tag": "3 batch tools"
+        "tag": "2 batch tools"
       },
       {
         "glyph": "◎",
         "accent": "cyan",
         "title": "Your AI, your client",
-        "body": "Speaks the Model Context Protocol, so it works with any MCP client, Claude included. Point it at a <code>.uproject</code> and go.",
+        "body": "Speaks the Model Context Protocol, so it works with any MCP client, Claude included. Open your client in your Unreal project folder and go.",
         "tag": "mcp"
       },
       {
@@ -173,7 +173,7 @@
   },
   "snippet": {
     "heading": "Paste and go.",
-    "caption": "Add to your MCP client config with your own paths. Run AethyrMcp.exe config --client=<name> to print this filled in for your client.",
+    "caption": "Or add it by hand. AETHYR_PROJECT is optional, and only needed if your client doesn't start in the project folder. Run AethyrMcp.exe config --client=<name> to print this filled in for your client.",
     "code": "{\n  \"mcpServers\": {\n    \"aethyr\": {\n      \"command\": \"C:\\\\Game\\\\Plugins\\\\Aethyr\\\\Binaries\\\\Win64\\\\AethyrMcp.exe\",\n      \"env\": {\n        \"AETHYR_PROJECT\": \"C:\\\\Game\\\\MyGame.uproject\"\n      }\n    }\n  }\n}"
   },
   "compare": {
@@ -182,10 +182,10 @@
     "note": "Epic shipped an experimental in-editor MCP server in UE 5.8. Here's how Aethyr is different.",
     "cols": ["Aethyr", "Epic Native MCP (5.8)", "Generic AI Copilot"],
     "rows": [
-      { "feature": "Blueprint write tools", "values": ["47", "~5", "0"] },
-      { "feature": "Corruption safety", "values": ["✓", "—", "—"] },
+      { "feature": "Write tools", "values": ["Full set", "~5", "0"] },
+      { "feature": "Compile-gated batches", "values": ["✓", "—", "—"] },
       { "feature": "Batch operations", "values": ["✓", "—", "—"] },
-      { "feature": "Blueprint read tools", "values": ["32", "limited", "0"] },
+      { "feature": "Read tools", "values": ["Full set", "limited", "0"] },
       { "feature": "Local-only / NDA safe", "values": ["✓", "✓", "—"] },
       { "feature": "No telemetry", "values": ["✓", "✓", "—"] }
     ]
@@ -197,7 +197,7 @@
       {
         "no": "01",
         "title": "Bind your AI",
-        "body": "Drop the server into your MCP client's config. One JSON block — paste, point at your project, done."
+        "body": "Ask your assistant to set it up, or run setup. It adds Aethyr to your MCP client for you, and edits no project files."
       },
       {
         "no": "02",
@@ -207,7 +207,7 @@
       {
         "no": "03",
         "title": "Watch it weave",
-        "body": "It reads, edits, compiles, and saves: atomically, backed up, on the real asset. You review the diff."
+        "body": "It reads, edits, compiles, and saves on the real asset. Batches are all-or-nothing, and each asset is backed up before its first save. You review the diff."
       }
     ]
   },
@@ -216,15 +216,15 @@
     "items": [
       {
         "q": "Will it corrupt my project?",
-        "a": "No. Every write goes through a compile gate: if the Blueprint doesn't compile, the save is aborted. Before anything changes, an automatic backup copy is made. Reads are entirely zero-write—nothing on disk changes."
+        "a": "Batched Blueprint writes (<code>apply_ops</code>) go through a compile gate, and a failed compile rolls the whole batch back with nothing written. Single-step writes save as they go, unless you set AETHYR_STRICT_COMPILE=1. A backup copy of the on-disk asset is made before the first save of each asset in a session. Tools like Python scripting and config edits skip those checks, so use read-only mode if you only want to look."
       },
       {
         "q": "Does it send data to the cloud?",
-        "a": "No telemetry, no analytics, no cloud dependency. Everything runs on your machine. Your project never leaves your local environment."
+        "a": "No telemetry and no analytics. Your project never leaves your machine. The GitHub build checks GitHub for new releases about once a day (turn that off with AETHYR_UPDATE_CHECK=0). The Fab build makes no network calls of its own."
       },
       {
         "q": "Can I use it read-only?",
-        "a": "Yes. Set AETHYR_READ_ONLY=1 in the server's environment and every write tool refuses before touching a file. The free build allows writes by default. Set it for any session where you only want to look."
+        "a": "Writes are on by default in every build. Set AETHYR_READ_ONLY=1 for any session where you only want to look."
       },
       {
         "q": "Does it need the Unreal Editor open?",
@@ -242,8 +242,8 @@
   },
   "summon": {
     "kicker": "ACQUIRE",
-    "heading": "One package.<br>The proven core.",
-    "body": "A single, focused build with only the tools we'd stake our reputation on, every one verified against real projects.",
+    "heading": "Every tool.<br>Full access.",
+    "body": "One build with the whole tool surface and writes on by default. Set one env var if you want a read-only session.",
     "cta": [
       {
         "href": "/download/",
@@ -256,7 +256,7 @@
         "class": "btn btn-ghost big"
       }
     ],
-    "fineprint": "Free · no telemetry · local only"
+    "fineprint": "Free · no telemetry · your project stays local"
   },
   "footer": {
     "tagline": "Made for builders who'd rather describe a mechanic than wire it by hand.",
