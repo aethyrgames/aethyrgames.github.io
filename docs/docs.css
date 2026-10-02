@@ -288,3 +288,61 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opa
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important}
   .side{transition:none}}
+
+/* ---- support chip: "buy me a coffee" (js/support.js) ---- */
+.support-chip{
+  position:relative;display:inline-flex;align-items:center;gap:.5em;flex-shrink:0;
+  padding:.38rem .85rem .38rem .7rem;border-radius:999px;border:1px solid transparent;
+  background:linear-gradient(var(--void-2),var(--void-2)) padding-box,
+    linear-gradient(120deg,var(--cyan),var(--violet) 60%,var(--magenta)) border-box;
+  box-shadow:0 0 14px rgba(47,185,255,.16),0 0 22px rgba(155,107,255,.12);
+  color:var(--ink)!important;font-family:var(--f-arcane);font-weight:600;font-size:.84rem;
+  letter-spacing:.02em;text-transform:none;white-space:nowrap;line-height:1.2;
+  transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+.support-chip:hover{transform:translateY(-1px);
+  box-shadow:0 0 18px rgba(47,185,255,.4),0 0 30px rgba(155,107,255,.3)}
+.support-chip:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.support-chip .sc-mark{width:16px;height:16px;display:block;filter:drop-shadow(0 0 4px rgba(47,185,255,.6))}
+.support-chip .sc-label{position:relative;display:inline-block}
+.support-chip .sc-short{display:none}
+/* burst: two sliced copies of the label in Aethyr's glitch colours (magenta, cyan).
+   Both layers are invisible outside their keyframes. */
+.support-chip .sc-label::before,.support-chip .sc-label::after{
+  content:attr(data-label);position:absolute;inset:0;pointer-events:none;opacity:0}
+.support-chip .sc-label::before{color:var(--magenta)}
+.support-chip .sc-label::after{color:var(--cyan)}
+.support-chip.is-glitch .sc-label::before{animation:sc-gl-a .5s steps(2,end)}
+.support-chip.is-glitch .sc-label::after{animation:sc-gl-b .5s steps(2,end)}
+.support-chip.is-glitch{animation:sc-jitter .5s steps(2,end)}
+@keyframes sc-gl-a{
+  0%{opacity:1;clip-path:inset(0 0 70% 0);transform:translate(-.3em,0)}
+  25%{opacity:1;clip-path:inset(40% 0 30% 0);transform:translate(.35em,0)}
+  50%{opacity:1;clip-path:inset(70% 0 4% 0);transform:translate(-.4em,0)}
+  75%{opacity:1;clip-path:inset(15% 0 60% 0);transform:translate(.3em,0)}
+  100%{opacity:0;clip-path:inset(0 0 100% 0);transform:none}}
+@keyframes sc-gl-b{
+  0%{opacity:1;clip-path:inset(60% 0 10% 0);transform:translate(.35em,0)}
+  25%{opacity:1;clip-path:inset(8% 0 72% 0);transform:translate(-.35em,0)}
+  50%{opacity:1;clip-path:inset(35% 0 40% 0);transform:translate(.4em,0)}
+  75%{opacity:1;clip-path:inset(75% 0 2% 0);transform:translate(-.3em,0)}
+  100%{opacity:0;clip-path:inset(0 0 100% 0);transform:none}}
+@keyframes sc-jitter{
+  0%,100%{transform:none}
+  20%{transform:translate(2px,-1px) skewX(-8deg)}
+  45%{transform:translate(-2px,1px) skewX(7deg)}
+  70%{transform:translate(2px,0) skewX(-5deg)}}
+@media(prefers-reduced-motion:reduce){
+  .support-chip,.support-chip.is-glitch,
+  .support-chip.is-glitch .sc-label::before,.support-chip.is-glitch .sc-label::after{animation:none!important;transition:none}
+  .support-chip:hover{transform:none}}
+/* docs: chip lives at the right end of the sticky topbar and stays visible on mobile */
+.topbar .crumbs{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .support-chip{margin-left:auto}
+.foot-support .support-chip{margin-left:.4rem}
+@media(max-width:600px){
+  .topbar{gap:10px;padding-inline:14px}
+  .topbar .badge{display:none}
+  .support-chip .sc-long{display:none}
+  .support-chip .sc-short{display:inline-block}
+  .topbar .support-chip{padding:.3rem .65rem .3rem .55rem;font-size:.78rem}
+}
