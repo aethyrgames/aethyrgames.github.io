@@ -26,7 +26,7 @@ Live at https://aethyr.gg
 | `img/brand/` | — | Aethyr lockup, crystal mark, and favicons |
 | `changelog/index.html` | `/changelog/` | Release history. Content in `data/changelog.json` |
 | `security/index.html` | `/security/` | Security and privacy page. Content in `data/security.json` |
-| `licensing/index.html` | `/licensing/` | License summary and brand guidance. Content in `data/license.json` |
+| `licensing/index.html` | `/licensing/` | Aethyr License summary and brand guidance. Content in `data/license.json` |
 | `reweave/` | `/reweave/` | Reweave, HTML to UMG Widget Blueprint tool page |
 | `imgui-studio/` | `/imgui-studio/` | ImGui Studio, an in-browser app |
 | `slate-studio/` | `/slate-studio/` | Slate Studio, an in-browser app |

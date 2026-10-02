@@ -22,10 +22,6 @@
         "label": "Changelog"
       },
       {
-        "href": "/reweave/",
-        "label": "Reweave"
-      },
-      {
         "href": "#summon",
         "label": "Get it",
         "class": "nav-cta"
@@ -256,11 +252,11 @@
         "class": "btn btn-ghost big"
       }
     ],
-    "fineprint": "Free · no telemetry · your project stays local"
+    "fineprint": "Free, with credit · no telemetry · your project stays local"
   },
   "footer": {
     "tagline": "Made for builders who'd rather describe a mechanic than wire it by hand.",
-    "legal": "Unreal Engine is a trademark of Epic Games, Inc., referenced for compatibility only. All artwork original.",
+    "legal": "Aethyr is free to use under the Aethyr License. Ship something made with it and credit Doug Fessler. Unreal Engine is a trademark of Epic Games, Inc., referenced for compatibility only. All artwork original.",
     "links": [
       {
         "href": "/docs/",
@@ -269,10 +265,6 @@
       {
         "href": "/changelog/",
         "label": "Changelog"
-      },
-      {
-        "href": "/reweave/",
-        "label": "Reweave"
       },
       {
         "href": "/security/",

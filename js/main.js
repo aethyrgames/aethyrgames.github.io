@@ -191,7 +191,9 @@
         '<div class="foot-brand"><img class="foot-mark" src="img/brand/aethyr-crystal.svg" alt="" aria-hidden="true" width="20" height="20"> Aethyr</div>' +
         '<p class="foot-note">' + data.footer.tagline + '</p>' +
         footLinksHTML +
+        (window.AethyrSupport ? window.AethyrSupport.footerHtml() : '') +
         '<p class="foot-legal">' + data.footer.legal + '</p>';
+      if (window.AethyrSupport) window.AethyrSupport.wire();
     }
 
     /* ---- latest release: version and date, always shown. js/release.js reads

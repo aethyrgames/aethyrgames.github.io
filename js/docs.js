@@ -149,6 +149,7 @@ async function loadDocsPage(jsonPath) {
           + '<span></span><span></span><span></span></button>'
           + '<span class="crumbs">' + crumbs + '</span>'
           + (tb.badge ? '<span class="badge">' + esc(tb.badge) + '</span>' : '')
+          + (window.AethyrSupport ? window.AethyrSupport.chipHtml('support-chip-top') : '')
           + '</div>';
       }
 
@@ -205,6 +206,7 @@ async function loadDocsPage(jsonPath) {
       main.innerHTML = topbarHTML + '<article class="doc">' + articleHTML + '</article>';
     }
 
+    if (window.AethyrSupport) window.AethyrSupport.wire();
     initScrollSpy();
     initMobileNav();
 
