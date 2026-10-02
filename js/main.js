@@ -260,6 +260,9 @@
      over the final seven, the last two beats slowest so the number settles gently. ---- */
   document.querySelectorAll('[data-count]').forEach((el) => {
     const target = parseInt(el.dataset.count, 10);
+    // Reserve the final number's width so the row doesn't shift while it counts.
+    // Digits are tabular (CSS), so N digits are exactly N ch wide.
+    if (target) el.style.minWidth = String(target).length + 'ch';
     if (reduce || !target) { el.textContent = String(target); return; }
     // delays (ms) before showing target-6 .. target (rapid slow-down; last two slowest).
     const tail = [48, 88, 152, 240, 344, 464, 576];

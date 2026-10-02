@@ -7,13 +7,13 @@
 
   function chipHtml(extraClass) {
     return '<a class="support-chip' + (extraClass ? ' ' + extraClass : '') + '" href="' + URL + '"'
-      + ' target="_blank" rel="noopener" title="Buy me a potion (opens ko-fi.com)" aria-label="Buy me a potion">'
+      + ' target="_blank" rel="noopener" title="Buy me a Potion! (opens ko-fi.com)" aria-label="Buy me a Potion!">'
       + '<svg class="sc-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">'
       + '<defs><linearGradient id="sc-potion-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb9ff"/><stop offset="1" stop-color="#9b6bff"/></linearGradient></defs>'
       + '<path d="M6 1.6h4v1.6H6z" fill="#b98a5a"/>'
       + '<path d="M6.4 3.2h3.2v2.6c0 .5.3.9.7 1.3A4.6 4.6 0 1 1 5.7 7.1c.4-.4.7-.8.7-1.3z" fill="url(#sc-potion-g)" fill-opacity=".9" stroke="#8fe3ff" stroke-width=".8" stroke-linejoin="round"/>'
       + '<circle cx="6.6" cy="10.4" r=".8" fill="#fff" fill-opacity=".7"/></svg>'
-      + '<span class="sc-label sc-long" data-label="Buy me a potion">Buy me a potion</span>'
+      + '<span class="sc-label sc-long" data-label="Buy me a Potion!">Buy me a Potion!</span>'
       + '<span class="sc-label sc-short" data-label="Potion" aria-hidden="true">Potion</span>'
       + '</a>';
   }
