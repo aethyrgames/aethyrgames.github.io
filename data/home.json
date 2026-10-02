@@ -42,7 +42,7 @@
       "glitch",
       "glitch arcane"
     ],
-    "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting and no C++. <strong>Blueprint writes go through a compile gate, so a broken graph never gets saved.</strong>",
+    "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting and no C++. <strong>Batched Blueprint writes go through a compile gate, and a failed compile rolls the whole batch back.</strong>",
     "cta": [
       {
         "href": "/download/",
@@ -69,7 +69,7 @@
       },
       {
         "value": "Gated",
-        "label": "Blueprint writes"
+        "label": "batch writes"
       },
       {
         "value": "5.8+",
@@ -87,7 +87,7 @@
       },
       {
         "icon": "✓",
-        "label": "Compile gate — never saves broken"
+        "label": "Compile gate on batches"
       }
     ]
   },
@@ -95,7 +95,7 @@
     "READ ANY BLUEPRINT",
     "AUTHOR SAFELY",
     "SPEAK IN PLAIN LANGUAGE",
-    "COMPILE-GATED WRITES",
+    "COMPILE-GATED BATCHES",
     "WORKS HEADLESS",
     "ANY MCP CLIENT"
   ],
@@ -120,8 +120,8 @@
       {
         "glyph": "⛨",
         "accent": "ember",
-        "title": "Compile-gated writes",
-        "body": "Native Blueprint writes save through a compile gate and a backup of the asset. Powerful tools like Python, config edits and deletes are there too, and they're explicit. One env var turns on read-only.",
+        "title": "Safety rails built in",
+        "body": "Batched Blueprint writes compile before they save, and a failed compile rolls the batch back. Each asset is backed up before its first save. Powerful tools like Python, config edits and deletes are there too, and they're explicit. One env var turns on read-only.",
         "tag": "safe"
       },
       {
@@ -183,7 +183,7 @@
     "cols": ["Aethyr", "Epic Native MCP (5.8)", "Generic AI Copilot"],
     "rows": [
       { "feature": "Write tools", "values": ["Full set", "~5", "0"] },
-      { "feature": "Compile-gated Blueprint writes", "values": ["✓", "—", "—"] },
+      { "feature": "Compile-gated batches", "values": ["✓", "—", "—"] },
       { "feature": "Batch operations", "values": ["✓", "—", "—"] },
       { "feature": "Read tools", "values": ["Full set", "limited", "0"] },
       { "feature": "Local-only / NDA safe", "values": ["✓", "✓", "—"] },
@@ -207,7 +207,7 @@
       {
         "no": "03",
         "title": "Watch it weave",
-        "body": "It reads, edits, compiles, and saves: atomically, backed up, on the real asset. You review the diff."
+        "body": "It reads, edits, compiles, and saves on the real asset. Batches are all-or-nothing, and each asset is backed up before its first save. You review the diff."
       }
     ]
   },
@@ -216,7 +216,7 @@
     "items": [
       {
         "q": "Will it corrupt my project?",
-        "a": "Blueprint writes go through a compile gate, and a failed compile aborts the save. A backup copy of the on-disk asset is made before the first save of each asset in a session. Tools like Python scripting and config edits skip those checks, so use read-only mode if you only want to look."
+        "a": "Batched Blueprint writes (<code>apply_ops</code>) go through a compile gate, and a failed compile rolls the whole batch back with nothing written. Single-step writes save as they go, unless you set AETHYR_STRICT_COMPILE=1. A backup copy of the on-disk asset is made before the first save of each asset in a session. Tools like Python scripting and config edits skip those checks, so use read-only mode if you only want to look."
       },
       {
         "q": "Does it send data to the cloud?",

@@ -1,3 +1,5 @@
+> Historical research, June 2026. Tool counts, tiers and the Epic comparison are out of date. See the main repo's docs/TOOLS.md and LICENSE.md.
+
 # Aethyr — Growth Strategy Notes
 *Research synthesized June 2026. Not published on site.*
 

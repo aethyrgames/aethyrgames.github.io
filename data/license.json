@@ -1,74 +1,172 @@
 {
   "meta": {
     "title": "License — Aethyr",
-    "description": "Aethyr MCP Attribution + Share-Alike License. Free to use, modify, and distribute with credit and share-alike terms."
+    "description": "Aethyr is licensed under a proprietary End User License Agreement. This page summarizes it. The full text ships as LICENSE.md in every download."
   },
   "sidebar": {
-    "brand": { "href": "/", "label": "Aethyr" },
+    "brand": {
+      "href": "/",
+      "label": "Aethyr"
+    },
     "backHref": "/",
     "sections": [
       {
-        "heading": "License",
+        "heading": "Aethyr license (EULA)",
         "items": [
-          { "href": "#attribution", "label": "Attribution" },
-          { "href": "#share-alike", "label": "Share-Alike" },
-          { "href": "#no-restrictions", "label": "No Additional Restrictions" },
-          { "href": "#brand", "label": "Brand & attribution" },
-          { "href": "#palette", "label": "Colour & type" },
-          { "href": "#warranty", "label": "Warranty" }
+          {
+            "href": "#overview",
+            "label": "Overview"
+          },
+          {
+            "href": "#grant",
+            "label": "Grant, tiers, seats"
+          },
+          {
+            "href": "#restrictions",
+            "label": "Restrictions"
+          },
+          {
+            "href": "#ownership",
+            "label": "Ownership"
+          },
+          {
+            "href": "#assets",
+            "label": "Your assets and backups"
+          },
+          {
+            "href": "#keys",
+            "label": "License keys and data"
+          },
+          {
+            "href": "#warranty",
+            "label": "Warranty and liability"
+          },
+          {
+            "href": "#terms",
+            "label": "Support, term, law"
+          },
+          {
+            "href": "#third-party",
+            "label": "Third-party notices"
+          }
+        ]
+      },
+      {
+        "heading": "This website",
+        "items": [
+          {
+            "href": "#site-content",
+            "label": "Site content license"
+          },
+          {
+            "href": "#brand",
+            "label": "Brand & attribution"
+          },
+          {
+            "href": "#palette",
+            "label": "Colour & type"
+          }
         ]
       },
       {
         "heading": "Resources",
         "items": [
-          { "href": "/docs/", "label": "Documentation" },
-          { "href": "/security/", "label": "Security & Privacy" },
-          { "href": "/", "label": "← Back to site" }
+          {
+            "href": "/docs/",
+            "label": "Documentation"
+          },
+          {
+            "href": "/security/",
+            "label": "Security & Privacy"
+          },
+          {
+            "href": "/",
+            "label": "← Back to site"
+          }
         ]
       }
     ]
   },
   "topbar": {
-    "crumbs": ["aethyr.gg", "license"]
+    "crumbs": [
+      "aethyr.gg",
+      "license"
+    ]
   },
   "article": {
     "heading": "License",
-    "lead": "Aethyr MCP — Attribution + Share-Alike License. Copyright © 2026 Doug Fessler.",
+    "lead": "A plain-language summary of the Aethyr End User License Agreement. The full text is LICENSE.md inside every download.",
     "sections": [
       {
-        "id": "attribution",
-        "heading": "1. Attribution",
-        "html": "<p>Every distribution of the Software, modified or unmodified, must:</p><ol><li>Retain this copyright notice and these conditions in all source files.</li><li>Include the following credit wherever third-party acknowledgements are displayed (documentation, README, about screen, or equivalent):<pre><code>Aethyr MCP — created by Doug Fessler  https://aethyr.gg</code></pre></li></ol>"
+        "id": "overview",
+        "heading": "Overview",
+        "html": "<p>Aethyr is the standalone server executable, the editor plugin components and the documentation. It is licensed under a proprietary End User License Agreement (the EULA), not an open source license. Licensor: Doug Fessler. The EULA text was last updated 2026-07-11.</p><p>The full, binding text is <code>LICENSE.md</code>, inside every download (<code>Plugins/Aethyr/LICENSE.md</code> once unzipped). This page is a plain-language summary. If it and that file differ, the file governs.</p><p>By downloading, installing, activating or using the software you agree to the EULA. If you don't agree, don't install, activate or use it. The EULA says you may request a refund under the applicable storefront policy.</p>"
       },
       {
-        "id": "share-alike",
-        "heading": "2. Share-Alike",
-        "html": "<p>Any modified version you distribute must be released under these same terms. The corresponding source code must be made publicly available at the time of distribution.</p>"
+        "id": "grant",
+        "heading": "Grant, tiers and seats (Sections 0 and 1)",
+        "html": "<p>Section 1 grants a non-exclusive, non-transferable, non-sublicensable license to install and use the software <strong>per Seat</strong>, not per machine, in the tier purchased. A Seat (Section 0) is an authorization for one identified individual. The grant is subject to the EULA and to payment of the applicable fee.</p><ul><li><strong>Personal:</strong> use by one individual, or by an entity with under USD $100,000 in annual revenue or funding, on up to 2 machines that individual controls.</li><li><strong>Professional:</strong> use within one organization, up to the number of named Seats in your order. Each Seat may activate up to the number of machines stated in your order. Any Pro exclusive capabilities, if and when offered, also need a valid Professional license.</li></ul><p>Concurrent or shared use by more individuals than purchased Seats needs additional Seats. You may use the software to develop commercial products, and <strong>output you create with the software belongs to you</strong>.</p>"
       },
       {
-        "id": "no-restrictions",
-        "heading": "3. No Additional Restrictions",
-        "html": "<p>You may not impose terms on recipients that are more restrictive than these conditions.</p>"
+        "id": "restrictions",
+        "heading": "Restrictions (Section 3)",
+        "html": "<p>You may not:</p><ul><li>redistribute, resell, sublicense, rent, lease or share the software or any license key,</li><li>reverse engineer, decompile, disassemble or try to derive the source code, internal design or algorithms of the software, or circumvent, disable or interfere with any license, activation or technical protection measure, except to the limited extent applicable law expressly permits,</li><li>remove or alter proprietary notices, or</li><li>use the software to build a competing product.</li></ul><p><strong>EU carve out.</strong> Under Directive 2009/24/EC Article 6, decompilation strictly necessary to achieve interoperability of an independently created program may not be prohibited. Clause 3(b) is limited accordingly in the EU.</p>"
+      },
+      {
+        "id": "ownership",
+        "heading": "Ownership and trade secret (Section 4)",
+        "html": "<p>The software is licensed, not sold. The Licensor keeps all right, title and interest, including intellectual property and trade secrets. The EULA describes the software, and in particular the Core Engine (its core proprietary engine and differentiated authoring capability), as confidential trade secrets provided in object code form only. You agree not to disclose or give third parties access to the software's internal structure or the Core Engine. No rights are granted except as the EULA states.</p><p><strong>AI assisted development (Section 5).</strong> The EULA notes that the software was developed with AI assistance under human architectural direction. You accept the software subject to the warranty disclaimer and liability limitation.</p>"
+      },
+      {
+        "id": "assets",
+        "heading": "Your assets and backups (Section 6)",
+        "html": "<p>The software can read and modify project files, including Unreal Engine <code>.uasset</code> files. The EULA puts the responsibility on you: <strong>you are solely responsible for maintaining source control and backups and for validating changes on a non-production copy before applying them to production assets</strong>. The Licensor recommends version control and the software's built-in backup feature. See <a href='/security/'>Security &amp; Privacy</a> for what the backup feature does.</p>"
+      },
+      {
+        "id": "keys",
+        "heading": "License keys and license data (Sections 2 and 7)",
+        "html": "<p>This is what the EULA text says. Section 2 says the software validates a license key and may periodically contact the Licensor's licensing service to confirm entitlement and refresh a locally stored license file. It says the software is designed to keep working offline for a grace period of 14 days between successful validations. You may not share, publish, resell or circumvent license keys or the activation mechanism. The Licensor may revoke a key upon refund, chargeback or material breach.</p><p>Section 7 says activation and validation may send a license key, a hashed machine identifier, a coarse timestamp, and product and version information to the licensing service. The stated purpose is entitlement verification and abuse prevention. The data is kept for the life of the license. A separate Privacy Policy, linked from the storefront listing at the time of purchase, applies. For EU buyers that standalone policy governs, not just this clause.</p>"
+      },
+      {
+        "id": "warranty",
+        "heading": "Warranty and liability (Sections 8 and 9)",
+        "html": "<p>The software is provided \"as is\" and \"as available\", without warranty of any kind. Section 8 includes any warranty that the software will be error free or will not corrupt or lose data. Where a jurisdiction does not allow excluding implied warranties, the exclusion applies to the maximum extent permitted.</p><p>Section 9 excludes indirect, incidental, special, consequential and exemplary damages, lost profits, lost data, business interruption and cost of substitute goods, to the maximum extent permitted by law. The Licensor's total liability is capped at the amount you paid for the software in the twelve months before the claim. Liability that cannot be limited by law, such as gross negligence, willful misconduct or fraud, is not limited.</p>"
+      },
+      {
+        "id": "terms",
+        "heading": "Support, audits, term and law (Sections 10 to 14)",
+        "html": "<ul><li><strong>Support and updates (10):</strong> support is best effort with no service level commitment. Updates are provided for the engine versions stated at purchase. Support for future engine versions is not guaranteed and may require a new purchase.</li><li><strong>Seat audit (11):</strong> for organizations, the Licensor may ask for a self certification of active Seats on 30 to 60 days' written notice, no more than once per 12 months. If actual use exceeds purchased Seats by more than 5%, you true up the extra Seats. Above that threshold you also bear the reasonable cost of the certification.</li><li><strong>Term (12):</strong> the EULA lasts until terminated. It ends automatically if you breach it, and you must then stop using the software and destroy all copies. Sections 3, 4, 7, 8, 9 and 11 survive termination.</li><li><strong>Governing law (13):</strong> the current text names the governing law as a placeholder, [STATE].</li><li><strong>Entire agreement (14):</strong> the EULA is the whole agreement about the software. If a provision is unenforceable, the rest stays in effect.</li></ul>"
+      },
+      {
+        "id": "third-party",
+        "heading": "Third-party notices",
+        "html": "<p>The Aethyr editor plugin (the modules under <code>Source/</code>) contains only first-party code and depends on Unreal Engine modules. The MCP server executable vendors these libraries, as listed in <code>NOTICE.md</code>, which carries their license texts:</p><ul><li><strong>nlohmann/json</strong>, MIT. JSON-RPC wire format, server only.</li><li><strong>fmt</strong>, MIT. String formatting, server only.</li><li><strong>BLAKE3</strong>, CC0-1.0 (or Apache-2.0). Checksum of the editor's asset gather cache, server only.</li><li><strong>doctest</strong>, MIT. Unit tests, server only, not shipped.</li></ul>"
+      },
+      {
+        "id": "site-content",
+        "heading": "This website's own content and brand assets",
+        "html": "<p>This section is about the website, not the Aethyr software. The site's own repository carries a separate <code>LICENSE</code> file, an Attribution + Share-Alike license with Copyright (c) 2026 Doug Fessler. It applies to that repository's pages, styles and brand assets.</p><ol><li><strong>Attribution.</strong> Every distribution, modified or unmodified, must retain the copyright notice and these conditions in all source files, and include the credit line below wherever third-party acknowledgements are displayed.</li><li><strong>Share-Alike.</strong> A modified version you distribute must be released under the same terms, with the corresponding source made publicly available at the time of distribution.</li><li><strong>No additional restrictions.</strong> You may not impose terms on recipients that are more restrictive than these conditions.</li></ol><p>The file also carries an as-is warranty disclaimer that limits the author's liability.</p>"
       },
       {
         "id": "brand",
-        "heading": "Brand & attribution",
-        "html": "<p>The Attribution clause requires a visible credit. To keep that credit recognisable, present Aethyr consistently wherever it appears.</p><h3>Required credit</h3><p>Reproduce this line verbatim in acknowledgements — an About screen, README, credits roll, or documentation:</p><pre><code>Aethyr MCP — created by Doug Fessler  https://aethyr.gg</code></pre><h3>Wordmark</h3><p>The name is set in <strong>Fraunces</strong>, uppercase, with wide letter-spacing: <span style='font-family:Fraunces,serif;letter-spacing:.16em;text-transform:uppercase;color:var(--ink)'>Aethyr</span>. Keep it one word with a capital A; do not translate, abbreviate, or rename it.</p><ul><li><strong>Do</strong> keep the credit legible and the link intact.</li><li><strong>Do</strong> place the wordmark on a dark ground for contrast.</li><li><strong>Don't</strong> recolour the wordmark into a gradient, add glow or effects, or re-letterspace it.</li><li><strong>Don't</strong> imply endorsement or partnership beyond the credit itself.</li></ul>"
+        "heading": "Brand & attribution (website guidance)",
+        "html": "<p>This is brand guidance for this website and its brand assets. It is not a term of the software license above. To keep the credit recognisable, present Aethyr consistently wherever it appears.</p><h3>Required credit</h3><p>When you reuse this website's content or brand assets, reproduce this line verbatim in acknowledgements — an About screen, README, credits roll, or documentation:</p><pre><code>Aethyr MCP — created by Doug Fessler  https://aethyr.gg</code></pre><h3>Wordmark</h3><p>The name is set in <strong>Fraunces</strong>, uppercase, with wide letter-spacing: <span style='font-family:Fraunces,serif;letter-spacing:.16em;text-transform:uppercase;color:var(--ink)'>Aethyr</span>. Keep it one word with a capital A; do not translate, abbreviate, or rename it.</p><ul><li><strong>Do</strong> keep the credit legible and the link intact.</li><li><strong>Do</strong> place the wordmark on a dark ground for contrast.</li><li><strong>Don't</strong> recolour the wordmark into a gradient, add glow or effects, or re-letterspace it.</li><li><strong>Don't</strong> imply endorsement or partnership beyond the credit itself.</li></ul>"
       },
       {
         "id": "palette",
         "heading": "Colour & type",
         "html": "<p>Aethyr is a void ground with four accents. Each accent carries a meaning in the product UI — reuse the coding if you extend it.</p><ul style='list-style:none;padding:0;display:grid;gap:.55rem;margin:1rem 0'><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#2fb9ff;vertical-align:middle;margin-right:.6em'></span><strong>Cerulean</strong> <code>#2fb9ff</code> — primary accent · read</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#ff2bd6;vertical-align:middle;margin-right:.6em'></span><strong>Magenta</strong> <code>#ff2bd6</code> — write</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#9b6bff;vertical-align:middle;margin-right:.6em'></span><strong>Violet</strong> <code>#9b6bff</code> — batch</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#ff8a4c;vertical-align:middle;margin-right:.6em'></span><strong>Ember</strong> <code>#ff8a4c</code> — safety &amp; caution</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#0b0c1a;border:1px solid var(--line);vertical-align:middle;margin-right:.6em'></span><strong>Void</strong> <code>#0b0c1a</code> — background</li><li><span style='display:inline-block;width:16px;height:16px;border-radius:3px;background:#e8ecff;vertical-align:middle;margin-right:.6em'></span><strong>Ink</strong> <code>#e8ecff</code> — text</li></ul><h3>Typefaces</h3><ul><li><strong>Fraunces</strong> — display &amp; wordmark</li><li><strong>Chakra Petch</strong> — labels, UI, small caps</li><li><strong>Sora</strong> — body text</li><li><strong>JetBrains Mono</strong> — code &amp; data</li></ul>"
-      },
-      {
-        "id": "warranty",
-        "heading": "Warranty Disclaimer",
-        "html": "<p>THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>"
       }
     ],
     "pager": {
-      "prev": { "href": "/security/", "label": "← Security & Privacy" },
-      "next": { "href": "/", "label": "Back to site →" }
+      "prev": {
+        "href": "/security/",
+        "label": "← Security & Privacy"
+      },
+      "next": {
+        "href": "/",
+        "label": "Back to site →"
+      }
     }
   }
 }
