@@ -160,7 +160,7 @@ Setup stops with a `refused.code` instead of guessing. Report the message to the
 | `download_failed` | Check the network, or download the zip by hand and use `-Zip`. Put the release's `SHA256SUMS` beside the zip so it gets verified. Without it the bootstrap warns that verification was skipped. |
 | `checksum_mismatch` | The zip doesn't match `SHA256SUMS`. Don't use it. Download again. |
 | `locked_files` | Something holds files in the plugin folder open. Close it and retry. |
-| `servers_running` | Only with `--no-stop-servers`. Close the project's Aethyr servers, or drop the flag. |
+| `servers_running` | Most often this is `--no-stop-servers` with Aethyr processes still running for the project. Close them, or drop the flag. It also fires when setup can't read a process's command line or can't stop a pid. The message names the pid, so stop it yourself and run setup again. |
 | `internal_error` | Setup hit an unexpected error. The message says where. Run with `-DryRun` to see how far it gets, then report it. |
 
 The bootstrap itself also refuses when it can't find the project or the checksum doesn't match, and it stops before it changes anything.
