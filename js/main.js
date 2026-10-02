@@ -194,21 +194,27 @@
         '<p class="foot-legal">' + data.footer.legal + '</p>';
     }
 
-    /* ---- download CTA version: one fetch, shared across every "/download/" button
-       on this page. Appends the tag on success ("Download free · v0.4.1"), so the
-       label's own copy stays. On any failure (offline, rate limit, bad JSON) the
-       label already in the page stays exactly as it is. ---- */
-    const dlSpans = document.querySelectorAll('a[href="/download/"] > span');
-    if (dlSpans.length) {
-      fetch('https://api.github.com/repos/aethyrgames/aethyr-mcp-releases/releases/latest', {
-        headers: { Accept: 'application/vnd.github+json' }
-      })
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(rel => {
-          if (!rel?.tag_name) return;
-          dlSpans.forEach(s => { s.textContent = s.textContent.trimEnd() + ' · ' + rel.tag_name; });
-        })
-        .catch(err => console.warn('release lookup skipped:', err));
+    /* ---- latest release: version and date, always shown. js/release.js reads
+       data/release.json first (same origin, so it works when GitHub's API is
+       rate-limited) and then the API. Each render overwrites the last one. ---- */
+    if (window.AethyrRelease) {
+      const dlSpans = document.querySelectorAll('a[href="/download/"] > span');
+      dlSpans.forEach(s => { s.dataset.baseLabel = s.textContent.trimEnd(); });
+      const heroRelease = document.getElementById('hero-release');
+      const footer = document.getElementById('site-footer');
+      let footRelease = null;
+      if (footer) {
+        footRelease = document.createElement('p');
+        footRelease.className = 'foot-release';
+        const legal = footer.querySelector('.foot-legal');
+        if (legal) legal.insertAdjacentElement('beforebegin', footRelease); else footer.appendChild(footRelease);
+      }
+      window.AethyrRelease.onRelease(rel => {
+        dlSpans.forEach(s => { s.textContent = s.dataset.baseLabel + ' · ' + rel.tag; });
+        const line = window.AethyrRelease.lineHtml(rel, 'Latest release');
+        if (heroRelease) heroRelease.innerHTML = line;
+        if (footRelease) footRelease.innerHTML = line;
+      });
     }
   } catch (err) {
     console.error('loadHomeContent error:', err);

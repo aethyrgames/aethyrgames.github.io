@@ -47,6 +47,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opa
 @keyframes spin{to{transform:rotate(360deg)}}
 .side .home{display:block;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.18em;
   text-transform:uppercase;color:var(--ink-dim);margin-bottom:1.6rem}
+.side .side-release{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.04em;color:var(--ink-dim);margin:.2rem 0 1rem;line-height:1.5}
+.side .side-release b{color:var(--ink);font-weight:500}
+.side .side-release a{color:var(--cyan)}
 .side nav h4{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.22em;text-transform:uppercase;
   color:var(--violet);margin:1.5rem 0 .5rem}
 .side nav a{display:block;color:var(--ink-dim);padding:.32rem 0 .32rem .8rem;font-size:.92rem;

@@ -35,6 +35,7 @@
   <aside class="side" id="sidebar"></aside>
   <div class="main" id="main-content"></div>
 </div>
+<script src="../js/release.js"></script>
 <script src="../js/docs.js"></script>
 <script>
 // The download links use GitHub's releases/latest/download/<name> form, so they work
@@ -42,6 +43,14 @@
 // doesn't carry a card's zip yet (the precompiled build can trail a tag), the card
 // points at the newest published release that does, or at the releases page.
 loadDocsPage('../data/download.json').then(function () {
+  // The release line always shows: release.json first, then the API's answer.
+  var relLine = document.querySelector('[data-rel]');
+  if (relLine && window.AethyrRelease) {
+    window.AethyrRelease.onRelease(function (rel) {
+      relLine.innerHTML = window.AethyrRelease.lineHtml(rel, 'Latest release')
+        + ' · <a href="https://github.com/' + window.AethyrRelease.repo + '/releases">all releases</a>';
+    });
+  }
   var repo = 'aethyrgames/aethyr-mcp-releases';
   var api = 'https://api.github.com/repos/' + repo;
   var getJson = function (url) {
@@ -102,13 +111,6 @@ loadDocsPage('../data/download.json').then(function () {
             });
           })
           .catch(function () { missing.forEach(function (card) { retarget(card, null); }); });
-      }
-      var line = document.querySelector('[data-rel]');
-      if (line && rel.tag_name) {
-        var date = (rel.published_at || '').slice(0, 10);
-        line.innerHTML = 'Latest release: <b>' + esc(rel.tag_name) + '</b>' + (date ? ', published ' + esc(date) : '')
-          + ' · <a href="' + esc(rel.html_url) + '">release notes</a>'
-          + ' · <a href="https://github.com/' + repo + '/releases">all releases</a>';
       }
     })
     .catch(function (err) { console.warn('release lookup skipped:', err); });

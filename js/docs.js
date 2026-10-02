@@ -119,6 +119,16 @@ async function loadDocsPage(jsonPath) {
       }
       sideHTML += '</nav>';
       sidebar.innerHTML = sideHTML;
+      // Latest Aethyr release under the brand, on Aethyr pages only.
+      if ((s.brand?.label ?? 'Aethyr') === 'Aethyr' && window.AethyrRelease) {
+        const relEl = document.createElement('p');
+        relEl.className = 'side-release';
+        const brandEl = sidebar.querySelector('.brand');
+        if (brandEl) brandEl.insertAdjacentElement('afterend', relEl);
+        window.AethyrRelease.onRelease(rel => {
+          relEl.innerHTML = window.AethyrRelease.lineHtml(rel, 'Latest');
+        });
+      }
     }
 
     // main content
