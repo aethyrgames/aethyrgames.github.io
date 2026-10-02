@@ -165,6 +165,17 @@ Setup stops with a `refused.code` instead of guessing. Report the message to the
 
 The bootstrap itself also refuses when it can't find the project or the checksum doesn't match, and it stops before it changes anything.
 
+## Editor configuration and BuildId mismatches
+
+Aethyr starts the headless editor in `Development`, `DebugGame` or `Debug`. Leave `AETHYR_EDITOR_CONFIG` out of the client entry. With it unset, Aethyr reads the project's manifests (`UnrealEditor.modules`, `UnrealEditor-Win64-DebugGame.modules`, `UnrealEditor-Win64-Debug.modules`) and picks the first configuration whose BuildId matches the engine and whose Aethyr module is built, preferring Development. A project built only in DebugGame needs no setting. `launch-editor` and the `build_editor` step use the same choice, so a DebugGame project gets the DebugGame editor and a DebugGame build command. `doctor`, `config` and `health_check` (`editor_config`) show the configuration, whether it came from `env`, `auto` or `default`, and the manifest and BuildIds compared. Other configurations are listed as inactive, and only the active one's mismatch is an error.
+
+If a launch fails with out-of-date modules or a BuildId mismatch, work down this order and stop at the first step that explains it:
+
+1. Read the `editor configuration` line of `doctor`.
+2. If another built configuration matches, unset `AETHYR_EDITOR_CONFIG` or set it to that one.
+3. If `doctor` says the engine wasn't found, or names another installed engine that matches, set `AETHYR_ENGINE_DIR`.
+4. Only then rebuild the editor target in the active configuration. `doctor` prints the command with the real target name.
+
 ## Manual fallback
 
 If you can't run PowerShell scripts, download `Aethyr-plugin-precompiled.zip` and `SHA256SUMS` from the latest release, check the hash, extract the zip, and run `Aethyr\Binaries\Win64\AethyrMcp.exe setup --project <Project> --zip <path to the zip>`. The manual install steps are at <https://aethyr.gg/download/>.
