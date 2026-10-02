@@ -4,7 +4,7 @@
 
 ## Install and update
 
-- [install.md](https://aethyr.gg/install.md): step-by-step playbook for an AI assistant to install or update Aethyr in a user's Unreal project, including what the setup changes, the flags, and the refusal codes.
+- [install.md](https://aethyr.gg/install.md): step-by-step playbook for an AI assistant to install or update Aethyr in a user's Unreal project, including what the setup changes, the flags, and the refusal codes. Setup writes only the plugin folder, `Saved/`, `Config/DefaultAethyr.ini` (with `--deny`) and the user's own profile files. It never edits the `.uproject`, project source, other plugins or the engine, and it gives full read and write access unless `--read-only` is passed.
 - [install.ps1](https://aethyr.gg/install.ps1): the bootstrap script install.md tells you to fetch, read, and run. It downloads the release, checks its SHA256, and runs `AethyrMcp.exe setup` for one project. It needs no admin rights.
 
 ## Releases

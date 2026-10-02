@@ -19,8 +19,10 @@
        setup's exit code.
 
   This script writes only to the project's Saved/Aethyr/setup-staging folder.
-  Setup then writes inside the project, plus the MCP client config files it
-  lists in its summary (some of those live in your user profile). It never
+  Setup then writes only Plugins/Aethyr and Saved in the project (and
+  Config/DefaultAethyr.ini with --deny), plus your own user config files
+  (skills, guidance and MCP client entries in your profile). It never edits the
+  .uproject or any other project file. It never
   modifies a zip you pass with -Zip, and it needs no admin rights. The three
   newest staging folders are kept and older ones are pruned.
 
