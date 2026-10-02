@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-3", "label": "0.6.3, October 2026" },
           { "href": "#v0-6-2", "label": "0.6.2, October 2026" },
           { "href": "#v0-6-1", "label": "0.6.1, October 2026" },
           { "href": "#v0-6-0", "label": "0.6.0, October 2026" },
@@ -42,6 +43,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-3",
+        "heading": "0.6.3, October 2026",
+        "html": "<p>Aethyr is free to use, for anything. The end user license agreement is gone, and Aethyr now ships under the Aethyr License. You can use it, change it, and ship it, commercial games and tools included. The one condition is giving credit to Doug Fessler in what you ship, for example \"Aethyr by Doug Fessler (https://aethyr.gg)\" in your credits, an About screen, your docs, or a README. The <a href=\"/licensing/\">licensing page</a> explains it, and every download carries the full text as <code>LICENSE.md</code>.</p><p>Downloads and the full notes are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-2",
         "heading": "0.6.2, October 2026",
