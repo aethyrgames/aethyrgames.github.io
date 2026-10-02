@@ -38,7 +38,7 @@
       "glitch",
       "glitch arcane"
     ],
-    "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language, with no editor scripting and no C++. <strong>Batched Blueprint writes go through a compile gate, and a failed compile rolls the whole batch back.</strong>",
+    "sub": "Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language.",
     "cta": [
       {
         "href": "/download/",
@@ -52,10 +52,8 @@
       }
     ],
     "install": {
-      "lead": "Or let your assistant install it.",
-      "clients": "Paste this into Claude Code, Copilot, Cursor, or Codex:",
-      "prompt": "Get Aethyr from aethyr.gg and set it up for my Unreal project.",
-      "note": "It reads <a href=\"/install.md\">aethyr.gg/install.md</a>, shows you the plan, and asks before changing anything. Say <em>\"update Aethyr\"</em> any time to get the latest."
+      "lead": "Or let your assistant install it:",
+      "prompt": "Get Aethyr from aethyr.gg and set it up for my Unreal project."
     },
     "stats": [
       {

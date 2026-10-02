@@ -49,10 +49,9 @@
     if (heroInstall && data.hero?.install) {
       const inst = data.hero.install;
       heroInstall.innerHTML =
-        '<p class="hero-install-lead"><strong>' + inst.lead + '</strong> ' + inst.clients + '</p>' +
+        '<p class="hero-install-lead"><strong>' + inst.lead + '</strong></p>' +
         '<div class="hero-install-prompt"><code id="hero-install-text"></code>' +
-        '<button type="button" class="hero-install-copy" aria-label="Copy the prompt">Copy</button></div>' +
-        '<p class="hero-install-note">' + inst.note + '</p>';
+        '<button type="button" class="hero-install-copy" aria-label="Copy the prompt">Copy</button></div>';
       heroInstall.querySelector('#hero-install-text').textContent = inst.prompt;
       const copyBtn = heroInstall.querySelector('.hero-install-copy');
       copyBtn.addEventListener('click', () => {

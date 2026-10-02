@@ -289,7 +289,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opa
 @media(prefers-reduced-motion:reduce){*{animation:none!important}
   .side{transition:none}}
 
-/* ---- support chip: "buy me a coffee" (js/support.js) ---- */
+/* ---- support chip: "buy me a potion" (js/support.js) ---- */
 .support-chip{
   position:relative;display:inline-flex;align-items:center;gap:.5em;flex-shrink:0;
   padding:.38rem .85rem .38rem .7rem;border-radius:999px;border:1px solid transparent;
