@@ -280,7 +280,7 @@
           },
           {
             "incant": "\"I just finished rewiring BP_HealthPickup; confirm it compiles clean before I move on\"",
-            "description": "Aethyr reports the current compile state with any errors and warnings, so you know the asset is healthy after a round of edits without opening the editor.",
+            "description": "Aethyr reports the current compile state with any errors and warnings. This needs a running editor.",
             "tools": ["get_compile_status"]
           }
         ]
@@ -308,7 +308,7 @@
           },
           {
             "incant": "\"list every gameplay tag under Ability.Damage so I can pick the right one\"",
-            "description": "Aethyr walks the project's gameplay tag dictionary and returns the tags, optionally filtered by a prefix. Spell the tag right the first time.",
+            "description": "Aethyr walks the project's gameplay tag dictionary and returns the tags, optionally filtered by a substring such as Ability.Damage. Spell the tag right the first time.",
             "tools": ["list_gameplay_tags"]
           },
           {

@@ -38,6 +38,8 @@ Live at https://aethyr.gg
 
 Docs pages are minimal JS-rendered templates. All page content lives in the corresponding `data/*.json` file and is hydrated at load time by `js/docs.js`. To change copy, edit the JSON — no HTML required.
 
+**Each release:** run `python scripts/sync-reference.py <path to Aethyr-MCP>/docs/tools.json` to refresh the tool list in `data/docs-reference.json`, then update `data/release.json`.
+
 ## Running locally
 
 No build step. Serve from the repo root (required — relative asset paths depend on it):
