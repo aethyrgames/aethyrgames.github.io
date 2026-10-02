@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-2", "label": "0.6.2, October 2026" },
           { "href": "#v0-6-1", "label": "0.6.1, October 2026" },
           { "href": "#v0-6-0", "label": "0.6.0, October 2026" },
           { "href": "#v0-5-2", "label": "0.5.2, September 2026" },
@@ -41,6 +42,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-2",
+        "heading": "0.6.2, October 2026",
+        "html": "<p>Setup now leaves your project alone. Asking your assistant to \"get Aethyr from aethyr.gg\" installs Aethyr, gives it full read and write access, and turns on Epic's MCP bridge, while writing only to Aethyr's own folder, the project's <code>Saved</code> folder, and config files in your user profile. Your <code>.uproject</code>, config files, <code>AGENTS.md</code> and other project files aren't touched.</p><p>Epic's MCP plugin now comes in through Aethyr's own plugin file, editor only, and Aethyr starts Epic's server for you. One MCP entry serves whichever project your AI client is opened in, and <code>AethyrMcp.exe launch-editor</code> can start the editor with the bridge on for a single session.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-1",
         "heading": "0.6.1, October 2026",
