@@ -171,17 +171,63 @@
     "code": "{\n  \"mcpServers\": {\n    \"aethyr\": {\n      \"command\": \"C:\\\\Game\\\\Plugins\\\\Aethyr\\\\Binaries\\\\Win64\\\\AethyrMcp.exe\",\n      \"env\": {\n        \"AETHYR_PROJECT\": \"C:\\\\Game\\\\MyGame.uproject\"\n      }\n    }\n  }\n}"
   },
   "compare": {
-    "kicker": "VS THE FIELD",
-    "heading": "Why not just use<br>the <span class=\"grad\">free one</span>?",
-    "note": "Epic shipped an experimental in-editor MCP server in UE 5.8. Here's how Aethyr is different.",
-    "cols": ["Aethyr", "Epic Native MCP (5.8)", "Generic AI Copilot"],
+    "kicker": "WITH EPIC'S MCP",
+    "heading": "Built to work with<br>Epic's <span class=\"grad\">own MCP</span>",
+    "note": "UE 5.8 ships Epic's experimental MCP server, and Aethyr connects to it. You get Epic's toolsets plus everything Aethyr adds on top.",
+    "cols": [
+      "Epic's MCP + Aethyr",
+      "Epic's MCP alone"
+    ],
     "rows": [
-      { "feature": "Write tools", "values": ["Full set", "~5", "0"] },
-      { "feature": "Compile-gated batches", "values": ["✓", "—", "—"] },
-      { "feature": "Batch operations", "values": ["✓", "—", "—"] },
-      { "feature": "Read tools", "values": ["Full set", "limited", "0"] },
-      { "feature": "Local-only / NDA safe", "values": ["✓", "✓", "—"] },
-      { "feature": "No telemetry", "values": ["✓", "✓", "—"] }
+      {
+        "feature": "Epic's toolsets (Niagara, Sequencer, UMG, PIE)",
+        "values": [
+          "✓",
+          "✓"
+        ]
+      },
+      {
+        "feature": "Works with no editor open",
+        "values": [
+          "✓",
+          "—"
+        ]
+      },
+      {
+        "feature": "Batches that roll back if the compile fails",
+        "values": [
+          "✓",
+          "—"
+        ]
+      },
+      {
+        "feature": "Backup before an asset's first save",
+        "values": [
+          "✓",
+          "—"
+        ]
+      },
+      {
+        "feature": "Set up by asking your AI",
+        "values": [
+          "✓",
+          "—"
+        ]
+      },
+      {
+        "feature": "Aethyr's own tools",
+        "values": [
+          "301",
+          "—"
+        ]
+      },
+      {
+        "feature": "Your project data stays local",
+        "values": [
+          "✓",
+          "✓"
+        ]
+      }
     ]
   },
   "flow": {
