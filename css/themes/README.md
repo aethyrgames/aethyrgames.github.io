@@ -18,6 +18,8 @@ Preview any theme without committing by adding `?theme=<id>` to a page URL, for 
 /* surface */
 --void, --void-2        page ground, raised ground
 --panel                 translucent panel fill (full colour with alpha)
+--panel-read            optional. Mostly opaque fill for panels that hold text. Default in css/shared.css: rgb(var(--void-2-rgb) / .88)
+--panel-read-2          optional. Gradient version for cards. Default in css/shared.css
 --line                  1px borders (rgb(var(--line-rgb) / alpha))
 /* ink */
 --ink, --ink-2, --ink-dim       primary, secondary, tertiary text

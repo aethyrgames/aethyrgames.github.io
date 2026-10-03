@@ -1,4 +1,4 @@
-@import url("scrollbars.css");
+@import url("shared.css");
 /* =========================================================================
    Aethyr: "Arcane Terminal"
    Cyberpunk neon × holographic sci-fi × arcane fantasy. Original art only.
@@ -143,7 +143,7 @@ a{color:inherit;text-decoration:none}
 .hero-install-lead{color:var(--ink-dim);font-size:.95rem;margin:0 0 .6rem}
 .hero-install-lead strong{color:var(--ink);font-weight:500}
 .hero-install-prompt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  border:1px solid var(--line);border-radius:6px;padding:.7rem .9rem;background:rgb(var(--ink-rgb) / .03)}
+  border:1px solid var(--line);border-radius:6px;padding:.7rem .9rem;background:var(--panel-read)}
 .hero-install-prompt code{flex:1 1 20rem;font-family:var(--f-mono);font-size:.9rem;color:var(--c1);
   user-select:all;overflow-wrap:anywhere}
 .hero-install-copy{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;
@@ -245,12 +245,12 @@ a{color:inherit;text-decoration:none}
 .card-grid{max-width:1320px;margin:0 auto;padding:48px clamp(20px,7vw,120px) 0;
   display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px}
 .card{--accent:var(--c1);position:relative;padding:30px 28px 56px;border:1px solid var(--line);border-radius:6px;
-  background:linear-gradient(160deg,rgb(var(--void-2-rgb) / .5),rgb(var(--void-rgb) / .4));
+  background:var(--panel-read-2);
   backdrop-filter:blur(6px);overflow:hidden;transition:border-color .35s,background .35s}
 .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
   background:var(--accent);transform:scaleY(0);transform-origin:top;
   transition:transform .28s var(--ease);pointer-events:none}
-.card:hover{background:color-mix(in srgb,var(--accent) 6%,transparent);
+.card:hover{background:linear-gradient(color-mix(in srgb,var(--accent) 6%,transparent),color-mix(in srgb,var(--accent) 6%,transparent)),var(--panel-read-2);
   border-color:color-mix(in srgb,var(--accent) 32%,var(--line));
   box-shadow:0 0 26px color-mix(in srgb,var(--accent) 12%,transparent)}
 .card:hover::before{transform:scaleY(1)}
@@ -286,8 +286,8 @@ a{color:inherit;text-decoration:none}
   display:grid;grid-template-columns:1fr 1.1fr;gap:clamp(28px,5vw,64px);align-items:center}
 .steps{list-style:none;display:flex;flex-direction:column;gap:18px}
 .step{position:relative;padding:22px 24px 22px 84px;border:1px solid var(--line);border-radius:6px;
-  background:rgb(var(--void-rgb) / .4);transition:border-color .3s,background .3s}
-.step:hover{border-color:var(--c2);background:rgb(var(--void-2-rgb) / .5)}
+  background:var(--panel-read);transition:border-color .3s,background .3s}
+.step:hover{border-color:var(--c2);background:linear-gradient(rgb(var(--c2-rgb) / .06),rgb(var(--c2-rgb) / .06)),var(--panel-read)}
 .step-no{position:absolute;left:24px;top:20px;font-family:var(--f-arcane);font-weight:400;
   font-size:2rem;color:transparent;-webkit-text-stroke:1px var(--c2);
   filter:drop-shadow(0 0 10px rgb(var(--c2-rgb) / .4))}
@@ -409,7 +409,7 @@ a{color:inherit;text-decoration:none}
 .clients-list{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
 .client-chip{font-family:var(--f-mono);font-size:.82rem;letter-spacing:.04em;
   color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;padding:.5rem 1rem;
-  background:rgb(var(--void-2-rgb) / .35);cursor:default}
+  background:var(--panel-read);cursor:default}
 .client-chip small{font-size:.7rem;color:var(--ink-dim);opacity:.65;margin-left:.3rem}
 
 /* ---- compare section ---- */
@@ -418,7 +418,8 @@ a{color:inherit;text-decoration:none}
 .compare-inner .section-head{padding:0;max-width:none}
 .compare-note{color:var(--ink-dim);font-size:.9rem;margin:1.2rem 0 2.5rem;line-height:1.6;
   font-style:italic}
-.compare-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
+.compare-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;
+  border:1px solid var(--line);background:var(--panel-read)}
 .compare-table{width:100%;border-collapse:collapse;font-size:.875rem;min-width:520px}
 .compare-table th,.compare-table td{padding:.7rem 1.1rem;text-align:left;
   border-bottom:1px solid rgb(var(--line-rgb) / .1)}
@@ -445,7 +446,7 @@ a{color:inherit;text-decoration:none}
   padding:0 clamp(20px,7vw,120px) clamp(70px,11vw,140px)}
 .faq-section .section-head{padding-left:0;padding-right:0;max-width:none}
 .faq-item{border:1px solid var(--line);border-radius:8px;margin:.75rem 0;overflow:hidden;
-  transition:border-color .2s}
+  background:var(--panel-read);transition:border-color .2s}
 .faq-item[open]{border-color:rgb(var(--c1-rgb) / .28)}
 .faq-q{font-family:var(--f-display);font-weight:600;font-size:1.05rem;color:var(--ink);
   padding:18px 20px;cursor:pointer;list-style:none;display:flex;
@@ -593,3 +594,8 @@ a{color:inherit;text-decoration:none}
   .nav-support .support-chip{padding:.3rem .65rem .3rem .55rem;font-size:.78rem}
   .brand-lockup{width:clamp(110px,34vw,150px)}
 }
+
+/* Intro copy that sits on the open grid gets a soft halo in the background color,
+   which quiets the grid lines right behind the glyphs without boxing the text. */
+.hero-sub,.hero-install-lead,.section-head p,.compare-note,.studio-line{
+  text-shadow:0 0 6px var(--void),0 0 14px var(--void),0 0 22px var(--void)}

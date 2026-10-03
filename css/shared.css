@@ -1,4 +1,14 @@
-/* Scrollbars, shared by styles.css and docs/docs.css: a slim glass rail with a lead-to-second gradient thumb that warms on hover.
+/* Rules shared by css/styles.css and docs/docs.css. */
+
+/* Reading surfaces. Panels that hold text sit on a mostly opaque fill so the grid
+   background doesn't fight the words. Low specificity, so a theme can set its own
+   --panel-read or --panel-read-2 in its :root block and win. */
+:where(:root){
+  --panel-read:rgb(var(--void-2-rgb) / .88);
+  --panel-read-2:linear-gradient(160deg,rgb(var(--void-2-rgb) / .9),rgb(var(--void-rgb) / .86));
+}
+
+/* Scrollbars: a slim glass rail with a lead-to-second gradient thumb that warms on hover.
    Colors come from theme tokens, so every theme gets a matching bar. Firefox only reads
    scrollbar-color, and Chromium ignores ::-webkit-scrollbar wherever scrollbar-color is set,
    so the standard properties go only to engines without the pseudo-elements. */
