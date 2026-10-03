@@ -1,3 +1,4 @@
+@import url("../css/scrollbars.css");
 /* Aethyr docs: Arcane Terminal, tuned for reading */
 /* Colour tokens live in css/theme.css (-> css/themes/<id>.css). Contract: css/themes/README.md */
 :root{

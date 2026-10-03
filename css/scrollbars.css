@@ -1,0 +1,16 @@
+/* Scrollbars, shared by styles.css and docs/docs.css: a slim glass rail with a lead-to-second gradient thumb that warms on hover.
+   Colors come from theme tokens, so every theme gets a matching bar. Firefox only reads
+   scrollbar-color, and Chromium ignores ::-webkit-scrollbar wherever scrollbar-color is set,
+   so the standard properties go only to engines without the pseudo-elements. */
+@supports not selector(::-webkit-scrollbar){
+  *{scrollbar-width:thin;scrollbar-color:rgb(var(--c1-rgb) / .55) var(--void-2)}
+}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--void-2);border-left:1px solid var(--line)}
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,var(--c1),var(--c2));
+  border:3px solid transparent;border-radius:999px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:horizontal{background:linear-gradient(90deg,var(--c1),var(--c2));background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--warm);background-clip:padding-box}
+::-webkit-scrollbar-thumb:active{background:var(--warm-2);background-clip:padding-box}
+::-webkit-scrollbar-corner{background:var(--void-2)}
