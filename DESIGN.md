@@ -94,18 +94,18 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 - [Beyond the Bonfire: FromSoftware UI/UX Brilliance (Medium)](https://medium.com/@andrejafajfar/beyond-the-bonfire-unveiling-the-ui-ux-brilliance-of-fromsoftware-games-de55432b230f) — Detailed analysis of how contextual UI, staged revelation, and consequence-driven design create ceremony. Key insight: "victories feel earned because the interface itself demands mastery and presence."
 - [The UX of Elden Ring (Medium)](https://medium.com/@lizzie_41951/the-ux-of-elden-ring-cdbf75eb8d84) — How Elden Ring uses minimal HUD, sparse information, and discovery to create weight.
 - [Elden Ring Minimal UI Discussion (Kotaku)](https://kotaku.com/elden-ring-ui-ux-user-experience-interface-fromsoftware-1848637410) — Industry reaction to FromSoftware treating UI sparseness as a statement.
-- [Fraunces on Google Fonts](https://fonts.google.com/specimen/Fraunces). The variable "Old Style soft-serif" family by Undercase Type that carries the hero's most powerful word.
+- [IM Fell DW Pica on Google Fonts](https://fonts.google.com/specimen/IM+Fell+DW+Pica). A revival of 17th-century type from the Fell collection, with ink spread and uneven edges that read like a scribed scroll. One weight (regular) plus italic, so `--f-arcane` text is set at weight 400.
 - [Chakra Petch on Google Fonts](https://fonts.google.com/specimen/Chakra%2BPetch) — Designed by Cadson Demak using "ninety straight line and forty five degree method to avoid the curves," giving "a touch of computeristic to the overall design." A Thai-script typeface whose strict geometric constraint creates the futuristic rigidity in display usage.
 
-**The Fraunces + Chakra Petch pairing:** Fraunces is a warm, high-contrast soft serif. Chakra Petch is built entirely from right angles. Placing them together on the same page (Fraunces for "BLUEPRINT", Chakra Petch for "AI THAT SPEAKS") creates the "arcane terminal" tension in a single glance: the old-world and the machine, neither fully in control. Neither font works alone for this purpose.
+**The IM Fell DW Pica + Chakra Petch pairing:** IM Fell DW Pica is old printed type with ink spread and uneven edges, like a scribed scroll. Chakra Petch is built entirely from right angles. Placing them together on the same page (IM Fell DW Pica for "BLUEPRINT", Chakra Petch for "AI THAT SPEAKS") creates the "arcane terminal" tension in a single glance: the old-world and the machine, neither fully in control. Neither font works alone for this purpose.
 
 **Where it shows up in the codebase:**
 - `data/home.json`: `"kicker": "// THE RITUAL"`, `"// THE POWERS"`, `"// ACQUIRE"`, `"// COMPATIBILITY"`, `"// VS THE FIELD"` — the slashed-comment kicker format borrows the code-comment syntax (`//`) while using ceremony vocabulary
 - Docs metaphor system: `"spells"`, `"incant"`, `"spell-grid"`, `"spell-tools"`, `"grimoire"` throughout `data/docs-*.json` and rendered in `js/docs.js`
-- `css/styles.css`: `--f-arcane:'Fraunces',serif` used for `.glitch.arcane` (the "BLUEPRINT" word), `--f-display:'Chakra Petch'` for everything else display-weight
+- `css/styles.css`: `--f-arcane:'IM Fell DW Pica','IM Fell English',Georgia,serif` used for `.glitch.arcane` (the "BLUEPRINT" word), `--f-display:'Chakra Petch'` for everything else display-weight
 
 **Rules:**
-1. Fraunces (`--f-arcane`) is used exactly once per page: the hero's most powerful word. It must never appear in body copy, navigation, or UI chrome. Scarcity is what gives it weight.
+1. IM Fell DW Pica (`--f-arcane`) is used exactly once per page: the hero's most powerful word. It must never appear in body copy, navigation, or UI chrome. Scarcity is what gives it weight.
 2. Kicker labels use the `// WORD` format. The slash-comment prefix is the only place code syntax and ceremony vocabulary mix directly. Don't use it in body copy or headings.
 3. The grimoire/spell vocabulary is for the docs system only. The marketing site uses ritual vocabulary (`The Ritual`, `The Powers`, `Acquire`) but avoids game-world nouns. Docs can say "spellbook"; the homepage should not.
 
@@ -160,12 +160,12 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 
 | Face | Variable | Role | Never use for |
 |------|----------|------|---------------|
-| Fraunces | `--f-arcane` | Hero's most powerful word. Soft serif authority. | Body text, nav, more than one element per page |
+| IM Fell DW Pica | `--f-arcane` | Hero's most powerful word. Old scribed-scroll texture. | Body text, nav, more than one element per page |
 | Chakra Petch | `--f-display` | All display headings, kickers, card titles, stats | Body paragraphs, anything over 2 lines of running text |
 | JetBrains Mono | `--f-mono` | Code, terminal output, technical tags, stats values, table values | Headings, body prose |
 | Sora | `--f-body` | All body paragraphs, FAQ answers, descriptions | Headings, anything that needs visual weight |
 
-**The pairing that makes it work:** Fraunces on "BLUEPRINT" + Chakra Petch on "AI THAT SPEAKS" creates the specific tension that defines the brand. One is a soft, curved serif. The other is built from right angles and circuit geometry (Chakra Petch is designed using only 90° and 45° angles, "to avoid the curves").
+**The pairing that makes it work:** IM Fell DW Pica on "BLUEPRINT" + Chakra Petch on "AI THAT SPEAKS" creates the specific tension that defines the brand. One is inky old print, like a scribed scroll. The other is built from right angles and circuit geometry (Chakra Petch is designed using only 90° and 45° angles, "to avoid the curves").
 
 **Size and weight discipline:**
 - Chakra Petch: `600–700` weight for display, `500` for kickers. Below `500` it reads as generic sans-serif.
@@ -296,7 +296,7 @@ This sample is a batch rollback (`apply_ops`), the case where the compile gate r
 
 **The legibility trap:** The dark atmospheric aesthetic starts working against reading at high text density. The docs pages in particular have long-form content. When a page is primarily text (not cards or visuals), reduce atmospheric elements: no constellation, lighter grain, more generous `--ink` (not `--ink-dim`) for body text.
 
-**Misapplying Fraunces:** Fraunces at small sizes or in body weight loses all its authority and just looks like a generic serif. If it's not at display scale (`1.8rem+`) in a heading context, it shouldn't be Fraunces.
+**Misapplying IM Fell DW Pica:** IM Fell DW Pica at small sizes or in body weight loses all its authority and just looks like a generic serif. If it's not at display scale (`1.8rem+`) in a heading context, it shouldn't be IM Fell DW Pica.
 
 **Neon fatigue:** Three simultaneous neon colors (cyan + magenta + violet) at full saturation creates visual noise. The rule is: one color dominates per section, the others are at most present as glows or secondary accents. The homepage does this correctly — cyan dominates the hero, violet is the gradient endpoint, magenta is the glitch flare only.
 

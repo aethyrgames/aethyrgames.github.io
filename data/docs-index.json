@@ -41,7 +41,7 @@
       {
         "id": "what",
         "heading": "What it actually is",
-        "html": "<p>Two pieces that travel together:</p><ul><li>A <strong>UE editor plugin</strong> that knows how to introspect and safely mutate Blueprint assets.</li><li>A <strong>standalone MCP server</strong> (<code>AethyrMcp</code>) that speaks the Model Context Protocol, so AI clients can drive that plugin by talking to it: no Python, no editor scripting, no C++.</li></ul><p>Every build ships the full tool surface. Reads can't mutate anything. Every write saves through a compile check and an automatic backup.</p>"
+        "html": "<p>Two pieces that travel together:</p><ul><li>A <strong>UE editor plugin</strong> that knows how to introspect and safely mutate Blueprint assets.</li><li>A <strong>standalone MCP server</strong> (<code>AethyrMcp</code>) that speaks the Model Context Protocol, so AI clients can drive that plugin by talking to it: no Python, no editor scripting, no C++.</li></ul><p>Every build ships the full tool surface. Reads can't mutate anything. Writes compile the Blueprint and back up each asset before its first save, and a batch rolls back if its compile fails.</p>"
       },
       {
         "id": "quickstart",
