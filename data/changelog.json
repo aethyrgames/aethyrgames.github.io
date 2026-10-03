@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-6", "label": "0.6.6, October 2026" },
           { "href": "#v0-6-3", "label": "0.6.3, October 2026" },
           { "href": "#v0-6-2", "label": "0.6.2, October 2026" },
           { "href": "#v0-6-1", "label": "0.6.1, October 2026" },
@@ -43,6 +44,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-6",
+        "heading": "0.6.6, October 2026",
+        "html": "<p>Aethyr now comes with sample content you can build into your project in one request. Ask your assistant to \"install the Aethyr samples\" and the new <code>install_samples</code> tool builds 17 small assets into <code>/Game/AethyrSamples</code>: an enemy, a boss, a turret, a pickup, a door, a crate, a loot table with its struct and rarity enum, rock and lava materials, a main menu, a HUD, and an enemy blackboard and behavior tree. A few carry a bug on purpose, so the <a href=\"/docs/tutorials/\">tutorials</a> have something to fix. Nothing ships as a <code>.uasset</code>. Re-running skips what already exists and never overwrites your own assets.</p><p>Six new tools create data tables, enums, widget blueprints, blackboards, blackboard keys and behavior trees, all without a running editor. Material parameters can be named when you add them. A path like <code>/Game//Enemy</code> no longer crashes the editor.</p><p>This release also includes everything planned for 0.6.5, which wasn't published on its own. Aethyr steps aside while you compile your project. Its headless editor no longer breaks a build with <code>LNK1104</code>. It picks your editor build configuration, Development or DebugGame, by itself. And both downloads now carry the same plugin, apart from the compiled modules.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-3",
         "heading": "0.6.3, October 2026",

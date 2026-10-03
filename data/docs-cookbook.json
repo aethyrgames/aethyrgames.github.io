@@ -11,6 +11,15 @@
     "backHref": "/",
     "sections": [
       {
+        "heading": "Samples",
+        "items": [
+          {
+            "href": "#g-samples",
+            "label": "Start with the samples"
+          }
+        ]
+      },
+      {
         "heading": "Blueprints",
         "items": [
           {
@@ -181,9 +190,13 @@
     "lead": "Bite-sized incantations: one sentence you say, one thing Aethyr does. Skim for the move you need, say it in your own words, and let your AI pick the tools. Every recipe here lives inside the shipping build.",
     "note": {
       "type": "tip",
-      "html": "<p>Most of these are <strong>reads</strong>: they can't change anything, so they're always safe to run. Recipes that write keep a backup of each asset before its first save, and a batch rolls back if its compile fails. Every tool Aethyr ships appears in at least one recipe. Want the long-form stories instead? See the <a href=\"/docs/tutorials/\">ritual walkthroughs</a>.</p>"
+      "html": "<p>Most of these are <strong>reads</strong>: they can't change anything, so they're always safe to run. Recipes that write keep a backup of each asset before its first save, and a batch rolls back if its compile fails. Every tool Aethyr ships appears in at least one recipe. Paths under <code>/Game/AethyrSamples</code> work once you've asked your AI to install the samples (the first section). Paths under <code>/Game/MyGame</code> stand in for your own assets. Want the long-form stories instead? See the <a href=\"/docs/tutorials/\">ritual walkthroughs</a>.</p>"
     },
     "spellnav": [
+      {
+        "href": "#g-samples",
+        "label": "Start with the samples"
+      },
       {
         "href": "#g-bp-look",
         "label": "Look around a Blueprint"
@@ -307,20 +320,49 @@
     ],
     "sections": [
       {
+        "id": "g-samples",
+        "heading": "Start with the samples",
+        "icon": "✦",
+        "intro": "Build the Aethyr sample content once, then point the other recipes at it.",
+        "spells": [
+          {
+            "incant": "\"Install the Aethyr samples.\"",
+            "description": "Builds the sample Blueprints, data, materials, widgets and AI assets into /Game/AethyrSamples. Each one has a small flaw on purpose for the tutorials to fix. An asset that already exists is skipped and never touched, so your edits survive a re-run. The reply lists every asset as created, skipped or failed, with the reason. The plugin ships no .uasset files. It replays a text recipe through Aethyr's own tools, so every write passes the usual gates. It refuses when the server is read-only.",
+            "tools": [
+              "install_samples"
+            ]
+          },
+          {
+            "incant": "\"What would installing the samples create? Don't write anything yet.\"",
+            "description": "Runs the installer as a dry run. It lists what would be created and what would be skipped, and writes nothing.",
+            "tools": [
+              "install_samples"
+            ]
+          },
+          {
+            "incant": "\"Reset the samples back to how they shipped. Show me what you would delete first.\"",
+            "description": "A reset deletes everything under /Game/AethyrSamples, including anything you added there, then rebuilds it. It only does that when you confirm. Without the confirmation it returns the list of assets it would delete and stops.",
+            "tools": [
+              "install_samples"
+            ]
+          }
+        ]
+      },
+      {
         "id": "g-bp-look",
         "heading": "Look around a Blueprint",
         "icon": "◈",
         "intro": "Read a Blueprint without loading more than you need.",
         "spells": [
           {
-            "incant": "\"List every Blueprint under /Game/AI, 50 at a time, paths only.\"",
+            "incant": "\"List every Blueprint under /Game/AethyrSamples/AI, 50 at a time, paths only.\"",
             "description": "Lists Blueprint assets under a content path. You can page with limit and offset, sort by path, and trim the columns to just the asset path.",
             "tools": [
               "list_blueprints"
             ]
           },
           {
-            "incant": "\"How big is /Game/AI/BP_Enemy? If it's reasonable, show me its parent class, interfaces and variable names.\"",
+            "incant": "\"How big is /Game/AethyrSamples/AI/BP_Enemy? If it's reasonable, show me its parent class, interfaces and variable names.\"",
             "description": "Starts with a tiny summary of counts, then reads the full Blueprint structure with a field projection so you only get the parts you asked for.",
             "tools": [
               "summarize_blueprint",
@@ -328,7 +370,7 @@
             ]
           },
           {
-            "incant": "\"Is the EventGraph in /Game/AI/BP_Enemy worth reading? If so, show me how the nodes connect.\"",
+            "incant": "\"Is the EventGraph in /Game/AethyrSamples/AI/BP_Enemy worth reading? If so, show me how the nodes connect.\"",
             "description": "Peeks at the graph for a node count and kind histogram first. Then it reads the graph with links so you see the wiring without per-pin detail.",
             "tools": [
               "peek_graph",
@@ -336,28 +378,28 @@
             ]
           },
           {
-            "incant": "\"Show me the TakeDamage function on /Game/AI/BP_Enemy, inputs, outputs and body.\"",
+            "incant": "\"Show me the TakeDamage function on /Game/AethyrSamples/AI/BP_Enemy, inputs, outputs and body.\"",
             "description": "Fetches one function by name: its signature, locals and body graph. Detail defaults to a summary, and you can ask for links or full.",
             "tools": [
               "get_function"
             ]
           },
           {
-            "incant": "\"What components does /Game/AI/BP_Enemy have, and which one is the root?\"",
+            "incant": "\"What components does /Game/AethyrSamples/AI/BP_Enemy have, and which one is the root?\"",
             "description": "Lists the components in the Blueprint's construction tree with their classes and parents.",
             "tools": [
               "get_components"
             ]
           },
           {
-            "incant": "\"List the variables on /Game/AI/BP_Enemy with their types and defaults.\"",
+            "incant": "\"List the variables on /Game/AethyrSamples/AI/BP_Enemy with their types and defaults.\"",
             "description": "Lists member variables with type, default, category and replication state. Use fields and limit to keep the answer small on busy Blueprints.",
             "tools": [
               "list_variables"
             ]
           },
           {
-            "incant": "\"Where does /Game/AI/BP_Enemy call ApplyDamage? Then show me that node's pins.\"",
+            "incant": "\"Where does /Game/AethyrSamples/AI/BP_Enemy call Die? Then show me that node's pins.\"",
             "description": "Searches every graph in the Blueprint for nodes matching the text. Then it fetches one hit by its GUID for class, position, pins and links.",
             "tools": [
               "find_node",
@@ -365,7 +407,7 @@
             ]
           },
           {
-            "incant": "\"Does /Game/Props/BP_Door have any timelines? Show me the keys on the first one.\"",
+            "incant": "\"Does /Game/MyGame/Props/BP_Drawbridge have any timelines? Show me the keys on the first one.\"",
             "description": "Lists the Timeline nodes with track counts, length and loop settings. Then it reads one timeline's tracks and curve keys.",
             "tools": [
               "list_timelines",
@@ -381,14 +423,14 @@
         "intro": "Start a Blueprint, give it parts, and set up its data types.",
         "spells": [
           {
-            "incant": "\"Create /Game/AI/BP_Boss as a Character.\"",
+            "incant": "\"Create /Game/MyGame/AI/BP_Brute as a Character.\"",
             "description": "Creates a new Blueprint asset under /Game with the parent class you name. If the asset already exists, it comes back as already_existed and nothing changes.",
             "tools": [
               "create_blueprint"
             ]
           },
           {
-            "incant": "\"Give /Game/Props/BP_Crate a mesh component under its root and set that component's collision profile to BlockAll.\"",
+            "incant": "\"Add a Lid mesh component under CrateMesh on /Game/AethyrSamples/Props/BP_Crate and set that component's collision profile to BlockAll.\"",
             "description": "Adds a component to the Blueprint's construction tree, then sets a property on that component's template. The reply shows the value before and after.",
             "tools": [
               "add_component",
@@ -396,7 +438,7 @@
             ]
           },
           {
-            "incant": "\"Move the Light component on /Game/Props/BP_Lamp under the Pole component, and remove the old Spare component.\"",
+            "incant": "\"Move the Light component on /Game/MyGame/Props/BP_Lamp under the Pole component, and remove the old Spare component.\"",
             "description": "Re-parents a component to a new parent in the construction tree. Then it removes the one you don't want. Remove reports removed:false if the name isn't found.",
             "tools": [
               "attach_component",
@@ -404,7 +446,7 @@
             ]
           },
           {
-            "incant": "\"What does the Interactable interface require? Add it to /Game/Props/BP_Door.\"",
+            "incant": "\"What does the Interactable interface require? Add it to /Game/MyGame/Props/BP_Lever.\"",
             "description": "Reads a native interface's required functions first. Then it adds the interface to the Blueprint, generates the stub function graphs, recompiles and saves.",
             "tools": [
               "get_interface_info",
@@ -412,12 +454,19 @@
             ]
           },
           {
-            "incant": "\"Make a struct /Game/Data/S_ItemRow with a float Damage and a string Label, then show it to me.\"",
+            "incant": "\"Make a struct /Game/MyGame/Data/S_WeaponRow with a float Damage and a string Label, then show it to me.\"",
             "description": "Creates a User Defined Struct, appends typed members, and reads it back with each member's type and default. The factory seeds one default member of its own.",
             "tools": [
               "create_struct",
               "add_struct_member",
               "read_struct"
+            ]
+          },
+          {
+            "incant": "\"Create an enum /Game/MyGame/Data/E_Quality with Common, Rare and Epic.\"",
+            "description": "Creates a User Defined Enum with one enumerator per name, in order. The names are the display names. An existing enum comes back as it is, with its current enumerators. Use it as a struct member type with add_struct_member, written as enum:/Game/MyGame/Data/E_Quality.E_Quality. No running editor needed.",
+            "tools": [
+              "create_enum"
             ]
           }
         ]
@@ -429,7 +478,7 @@
         "intro": "Add, change and clean up the members of a Blueprint.",
         "spells": [
           {
-            "incant": "\"Add an editable float Health to /Game/AI/BP_Enemy with a default of 100 in the Stats category. What type strings can I use?\"",
+            "incant": "\"Add an editable float Stamina to /Game/AethyrSamples/AI/BP_Enemy with a default of 100 in the Stats category. What type strings can I use?\"",
             "description": "Lists the pin categories you can use in a type argument. Then it adds the variable, and it skips quietly if the name already exists.",
             "tools": [
               "list_pin_categories",
@@ -437,7 +486,7 @@
             ]
           },
           {
-            "incant": "\"Set Health on /Game/AI/BP_Enemy to 150 and file it under Combat.\"",
+            "incant": "\"Set Health on /Game/AethyrSamples/AI/BP_Enemy to 150 and file it under Combat.\"",
             "description": "Changes a variable's default value and its My Blueprint category label. An empty category clears the label.",
             "tools": [
               "set_variable_default",
@@ -445,14 +494,14 @@
             ]
           },
           {
-            "incant": "\"Change Score on /Game/AI/BP_Enemy from int to float.\"",
+            "incant": "\"Change HitPoints on /Game/AethyrSamples/Props/BP_Crate from int to float.\"",
             "description": "Retypes the variable in place. Existing get and set nodes are rewired by the engine, so the graphs survive.",
             "tools": [
               "retype_variable"
             ]
           },
           {
-            "incant": "\"Rename Hp to Health on /Game/AI/BP_Enemy, then delete the unused OldFlag.\"",
+            "incant": "\"Rename Hp to Health on /Game/MyGame/AI/BP_Grunt, then delete the unused OldFlag.\"",
             "description": "Renames a variable and updates its references in the graphs. Then it deletes another variable by name. Each write recompiles and saves.",
             "tools": [
               "rename_variable",
@@ -460,7 +509,7 @@
             ]
           },
           {
-            "incant": "\"Add a function GetThreat to /Game/AI/BP_Enemy that takes an Actor and returns a float.\"",
+            "incant": "\"Add a function GetThreat to /Game/AethyrSamples/AI/BP_Enemy that takes an Actor and returns a float.\"",
             "description": "Creates a function graph, then declares an Actor input and a float output. The output step adds the result node if there isn't one.",
             "tools": [
               "add_function",
@@ -469,7 +518,7 @@
             ]
           },
           {
-            "incant": "\"Delete the function DebugDump from /Game/AI/BP_Enemy.\"",
+            "incant": "\"Delete the function DebugDump from /Game/MyGame/AI/BP_Grunt.\"",
             "description": "Deletes a function graph by name.",
             "tools": [
               "delete_function"
@@ -484,7 +533,7 @@
         "intro": "Place nodes, wire them, tidy them, and write whole functions at once.",
         "spells": [
           {
-            "incant": "\"What node kinds can I add? Add a Branch to the EventGraph of /Game/AI/BP_Enemy at 200,100.\"",
+            "incant": "\"What node kinds can I add? Add a Branch to the EventGraph of /Game/AethyrSamples/AI/BP_Enemy at 200,100.\"",
             "description": "Lists the kinds add_node accepts with their required extras. Then it spawns the node and returns its GUID and pins so you can wire right away.",
             "tools": [
               "list_node_kinds",
@@ -515,14 +564,14 @@
             ]
           },
           {
-            "incant": "\"Write a function IsLowHealth on /Game/AI/BP_Enemy that returns true when Health is under 25. Show me the plan first.\"",
+            "incant": "\"Write a function IsLowHealth on /Game/AethyrSamples/AI/BP_Enemy that returns true when Health is under 25. Show me the plan first.\"",
             "description": "Compiles a small pseudocode body into a wired function. A dry run returns the op list without changing anything, and a real run is a single batch.",
             "tools": [
               "compile_function"
             ]
           },
           {
-            "incant": "\"Preview this batch of edits for /Game/AI/BP_Enemy, then apply it as one transaction.\"",
+            "incant": "\"Preview this batch of edits for /Game/AethyrSamples/AI/BP_Enemy, then apply it as one transaction.\"",
             "description": "Validates the batch without writing anything. Then it runs the ops in one call, and a failing op can roll the whole batch back.",
             "tools": [
               "preview_ops",
@@ -530,7 +579,7 @@
             ]
           },
           {
-            "incant": "\"Copy the EventGraph from /Game/AI/BP_Enemy to /Game/AI/BP_Boss.\"",
+            "incant": "\"Copy the EventGraph from /Game/AethyrSamples/AI/BP_Enemy to /Game/AethyrSamples/AI/BP_Boss.\"",
             "description": "Copies every node in a named graph into the same-named graph of another Blueprint, keeping the wiring. The target needs that graph already. Then it recompiles and saves.",
             "tools": [
               "clone_graph"
@@ -598,35 +647,35 @@
         "intro": "Find broken references, compare Blueprints, and resolve merges.",
         "spells": [
           {
-            "incant": "\"Which Blueprints under /Game/AI extend Character and override BeginPlay?\"",
+            "incant": "\"Which Blueprints under /Game/AethyrSamples/AI extend Character and override BeginPlay?\"",
             "description": "Finds Blueprints by parent class, overridden function or interface. Pass a parent class when you filter on the other two, or large projects get slow.",
             "tools": [
               "find_overriders"
             ]
           },
           {
-            "incant": "\"Does /Game/AI/BP_Enemy still reference any variables or functions I deleted?\"",
+            "incant": "\"Does /Game/AethyrSamples/AI/BP_Enemy still reference any variables or functions I deleted?\"",
             "description": "Walks the function bodies and top-level graphs for nodes pointing at variables or intra-Blueprint functions that no longer exist. An empty list means clean.",
             "tools": [
               "find_dangling_references"
             ]
           },
           {
-            "incant": "\"What changed between /Game/AI/BP_Enemy and /Game/AI/BP_Boss?\"",
+            "incant": "\"What changed between /Game/AethyrSamples/AI/BP_Enemy and /Game/AethyrSamples/AI/BP_Boss?\"",
             "description": "Diffs two Blueprints and returns added, removed and changed variables, components, functions, graphs and parent class as a list.",
             "tools": [
               "diff_asset"
             ]
           },
           {
-            "incant": "\"Did my rebuilt copy /Game/AI/BP_Enemy_New come out the same as /Game/AI/BP_Enemy?\"",
+            "incant": "\"Did my rebuilt copy /Game/MyGame/AI/BP_Enemy_New come out the same as /Game/MyGame/AI/BP_Enemy?\"",
             "description": "Compares two Blueprints by structure, ignoring node positions and GUIDs, so a fresh rebuild diffs cleanly against its source. Needs a live or commandlet backend.",
             "tools": [
               "bp_structural_diff"
             ]
           },
           {
-            "incant": "\"Merge my BP_Enemy_Mine and their BP_Enemy_Theirs against the base BP_Enemy_Base, all under /Game/AI.\"",
+            "incant": "\"Merge my BP_Enemy_Mine and their BP_Enemy_Theirs against the base BP_Enemy_Base, all under /Game/MyGame/AI.\"",
             "description": "Builds a merge context from the base-to-mine and base-to-theirs diffs and flags conflicts. You then apply the clean changes and pick winners with the normal write tools.",
             "tools": [
               "prepare_merge"
@@ -704,14 +753,14 @@
         "intro": "Check compile status, read diagnostics, and peek at debugging state.",
         "spells": [
           {
-            "incant": "\"Is /Game/MyGame/Blueprints/BP_Enemy compile-clean right now?\"",
+            "incant": "\"Is /Game/AethyrSamples/AI/BP_Enemy compile-clean right now?\"",
             "description": "Gives a cheap status string (good, warning, error, and so on) for the Blueprint. Read-only and needs a running editor.",
             "tools": [
               "get_compile_status"
             ]
           },
           {
-            "incant": "\"Recompile /Game/MyGame/Blueprints/BP_Enemy and list every error and warning with the node it points at.\"",
+            "incant": "\"Recompile /Game/AethyrSamples/AI/BP_Enemy and list every error and warning with the node it points at.\"",
             "description": "Forces a fresh compile in memory without saving, then returns the status, error and warning counts, and each message with its node GUID. It's a diagnostics probe, so it's allowed in read-only mode.",
             "tools": [
               "compile_blueprint"
@@ -725,7 +774,7 @@
             ]
           },
           {
-            "incant": "\"Do I have any breakpoints set on /Game/MyGame/Blueprints/BP_Enemy, and is it attached to an instance in PIE?\"",
+            "incant": "\"Do I have any breakpoints set on /Game/AethyrSamples/AI/BP_Enemy, and is it attached to an instance in PIE?\"",
             "description": "Lists the Blueprint's breakpoints with node and enabled state, then checks which PIE object it's debugging. Both are read-only and need a running editor.",
             "tools": [
               "get_blueprint_breakpoints",
@@ -762,7 +811,7 @@
             ]
           },
           {
-            "incant": "\"Dump the scalar, vector, and texture parameters on /Game/MyGame/Materials/MI_Rock.\"",
+            "incant": "\"Dump the scalar, vector, and texture parameters on /Game/AethyrSamples/Materials/MI_Lava_Hot.\"",
             "description": "Reads the parameters straight from the material instance asset, along with its parent path. No open editor is needed. Switch and RVT parameters aren't included.",
             "tools": [
               "get_material_instance_params"
@@ -968,7 +1017,7 @@
             ]
           },
           {
-            "incant": "\"Is /Game/MyGame/Blueprints/BP_Enemy checked out by someone else? And what's in my pending changelist?\"",
+            "incant": "\"Is /Game/AethyrSamples/AI/BP_Enemy checked out by someone else? And what's in my pending changelist?\"",
             "description": "Checks whether another user holds the file lock, then reads the default changelist. Git has no locks or changelists, so those answers come back empty or invalid there.",
             "tools": [
               "get_file_lock_status",
@@ -1045,7 +1094,7 @@
         "intro": "Spawn, hide, select, and inspect things in the open level.",
         "spells": [
           {
-            "incant": "\"Spawn a BP_Enemy at 0, 0, 100 facing yaw 90.\"",
+            "incant": "\"Spawn /Game/AethyrSamples/AI/BP_Enemy at 0, 0, 100 facing yaw 90.\"",
             "description": "Spawns an actor of the given class in the current level at the transform you pass. Location, rotation, and scale are all optional. Returns the new actor's name and label. Needs a running editor.",
             "tools": [
               "spawn_actor"
@@ -1127,7 +1176,7 @@
         "intro": "Open assets, switch panels, run menu commands, and check what the editor is doing.",
         "spells": [
           {
-            "incant": "\"Open /Game/MyGame/Materials/M_Rock, then bring the Details tab to the front.\"",
+            "incant": "\"Open /Game/AethyrSamples/Materials/M_Rock, then bring the Details tab to the front.\"",
             "description": "Opens the asset's editor (or raises it if already open), then activates a dock tab by a substring of its label. If no tab matches, the error lists the tabs that exist. The tab step needs a GUI or -RenderOffscreen editor.",
             "tools": [
               "open_asset_editor",
@@ -1142,7 +1191,7 @@
             ]
           },
           {
-            "incant": "\"Which widgets are selected in the UMG editor for /Game/MyGame/UI/WBP_HUD?\"",
+            "incant": "\"Which widgets are selected in the UMG editor for /Game/AethyrSamples/UI/WBP_HUD?\"",
             "description": "Reads the selected widget names and current designer tab from an open Widget Blueprint editor. It reports valid:false if that editor isn't open. Needs a running editor.",
             "tools": [
               "get_umg_editor_state"
@@ -1165,7 +1214,7 @@
             ]
           },
           {
-            "incant": "\"Which pins am I watching in /Game/MyGame/AI/BP_Enemy?\"",
+            "incant": "\"Which pins am I watching in /Game/AethyrSamples/AI/BP_Enemy?\"",
             "description": "Read-only. Lists the watched pins on a Blueprint with pin name, node, and direction. Needs a running editor.",
             "tools": [
               "get_watched_pins"
@@ -1307,7 +1356,7 @@
             ]
           },
           {
-            "incant": "\"Which source control are we on, and is /Game/MyGame/AI/BP_Enemy checked out?\"",
+            "incant": "\"Which source control are we on, and is /Game/AethyrSamples/AI/BP_Enemy checked out?\"",
             "description": "Reads the active source-control provider, then the per-file status of one asset: controlled, checked out, modified, and current. Read-only. Needs a running editor.",
             "tools": [
               "get_source_control_provider",
@@ -1643,7 +1692,7 @@
             ]
           },
           {
-            "incant": "\"Find every asset with 'Rock' in the name under /Game/MyGame, then show me what the project is and which engine version it targets.\"",
+            "incant": "\"Find every asset with 'Lava' in the name under /Game/AethyrSamples, then show me what the project is and which engine version it targets.\"",
             "description": "Searches asset names and paths for a substring (case-insensitive, 50 results per page by default) and returns each match's path and class. Then reads the .uproject and reports the project name and engine association.",
             "tools": [
               "find_asset",
@@ -1698,14 +1747,14 @@
             ]
           },
           {
-            "incant": "\"Copy /Game/MyGame/AI/BP_Enemy to /Game/MyGame/AI/BP_EnemyBoss.\"",
+            "incant": "\"Copy /Game/AethyrSamples/AI/BP_Enemy to /Game/MyGame/AI/BP_EnemyElite.\"",
             "description": "Makes a file-level copy of the Blueprint with the same variables, functions, graphs and components. If the destination already exists it's left alone and reported as already existing.",
             "tools": [
               "duplicate_blueprint"
             ]
           },
           {
-            "incant": "\"Rebuild /Game/MyGame/AI/BP_Enemy as /Game/MyGame/AI/BP_EnemyRanged, but with a different parent class.\"",
+            "incant": "\"Rebuild /Game/AethyrSamples/AI/BP_Enemy as /Game/MyGame/AI/BP_EnemyRanged, but with a different parent class.\"",
             "description": "Recreates the Blueprint in one editor-side pass, including variables, functions, graphs with their wiring, and components. You can pass a parent class to reparent the copy. An existing destination is left alone.",
             "tools": [
               "recreate_blueprint"
@@ -1734,7 +1783,7 @@
             ]
           },
           {
-            "incant": "\"Show me the history of /Game/MyGame/AI/BP_Enemy, then load the previous revision so I can compare it, and clean up afterwards.\"",
+            "incant": "\"Show me the history of /Game/AethyrSamples/AI/BP_Turret, then load the previous revision so I can compare it, and clean up afterwards.\"",
             "description": "Reads the revision list from your source-control provider, loads one old revision into a temporary package you can read with the normal read tools, then unloads and deletes that temp copy. Source control has to be on and tracking the asset.",
             "tools": [
               "get_asset_history",
@@ -1751,8 +1800,8 @@
         "intro": "Edit the data your game runs on, one row or one tag at a time.",
         "spells": [
           {
-            "incant": "\"List my data tables under /Game/MyGame/Data, open DT_Items, and add a row called Potion with Price 50.\"",
-            "description": "Lists the data tables, reads DT_Items to see its row struct and columns, then adds the row. A name that already exists is reported and left alone unless you ask to overwrite.",
+            "incant": "\"List my data tables under /Game/AethyrSamples/Data, open DT_Loot, and add a row called Mana_Potion with a Weight of 25.\"",
+            "description": "Lists the data tables, reads DT_Loot to see its row struct and columns, then adds the row. A name that already exists is reported and left alone unless you ask to overwrite.",
             "tools": [
               "list_data_tables",
               "read_data_table",
@@ -1760,7 +1809,7 @@
             ]
           },
           {
-            "incant": "\"In DT_Items, set the Price on the Potion row to 75.\"",
+            "incant": "\"In DT_Loot, set the Weight on the Legendary_Sword row to 2.\"",
             "description": "Updates one field on an existing row and returns the old and new values so you can see the value coerced correctly.",
             "tools": [
               "set_data_row_value"
@@ -1806,6 +1855,24 @@
             "tools": [
               "remove_gameplay_tag"
             ]
+          },
+          {
+            "incant": "\"Create a data table /Game/MyGame/Data/DT_Weapons that uses my S_WeaponRow struct, then add a row called Wooden_Sword with Damage 12.\"",
+            "description": "Creates a DataTable whose rows use a struct. That can be a /Game struct or a native one. An existing table comes back unchanged. Then adds the row. add_data_row refuses to clobber an existing row name unless you pass overwrite. No running editor needed.",
+            "tools": [
+              "create_data_table",
+              "add_data_row"
+            ]
+          },
+          {
+            "incant": "\"Set up a loot table from nothing under /Game/MyGame/Data: an enum E_Quality with Common, Rare and Epic, a struct S_Drop with an int Weight and a Quality of that enum, and a table DT_Drops that uses it.\"",
+            "description": "Builds the pieces in the order they depend on each other. The enum comes first, then the struct, then its members (the enum goes in as enum:/Game/MyGame/Data/E_Quality.E_Quality), then the table. The engine seeds one default member on a new struct. Each create step is safe to repeat, because an existing asset comes back unchanged. No running editor needed.",
+            "tools": [
+              "create_enum",
+              "create_struct",
+              "add_struct_member",
+              "create_data_table"
+            ]
           }
         ]
       },
@@ -1816,7 +1883,7 @@
         "intro": "Make a material, wire it up, spin off instances and recompile.",
         "spells": [
           {
-            "incant": "\"List the materials under /Game/MyGame/Materials and show me the node graph of M_Rock.\"",
+            "incant": "\"List the materials under /Game/AethyrSamples/Materials and show me the node graph of M_Lava.\"",
             "description": "Lists materials and material instances, then reads one material's expression nodes, its connections to slots like BaseColor and Roughness, and the names of its exposed parameters.",
             "tools": [
               "list_materials",
@@ -1825,7 +1892,7 @@
           },
           {
             "incant": "\"Create /Game/MyGame/Materials/M_Glow, add a vector constant and a scalar parameter named Intensity, wire the color into EmissiveColor, and recompile it.\"",
-            "description": "Creates the material, adds each expression node at a position you choose, connects an output to a master slot (or to another node) and recompiles the shaders. Each add call returns the new node id you use in the next connection.",
+            "description": "Creates the material, adds each expression node at a position you choose, connects an output to a master slot (or to another node) and recompiles the shaders. Pass a parameter name on a parameter expression to name it, otherwise the engine calls it Param. Each add call returns the new node id you use in the next connection.",
             "tools": [
               "create_material",
               "add_material_expression",
@@ -1834,14 +1901,14 @@
             ]
           },
           {
-            "incant": "\"Set the default Roughness parameter on M_Rock to 0.8.\"",
+            "incant": "\"Set the default Roughness parameter on /Game/AethyrSamples/Materials/M_Rock to 0.8.\"",
             "description": "Sets the default of a named scalar or vector parameter on the base material and returns the old and new values.",
             "tools": [
               "set_material_parameter"
             ]
           },
           {
-            "incant": "\"Make a material instance MI_RockWet under /Game/MyGame/Materials from M_Rock, then override its Roughness to 0.2.\"",
+            "incant": "\"Make a material instance MI_RockWet under /Game/MyGame/Materials from /Game/AethyrSamples/Materials/M_Rock, then override its Roughness to 0.2.\"",
             "description": "Creates an instance parented to the base material, then overrides one of its parameters. You choose scalar, vector or texture, and the parent has to declare that parameter.",
             "tools": [
               "create_material_instance",
@@ -1857,14 +1924,14 @@
         "intro": "Assemble a UMG screen, a behavior tree and a state tree from plain requests.",
         "spells": [
           {
-            "incant": "\"Show me the widget tree of /Game/MyGame/UI/WBP_MainMenu.\"",
+            "incant": "\"Show me the widget tree of /Game/AethyrSamples/UI/WBP_MainMenu.\"",
             "description": "Reads every widget in the tree with its class and parent, plus the root widget's name. Read-only.",
             "tools": [
               "read_widget_blueprint"
             ]
           },
           {
-            "incant": "\"In WBP_MainMenu, add a Button called PlayButton inside the VerticalBox, set its text color to red, bind OnClicked to OnPlayClicked, and compile.\"",
+            "incant": "\"In /Game/AethyrSamples/UI/WBP_MainMenu, add a Button called ProfileButton inside ButtonColumn, set its text color to red, bind OnClicked to OnProfileClicked, and compile.\"",
             "description": "Adds the widget under the parent you name (or at a set position), sets a property from its text form, binds the event to a handler (creating the handler if it's missing), then compiles. If the compile returns false, read the output log.",
             "tools": [
               "add_widget",
@@ -1874,15 +1941,15 @@
             ]
           },
           {
-            "incant": "\"List the behavior trees under /Game/MyGame/AI and show me the nodes of BT_Patrol.\"",
-            "description": "Lists behavior tree assets, then walks one tree and returns every node with its id, class, kind and parent, plus the root node id.",
+            "incant": "\"List the behavior trees under /Game/AethyrSamples/AI and read BT_Enemy, including its blackboard keys.\"",
+            "description": "Lists behavior tree assets, then walks one tree and returns every node with its id, class, kind and parent, plus the root node id. It also returns the linked blackboard and its keys, each with a name, key type and base class.",
             "tools": [
               "list_behavior_trees",
               "read_behavior_tree"
             ]
           },
           {
-            "incant": "\"In BT_Patrol, add a Selector at the root, a MoveTo task under it, set the MoveTo AcceptableRadius to 150, and compile.\"",
+            "incant": "\"In /Game/AethyrSamples/AI/BT_Enemy, add a Selector at the root, a MoveTo task under it, set the MoveTo AcceptableRadius to 150, and compile.\"",
             "description": "Adds composite, decorator, service or task nodes by class name, sets a node property from its text form, and compiles the tree. The first composite you add with no parent becomes the root.",
             "tools": [
               "add_bt_node",
@@ -1899,6 +1966,24 @@
               "add_state_tree_state",
               "set_state_tree_transition",
               "compile_state_tree"
+            ]
+          },
+          {
+            "incant": "\"Create a widget Blueprint /Game/MyGame/UI/WBP_PauseMenu, then add a TextBlock called TitleText to its root and set the text to Paused.\"",
+            "description": "Creates a Widget Blueprint with a root CanvasPanel, compiled and saved, so add_widget, set_widget_property, bind_widget_event and compile_widget_blueprint work on it right away. An existing widget comes back unchanged. No running editor needed.",
+            "tools": [
+              "create_widget_blueprint",
+              "add_widget",
+              "set_widget_property"
+            ]
+          },
+          {
+            "incant": "\"Create a blackboard /Game/MyGame/AI/BB_Guard with an Actor key called TargetActor and a bool called bAlert, then a behavior tree BT_Guard linked to it.\"",
+            "description": "Creates an empty blackboard, then adds each typed key. Key types are Bool, Float, Int, Vector, Rotator, Name, String, Object and Class, and an Object or Class key can narrow its base class. The tree starts with no nodes, so add them with add_bt_node. Every create or add step is safe to repeat, since an existing asset or key comes back unchanged. No running editor needed.",
+            "tools": [
+              "create_blackboard",
+              "add_blackboard_key",
+              "create_behavior_tree"
             ]
           }
         ]
