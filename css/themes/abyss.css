@@ -1,0 +1,43 @@
+/* Abyss
+   One flat deep-sea ground, no glow. "Blueprint" is solid cerulean, teal handles links and badges, orange only where something warm matters. Quiet and confident.
+   Source of truth for the palette: design/palettes.src.html */
+:root{
+  /* surface */
+  --void-rgb: 10 24 32; /* #0a1820 */
+  --void-2-rgb: 16 34 44; /* #10222c */
+  --void: rgb(var(--void-rgb));
+  --void-2: rgb(var(--void-2-rgb));
+  --panel: rgb(22 44 56 / .6);
+  --line-rgb: 100 170 190;
+  --line: rgb(var(--line-rgb) / .2);
+  /* ink */
+  --ink-rgb: 234 243 246; /* #eaf3f6 */
+  --ink: rgb(var(--ink-rgb));
+  --ink-2: #bdd1d8;
+  --ink-dim: #8ca5ae;
+  /* accents */
+  --c1-rgb: 58 160 228; /* #3aa0e4 lead */
+  --c2-rgb: 47 194 176; /* #2fc2b0 second */
+  --warm-rgb: 243 154 74; /* #f39a4a warm */
+  --warm-2-rgb: 243 154 74; /* #f39a4a same as warm */
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --warm: rgb(var(--warm-rgb));
+  --warm-2: rgb(var(--warm-2-rgb));
+  --on-c1: #04121c;
+  /* code and terminal */
+  --ok: color-mix(in srgb,var(--c2),var(--ink) 30%);
+  --str: color-mix(in srgb,var(--c2),var(--ink) 50%);
+  /* page background and ambient layers */
+  --bg-image: none;
+  --bg-size: auto;
+  --wash-opacity: 0.5;
+  /* glow (--glow-k is 0 for flat themes, 1 for glowing ones) */
+  --glow-k: 0;
+  --glow-c1: 0 0 24px transparent;
+  --glow-warm: 0 0 24px transparent;
+  /* hero title */
+  --title-grad: linear-gradient(var(--c1),var(--c1));
+  --title-w: auto;
+  --title-rule: 0 solid transparent;
+}

@@ -1,0 +1,45 @@
+/* Sea Chart
+   Pale chart paper with a faint grid. Cerulean is the ink, teal marks depths, orange marks hazards. Very readable, and very unlike typical AI sites.
+   Source of truth for the palette: design/palettes.src.html
+   (ink-dim darkened from #5f7780 to #566d76 so small text passes 4.5:1 on this paper) */
+:root{
+  color-scheme: light;
+  /* surface */
+  --void-rgb: 234 241 242; /* #eaf1f2 */
+  --void-2-rgb: 223 232 234; /* #dfe8ea */
+  --void: rgb(var(--void-rgb));
+  --void-2: rgb(var(--void-2-rgb));
+  --panel: rgb(255 255 255 / .65);
+  --line-rgb: 40 90 110;
+  --line: rgb(var(--line-rgb) / .2);
+  /* ink */
+  --ink-rgb: 20 48 61; /* #14303d */
+  --ink: rgb(var(--ink-rgb));
+  --ink-2: #33505c;
+  --ink-dim: #566d76;
+  /* accents */
+  --c1-rgb: 27 110 166; /* #1b6ea6 lead */
+  --c2-rgb: 15 138 125; /* #0f8a7d second */
+  --warm-rgb: 217 103 42; /* #d9672a warm */
+  --warm-2-rgb: 217 103 42; /* #d9672a same as warm */
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --warm: rgb(var(--warm-rgb));
+  --warm-2: rgb(var(--warm-2-rgb));
+  --on-c1: #ffffff;
+  /* code and terminal */
+  --ok: color-mix(in srgb,var(--c2),var(--ink) 30%);
+  --str: color-mix(in srgb,var(--c2),var(--ink) 50%);
+  /* page background and ambient layers */
+  --bg-image: linear-gradient(rgba(27,110,166,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(27,110,166,.08) 1px,transparent 1px);
+  --bg-size: 28px 28px;
+  --wash-opacity: 0.5;
+  /* glow (--glow-k is 0 for flat themes, 1 for glowing ones) */
+  --glow-k: 0;
+  --glow-c1: 0 0 24px transparent;
+  --glow-warm: 0 0 24px transparent;
+  /* hero title */
+  --title-grad: linear-gradient(var(--c1),var(--c1));
+  --title-w: auto;
+  --title-rule: 0 solid transparent;
+}

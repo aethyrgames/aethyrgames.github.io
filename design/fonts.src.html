@@ -1,0 +1,155 @@
+<title>Aethyr Scroll Fonts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Sora:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Uncial+Antiqua&family=MedievalSharp&family=Almendra:wght@400;700&family=Almendra+SC&family=Fondamento&family=Metamorphous&family=Eagle+Lake&family=Macondo&family=UnifrakturMaguntia&family=UnifrakturCook:wght@700&family=Pirata+One&family=Grenze+Gotisch:wght@400;700&family=Texturina:wght@400;700&family=Germania+One&family=IM+Fell+English&family=IM+Fell+English+SC&family=IM+Fell+DW+Pica&family=Caudex:wght@400;700&family=Inknut+Antiqua:wght@400;700&family=Cinzel+Decorative:wght@400;700&family=Berkshire+Swash&family=Tangerine:wght@400;700&family=Pinyon+Script&family=Petit+Formal+Script&display=swap">
+<style>
+/* Layout: a filter bar over a grid of specimen sheets, one per candidate, each set in the places --f-arcane is used on aethyr.gg. */
+:root {
+  --void: #0b0c1a;
+  --void-2: #12142a;
+  --panel: rgba(28, 31, 58, .5);
+  --line: rgba(140, 150, 220, .18);
+  --ink: #e8ecff;
+  --ink-dim: #a3aad3;
+  --cyan: #2fb9ff;
+  --violet: #9a6bff;
+  --amber: #f0b45a;
+  --f-body: 'Sora', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+body {
+  background: radial-gradient(1200px 600px at 15% -10%, #1a1d40 0%, transparent 60%), var(--void);
+  color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  padding-inline: clamp(16px, 4vw, 48px); padding-block: 32px 64px;
+}
+header { max-width: 1180px; margin: 0 auto 28px; display: grid; gap: 14px }
+.eyebrow { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: var(--cyan) }
+h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.1; margin: 0; text-wrap: balance }
+.lede { color: var(--ink-dim); max-width: 64ch; margin: 0 }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.controls label { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim) }
+#sample {
+  flex: 1 1 260px; min-width: 0; background: var(--void-2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 6px; padding: .55rem .75rem; font: inherit;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chip-f {
+  font-family: var(--f-mono); font-size: .72rem; letter-spacing: .06em; color: var(--ink-dim);
+  background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: .3rem .7rem; cursor: pointer;
+}
+.chip-f[aria-pressed="true"] { color: var(--void); background: var(--cyan); border-color: var(--cyan) }
+.chip-f:focus-visible, #sample:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px }
+main { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 18px }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 18px 16px; display: grid; gap: 12px; min-width: 0 }
+.card.current { border-color: rgba(47, 185, 255, .45) }
+.card.pick { border-color: rgba(240, 180, 90, .5) }
+.meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.name { font-family: var(--f-mono); font-size: .8rem; color: var(--ink) }
+.tag { font-family: var(--f-mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim) }
+.tag.cur { color: var(--cyan) }
+.tag.pk { color: var(--amber) }
+.hero { line-height: .95; font-size: clamp(2rem, 6vw, 2.6rem); overflow-wrap: anywhere; min-width: 0 }
+.hero .l1 { display: block; color: var(--ink) }
+.hero .l2 { display: block; background: linear-gradient(90deg, var(--cyan), var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent }
+.row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+.h2 { font-size: 1.55rem; line-height: 1.15; color: var(--ink) }
+.h3 { font-size: 1.15rem; color: var(--ink-dim) }
+.step { font-size: 1.7rem; color: var(--cyan); opacity: .8 }
+.potion {
+  display: inline-flex; align-items: center; gap: .45rem; font-size: .9rem; color: var(--ink);
+  padding: .35rem .85rem; border-radius: 999px; border: 1px solid transparent;
+  background: linear-gradient(var(--void-2), var(--void-2)) padding-box, linear-gradient(90deg, var(--cyan), var(--violet), #d65bd6) border-box;
+}
+.potion svg { width: 14px; height: 16px; flex: none }
+.note { color: var(--ink-dim); font-size: .85rem; margin: 0; border-top: 1px solid var(--line); padding-top: 10px }
+.empty { color: var(--ink-dim); grid-column: 1 / -1; text-align: center; padding: 40px 0 }
+@media (prefers-reduced-motion: no-preference) { .card { transition: border-color .2s } }
+</style>
+
+<header>
+  <span class="eyebrow">aethyr.gg · --f-arcane candidates</span>
+  <h1>Scroll fonts for Aethyr</h1>
+  <p class="lede">Each sheet sets one Google Font everywhere the site uses <code>--f-arcane</code> today: the hero title, section and docs headings, step numbers, and the potion button. The first sheet is the current face, Fraunces. Sheets marked "strong pick" read like a scribe's hand and still hold up at heading sizes.</p>
+  <div class="controls">
+    <label for="sample">Try text</label>
+    <input id="sample" type="text" value="AI that speaks" aria-describedby="sample-hint">
+    <span id="sample-hint" class="tag">first hero line</span>
+  </div>
+  <div class="chips" role="group" aria-label="Filter by style">
+    <button class="chip-f" type="button" data-f="all" aria-pressed="true">All</button>
+    <button class="chip-f" type="button" data-f="calligraphic" aria-pressed="false">Calligraphic hand</button>
+    <button class="chip-f" type="button" data-f="uncial" aria-pressed="false">Uncial and medieval</button>
+    <button class="chip-f" type="button" data-f="blackletter" aria-pressed="false">Blackletter</button>
+    <button class="chip-f" type="button" data-f="print" aria-pressed="false">Old print</button>
+    <button class="chip-f" type="button" data-f="script" aria-pressed="false">Formal script</button>
+  </div>
+</header>
+
+<main id="grid"></main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="liq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2fb9ff"/><stop offset="1" stop-color="#9a6bff"/></linearGradient>
+    <symbol id="potion" viewBox="0 0 14 16"><rect x="5" y="0" width="4" height="2.4" rx=".6" fill="#c08a5a"/><path d="M5.2 2.4h3.6v3.2a5 5 0 1 1-3.6 0z" fill="none" stroke="#c3c9ec" stroke-width="1"/><path d="M2.2 10a4.8 4.8 0 0 0 9.6 0z" fill="url(#liq)"/></symbol>
+  </defs>
+</svg>
+
+<script>
+const FONTS = [
+  { f: 'Fraunces', w: 700, group: 'current', cur: true, note: 'Today\'s face. A soft modern serif. Clean and legible, but it reads as print, not a hand.' },
+  { f: 'Grenze Gotisch', w: 700, group: 'blackletter', pick: true, note: 'Blackletter cut with a pen-like rhythm and a full weight range, so the bold hero and lighter docs headings both work. The most scroll-like option that still reads easily.' },
+  { f: 'Almendra', w: 700, group: 'calligraphic', pick: true, note: 'A calligraphic book hand with a real bold. Feels written with a broad nib, and stays readable for docs headings.' },
+  { f: 'Fondamento', w: 400, group: 'calligraphic', pick: true, note: 'Italic chancery hand, like a scribe working quickly. Regular weight only, so the hero would be lighter than now.' },
+  { f: 'IM Fell English', w: 400, group: 'print', pick: true, note: 'Seventeenth-century type with ink spread and uneven edges. Looks like an old printed scroll or tome. Very readable in docs.' },
+  { f: 'Texturina', w: 700, group: 'blackletter', note: 'Textura blackletter with many weights. More formal and dense than Grenze. Harder to read in long headings.' },
+  { f: 'Uncial Antiqua', w: 400, group: 'uncial', note: 'Insular uncial, like illuminated manuscripts. Strong mood for the hero, tiring for docs headings.' },
+  { f: 'MedievalSharp', w: 400, group: 'uncial', note: 'Pen-cut medieval letters with sharp terminals. Playful and game-like.' },
+  { f: 'Almendra SC', w: 400, group: 'calligraphic', note: 'Small-caps sibling of Almendra. Good for the hero and step numbers, less so for sentence-case headings.' },
+  { f: 'Metamorphous', w: 400, group: 'uncial', note: 'Mixes uncial and Roman forms. Has an arcane, spellbook feel.' },
+  { f: 'Eagle Lake', w: 400, group: 'calligraphic', note: 'Light broad-nib calligraphy with flourishes. Elegant but thin on a dark background.' },
+  { f: 'Macondo', w: 400, group: 'uncial', note: 'Loose, hand-cut medieval display. Very characterful, best in short bursts.' },
+  { f: 'Caudex', w: 700, group: 'print', note: 'Medieval-flavored book type with a bold. Subtle, readable, and quietly old.' },
+  { f: 'Inknut Antiqua', w: 700, group: 'print', note: 'Heavy, inky antiqua with a full weight range. Feels like a carved or stamped title page.' },
+  { f: 'Cinzel Decorative', w: 700, group: 'print', note: 'Roman inscription capitals with decorative swashes. More stone tablet than scroll.' },
+  { f: 'IM Fell English SC', w: 400, group: 'print', note: 'Small-caps cut of IM Fell. Stately for the hero and step numbers.' },
+  { f: 'IM Fell DW Pica', w: 400, group: 'print', note: 'A slightly bolder IM Fell cut. Same old-print texture with a bit more presence.' },
+  { f: 'UnifrakturMaguntia', w: 400, group: 'blackletter', note: 'Classic fraktur. Very gothic and very hard to read in mixed case.' },
+  { f: 'UnifrakturCook', w: 700, group: 'blackletter', note: 'Heavy fraktur, bold only. Striking hero, unreadable at docs sizes.' },
+  { f: 'Pirata One', w: 400, group: 'blackletter', note: 'Condensed blackletter with a sharp, piratical edge.' },
+  { f: 'Germania One', w: 400, group: 'blackletter', note: 'Simplified blackletter display. Bold and blunt, less hand-drawn.' },
+  { f: 'Berkshire Swash', w: 400, group: 'script', note: 'Swashy calligraphic serif. Warm and storybook-like.' },
+  { f: 'Tangerine', w: 700, group: 'script', note: 'Fine italic script. Needs large sizes, too delicate for buttons.' },
+  { f: 'Pinyon Script', w: 400, group: 'script', note: 'Copperplate script, like a formal letter. Unreadable in all caps.' },
+  { f: 'Petit Formal Script', w: 400, group: 'script', note: 'Formal connected script. Beautiful in the hero only.' }
+];
+const LABEL = { current: 'current', calligraphic: 'calligraphic', uncial: 'uncial', blackletter: 'blackletter', print: 'old print', script: 'script' };
+const grid = document.getElementById('grid');
+const sample = document.getElementById('sample');
+let filter = 'all';
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function render() {
+  const line1 = esc(sample.value || 'AI that speaks');
+  const list = FONTS.filter(x => filter === 'all' || x.group === filter || x.cur);
+  grid.innerHTML = list.map(x => {
+    const ff = `'${x.f}', Georgia, 'Times New Roman', serif`;
+    const tag = x.cur ? '<span class="tag cur">current</span>' : x.pick ? '<span class="tag pk">strong pick</span>' : `<span class="tag">${LABEL[x.group]}</span>`;
+    return `<article class="card${x.cur ? ' current' : ''}${x.pick ? ' pick' : ''}" style="font-family:${ff};font-weight:${x.w}">
+      <div class="meta" style="font-family:var(--f-mono)"><span class="name">${x.f}</span>${tag}</div>
+      <div class="hero"><span class="l1">${line1}</span><span class="l2">Blueprint</span></div>
+      <div class="h2">Every tool. Full access.</div>
+      <div class="row"><span class="step">03</span><span class="h3">Connect your AI client</span></div>
+      <div class="row"><span class="potion"><svg aria-hidden="true"><use href="#potion"/></svg>Buy me a Potion!</span></div>
+      <p class="note" style="font-family:var(--f-body);font-weight:400">${x.note}</p>
+    </article>`;
+  }).join('') || '<p class="empty">No fonts in this group.</p>';
+}
+document.querySelectorAll('.chip-f').forEach(b => b.addEventListener('click', () => {
+  filter = b.dataset.f;
+  document.querySelectorAll('.chip-f').forEach(o => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
+  render();
+}));
+sample.addEventListener('input', render);
+render();
+</script>

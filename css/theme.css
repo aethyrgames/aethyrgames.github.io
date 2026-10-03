@@ -1,0 +1,12 @@
+/* =========================================================================
+   Aethyr site theme: the one-line switch.
+
+   To change the whole site's colours, change the id in the @import below to
+   any file name in css/themes/ (without .css), for example "tide" or "today".
+   Every page links this file before styles.css / docs.css, so the tokens are
+   defined first. The token contract is in css/themes/README.md.
+
+   Preview without committing: add ?theme=<id> to any page URL.
+   Reference pages for all 13 palettes: design/palettes.src.html
+   ========================================================================= */
+@import url("themes/storm-glass.css");

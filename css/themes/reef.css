@@ -1,0 +1,43 @@
+/* Reef
+   The most orange of the set: cerulean and teal water, with a coral orange that carries the main button. Warmer and friendlier.
+   Source of truth for the palette: design/palettes.src.html */
+:root{
+  /* surface */
+  --void-rgb: 10 21 25; /* #0a1519 */
+  --void-2-rgb: 16 33 39; /* #102127 */
+  --void: rgb(var(--void-rgb));
+  --void-2: rgb(var(--void-2-rgb));
+  --panel: rgb(20 42 50 / .55);
+  --line-rgb: 110 190 200;
+  --line: rgb(var(--line-rgb) / .18);
+  /* ink */
+  --ink-rgb: 238 245 246; /* #eef5f6 */
+  --ink: rgb(var(--ink-rgb));
+  --ink-2: #c5d6da;
+  --ink-dim: #90a7ad;
+  /* accents */
+  --c1-rgb: 255 138 76; /* #ff8a4c lead */
+  --c2-rgb: 43 181 200; /* #2bb5c8 second */
+  --warm-rgb: 43 143 214; /* #2b8fd6 warm */
+  --warm-2-rgb: 43 143 214; /* #2b8fd6 same as warm */
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --warm: rgb(var(--warm-rgb));
+  --warm-2: rgb(var(--warm-2-rgb));
+  --on-c1: #1a0b03;
+  /* code and terminal */
+  --ok: color-mix(in srgb,var(--c2),var(--ink) 30%);
+  --str: color-mix(in srgb,var(--c2),var(--ink) 50%);
+  /* page background and ambient layers */
+  --bg-image: radial-gradient(60vw 45vh at 12% -5%,rgba(43,181,200,.2) 0%,transparent 60%),radial-gradient(55vw 40vh at 100% 105%,rgba(255,138,76,.12) 0%,transparent 65%);
+  --bg-size: auto;
+  --wash-opacity: 1;
+  /* glow (--glow-k is 0 for flat themes, 1 for glowing ones) */
+  --glow-k: 1;
+  --glow-c1: 0 0 24px rgb(var(--c1-rgb) / .4);
+  --glow-warm: 0 0 24px rgb(var(--warm-rgb) / .4);
+  /* hero title */
+  --title-grad: linear-gradient(100deg,var(--c1),var(--c2));
+  --title-w: auto;
+  --title-rule: 0 solid transparent;
+}

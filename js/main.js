@@ -399,7 +399,12 @@
   const ctx = cv.getContext('2d');
   let W, H, DPR, nodes, mx = 0.5, my = 0.5, raf;
 
-  const palette = ['47,185,255', '255,43,214', '155,107,255'];
+  // node colours come from the active theme tokens (css/themes/README.md)
+  const themeCss = getComputedStyle(document.documentElement);
+  const palette = ['--c1-rgb', '--warm-rgb', '--c2-rgb']
+    .map((n) => themeCss.getPropertyValue(n).trim().split(/\s+/).join(','))
+    .filter(Boolean);
+  if (!palette.length) return;
   const NODE_COUNT = () => Math.min(42, Math.floor((window.innerWidth * window.innerHeight) / 34000));
 
   function resize() {

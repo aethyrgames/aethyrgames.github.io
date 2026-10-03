@@ -1,0 +1,43 @@
+/* Today (the original Arcane Terminal colours)
+   The current cyan, violet and magenta on a violet-tinted near-black, for comparison.
+   Source of truth for the palette: design/palettes.src.html */
+:root{
+  /* surface */
+  --void-rgb: 11 12 26; /* #0b0c1a */
+  --void-2-rgb: 18 20 42; /* #12142a */
+  --void: rgb(var(--void-rgb));
+  --void-2: rgb(var(--void-2-rgb));
+  --panel: rgb(28 31 58 / .5);
+  --line-rgb: 130 150 230;
+  --line: rgb(var(--line-rgb) / .16);
+  /* ink */
+  --ink-rgb: 232 236 255; /* #e8ecff */
+  --ink: rgb(var(--ink-rgb));
+  --ink-2: #c3c9ec;
+  --ink-dim: #a3aad3;
+  /* accents */
+  --c1-rgb: 47 185 255; /* #2fb9ff lead */
+  --c2-rgb: 155 107 255; /* #9b6bff second */
+  --warm-rgb: 255 43 214; /* #ff2bd6 warm */
+  --warm-2-rgb: 255 138 76; /* #ff8a4c ember (second warm role) */
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --warm: rgb(var(--warm-rgb));
+  --warm-2: rgb(var(--warm-2-rgb));
+  --on-c1: #04121c;
+  /* code and terminal */
+  --ok: #54f0a8;
+  --str: #9af0c0;
+  /* page background and ambient layers */
+  --bg-image: none;
+  --bg-size: auto;
+  --wash-opacity: 1;
+  /* glow (--glow-k is 0 for flat themes, 1 for glowing ones) */
+  --glow-k: 1;
+  --glow-c1: 0 0 24px rgb(var(--c1-rgb) / .55);
+  --glow-warm: 0 0 24px rgb(var(--warm-rgb) / .5);
+  /* hero title */
+  --title-grad: linear-gradient(100deg,var(--c1),var(--c2) 45%,var(--warm));
+  --title-w: auto;
+  --title-rule: 0 solid transparent;
+}

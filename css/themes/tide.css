@@ -1,0 +1,43 @@
+/* Tide
+   Bright cerulean leads, sea teal answers, soft orange for warmth. Closest to today's energy without the purple.
+   Source of truth for the palette: design/palettes.src.html */
+:root{
+  /* surface */
+  --void-rgb: 9 19 27; /* #09131b */
+  --void-2-rgb: 15 29 39; /* #0f1d27 */
+  --void: rgb(var(--void-rgb));
+  --void-2: rgb(var(--void-2-rgb));
+  --panel: rgb(20 40 52 / .55);
+  --line-rgb: 110 190 200;
+  --line: rgb(var(--line-rgb) / .18);
+  /* ink */
+  --ink-rgb: 230 241 244; /* #e6f1f4 */
+  --ink: rgb(var(--ink-rgb));
+  --ink-2: #bcd2d9;
+  --ink-dim: #8fa8b2;
+  /* accents */
+  --c1-rgb: 43 151 220; /* #2b97dc lead */
+  --c2-rgb: 27 184 166; /* #1bb8a6 second */
+  --warm-rgb: 242 145 61; /* #f2913d warm */
+  --warm-2-rgb: 242 145 61; /* #f2913d same as warm */
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --warm: rgb(var(--warm-rgb));
+  --warm-2: rgb(var(--warm-2-rgb));
+  --on-c1: #04121c;
+  /* code and terminal */
+  --ok: color-mix(in srgb,var(--c2),var(--ink) 30%);
+  --str: color-mix(in srgb,var(--c2),var(--ink) 50%);
+  /* page background and ambient layers */
+  --bg-image: radial-gradient(60vw 45vh at 12% -5%,rgba(43,151,220,.22) 0%,transparent 60%),radial-gradient(55vw 40vh at 100% 105%,rgba(27,184,166,.16) 0%,transparent 65%);
+  --bg-size: auto;
+  --wash-opacity: 1;
+  /* glow (--glow-k is 0 for flat themes, 1 for glowing ones) */
+  --glow-k: 1;
+  --glow-c1: 0 0 24px rgb(var(--c1-rgb) / .45);
+  --glow-warm: 0 0 24px rgb(var(--warm-rgb) / .4);
+  /* hero title */
+  --title-grad: linear-gradient(100deg,var(--c1),var(--c2));
+  --title-w: auto;
+  --title-rule: 0 solid transparent;
+}

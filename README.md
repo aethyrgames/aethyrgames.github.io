@@ -23,6 +23,10 @@ Live at https://aethyr.gg
 | `js/docs.js` | — | Shared renderer for all docs pages |
 | `js/main.js` | — | Site interactions (scroll reveals, typewriter, count-up) |
 | `css/styles.css` | — | Shared site styles (Arcane Terminal design system) |
+| `css/theme.css` | - | The one-line theme switch. Imports one file from `css/themes/` |
+| `css/themes/` | - | One `:root` token file per palette, plus `README.md` with the token contract |
+| `design/palettes.src.html` | - | Reference page comparing all 13 palettes. Not linked or in the sitemap |
+| `design/fonts.src.html` | - | Reference page comparing font options. Not linked or in the sitemap |
 | `img/brand/` | — | Aethyr lockup, crystal mark, and favicons |
 | `changelog/index.html` | `/changelog/` | Release history. Content in `data/changelog.json` |
 | `security/index.html` | `/security/` | Security and privacy page. Content in `data/security.json` |

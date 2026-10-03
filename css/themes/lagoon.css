@@ -1,0 +1,43 @@
+/* Lagoon
+   Teal leads and cerulean supports, with a sunnier orange that reads like a lantern on the water.
+   Source of truth for the palette: design/palettes.src.html */
+:root{
+  /* surface */
+  --void-rgb: 7 21 24; /* #071518 */
+  --void-2-rgb: 12 32 36; /* #0c2024 */
+  --void: rgb(var(--void-rgb));
+  --void-2: rgb(var(--void-2-rgb));
+  --panel: rgb(16 44 48 / .55);
+  --line-rgb: 100 200 190;
+  --line: rgb(var(--line-rgb) / .18);
+  /* ink */
+  --ink-rgb: 231 244 242; /* #e7f4f2 */
+  --ink: rgb(var(--ink-rgb));
+  --ink-2: #bfd8d5;
+  --ink-dim: #8eaaa7;
+  /* accents */
+  --c1-rgb: 34 179 162; /* #22b3a2 lead */
+  --c2-rgb: 58 154 217; /* #3a9ad9 second */
+  --warm-rgb: 255 158 79; /* #ff9e4f warm */
+  --warm-2-rgb: 255 158 79; /* #ff9e4f same as warm */
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --warm: rgb(var(--warm-rgb));
+  --warm-2: rgb(var(--warm-2-rgb));
+  --on-c1: #03130f;
+  /* code and terminal */
+  --ok: color-mix(in srgb,var(--c2),var(--ink) 30%);
+  --str: color-mix(in srgb,var(--c2),var(--ink) 50%);
+  /* page background and ambient layers */
+  --bg-image: radial-gradient(60vw 45vh at 12% -5%,rgba(34,179,162,.22) 0%,transparent 60%),radial-gradient(55vw 40vh at 100% 105%,rgba(58,154,217,.16) 0%,transparent 65%);
+  --bg-size: auto;
+  --wash-opacity: 1;
+  /* glow (--glow-k is 0 for flat themes, 1 for glowing ones) */
+  --glow-k: 1;
+  --glow-c1: 0 0 24px rgb(var(--c1-rgb) / .45);
+  --glow-warm: 0 0 24px rgb(var(--warm-rgb) / .4);
+  /* hero title */
+  --title-grad: linear-gradient(100deg,var(--c1),var(--c2));
+  --title-w: auto;
+  --title-rule: 0 solid transparent;
+}

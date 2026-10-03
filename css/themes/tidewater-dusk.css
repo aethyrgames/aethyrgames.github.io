@@ -1,0 +1,43 @@
+/* Tidewater Dusk
+   A muted, painterly mix: dusky cerulean, sage teal and a soft apricot on a warm dark ground. The least techy of the set.
+   Source of truth for the palette: design/palettes.src.html */
+:root{
+  /* surface */
+  --void-rgb: 20 22 23; /* #141617 */
+  --void-2-rgb: 28 31 33; /* #1c1f21 */
+  --void: rgb(var(--void-rgb));
+  --void-2: rgb(var(--void-2-rgb));
+  --panel: rgb(36 40 42 / .6);
+  --line-rgb: 170 180 175;
+  --line: rgb(var(--line-rgb) / .16);
+  /* ink */
+  --ink-rgb: 239 236 230; /* #efece6 */
+  --ink: rgb(var(--ink-rgb));
+  --ink-2: #cfcac0;
+  --ink-dim: #9b958b;
+  /* accents */
+  --c1-rgb: 90 156 204; /* #5a9ccc lead */
+  --c2-rgb: 111 179 163; /* #6fb3a3 second */
+  --warm-rgb: 240 164 107; /* #f0a46b warm */
+  --warm-2-rgb: 240 164 107; /* #f0a46b same as warm */
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --warm: rgb(var(--warm-rgb));
+  --warm-2: rgb(var(--warm-2-rgb));
+  --on-c1: #0b1620;
+  /* code and terminal */
+  --ok: color-mix(in srgb,var(--c2),var(--ink) 30%);
+  --str: color-mix(in srgb,var(--c2),var(--ink) 50%);
+  /* page background and ambient layers */
+  --bg-image: none;
+  --bg-size: auto;
+  --wash-opacity: 0.5;
+  /* glow (--glow-k is 0 for flat themes, 1 for glowing ones) */
+  --glow-k: 0;
+  --glow-c1: 0 0 24px transparent;
+  --glow-warm: 0 0 24px transparent;
+  /* hero title */
+  --title-grad: linear-gradient(var(--c1),var(--c1));
+  --title-w: auto;
+  --title-rule: 0 solid transparent;
+}

@@ -176,29 +176,40 @@ Aethyr is a developer tool for game developers — an audience that is visually 
 
 ## Color System
 
+Every colour comes from CSS custom properties. The active palette is one file in `css/themes/`, chosen by the single `@import` in `css/theme.css`. The site currently ships **Storm Glass**: slate ground `#141c24`, cerulean `#3b9be0` as the lead, teal `#30b7a6` as the second accent, orange `#f2943f` as the warm accent, and a faint 28px blueprint grid. The original palette (cyan, violet, magenta, ember) is kept as the `today` theme.
+
+**Token contract** (full version in `css/themes/README.md`):
+
 ```
---void: #0b0c1a        The stage. Pure space, slightly blue-shifted.
---void-2: #12142a     For raised surfaces (cards, panels) on top of void.
---panel: rgba(28,31,58,.5)  Translucent panel surface. Blur behind it.
-
---cyan: #2fb9ff        Primary data presence. Action. Terminal output. Links.
---magenta: #ff2bd6     Disruption. The corrupted signal. Used for contrast, not comfort.
---violet: #9b6bff      Depth. Mysticism. Secondary glow. Gradient endpoint.
---ember: #ff8a4c       Warmth. The anomaly. One use per section maximum.
-
---ink: #e8ecff         Primary text. Slightly lavender-shifted white.
---ink-2: #c3c9ec       Secondary text. Feature descriptions, card bodies.
---ink-dim: #a3aad3     Tertiary text. Fine print, labels, metadata.
-
---line: rgba(130,150,230,.16)  Structural whisper. 1px borders. Almost invisible.
+--void, --void-2, --panel, --line      surfaces and borders
+--ink, --ink-2, --ink-dim              text, three levels
+--c1       lead accent: actions, links, output, focus
+--c2       second accent: gradient end, depth
+--warm     warm accent: glitch flare, keywords, warnings
+--warm-2   second warm role (ember in Today, same as --warm elsewhere)
+--on-c1    text on top of --c1
+--*-rgb    space-separated triplets for alpha: rgb(var(--c1-rgb) / .18)
+--bg-image, --bg-size, --wash-opacity  page background and ambient layers
+--glow-k, --glow-c1, --glow-warm       glow strength and shadows
+--title-grad, --title-w, --title-rule  hero title treatment
+--ok, --str                            terminal success, code strings
 ```
 
-**Emotional logic:**
-- Cyan is always on the user's side — it marks actions, outputs, and successes.
-- Magenta is always at the edge of control — glitch, disruption, the AI doing something powerful.
-- Violet is background energy — it appears in gradients, halos, and secondary elements.
-- Ember appears once to break the cool palette's monotony and add human warmth.
-- The three ink levels create reading hierarchy without relying on scale alone. `--ink` for what matters now; `--ink-dim` for context.
+**Emotional logic** (unchanged, mapped to the new names):
+- `--c1` is always on the user's side. It marks actions, outputs, and successes.
+- `--warm` is always at the edge of control: glitch, disruption, the AI doing something powerful. Keep it rare.
+- `--c2` is background energy. It appears in gradients, halos, and secondary elements.
+- The three ink levels create reading hierarchy without relying on scale alone.
+
+**Switch themes.** Edit the id in `css/theme.css`. To preview without committing, add `?theme=<id>` to any page URL (the ids are the file names in `css/themes/`).
+
+**Add a theme.** Copy a file in `css/themes/`, edit the values, add the id to the `?theme=` script in each page head, then point `css/theme.css` at it. No stylesheet or script should contain a theme colour literal. Canvas code reads `--c1-rgb`, `--warm-rgb` and `--c2-rgb` with `getComputedStyle`.
+
+**Reference pages.** `design/palettes.src.html` compares all 13 palettes, and `design/fonts.src.html` compares type options. They are the record of why Storm Glass was picked. They are not linked from the site and not in the sitemap.
+
+**Brand art.** The files in `img/brand/` and the inline lockup in `index.html` keep their fixed cyan and violet fills. The strokes coupled to tokens in `styles.css` (`.xtl-edge`, `.xtl-wordmark`, the three glints) follow the theme.
+
+*Older sections below still use the original colour names (cyan, magenta, violet, ember). Read them as `--c1`, `--warm`, `--c2` and `--warm-2`.*
 
 ---
 

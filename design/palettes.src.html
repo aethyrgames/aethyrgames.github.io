@@ -1,0 +1,196 @@
+<title>Aethyr Palette Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+DW+Pica&family=Chakra+Petch:wght@500;700&family=Sora:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one row per palette, each a miniature aethyr.gg hero plus a swatch strip, so the options compare side by side. Single dark look, like the site. */
+:root {
+  --page: #0a0f14;
+  --page-ink: #e6eef2;
+  --page-dim: #93a3ad;
+  --page-line: rgba(150, 190, 200, .16);
+  --f-arcane: 'IM Fell DW Pica', 'IM Fell English', Georgia, serif;
+  --f-display: 'Chakra Petch', system-ui, sans-serif;
+  --f-body: 'Sora', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+body { background: var(--page); color: var(--page-ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55; padding-inline: clamp(16px, 4vw, 48px); padding-block: 32px 64px }
+header { max-width: 1180px; margin: 0 auto 26px; display: grid; gap: 10px }
+.eyebrow { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: #19b5a5 }
+h1 { font-family: var(--f-arcane); font-weight: 400; font-size: clamp(1.9rem, 4vw, 2.6rem); line-height: 1.1; margin: 0 }
+.lede { color: var(--page-dim); max-width: 66ch; margin: 0 }
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 26px }
+.opt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px); gap: 18px; align-items: stretch }
+@media (max-width: 860px) { .opt { grid-template-columns: minmax(0, 1fr) } }
+.stage {
+  border-radius: 12px; border: 1px solid var(--line); overflow: hidden; min-width: 0;
+  background: radial-gradient(700px 360px at 12% -10%, var(--glow-a) 0%, transparent 60%), radial-gradient(600px 300px at 100% 110%, var(--glow-b) 0%, transparent 65%), var(--void);
+  color: var(--ink); padding: 22px clamp(16px, 3vw, 30px) 24px; display: grid; gap: 16px;
+}
+.bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.mark { display: flex; align-items: center; gap: 8px; font-family: var(--f-display); letter-spacing: .32em; font-size: .9rem; color: var(--ink) }
+.mark svg { width: 20px; height: 24px }
+.chip {
+  display: inline-flex; align-items: center; gap: .4rem; font-family: var(--f-arcane); font-size: .86rem; color: var(--ink);
+  padding: .3rem .8rem; border-radius: 999px; border: 1px solid transparent;
+  background: linear-gradient(var(--void-2), var(--void-2)) padding-box, linear-gradient(90deg, var(--c1), var(--c2), var(--warm)) border-box;
+}
+.chip svg { width: 12px; height: 14px }
+.nav { margin-left: auto; display: flex; gap: 14px; font-family: var(--f-display); font-size: .74rem; letter-spacing: .08em; color: var(--ink-dim); flex-wrap: wrap }
+.kicker { font-family: var(--f-mono); font-size: .66rem; letter-spacing: .22em; color: var(--ink-dim) }
+.kicker b { color: var(--c2); font-weight: 500 }
+.title { font-family: var(--f-arcane); font-size: clamp(2rem, 5.4vw, 3.4rem); line-height: .95; margin: 0 }
+.title .l2 { display: block; background: linear-gradient(90deg, var(--c1), var(--c2)); -webkit-background-clip: text; background-clip: text; color: transparent }
+.sub { color: var(--ink-2); max-width: 46ch; margin: 0 }
+.sub em { color: var(--c2); font-style: normal }
+.cta { display: flex; gap: 10px; flex-wrap: wrap }
+.btn { font-family: var(--f-display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; padding: .7rem 1rem; border-radius: 3px }
+.btn.p { background: var(--c1); color: var(--on-c1); box-shadow: 0 0 22px var(--c1-glow) }
+.btn.g { border: 1px solid var(--line); color: var(--ink) }
+.prompt { font-family: var(--f-mono); font-size: .78rem; color: var(--c2); border: 1px solid var(--line); border-radius: 6px; padding: .6rem .8rem; background: var(--panel); overflow-wrap: anywhere }
+.stats { display: flex; gap: 26px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px }
+.stat { display: grid; gap: 2px }
+.stat b { font-family: var(--f-display); font-size: 1.5rem; height: 1.7rem; display: flex; align-items: center; color: var(--ink) }
+.stat:not(:first-child) b { color: var(--ink-dim) }
+.stat span { font-family: var(--f-mono); font-size: .62rem; letter-spacing: .14em; color: var(--ink-dim) }
+.badges { display: flex; gap: 8px; flex-wrap: wrap }
+.badge { font-family: var(--f-mono); font-size: .68rem; padding: .3rem .65rem; border-radius: 999px; border: 1px solid }
+.badge.a { color: var(--c1); border-color: color-mix(in srgb, var(--c1) 45%, transparent) }
+.badge.b { color: var(--warm); border-color: color-mix(in srgb, var(--warm) 45%, transparent) }
+.badge.c { color: var(--c2); border-color: color-mix(in srgb, var(--c2) 45%, transparent) }
+.info { display: grid; gap: 12px; align-content: start; min-width: 0 }
+.info h2 { font-family: var(--f-arcane); font-weight: 400; font-size: 1.6rem; margin: 0 }
+.info p { color: var(--page-dim); margin: 0; font-size: .9rem }
+.rec { font-family: var(--f-mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: #f2913d }
+.sw { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px }
+.sw div { border-radius: 6px; height: 44px; display: flex; align-items: flex-end; padding: 4px 6px; font-family: var(--f-mono); font-size: .6rem; color: rgba(255,255,255,.88); text-shadow: 0 1px 2px rgba(0,0,0,.6); border: 1px solid var(--page-line) }
+.sw div.lt { color: rgba(0,0,0,.75); text-shadow: none }
+#cur { opacity: .9 }
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chip-f { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .06em; color: var(--page-dim); background: transparent; border: 1px solid var(--page-line); border-radius: 999px; padding: .3rem .7rem; cursor: pointer }
+.chip-f[aria-pressed="true"] { color: #071216; background: #1bb8a6; border-color: #1bb8a6 }
+.chip-f:focus-visible { outline: 2px solid #2b97dc; outline-offset: 2px }
+.stage.flat { background: var(--void) }
+.stage.texture-paper { background-color: var(--void); background-image: var(--tex) }
+.stage.texture-grid { background-color: var(--void); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 28px 28px }
+.title.solid .l2 { background: none; color: var(--c1) }
+.title.underline .l2 { background: none; color: var(--c1); text-decoration: underline; text-decoration-color: var(--warm); text-decoration-thickness: 3px; text-underline-offset: 8px }
+.tagrow { display: flex; gap: 6px; flex-wrap: wrap }
+.tg { font-family: var(--f-mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--page-dim); border: 1px solid var(--page-line); border-radius: 4px; padding: .15rem .45rem }
+.btn.p.solidbtn { box-shadow: none }
+
+</style>
+
+<header>
+  <span class="eyebrow">aethyr.gg · color options</span>
+  <h1>Cerulean, teal and a little orange</h1>
+  <p class="lede">Twelve directions built from cerulean, teal and orange, plus a few cousins. Some keep a glowing background, some use a flat ground, two use a paper or grid texture, and two are light. Titles are either a two-color sweep or one solid ink. Today's palette is last, for comparison.</p>
+  <div class="chips" role="group" aria-label="Filter options">
+    <button class="chip-f" type="button" data-f="all" aria-pressed="true">All</button>
+    <button class="chip-f" type="button" data-f="glow" aria-pressed="false">Glowing background</button>
+    <button class="chip-f" type="button" data-f="flat" aria-pressed="false">Flat background</button>
+    <button class="chip-f" type="button" data-f="texture" aria-pressed="false">Textured background</button>
+    <button class="chip-f" type="button" data-f="light" aria-pressed="false">Light</button>
+  </div>
+</header>
+
+<main id="list"></main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="crystal" viewBox="0 0 20 24"><path d="M10 0 19 8 10 24 1 8z" fill="currentColor" opacity=".9"/><path d="M10 0v24M1 8h18" stroke="rgba(255,255,255,.5)" stroke-width=".7" fill="none"/></symbol>
+    <symbol id="potion" viewBox="0 0 14 16"><rect x="5" y="0" width="4" height="2.4" rx=".6" fill="#c08a5a"/><path d="M5.2 2.4h3.6v3.2a5 5 0 1 1-3.6 0z" fill="none" stroke="#cfdde2" stroke-width="1"/><path d="M2.2 10a4.8 4.8 0 0 0 9.6 0z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<script>
+const PAPER = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.33 0 0 0 0 0.18 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")";
+const OPTS = [
+  { name: 'Tide', rec: true, bg: 'glow', title: 'sweep', tags: ['glow'],
+    note: "Bright cerulean leads, sea teal answers, soft orange for warmth. Closest to today's energy without the purple.",
+    t: { void: '#09131b', void2: '#0f1d27', panel: 'rgba(20,40,52,.55)', line: 'rgba(110,190,200,.18)', c1: '#2b97dc', c2: '#1bb8a6', warm: '#f2913d', ink: '#e6f1f4', ink2: '#bcd2d9', inkDim: '#8fa8b2', onC1: '#04121c', glowA: 'rgba(43,151,220,.22)', glowB: 'rgba(27,184,166,.16)', c1Glow: 'rgba(43,151,220,.45)' } },
+  { name: 'Lagoon', bg: 'glow', title: 'sweep', tags: ['glow'],
+    note: 'Teal leads and cerulean supports, with a sunnier orange that reads like a lantern on the water.',
+    t: { void: '#071518', void2: '#0c2024', panel: 'rgba(16,44,48,.55)', line: 'rgba(100,200,190,.18)', c1: '#22b3a2', c2: '#3a9ad9', warm: '#ff9e4f', ink: '#e7f4f2', ink2: '#bfd8d5', inkDim: '#8eaaa7', onC1: '#03130f', glowA: 'rgba(34,179,162,.22)', glowB: 'rgba(58,154,217,.16)', c1Glow: 'rgba(34,179,162,.45)' } },
+  { name: 'Abyss', rec: true, bg: 'flat', title: 'solid', tags: ['flat'],
+    note: 'One flat deep-sea ground, no glow. "Blueprint" is solid cerulean, teal handles links and badges, orange only where something warm matters. Quiet and confident.',
+    t: { void: '#0a1820', void2: '#10222c', panel: 'rgba(22,44,56,.6)', line: 'rgba(100,170,190,.2)', c1: '#3aa0e4', c2: '#2fc2b0', warm: '#f39a4a', ink: '#eaf3f6', ink2: '#bdd1d8', inkDim: '#8ca5ae', onC1: '#04121c', c1Glow: 'transparent' } },
+  { name: 'Verdigris', bg: 'flat', title: 'sweep', tags: ['flat'],
+    note: "Oxidized copper: a green-leaning teal, a steel cerulean, and a rust orange on dark slate. Like an old instrument or a ship's brass fittings.",
+    t: { void: '#101716', void2: '#172120', panel: 'rgba(30,46,44,.6)', line: 'rgba(120,180,165,.2)', c1: '#3fb39b', c2: '#3c8fc4', warm: '#d8692e', ink: '#ecf2ef', ink2: '#c4d3ce', inkDim: '#93a8a2', onC1: '#06150f', c1Glow: 'transparent' } },
+  { name: "Ship's Log", rec: true, bg: 'texture-paper', title: 'solid', tags: ['texture', 'light'], light: true,
+    note: 'A light, scribed-scroll look that matches the new font: warm parchment, cerulean ink headings, teal links, and an orange like a wax seal.',
+    t: { void: '#efe6d3', void2: '#e6dbc4', panel: 'rgba(255,250,238,.6)', line: 'rgba(90,70,40,.22)', c1: '#1f6fa8', c2: '#13867b', warm: '#c85a1c', ink: '#22303a', ink2: '#3f4c55', inkDim: '#6a6555', onC1: '#ffffff', c1Glow: 'transparent', tex: 'PAPER' } },
+  { name: 'Sea Chart', bg: 'texture-grid', title: 'solid', tags: ['texture', 'light'], light: true,
+    note: 'Pale chart paper with a faint grid. Cerulean is the ink, teal marks depths, orange marks hazards. Very readable, and very unlike typical AI sites.',
+    t: { void: '#eaf1f2', void2: '#dfe8ea', panel: 'rgba(255,255,255,.65)', line: 'rgba(40,90,110,.2)', c1: '#1b6ea6', c2: '#0f8a7d', warm: '#d9672a', ink: '#14303d', ink2: '#33505c', inkDim: '#5f7780', onC1: '#ffffff', c1Glow: 'transparent', grid: 'rgba(27,110,166,.08)' } },
+  { name: 'Ink Well', bg: 'flat', title: 'underline', tags: ['flat'],
+    note: 'Almost monochrome: near-black blue, cerulean as the single ink, teal only for success states, and an orange underline under "Blueprint" as the one warm stroke.',
+    t: { void: '#0b0f14', void2: '#121820', panel: 'rgba(24,32,42,.6)', line: 'rgba(120,160,190,.16)', c1: '#4aa6e6', c2: '#3cbfae', warm: '#f08a3c', ink: '#eef3f7', ink2: '#c3cfd8', inkDim: '#8d9aa5', onC1: '#04121c', c1Glow: 'transparent' } },
+  { name: 'Bioluminescence', bg: 'flat', title: 'sweep', tags: ['flat'],
+    note: 'Pure black ground with glowing teal-to-cerulean type, like deep-sea light. Orange shows up as tiny sparks only. The glow lives in the type, not the background.',
+    t: { void: '#05080a', void2: '#0b1114', panel: 'rgba(16,26,30,.6)', line: 'rgba(60,200,190,.18)', c1: '#2fd6c2', c2: '#3aa8ff', warm: '#ff9a3c', ink: '#e4f6f4', ink2: '#b6d4d1', inkDim: '#7f9c99', onC1: '#021310', c1Glow: 'rgba(47,214,194,.45)' } },
+  { name: 'Storm Glass', bg: 'texture-grid', title: 'sweep', tags: ['texture'],
+    note: 'Slate blue-grey with a faint blueprint grid, a nod to the subject. Cerulean and teal sweep, orange for warnings and the potion edge.',
+    t: { void: '#141c24', void2: '#1b2530', panel: 'rgba(32,44,56,.6)', line: 'rgba(130,170,200,.18)', c1: '#3b9be0', c2: '#30b7a6', warm: '#f2943f', ink: '#e9f0f5', ink2: '#c0ccd6', inkDim: '#8d9caa', onC1: '#05131d', c1Glow: 'transparent', grid: 'rgba(59,155,224,.07)' } },
+  { name: 'Reef', bg: 'glow', title: 'sweep', tags: ['glow'],
+    note: 'The most orange of the set: cerulean and teal water, with a coral orange that carries the main button. Warmer and friendlier.',
+    t: { void: '#0a1519', void2: '#102127', panel: 'rgba(20,42,50,.55)', line: 'rgba(110,190,200,.18)', c1: '#ff8a4c', c2: '#2bb5c8', warm: '#2b8fd6', ink: '#eef5f6', ink2: '#c5d6da', inkDim: '#90a7ad', onC1: '#1a0b03', glowA: 'rgba(43,181,200,.2)', glowB: 'rgba(255,138,76,.12)', c1Glow: 'rgba(255,138,76,.4)' } },
+  { name: 'Copper Sea', bg: 'glow', title: 'sweep', tags: ['glow'],
+    note: 'Deeper cerulean, muted teal and burnt orange. Grown-up and less neon, like weathered copper on a hull.',
+    t: { void: '#0b1417', void2: '#122025', panel: 'rgba(24,40,46,.55)', line: 'rgba(120,175,180,.18)', c1: '#2a7fbf', c2: '#2a9d92', warm: '#e0733a', ink: '#ebf2f2', ink2: '#c3d3d4', inkDim: '#93a6a8', onC1: '#ffffff', glowA: 'rgba(42,127,191,.22)', glowB: 'rgba(224,115,58,.10)', c1Glow: 'rgba(42,127,191,.4)' } },
+  { name: 'Tidewater Dusk', bg: 'flat', title: 'solid', tags: ['flat'],
+    note: 'A muted, painterly mix: dusky cerulean, sage teal and a soft apricot on a warm dark ground. The least techy of the set.',
+    t: { void: '#141617', void2: '#1c1f21', panel: 'rgba(36,40,42,.6)', line: 'rgba(170,180,175,.16)', c1: '#5a9ccc', c2: '#6fb3a3', warm: '#f0a46b', ink: '#efece6', ink2: '#cfcac0', inkDim: '#9b958b', onC1: '#0b1620', c1Glow: 'transparent' } },
+  { name: 'Today', cur: true, bg: 'glow', title: 'sweep', tags: ['glow'],
+    note: 'The current cyan, violet and magenta on a violet-tinted near-black, for comparison.',
+    t: { void: '#0b0c1a', void2: '#12142a', panel: 'rgba(28,31,58,.5)', line: 'rgba(130,150,230,.16)', c1: '#2fb9ff', c2: '#9b6bff', warm: '#ff2bd6', ink: '#e8ecff', ink2: '#c3c9ec', inkDim: '#a3aad3', onC1: '#04121c', glowA: 'rgba(80,60,180,.25)', glowB: 'rgba(255,43,214,.10)', c1Glow: 'rgba(47,185,255,.45)' } }
+];
+const SW = [['void', 'Ground'], ['c1', 'Lead'], ['c2', 'Second'], ['warm', 'Warm'], ['ink', 'Ink'], ['inkDim', 'Dim ink']];
+const BG_LABEL = { glow: 'glowing background', flat: 'flat background', 'texture-paper': 'paper texture', 'texture-grid': 'grid texture' };
+const TITLE_LABEL = { sweep: 'two-color title', solid: 'solid title', underline: 'solid title, orange underline' };
+const list = document.getElementById('list');
+let filter = 'all';
+function lum(hex) { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; }
+function render() {
+  list.innerHTML = OPTS.filter(o => filter === 'all' || o.cur || o.tags.includes(filter)).map(o => {
+    const t = o.t;
+    const vars = `--void:${t.void};--void-2:${t.void2};--panel:${t.panel};--line:${t.line};--c1:${t.c1};--c2:${t.c2};--warm:${t.warm};--ink:${t.ink};--ink-2:${t.ink2};--ink-dim:${t.inkDim};--on-c1:${t.onC1};--glow-a:${t.glowA || 'transparent'};--glow-b:${t.glowB || 'transparent'};--c1-glow:${t.c1Glow};--grid:${t.grid || 'transparent'};--tex:${t.tex === 'PAPER' ? PAPER : 'none'}`;
+    const sw = SW.map(([k, label]) => `<div class="${lum(t[k]) > .6 ? 'lt' : ''}" style="background:${t[k]}">${label}<br>${t[k]}</div>`).join('');
+    const stageCls = o.bg === 'glow' ? '' : o.bg === 'flat' ? 'flat' : o.bg;
+    const titleCls = o.title === 'sweep' ? '' : o.title;
+    const glowBtn = o.bg === 'glow' || o.name === 'Bioluminescence';
+    return `<section class="opt" ${o.cur ? 'id="cur"' : ''} style="${vars}" aria-label="${o.name} palette">
+      <div class="stage ${stageCls}">
+        <div class="bar">
+          <span class="mark" style="color:${t.c1}"><svg aria-hidden="true"><use href="#crystal"/></svg><span style="color:${t.ink}">AETHYR</span></span>
+          <span class="chip"><svg aria-hidden="true" style="color:${t.c2}"><use href="#potion"/></svg>Buy me a Potion!</span>
+          <span class="nav"><span>POWERS</span><span>HOW IT WORKS</span><span>DOCS</span><span>CHANGELOG</span></span>
+        </div>
+        <div class="kicker">MCP SERVER · <b>UNREAL ENGINE 5</b></div>
+        <h3 class="title ${titleCls}"><span class="l1">AI that speaks</span> <span class="l2">Blueprint</span></h3>
+        <p class="sub">Point your AI assistant at your project and just <em>ask</em>. It reads and rewrites your Unreal Engine 5 Blueprints in plain language.</p>
+        <div class="cta"><span class="btn p ${glowBtn ? '' : 'solidbtn'}">↓ Download free · v0.6.5</span><span class="btn g">▸ Read the docs</span></div>
+        <div class="prompt">Get Aethyr from aethyr.gg and set it up for my Unreal project.</div>
+        <div class="stats"><div class="stat"><b>301</b><span>TOOLS</span></div><div class="stat"><b>Gated</b><span>BATCH WRITES</span></div><div class="stat"><b>5.8+</b><span>UNREAL ENGINE</span></div></div>
+        <div class="badges"><span class="badge a">Read-only mode, one env var</span><span class="badge b">Auto-backup before first save</span><span class="badge c">Compile gate on batches</span></div>
+      </div>
+      <div class="info">
+        ${o.rec ? '<span class="rec">Strong pick</span>' : ''}
+        <h2>${o.name}</h2>
+        <div class="tagrow"><span class="tg">${BG_LABEL[o.bg]}</span><span class="tg">${TITLE_LABEL[o.title]}</span>${o.light ? '<span class="tg">light</span>' : ''}</div>
+        <p>${o.note}</p>
+        <div class="sw">${sw}</div>
+      </div>
+    </section>`;
+  }).join('');
+}
+document.querySelectorAll('.chip-f').forEach(b => b.addEventListener('click', () => {
+  filter = b.dataset.f;
+  document.querySelectorAll('.chip-f').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+  render();
+}));
+render();
+</script>
