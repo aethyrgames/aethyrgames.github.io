@@ -260,7 +260,7 @@
       },
       {
         "q": "Does it send data to the cloud?",
-        "a": "No telemetry and no analytics. Your project never leaves your machine. The GitHub build checks GitHub for new releases about once a day (turn that off with AETHYR_UPDATE_CHECK=0). The Fab build makes no network calls of its own."
+        "a": "The plugin sends no telemetry and no analytics. Your project never leaves your machine. The GitHub build checks GitHub for new releases about once a day (turn that off with AETHYR_UPDATE_CHECK=0). The Fab build makes no network calls of its own. (This website is separate and uses Google Analytics; see <a href=\"/security/#website-analytics\">Website analytics</a>.)"
       },
       {
         "q": "Can I use it read-only?",
@@ -313,6 +313,10 @@
       {
         "href": "/security/",
         "label": "Security"
+      },
+      {
+        "href": "/security/#website-analytics",
+        "label": "Privacy"
       },
       {
         "href": "/licensing/",

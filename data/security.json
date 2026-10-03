@@ -15,7 +15,8 @@
           { "href": "#backup-ring", "label": "Backup ring" },
           { "href": "#compile-gate", "label": "Compile gate" },
           { "href": "#local-only", "label": "Local only" },
-          { "href": "#setup-changes", "label": "What setup changes" }
+          { "href": "#setup-changes", "label": "What setup changes" },
+          { "href": "#website-analytics", "label": "Website analytics" }
         ]
       },
       {
@@ -38,7 +39,7 @@
       {
         "id": "no-telemetry",
         "heading": "No telemetry",
-        "html": "<p>Aethyr collects <strong>zero telemetry</strong>. There are no analytics calls, no crash reporters and no usage metrics. Your Blueprint contents and project structure never leave your machine.</p><p>The one outbound call in the GitHub build is a once-a-day check of the public GitHub release feed for a newer version. Set <code>AETHYR_UPDATE_CHECK=0</code> to turn it off. The Fab build has no update check, since Fab handles updates. Installing or updating through <code>apply_update</code> or <code>setup</code> downloads the release zip from GitHub.</p>"
+        "html": "<p>The Aethyr plugin collects <strong>zero telemetry</strong>. There are no analytics calls, no crash reporters and no usage metrics. Your Blueprint contents and project structure never leave your machine.</p><p>The one outbound call in the GitHub build is a once-a-day check of the public GitHub release feed for a newer version. Set <code>AETHYR_UPDATE_CHECK=0</code> to turn it off. The Fab build has no update check, since Fab handles updates. Installing or updating through <code>apply_update</code> or <code>setup</code> downloads the release zip from GitHub.</p><p>The aethyr.gg website is separate from the plugin and does use Google Analytics. <a href=\"#website-analytics\">Website analytics</a> lists exactly what it records.</p>"
       },
       {
         "id": "read-only",
@@ -64,6 +65,11 @@
         "id": "setup-changes",
         "heading": "What setup changes",
         "html": "<p><code>setup</code> writes to Aethyr's own folder (<code>Plugins/Aethyr</code>) and the project's <code>Saved</code> folder, and to <code>Config/DefaultAethyr.ini</code> only if you pass <code>--deny</code>. It never edits your <code>.uproject</code>, other config files, <code>AGENTS.md</code>, <code>.github/</code> or the project's <code>.claude/</code>.</p><p>In your user profile it adds Aethyr skills and agents under <code>~/.claude</code>, guidance in the global instruction files of Copilot CLI, Codex and Gemini CLI (only for clients you have), and an MCP entry in each client's user-scope config. By default it lets Claude Code and Gemini CLI call Aethyr's tools without asking each time, and Copilot CLI entries list every tool as enabled. Pass <code>--read-only</code> to keep Aethyr read-only. <code>--dry-run</code> shows the plan first.</p>"
+      },
+      {
+        "id": "website-analytics",
+        "heading": "Website analytics",
+        "html": "<p>This part covers the aethyr.gg website, not the plugin. The plugin sends nothing; see <a href=\"#no-telemetry\">No telemetry</a>.</p><p>The site uses Google Analytics 4 to see which pages get read and what gets clicked. It records pages viewed and the site that sent you here; approximate location (country, region and city), which Google estimates from your IP address and says Google Analytics doesn't log or store; browser, operating system, device type and screen size; how far you scroll, clicks on links that leave the site, and downloads; which links and buttons you click, by their label and where they point, with email addresses removed; and which sections of a page stay on screen for at least a second.</p><p>It doesn't record keystrokes, anything you type, form contents, mouse movement or session recordings. Analytics isn't linked to any advertising account, Google signals is off, and nothing is sold or shared.</p><p>Google Analytics sets two first-party cookies, <code>_ga</code> and <code>_ga_979T7SWPCD</code>, so a returning browser counts as the same visitor. Event-level data is deleted after 2 months and visitor-level data after 14 months; totals in the standard reports are kept longer.</p><p>If your browser sends Global Privacy Control or Do Not Track, the click and section tracking doesn't run, though page views are still counted. To block Google Analytics completely, use a content blocker or Google's <a href=\"https://tools.google.com/dlpage/gaoptout\">opt-out browser add-on</a>.</p>"
       }
     ],
     "pager": {
