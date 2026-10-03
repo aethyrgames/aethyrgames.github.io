@@ -38,7 +38,7 @@ Live at https://aethyr.gg
 
 Docs pages are minimal JS-rendered templates. All page content lives in the corresponding `data/*.json` file and is hydrated at load time by `js/docs.js`. To change copy, edit the JSON — no HTML required.
 
-**Each release:** run `python scripts/sync-reference.py <path to Aethyr-MCP>/docs/tools.json` to refresh the tool list in `data/docs-reference.json`, then update `data/release.json`.
+**Each release:** run `python scripts/sync-reference.py <path to Aethyr-MCP>/docs/tools.json` to refresh the tool list in `data/docs-reference.json`, then update `data/release.json`. Then run `python scripts/check-cookbook-coverage.py <path to Aethyr-MCP>/docs/tools.json`. It fails if any tool has no cookbook recipe, so add one for each new tool.
 
 ## Running locally
 

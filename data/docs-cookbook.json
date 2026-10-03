@@ -11,31 +11,169 @@
     "backHref": "/",
     "sections": [
       {
-        "heading": "Spellbook",
+        "heading": "Blueprints",
         "items": [
-          { "href": "#g-understand", "label": "Understand a Blueprint" },
-          { "href": "#g-find", "label": "Find and navigate" },
-          { "href": "#g-author", "label": "Author by asking" },
-          { "href": "#g-components", "label": "Components and interfaces" },
-          { "href": "#g-refactor", "label": "Refactor safely" },
-          { "href": "#g-batch", "label": "Batch and verify" },
-          { "href": "#g-data", "label": "Data and gameplay tables" },
-          { "href": "#g-art", "label": "Art, FX, and timelines" },
-          { "href": "#g-ai", "label": "AI graphs and class reflection" }
+          {
+            "href": "#g-bp-look",
+            "label": "Look around a Blueprint"
+          },
+          {
+            "href": "#g-bp-create",
+            "label": "Build something new"
+          },
+          {
+            "href": "#g-bp-members",
+            "label": "Variables and functions"
+          },
+          {
+            "href": "#g-bp-graph",
+            "label": "Edit graph nodes"
+          },
+          {
+            "href": "#g-bp-reflect",
+            "label": "Look things up in the engine"
+          },
+          {
+            "href": "#g-bp-audit",
+            "label": "Audit, diff and merge"
+          }
+        ]
+      },
+      {
+        "heading": "The editor",
+        "items": [
+          {
+            "href": "#g-ed-a-orient",
+            "label": "Find out what you're looking at"
+          },
+          {
+            "href": "#g-ed-a-bp-health",
+            "label": "Keep Blueprints compile-clean"
+          },
+          {
+            "href": "#g-ed-a-asset-editors",
+            "label": "See what's selected in asset editors"
+          },
+          {
+            "href": "#g-ed-a-viewport",
+            "label": "Inspect the viewport and the world"
+          },
+          {
+            "href": "#g-ed-a-builds",
+            "label": "Run builds and watch the background work"
+          },
+          {
+            "href": "#g-ed-a-project-ops",
+            "label": "Game features, CVars and file locks"
+          },
+          {
+            "href": "#g-ed-b-viewport",
+            "label": "Bend the viewport to your will"
+          },
+          {
+            "href": "#g-ed-b-level",
+            "label": "Poke around the level"
+          },
+          {
+            "href": "#g-ed-b-worldpart",
+            "label": "World Partition and streaming"
+          },
+          {
+            "href": "#g-ed-b-panels",
+            "label": "Drive the editor and watch its tools"
+          },
+          {
+            "href": "#g-ed-b-health",
+            "label": "Is the editor okay?"
+          },
+          {
+            "href": "#g-ed-b-project",
+            "label": "Plugins, project settings and source control"
+          }
+        ]
+      },
+      {
+        "heading": "Effects, sound and animation",
+        "items": [
+          {
+            "href": "#g-media-niagara-build",
+            "label": "Build and tune a particle effect"
+          },
+          {
+            "href": "#g-media-niagara-scripts",
+            "label": "Write your own Niagara module"
+          },
+          {
+            "href": "#g-media-sequences",
+            "label": "Cinematics in Sequencer"
+          },
+          {
+            "href": "#g-media-anim",
+            "label": "Animation Blueprints and montages"
+          },
+          {
+            "href": "#g-media-metasound",
+            "label": "Build a MetaSound"
+          },
+          {
+            "href": "#g-media-sound-assets",
+            "label": "Mix, cues and sound settings"
+          }
+        ]
+      },
+      {
+        "heading": "Assets, data and shipping",
+        "items": [
+          {
+            "href": "#g-as-find",
+            "label": "Find and inspect assets"
+          },
+          {
+            "href": "#g-as-organize",
+            "label": "Tidy, move and check assets"
+          },
+          {
+            "href": "#g-as-data",
+            "label": "Data tables, data assets and tags"
+          },
+          {
+            "href": "#g-as-materials",
+            "label": "Build and tweak materials"
+          },
+          {
+            "href": "#g-as-ui-ai",
+            "label": "UI widgets and AI trees"
+          },
+          {
+            "href": "#g-as-ship",
+            "label": "Test, profile, ship and bridge"
+          }
         ]
       },
       {
         "heading": "Go deeper",
         "items": [
-          { "href": "/docs/tutorials/", "label": "Ritual walkthroughs →" },
-          { "href": "/docs/reference/", "label": "Tool & config reference →" },
-          { "href": "/docs/", "label": "Quickstart & setup →" }
+          {
+            "href": "/docs/tutorials/",
+            "label": "Ritual walkthroughs →"
+          },
+          {
+            "href": "/docs/reference/",
+            "label": "Tool & config reference →"
+          },
+          {
+            "href": "/docs/",
+            "label": "Quickstart & setup →"
+          }
         ]
       }
     ]
   },
   "topbar": {
-    "crumbs": ["docs", "spellbook"],
+    "crumbs": [
+      "docs",
+      "spellbook"
+    ],
     "badge": "bite-sized"
   },
   "article": {
@@ -43,371 +181,1791 @@
     "lead": "Bite-sized incantations: one sentence you say, one thing Aethyr does. Skim for the move you need, say it in your own words, and let your AI pick the tools. Every recipe here lives inside the shipping build.",
     "note": {
       "type": "tip",
-      "html": "<p>Most of these are <strong>reads</strong>: they can't change anything, so they're always safe to run. The <a href=\"#g-author\">author</a> and <a href=\"#g-refactor\">refactor</a> groups write, and every write goes through a compile gate and an automatic backup. Want the long-form stories instead? See the <a href=\"/docs/tutorials/\">ritual walkthroughs</a>.</p>"
+      "html": "<p>Most of these are <strong>reads</strong>: they can't change anything, so they're always safe to run. Recipes that write keep a backup of each asset before its first save, and a batch rolls back if its compile fails. Every tool Aethyr ships appears in at least one recipe. Want the long-form stories instead? See the <a href=\"/docs/tutorials/\">ritual walkthroughs</a>.</p>"
     },
     "spellnav": [
-      { "href": "#g-understand", "label": "Understand" },
-      { "href": "#g-find", "label": "Find" },
-      { "href": "#g-author", "label": "Author" },
-      { "href": "#g-components", "label": "Components" },
-      { "href": "#g-refactor", "label": "Refactor" },
-      { "href": "#g-batch", "label": "Batch" },
-      { "href": "#g-data", "label": "Data" },
-      { "href": "#g-art", "label": "Art & FX" },
-      { "href": "#g-ai", "label": "AI" }
+      {
+        "href": "#g-bp-look",
+        "label": "Look around a Blueprint"
+      },
+      {
+        "href": "#g-bp-create",
+        "label": "Build something new"
+      },
+      {
+        "href": "#g-bp-members",
+        "label": "Variables and functions"
+      },
+      {
+        "href": "#g-bp-graph",
+        "label": "Edit graph nodes"
+      },
+      {
+        "href": "#g-bp-reflect",
+        "label": "Look things up in the engine"
+      },
+      {
+        "href": "#g-bp-audit",
+        "label": "Audit, diff and merge"
+      },
+      {
+        "href": "#g-ed-a-orient",
+        "label": "Find out what you're looking at"
+      },
+      {
+        "href": "#g-ed-a-bp-health",
+        "label": "Keep Blueprints compile-clean"
+      },
+      {
+        "href": "#g-ed-a-asset-editors",
+        "label": "See what's selected in asset editors"
+      },
+      {
+        "href": "#g-ed-a-viewport",
+        "label": "Inspect the viewport and the world"
+      },
+      {
+        "href": "#g-ed-a-builds",
+        "label": "Run builds and watch the background work"
+      },
+      {
+        "href": "#g-ed-a-project-ops",
+        "label": "Game features, CVars and file locks"
+      },
+      {
+        "href": "#g-ed-b-viewport",
+        "label": "Bend the viewport to your will"
+      },
+      {
+        "href": "#g-ed-b-level",
+        "label": "Poke around the level"
+      },
+      {
+        "href": "#g-ed-b-worldpart",
+        "label": "World Partition and streaming"
+      },
+      {
+        "href": "#g-ed-b-panels",
+        "label": "Drive the editor and watch its tools"
+      },
+      {
+        "href": "#g-ed-b-health",
+        "label": "Is the editor okay?"
+      },
+      {
+        "href": "#g-ed-b-project",
+        "label": "Plugins, project settings and source control"
+      },
+      {
+        "href": "#g-media-niagara-build",
+        "label": "Build and tune a particle effect"
+      },
+      {
+        "href": "#g-media-niagara-scripts",
+        "label": "Write your own Niagara module"
+      },
+      {
+        "href": "#g-media-sequences",
+        "label": "Cinematics in Sequencer"
+      },
+      {
+        "href": "#g-media-anim",
+        "label": "Animation Blueprints and montages"
+      },
+      {
+        "href": "#g-media-metasound",
+        "label": "Build a MetaSound"
+      },
+      {
+        "href": "#g-media-sound-assets",
+        "label": "Mix, cues and sound settings"
+      },
+      {
+        "href": "#g-as-find",
+        "label": "Find and inspect assets"
+      },
+      {
+        "href": "#g-as-organize",
+        "label": "Tidy, move and check assets"
+      },
+      {
+        "href": "#g-as-data",
+        "label": "Data tables, data assets and tags"
+      },
+      {
+        "href": "#g-as-materials",
+        "label": "Build and tweak materials"
+      },
+      {
+        "href": "#g-as-ui-ai",
+        "label": "UI widgets and AI trees"
+      },
+      {
+        "href": "#g-as-ship",
+        "label": "Test, profile, ship and bridge"
+      }
     ],
     "sections": [
       {
-        "id": "g-understand",
-        "heading": "Understand a Blueprint",
+        "id": "g-bp-look",
+        "heading": "Look around a Blueprint",
+        "icon": "◈",
+        "intro": "Read a Blueprint without loading more than you need.",
+        "spells": [
+          {
+            "incant": "\"List every Blueprint under /Game/AI, 50 at a time, paths only.\"",
+            "description": "Lists Blueprint assets under a content path. You can page with limit and offset, sort by path, and trim the columns to just the asset path.",
+            "tools": [
+              "list_blueprints"
+            ]
+          },
+          {
+            "incant": "\"How big is /Game/AI/BP_Enemy? If it's reasonable, show me its parent class, interfaces and variable names.\"",
+            "description": "Starts with a tiny summary of counts, then reads the full Blueprint structure with a field projection so you only get the parts you asked for.",
+            "tools": [
+              "summarize_blueprint",
+              "read_blueprint"
+            ]
+          },
+          {
+            "incant": "\"Is the EventGraph in /Game/AI/BP_Enemy worth reading? If so, show me how the nodes connect.\"",
+            "description": "Peeks at the graph for a node count and kind histogram first. Then it reads the graph with links so you see the wiring without per-pin detail.",
+            "tools": [
+              "peek_graph",
+              "get_graph"
+            ]
+          },
+          {
+            "incant": "\"Show me the TakeDamage function on /Game/AI/BP_Enemy, inputs, outputs and body.\"",
+            "description": "Fetches one function by name: its signature, locals and body graph. Detail defaults to a summary, and you can ask for links or full.",
+            "tools": [
+              "get_function"
+            ]
+          },
+          {
+            "incant": "\"What components does /Game/AI/BP_Enemy have, and which one is the root?\"",
+            "description": "Lists the components in the Blueprint's construction tree with their classes and parents.",
+            "tools": [
+              "get_components"
+            ]
+          },
+          {
+            "incant": "\"List the variables on /Game/AI/BP_Enemy with their types and defaults.\"",
+            "description": "Lists member variables with type, default, category and replication state. Use fields and limit to keep the answer small on busy Blueprints.",
+            "tools": [
+              "list_variables"
+            ]
+          },
+          {
+            "incant": "\"Where does /Game/AI/BP_Enemy call ApplyDamage? Then show me that node's pins.\"",
+            "description": "Searches every graph in the Blueprint for nodes matching the text. Then it fetches one hit by its GUID for class, position, pins and links.",
+            "tools": [
+              "find_node",
+              "get_node"
+            ]
+          },
+          {
+            "incant": "\"Does /Game/Props/BP_Door have any timelines? Show me the keys on the first one.\"",
+            "description": "Lists the Timeline nodes with track counts, length and loop settings. Then it reads one timeline's tracks and curve keys.",
+            "tools": [
+              "list_timelines",
+              "read_timeline"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-bp-create",
+        "heading": "Build something new",
+        "icon": "✦",
+        "intro": "Start a Blueprint, give it parts, and set up its data types.",
+        "spells": [
+          {
+            "incant": "\"Create /Game/AI/BP_Boss as a Character.\"",
+            "description": "Creates a new Blueprint asset under /Game with the parent class you name. If the asset already exists, it comes back as already_existed and nothing changes.",
+            "tools": [
+              "create_blueprint"
+            ]
+          },
+          {
+            "incant": "\"Give /Game/Props/BP_Crate a mesh component under its root and set that component's collision profile to BlockAll.\"",
+            "description": "Adds a component to the Blueprint's construction tree, then sets a property on that component's template. The reply shows the value before and after.",
+            "tools": [
+              "add_component",
+              "set_component_property"
+            ]
+          },
+          {
+            "incant": "\"Move the Light component on /Game/Props/BP_Lamp under the Pole component, and remove the old Spare component.\"",
+            "description": "Re-parents a component to a new parent in the construction tree. Then it removes the one you don't want. Remove reports removed:false if the name isn't found.",
+            "tools": [
+              "attach_component",
+              "remove_component"
+            ]
+          },
+          {
+            "incant": "\"What does the Interactable interface require? Add it to /Game/Props/BP_Door.\"",
+            "description": "Reads a native interface's required functions first. Then it adds the interface to the Blueprint, generates the stub function graphs, recompiles and saves.",
+            "tools": [
+              "get_interface_info",
+              "implement_interface"
+            ]
+          },
+          {
+            "incant": "\"Make a struct /Game/Data/S_ItemRow with a float Damage and a string Label, then show it to me.\"",
+            "description": "Creates a User Defined Struct, appends typed members, and reads it back with each member's type and default. The factory seeds one default member of its own.",
+            "tools": [
+              "create_struct",
+              "add_struct_member",
+              "read_struct"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-bp-members",
+        "heading": "Variables and functions",
+        "icon": "⚙",
+        "intro": "Add, change and clean up the members of a Blueprint.",
+        "spells": [
+          {
+            "incant": "\"Add an editable float Health to /Game/AI/BP_Enemy with a default of 100 in the Stats category. What type strings can I use?\"",
+            "description": "Lists the pin categories you can use in a type argument. Then it adds the variable, and it skips quietly if the name already exists.",
+            "tools": [
+              "list_pin_categories",
+              "add_variable"
+            ]
+          },
+          {
+            "incant": "\"Set Health on /Game/AI/BP_Enemy to 150 and file it under Combat.\"",
+            "description": "Changes a variable's default value and its My Blueprint category label. An empty category clears the label.",
+            "tools": [
+              "set_variable_default",
+              "set_variable_category"
+            ]
+          },
+          {
+            "incant": "\"Change Score on /Game/AI/BP_Enemy from int to float.\"",
+            "description": "Retypes the variable in place. Existing get and set nodes are rewired by the engine, so the graphs survive.",
+            "tools": [
+              "retype_variable"
+            ]
+          },
+          {
+            "incant": "\"Rename Hp to Health on /Game/AI/BP_Enemy, then delete the unused OldFlag.\"",
+            "description": "Renames a variable and updates its references in the graphs. Then it deletes another variable by name. Each write recompiles and saves.",
+            "tools": [
+              "rename_variable",
+              "delete_variable"
+            ]
+          },
+          {
+            "incant": "\"Add a function GetThreat to /Game/AI/BP_Enemy that takes an Actor and returns a float.\"",
+            "description": "Creates a function graph, then declares an Actor input and a float output. The output step adds the result node if there isn't one.",
+            "tools": [
+              "add_function",
+              "add_function_input",
+              "add_function_output"
+            ]
+          },
+          {
+            "incant": "\"Delete the function DebugDump from /Game/AI/BP_Enemy.\"",
+            "description": "Deletes a function graph by name.",
+            "tools": [
+              "delete_function"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-bp-graph",
+        "heading": "Edit graph nodes",
+        "icon": "⌘",
+        "intro": "Place nodes, wire them, tidy them, and write whole functions at once.",
+        "spells": [
+          {
+            "incant": "\"What node kinds can I add? Add a Branch to the EventGraph of /Game/AI/BP_Enemy at 200,100.\"",
+            "description": "Lists the kinds add_node accepts with their required extras. Then it spawns the node and returns its GUID and pins so you can wire right away.",
+            "tools": [
+              "list_node_kinds",
+              "add_node"
+            ]
+          },
+          {
+            "incant": "\"Connect the Branch's then pin to the Print node's exec pin, and set the Print text to Ouch.\"",
+            "description": "Wires two pins (GUIDs are preferred over names). Then it sets a literal default on the target input pin and reads the value back to confirm.",
+            "tools": [
+              "wire_pins",
+              "set_pin_default"
+            ]
+          },
+          {
+            "incant": "\"Nudge that Branch node to 400,200, then tidy the whole EventGraph.\"",
+            "description": "Moves one node by GUID. Then it spreads all nodes into a column layout so they stop overlapping. The layout is basic, not the engine's own tidy.",
+            "tools": [
+              "set_node_position",
+              "auto_layout_graph"
+            ]
+          },
+          {
+            "incant": "\"Delete that stray Print node from the EventGraph.\"",
+            "description": "Deletes a node by GUID and breaks its links. Then it recompiles and saves.",
+            "tools": [
+              "delete_node"
+            ]
+          },
+          {
+            "incant": "\"Write a function IsLowHealth on /Game/AI/BP_Enemy that returns true when Health is under 25. Show me the plan first.\"",
+            "description": "Compiles a small pseudocode body into a wired function. A dry run returns the op list without changing anything, and a real run is a single batch.",
+            "tools": [
+              "compile_function"
+            ]
+          },
+          {
+            "incant": "\"Preview this batch of edits for /Game/AI/BP_Enemy, then apply it as one transaction.\"",
+            "description": "Validates the batch without writing anything. Then it runs the ops in one call, and a failing op can roll the whole batch back.",
+            "tools": [
+              "preview_ops",
+              "apply_ops"
+            ]
+          },
+          {
+            "incant": "\"Copy the EventGraph from /Game/AI/BP_Enemy to /Game/AI/BP_Boss.\"",
+            "description": "Copies every node in a named graph into the same-named graph of another Blueprint, keeping the wiring. The target needs that graph already. Then it recompiles and saves.",
+            "tools": [
+              "clone_graph"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-bp-reflect",
+        "heading": "Look things up in the engine",
         "icon": "⌖",
-        "intro": "Orient before you touch anything. Every recipe here is read-only.",
+        "intro": "Find the class, function, struct or enum you need before you place a node.",
         "spells": [
           {
-            "incant": "\"What does /Game/AI/BP_Enemy actually do? Give me the 10-second version.\"",
-            "description": "Aethyr returns a one-screen brief: parent class, variable and function counts, and the graph shape, without loading the whole asset. Use it to decide where to look next.",
-            "tools": ["summarize_blueprint"]
+            "incant": "\"Find classes with Character in the name, then show me what ACharacter declares.\"",
+            "description": "Searches the class registry by substring. Then it inspects one class with its ancestors, properties and functions. Inherited members are left out unless you ask.",
+            "tools": [
+              "find_class",
+              "get_class_info"
+            ]
           },
           {
-            "incant": "\"Is the event graph on BP_Turret worth opening, or is it basically empty?\"",
-            "description": "Aethyr peeks at the graph and reports just its node count and a histogram of node kinds. You learn whether it is two nodes or two hundred before paying to read it.",
-            "tools": ["peek_graph"]
+            "incant": "\"Which function spawns an actor in the world? Show me the exact pins before I place it.\"",
+            "description": "Searches callable functions by free text and returns the owning class. Then it previews the real pins the call node would grow, including hidden ones.",
+            "tools": [
+              "find_function",
+              "describe_function_node"
+            ]
           },
           {
-            "incant": "\"Pull the full picture on /Game/Items/BP_HealthPickup: parent, interfaces, variables, all of it.\"",
-            "description": "Aethyr reads the Blueprint metadata in one pass: parent class, implemented interfaces, every variable, and summaries of each function and graph. This is the full orientation when the 10-second brief is not enough.",
-            "tools": ["read_blueprint"]
+            "incant": "\"List every function on GameplayStatics and what kind each is.\"",
+            "description": "Lists the functions on one class with their flags. This is cheaper than a full class inspection when you only need the call surface.",
+            "tools": [
+              "list_functions"
+            ]
           },
           {
-            "incant": "\"Show me how the event graph on BP_Enemy is actually wired up.\"",
-            "description": "Aethyr returns the real node-by-node topology of the event graph: every node, its pins, and the connections between them. This is the wiring, not a summary.",
-            "tools": ["get_graph"]
+            "incant": "\"What pins does a FormatText node have?\"",
+            "description": "Spawns a transient node of that class and reports its pins, purity, title and category. Pins reflect an unconfigured node.",
+            "tools": [
+              "describe_k2node"
+            ]
           },
           {
-            "incant": "\"Read me the ApplyDamage function on BP_Turret, signature and body.\"",
-            "description": "Aethyr fetches one function by name: its inputs, outputs, and the nodes inside it. Scope your read to a single function instead of the whole Blueprint.",
-            "tools": ["get_function"]
+            "incant": "\"Which macros does the standard macro library offer, such as ForEachLoop or DoOnce?\"",
+            "description": "Lists the instantiable macros in a macro library with their pins. You can pass the macro graph path to add_node with kind MacroInstance.",
+            "tools": [
+              "list_macro_library_functions"
+            ]
           },
           {
-            "incant": "\"What components are bolted onto BP_Enemy, and how are they parented?\"",
-            "description": "Aethyr lists every component on the actor, the mesh, collision, audio, and the rest, with the attachment hierarchy so you can see what is nested under what.",
-            "tools": ["get_components"]
+            "incant": "\"What are the fields of the Transform struct, and the values of EMovementMode?\"",
+            "description": "Reads a native struct's members with offsets and sizes. Then it reads a native enum's enumerators with names and values.",
+            "tools": [
+              "get_struct_info",
+              "get_enum_info"
+            ]
           }
         ]
       },
       {
-        "id": "g-find",
-        "heading": "Find and navigate",
-        "icon": "⊹",
-        "intro": "Answer \"where is X\" across an entire project. Read-only.",
+        "id": "g-bp-audit",
+        "heading": "Audit, diff and merge",
+        "icon": "☍",
+        "intro": "Find broken references, compare Blueprints, and resolve merges.",
         "spells": [
           {
-            "incant": "\"Where does BP_Enemy touch its Health variable? Show me every node that reads or writes it.\"",
-            "description": "Sweeps all of the Blueprint's graphs in one pass and returns each get and set of that variable, so you never miss a hidden write in some side function.",
-            "tools": ["find_node"]
+            "incant": "\"Which Blueprints under /Game/AI extend Character and override BeginPlay?\"",
+            "description": "Finds Blueprints by parent class, overridden function or interface. Pass a parent class when you filter on the other two, or large projects get slow.",
+            "tools": [
+              "find_overriders"
+            ]
           },
           {
-            "incant": "\"Which Blueprints under /Game/AI override TakeDamage or implement the Interactable interface?\"",
-            "description": "Scans a path and lists every Blueprint that overrides the named function or implements the interface, so you can find all the subclasses that customize a behavior at once.",
-            "tools": ["find_overriders"]
+            "incant": "\"Does /Game/AI/BP_Enemy still reference any variables or functions I deleted?\"",
+            "description": "Walks the function bodies and top-level graphs for nodes pointing at variables or intra-Blueprint functions that no longer exist. An empty list means clean.",
+            "tools": [
+              "find_dangling_references"
+            ]
           },
           {
-            "incant": "\"Before I rename /Game/Items/BP_HealthPickup, show me everything that references it.\"",
-            "description": "Returns the full blast radius: every asset pointing at the target, so a rename or delete does not silently break a referencing Blueprint or DataTable.",
-            "tools": ["get_referencers"]
+            "incant": "\"What changed between /Game/AI/BP_Enemy and /Game/AI/BP_Boss?\"",
+            "description": "Diffs two Blueprints and returns added, removed and changed variables, components, functions, graphs and parent class as a list.",
+            "tools": [
+              "diff_asset"
+            ]
           },
           {
-            "incant": "\"What does BP_Turret pull in when it loads? List its dependencies.\"",
-            "description": "Walks the asset outward and lists everything it drags into memory on load, so you can spot a heavy mesh or material chain inflating the cook.",
-            "tools": ["get_dependencies"]
+            "incant": "\"Did my rebuilt copy /Game/AI/BP_Enemy_New come out the same as /Game/AI/BP_Enemy?\"",
+            "description": "Compares two Blueprints by structure, ignoring node positions and GUIDs, so a fresh rebuild diffs cleanly against its source. Needs a live or commandlet backend.",
+            "tools": [
+              "bp_structural_diff"
+            ]
           },
           {
-            "incant": "\"I half-remember a DataTable called something like 'WeaponStats' but not where it lives. Find it.\"",
-            "description": "Matches on a name fragment across the whole project and returns the candidates with their package paths, so a partial memory is enough to land on the asset.",
-            "tools": ["find_asset"]
+            "incant": "\"Merge my BP_Enemy_Mine and their BP_Enemy_Theirs against the base BP_Enemy_Base, all under /Game/AI.\"",
+            "description": "Builds a merge context from the base-to-mine and base-to-theirs diffs and flags conflicts. You then apply the clean changes and pick winners with the normal write tools.",
+            "tools": [
+              "prepare_merge"
+            ]
           },
           {
-            "incant": "\"There's a node in BP_Turret's logic I don't recognize. What is it, what are its pins, and is it pure?\"",
-            "description": "Identifies a K2 node by class and reports its title, pins, purity, and owning module, so an unfamiliar node stops being a mystery before you wire it.",
-            "tools": ["describe_k2node"]
+            "incant": "\"Shut down the Aethyr daemon so I can open the full editor.\"",
+            "description": "Stops the backing editor daemon to free its file locks. It affects every session on the project, so it needs force_shared set to true. The next call starts a fresh one.",
+            "tools": [
+              "shutdown_daemon"
+            ]
           }
         ]
       },
       {
-        "id": "g-author",
-        "heading": "Author by asking",
-        "icon": "✶",
-        "intro": "Turn sentences into compiled graphs. Every write flows through a compile gate and an automatic backup.",
+        "id": "g-ed-a-orient",
+        "heading": "Find out what you're looking at",
+        "icon": "⌖",
+        "intro": "Ask the assistant to read the editor's current state before it touches anything.",
         "spells": [
           {
-            "incant": "\"On BP_Enemy, add a float called MaxHealth that starts at 250\"",
-            "description": "Aethyr declares the member variable, sets its type, and seals in the default, then compiles. One sentence, one typed field.",
-            "tools": ["add_variable"]
+            "incant": "\"Before we start, what do I have open right now? Which level, which asset, what's selected, and is PIE running?\"",
+            "description": "Returns open assets, the active one, the loaded level and its dirty state, the viewport camera, selected actors, and PIE status in one call. Needs a running editor.",
+            "tools": [
+              "get_editor_state"
+            ]
           },
           {
-            "incant": "\"Give BP_Turret an AmmoCount int that designers can tweak in Details and that replicates to clients\"",
-            "description": "One call exposes the variable as instance-editable and marks it replicated, so it shows in the Details panel and stays synced over the network.",
-            "tools": ["add_variable"]
+            "incant": "\"Which asset was I just working in? And which window and widget have my focus?\"",
+            "description": "Reads the most recently activated asset editor, the focused tab or window, and the Slate widget you're typing into. All read-only and all need a running editor.",
+            "tools": [
+              "get_active_asset",
+              "get_focused_window",
+              "get_focused_widget"
+            ]
           },
           {
-            "incant": "\"Bump the default FireRate on BP_Turret from 0.5 to 0.2\"",
-            "description": "Aethyr rewrites just the variable's default on the class, leaving every wire and node untouched, then recompiles.",
-            "tools": ["set_variable_default"]
+            "incant": "\"Is a dialog open in the editor? If so, what buttons does it offer?\"",
+            "description": "Reports whether a modal window is blocking input, with its title and button labels. Good to check before the assistant tries a write. Needs a running editor.",
+            "tools": [
+              "get_modal_state"
+            ]
           },
           {
-            "incant": "\"Write a TakeDamage function on BP_Enemy: subtract the incoming amount from Health, and if Health drops to zero, call Die\"",
-            "description": "Describe the behavior in plain pseudocode and Aethyr lowers it into a real, wired graph, compile-checked before it lands.",
-            "tools": ["compile_function"]
+            "incant": "\"Which viewport has focus, and what's the gizmo set to? Also tell me if I'm in landscape or foliage mode.\"",
+            "description": "Reads the focused viewport (index, perspective or ortho, size), the gizmo mode and coordinate space, and the active level-editor modes. Read-only and needs a running editor.",
+            "tools": [
+              "get_active_viewport",
+              "get_gizmo_state",
+              "get_active_editor_mode"
+            ]
           },
           {
-            "incant": "\"In BP_Turret's Tick, drop a Branch and feed it bHasTarget\"",
-            "description": "Aethyr spawns the Branch node and threads the boolean into its Condition pin, so you never drag a wire by hand.",
-            "tools": ["add_node", "wire_pins"]
+            "incant": "\"What monitors are connected, what language is the editor in, and which theme am I using?\"",
+            "description": "Lists connected monitors with size and DPI, the active culture, and the current theme id. Read-only and needs a running editor.",
+            "tools": [
+              "get_monitor_info",
+              "get_active_culture",
+              "get_editor_theme"
+            ]
           },
           {
-            "incant": "\"Add an ApplyHeal function to /Game/Items/BP_HealthPickup that takes a Target actor and a float Amount and returns the new health\"",
-            "description": "Aethyr declares the function, then adds each typed input and the typed return pin in order, leaving a clean signature ready to fill in.",
-            "tools": ["add_function", "add_function_input", "add_function_output"]
-          },
-          {
-            "incant": "\"Make a new BP_HoloProjector under /Game/FX that extends AActor\"",
-            "description": "Aethyr creates the asset against any parent class you name and compiles it clean, ready for variables and graphs.",
-            "tools": ["create_blueprint"]
+            "incant": "\"What have I been doing in the editor for the last few minutes? Show me the events.\"",
+            "description": "Drains buffered editor events such as selection changes, asset opens, saves, and Blueprint compiles. Draining clears the buffer. Needs a running editor.",
+            "tools": [
+              "get_editor_events"
+            ]
           }
         ]
       },
       {
-        "id": "g-components",
-        "heading": "Components and interfaces",
-        "icon": "❖",
-        "intro": "Assemble an actor's parts and the contracts it fulfils.",
+        "id": "g-ed-a-bp-health",
+        "heading": "Keep Blueprints compile-clean",
+        "icon": "✎",
+        "intro": "Check compile status, read diagnostics, and peek at debugging state.",
         "spells": [
           {
-            "incant": "\"Give BP_Turret a static mesh component called Barrel, plus an audio component for the firing loop\"",
-            "description": "Aethyr adds the component to the construction-script tree by class, names it, and saves through the compile gate with a backup. Works for static mesh, audio, collision shapes, scene roots, anything.",
-            "tools": ["add_component"]
+            "incant": "\"Is /Game/MyGame/Blueprints/BP_Enemy compile-clean right now?\"",
+            "description": "Gives a cheap status string (good, warning, error, and so on) for the Blueprint. Read-only and needs a running editor.",
+            "tools": [
+              "get_compile_status"
+            ]
           },
           {
-            "incant": "\"On BP_HealthPickup, set the mesh component to /Game/Items/SM_Potion and bump the sphere collision radius to 96\"",
-            "description": "Aethyr writes author-time defaults straight onto a component: the mesh asset, a sphere radius, a sound to play, a material override. The values land on the construction-script template, not at runtime.",
-            "tools": ["set_component_property"]
+            "incant": "\"Recompile /Game/MyGame/Blueprints/BP_Enemy and list every error and warning with the node it points at.\"",
+            "description": "Forces a fresh compile in memory without saving, then returns the status, error and warning counts, and each message with its node GUID. It's a diagnostics probe, so it's allowed in read-only mode.",
+            "tools": [
+              "compile_blueprint"
+            ]
           },
           {
-            "incant": "\"Parent the MuzzleFlash particle under the Barrel mesh on BP_Turret\"",
-            "description": "Aethyr re-parents one component beneath another in the construction-script hierarchy, fixing up the attachment so the child sits under the muzzle in the tree and inherits the parent transform.",
-            "tools": ["attach_component"]
+            "incant": "\"What's selected in the BP_Enemy editor, which graph is open, and does it compile?\"",
+            "description": "Reads the Blueprint editor's current graph, compile status, and selected node IDs. Selection data only comes back if the Blueprint's editor is open. Needs a running editor.",
+            "tools": [
+              "get_blueprint_editor_state"
+            ]
           },
           {
-            "incant": "\"Drop the old PointLight component off BP_Enemy, we moved to a baked glow\"",
-            "description": "Aethyr removes a component from the tree and saves the slimmer actor through the compile gate. Read the parts first with get_components if you want to confirm the exact name.",
-            "tools": ["get_components", "remove_component"]
+            "incant": "\"Do I have any breakpoints set on /Game/MyGame/Blueprints/BP_Enemy, and is it attached to an instance in PIE?\"",
+            "description": "Lists the Blueprint's breakpoints with node and enabled state, then checks which PIE object it's debugging. Both are read-only and need a running editor.",
+            "tools": [
+              "get_blueprint_breakpoints",
+              "get_debug_instance"
+            ]
           },
           {
-            "incant": "\"Make BP_Enemy implement BPI_Damageable and stub out every function the interface demands\"",
-            "description": "Aethyr adds the interface to the Blueprint and auto-generates a stub graph for each function the contract requires, ready for you to fill in. No more hand-adding events one by one.",
-            "tools": ["implement_interface"]
+            "incant": "\"I'm done with BP_Enemy. Close its editor.\"",
+            "description": "Closes every editor window for the asset. It's safe to repeat. If nothing was open, it returns closed:false and no error. Needs a running editor.",
+            "tools": [
+              "close_asset_editor"
+            ]
+          },
+          {
+            "incant": "\"What do I have with unsaved changes? I just edited a few Blueprints.\"",
+            "description": "Lists loaded packages with unsaved changes and flags which are real content. Handy before you disconnect. Needs a running editor.",
+            "tools": [
+              "get_dirty_packages"
+            ]
           }
         ]
       },
       {
-        "id": "g-refactor",
-        "heading": "Refactor safely",
-        "icon": "⟁",
-        "intro": "Restructure without breaking call sites. Renames update references for you.",
+        "id": "g-ed-a-asset-editors",
+        "heading": "See what's selected in asset editors",
+        "icon": "◈",
+        "intro": "Read selection and tool state from the specialist editors and paint modes.",
         "spells": [
           {
-            "incant": "\"Rename the Health variable on BP_Enemy to CurrentHP and fix every node that uses it\"",
-            "description": "Aethyr renames the member and rewires every get and set node that referenced it, so no call site is left dangling. The edit passes a compile gate and is backed up first.",
-            "tools": ["rename_variable"]
+            "incant": "\"Which nodes do I have selected in the M_Rock material editor?\"",
+            "description": "Returns the selected node count and the expression class names, like TextureSample or Add. It comes back valid:false if the material editor isn't open. Needs a running editor.",
+            "tools": [
+              "get_material_editor_state"
+            ]
           },
           {
-            "incant": "\"Change Ammo on BP_Turret from int to float and keep the existing get and set nodes connected\"",
-            "description": "Aethyr retypes the variable in place and re-pins the existing get and set nodes to the new type, instead of you deleting and re-dropping them. Watch the compile status for any wire that no longer matches.",
-            "tools": ["retype_variable"]
+            "incant": "\"Dump the scalar, vector, and texture parameters on /Game/MyGame/Materials/MI_Rock.\"",
+            "description": "Reads the parameters straight from the material instance asset, along with its parent path. No open editor is needed. Switch and RVT parameters aren't included.",
+            "tools": [
+              "get_material_instance_params"
+            ]
           },
           {
-            "incant": "\"Put Damage, FireRate, and Range under a 'Combat' category on BP_Turret's Details panel\"",
-            "description": "Aethyr stamps the category metadata on each variable so the Details panel groups them under one collapsible header. Purely organizational, the values and types are untouched.",
-            "tools": ["set_variable_category"]
+            "incant": "\"What LOD is the SM_Rock preview showing, and is it forced or on auto?\"",
+            "description": "Reads the static mesh editor's forced LOD level and the LOD being rendered. It returns valid:false if that mesh's editor isn't open.",
+            "tools": [
+              "get_mesh_preview_state"
+            ]
           },
           {
-            "incant": "\"Drop the leftover DebugSpawnCount variable from /Game/Items/BP_HealthPickup, nothing reads it anymore\"",
-            "description": "First sweep the graph for any node that still touches the variable, then drop the member. Aethyr removes it from the Blueprint, compiles, and saves behind an automatic backup. The lookup runs first so you only delete something nothing reads.",
-            "tools": ["find_node", "delete_variable"]
+            "incant": "\"Which bone and socket do I have selected in the animation editor for /Game/MyGame/Anim/ABP_Hero?\"",
+            "description": "Reads the Persona selection: bone, socket, preview mesh, and the asset being edited. It only reports valid when a Persona-hosted editor is open for that asset.",
+            "tools": [
+              "get_anim_editor_state"
+            ]
           },
           {
-            "incant": "\"Delete that orphaned PrintString node in BP_Enemy's event graph and unhook its pins cleanly\"",
-            "description": "Locate the exact node by its GUID, then sever it. Aethyr removes the node and detaches its links without leaving stray wires behind, so you delete precisely the one you mean.",
-            "tools": ["find_node", "delete_node"]
+            "incant": "\"What emitters and modules do I have selected in the Niagara system NS_Sparks?\"",
+            "description": "Reads the selected emitters, stack modules, and whether the system node itself is selected. It returns valid:false when no Niagara system editor is open for the asset.",
+            "tools": [
+              "get_niagara_module_selection"
+            ]
           },
           {
-            "incant": "\"This event graph on BP_Turret is a spaghetti mess, line it up into readable columns\"",
-            "description": "Aethyr re-flows the graph into tidy left-to-right columns by execution order, so the logic reads cleanly. It only moves nodes, no wires or behavior change.",
-            "tools": ["auto_layout_graph"]
+            "incant": "\"How many curve keys do I have selected, and on which curves?\"",
+            "description": "Reads the selected key count and curve names from the first visible curve editor panel. It finds the panel by walking the Slate widget tree, so it isn't tied to one asset.",
+            "tools": [
+              "get_curve_editor_selection"
+            ]
+          },
+          {
+            "incant": "\"What brush settings do I have in Modeling mode, Landscape mode, Foliage mode, and Mesh Paint mode?\"",
+            "description": "Reads tool and brush state for each mode. Each one returns valid:false unless that mode is the active editor mode. Some fields come back null because the engine doesn't expose them.",
+            "tools": [
+              "get_modeling_state",
+              "get_landscape_paint_state",
+              "get_foliage_paint_state",
+              "get_mesh_paint_state"
+            ]
           }
         ]
       },
       {
-        "id": "g-batch",
-        "heading": "Batch and verify",
-        "icon": "⟐",
-        "intro": "Many edits as one unit; confirm what will change before, and that it compiled after.",
+        "id": "g-ed-a-viewport",
+        "heading": "Inspect the viewport and the world",
+        "icon": "☍",
+        "intro": "Check what's visible, hidden, pickable, or showing in the level viewport.",
         "spells": [
           {
-            "incant": "\"On BP_Enemy, add a Health float, a TakeDamage function, and wire it into the event graph, all or nothing\"",
-            "description": "Aethyr runs every write as one transaction. If any step trips the compile gate, the whole batch rolls back and BP_Enemy stays exactly as it was.",
-            "tools": ["apply_ops"]
+            "incant": "\"What's under pixel 640, 360 in the viewport?\"",
+            "description": "Runs a fresh hit-proxy pick at that pixel and returns the hit type and the actor name if it's an actor. Give both x and y, or leave them out to use the last real mouse position.",
+            "tools": [
+              "get_hover_target"
+            ]
           },
           {
-            "incant": "\"Before you touch BP_Turret, show me exactly which nodes, pins, and variables this batch will change\"",
-            "description": "Aethyr replays the batch as a dry run and reports every asset it would touch. Nothing is written and no backup is taken until you say go.",
-            "tools": ["preview_ops"]
+            "incant": "\"Which actors are hidden, and are any layers switched off? I can't find my props.\"",
+            "description": "Lists hidden actors and hidden editor layers, each capped at 500 with a truncated flag. Read-only and needs a running editor.",
+            "tools": [
+              "get_hidden_actors",
+              "get_hidden_layers"
+            ]
           },
           {
-            "incant": "\"Copy the whole Fire event graph from BP_Turret into BP_Enemy with all the wiring intact\"",
-            "description": "Aethyr clones the graph node for node and preserves every connection, so the pasted logic lands wired, not as a loose pile of nodes.",
-            "tools": ["clone_graph", "get_compile_status"]
+            "incant": "\"Am I in Show Only Selected right now? And what's in the World Outliner filter?\"",
+            "description": "Infers whether isolate mode is active from the hidden and selected actor pattern. Then it reads the outliner's filter count, columns, and highlight text. The Outliner read needs its tab open.",
+            "tools": [
+              "get_isolate_mode",
+              "get_outliner_state"
+            ]
           },
           {
-            "incant": "\"I deleted a few variables on /Game/Items/BP_HealthPickup; find any nodes still pointing at things that no longer exist\"",
-            "description": "Aethyr walks the graphs and flags every node still referencing a variable or function that was removed, so the orphans surface before the compiler does.",
-            "tools": ["find_dangling_references"]
+            "incant": "\"What's the Details panel showing, and what's my viewport rendering mode? Any stat overlays on?\"",
+            "description": "Reads the Details panel's selected objects, the buffer-visualization override, and the enabled stat overlays. Read-only and needs a running editor.",
+            "tools": [
+              "get_details_panel_state",
+              "get_buffer_visualization_mode",
+              "get_active_stats"
+            ]
           },
           {
-            "incant": "\"Did my refactor of BP_Turret actually match BP_Enemy? Diff them but ignore node positions and GUIDs\"",
-            "description": "Aethyr compares the two Blueprints by structure alone: variables, functions, nodes, and wiring. Cosmetic layout and fresh GUIDs are normalized out.",
-            "tools": ["bp_structural_diff"]
+            "incant": "\"List my saved camera bookmarks so I can jump back to them.\"",
+            "description": "Returns the populated Ctrl-1..9 bookmark slots with location and rotation. Read-only and needs a running editor.",
+            "tools": [
+              "get_camera_bookmarks"
+            ]
           },
           {
-            "incant": "\"I just finished rewiring BP_HealthPickup; confirm it compiles clean before I move on\"",
-            "description": "Aethyr reports the current compile state with any errors and warnings. This needs a running editor.",
-            "tools": ["get_compile_status"]
+            "incant": "\"I'm in PIE. What camera is the player looking through, and what's its FOV?\"",
+            "description": "Reads the first PIE player's view target: actor name, location, rotation, and FOV. It returns valid:false if PIE isn't running.",
+            "tools": [
+              "get_cinematic_camera"
+            ]
+          },
+          {
+            "incant": "\"Which World Partition data layers are loaded or activated in this map?\"",
+            "description": "Lists each data layer with its runtime state (Unloaded, Loaded, Activated). On a map without World Partition it returns no layers. Needs a running editor.",
+            "tools": [
+              "get_data_layer_states"
+            ]
+          },
+          {
+            "incant": "\"Delete the actor named SM_Rock_12 from the level.\"",
+            "description": "Destroys the actor by name. It returns deleted:false if no actor with that name was found.",
+            "tools": [
+              "delete_actor"
+            ]
           }
         ]
       },
       {
-        "id": "g-data",
-        "heading": "Data and gameplay tables",
-        "icon": "▦",
-        "intro": "Read the project's data-driven design. Every ritual here is read-only: nothing opens the editor, nothing saves.",
+        "id": "g-ed-a-builds",
+        "heading": "Run builds and watch the background work",
+        "icon": "⚙",
+        "intro": "Kick off lighting, check cooks and caches, and see what the editor is still chewing on.",
         "spells": [
           {
-            "incant": "\"dump the WeaponStats DataTable for me, every row and column, like a spreadsheet\"",
-            "description": "Aethyr resolves the row-struct type, lists the columns, and returns every row value keyed by row name. No editor edit, no save.",
-            "tools": ["read_data_table"]
+            "incant": "\"Build lighting at Preview quality, then tell me when it's done.\"",
+            "description": "Queues a Lightmass build on the loaded level and returns right away. The build finishes later. Watch the log for the completion line, and check the build state with the progress tool. Needs a running editor.",
+            "tools": [
+              "build_lighting",
+              "get_lighting_build_progress"
+            ]
           },
           {
-            "incant": "\"what's actually on /Game/Items/DA_HealthPickup? show me every property\"",
-            "description": "Aethyr reads the DataAsset and surfaces each reflected property with its current value, so you see the tuning without opening the editor.",
-            "tools": ["read_data_asset"]
+            "incant": "\"Is the editor still compiling shaders or meshes, and has the asset scan finished?\"",
+            "description": "Reads the async asset-compile backlog and the asset registry scan status, so you know if queries might still be incomplete. Both need a running editor.",
+            "tools": [
+              "get_async_compile_state",
+              "get_asset_registry_state"
+            ]
           },
           {
-            "incant": "\"which abilities does the BP_Player ability set grant, and at what levels?\"",
-            "description": "Aethyr reads the Gameplay Ability System ability set and lists each granted ability class paired with its level. Quick way to audit who gets what.",
-            "tools": ["read_ability_set"]
+            "incant": "\"What platform are we cooking for, and is a cook running?\"",
+            "description": "Lists the editor's cook target platforms and its persisted Cook and Package choices, then reads the in-editor cook session state. Read-only.",
+            "tools": [
+              "get_active_cook_target",
+              "get_cook_progress"
+            ]
           },
           {
-            "incant": "\"list every gameplay tag under Ability.Damage so I can pick the right one\"",
-            "description": "Aethyr walks the project's gameplay tag dictionary and returns the tags, optionally filtered by a substring such as Ability.Damage. Spell the tag right the first time.",
-            "tools": ["list_gameplay_tags"]
+            "incant": "\"How's the Derived Data Cache doing? Show hits and misses by asset type.\"",
+            "description": "Reports DDC hit and miss counts and sizes per asset type. It returns valid:false if the cache isn't initialized.",
+            "tools": [
+              "get_ddc_state"
+            ]
           },
           {
-            "incant": "\"what's the DefaultGameMode set to in DefaultEngine.ini?\"",
-            "description": "Aethyr reads one config (.ini) value by section and key, so you can confirm a default game-mode or a tuning knob without grepping the config tree.",
-            "tools": ["read_config_value"]
+            "incant": "\"Is Live Coding available and compiling? Is an autosave in progress?\"",
+            "description": "Reads the Live Coding state and whether an autosave is running. Both are read-only and need a running editor.",
+            "tools": [
+              "get_live_coding_state",
+              "get_autosave_status"
+            ]
           },
           {
-            "incant": "\"I just cloned this project, what engine version and plugins is MyGame on?\"",
-            "description": "Aethyr reads the .uproject metadata: engine version, enabled plugins, and project descriptor fields. The fastest way to orient to an unfamiliar project.",
-            "tools": ["get_project_metadata"]
-          },
-          {
-            "incant": "\"the BP_Turret placed in the level has different settings than its class, show me its overrides\"",
-            "description": "Aethyr reads a level-placed actor's per-instance overrides, including World Partition and One-File-Per-Actor edits, so you see exactly what diverges from the Blueprint defaults.",
-            "tools": ["read_actor_instance"]
+            "incant": "\"Any toast notifications showing in the editor? Read them to me.\"",
+            "description": "Reads the visible text of live notification windows. It returns valid:false when none are active. Needs a running editor.",
+            "tools": [
+              "get_active_notifications"
+            ]
           }
         ]
       },
       {
-        "id": "g-art",
-        "heading": "Art, FX, and timelines",
-        "icon": "◎",
-        "intro": "Inspect the look and feel across disciplines. Read-only: nothing here mutates an asset.",
+        "id": "g-ed-a-project-ops",
+        "heading": "Game features, CVars and file locks",
+        "icon": "⟳",
+        "intro": "Run console commands, flip Game Features, and check source control state.",
         "spells": [
           {
-            "incant": "\"Pull up the M_Hologram material, show me its node graph, and name every scalar and vector parameter exposed on it.\"",
-            "description": "Aethyr reads the material expression graph and lists its exposed scalar and vector parameters, so you know the knobs before you ever open an instance in the editor.",
-            "tools": ["read_material"]
+            "incant": "\"What is r.ScreenPercentage set to? If it's 100, drop it to 75.\"",
+            "description": "Reads the console variable first, then runs the console command to change it. The command result says whether the engine recognized it.",
+            "tools": [
+              "get_cvar",
+              "console_command"
+            ]
           },
           {
-            "incant": "\"What scalar, vector, and texture overrides does MI_Hologram_Cyan set on its parent?\"",
-            "description": "Aethyr dumps a material instance's overridden parameters (scalar, vector, and texture), so you can see exactly where the child diverges from the base.",
-            "tools": ["get_material_instance_params"]
+            "incant": "\"Turn on stat unit so I can see frame times.\"",
+            "description": "Runs the console command and returns whatever it echoed to the log, plus a handled flag. A typo'd command comes back with handled:false.",
+            "tools": [
+              "console_command"
+            ]
           },
           {
-            "incant": "\"Give me the triangle count, the full LOD chain, and the vertex counts for SM_TurretBase.\"",
-            "description": "Aethyr reports the static mesh triangle budget, every LOD level, and per-LOD vertex counts in one read, no editor poking required.",
-            "tools": ["get_static_mesh_info"]
+            "incant": "\"Activate the MyGameCombat game feature plugin, then check that it loaded.\"",
+            "description": "Queues activation, which is async and fire-and-forget. Then it reads the plugin's state to confirm. Blocked in read-only mode and needs a running editor.",
+            "tools": [
+              "activate_game_feature",
+              "get_game_feature_state"
+            ]
           },
           {
-            "incant": "\"Open the NS_MuzzleFlash Niagara system and tell me its emitter handles and every exposed user parameter.\"",
-            "description": "Aethyr reads the Niagara system, enumerating its emitter handles and the user parameters it exposes for a Blueprint to drive.",
-            "tools": ["read_niagara_system"]
+            "incant": "\"Turn the MyGameCombat game feature off and confirm it's gone.\"",
+            "description": "Queues deactivation, then polls the plugin state to confirm. Blocked in read-only mode and needs a running editor.",
+            "tools": [
+              "deactivate_game_feature",
+              "get_game_feature_state"
+            ]
           },
           {
-            "incant": "\"Read the DoorOpen Timeline inside BP_Turret and list every curve key with its time, value, and interpolation.\"",
-            "description": "Aethyr reads a Timeline embedded in a Blueprint and returns each curve key in full, so you can audit the motion without scrubbing the editor.",
-            "tools": ["read_timeline"]
-          },
-          {
-            "incant": "\"Walk the widget tree of WBP_HUD and show me every widget, its class, and its parent.\"",
-            "description": "Aethyr reads a UMG widget Blueprint and returns the full hierarchy, each widget with its class and parent, so you can map the layout at a glance.",
-            "tools": ["read_widget_blueprint"]
-          },
-          {
-            "incant": "\"List the sections and notifies on the AM_Reload montage.\"",
-            "description": "Aethyr reads an anim montage and lays out its sections and notify tracks, so you can confirm the timing hooks before you wire gameplay to them in a Blueprint.",
-            "tools": ["read_anim_montage"]
+            "incant": "\"Is /Game/MyGame/Blueprints/BP_Enemy checked out by someone else? And what's in my pending changelist?\"",
+            "description": "Checks whether another user holds the file lock, then reads the default changelist. Git has no locks or changelists, so those answers come back empty or invalid there.",
+            "tools": [
+              "get_file_lock_status",
+              "get_pending_changelist"
+            ]
           }
         ]
       },
       {
-        "id": "g-ai",
-        "heading": "AI graphs and class reflection",
-        "icon": "⎇",
-        "intro": "Understand behavior logic and the reflected class surface. Read-only.",
+        "id": "g-ed-b-viewport",
+        "heading": "Bend the viewport to your will",
+        "icon": "◈",
+        "intro": "Change how the level viewport looks and behaves, and read its settings back.",
         "spells": [
           {
-            "incant": "\"Walk me through the Behavior Tree on BP_Enemy: what composites, decorators, services, and tasks does it run?\"",
-            "description": "Aethyr reads the whole node graph in one pass and labels every node by kind, so you see selectors, sequences, guard decorators, and leaf tasks without opening the editor.",
-            "tools": ["read_behavior_tree"]
+            "incant": "\"Switch the viewport to wireframe, then tell me what view mode it's in.\"",
+            "description": "Sets the active level viewport's view mode, then reads it back. Works with modes like Lit, Unlit, Wireframe, and ShaderComplexity. Needs a running editor.",
+            "tools": [
+              "set_view_mode",
+              "get_view_mode"
+            ]
           },
           {
-            "incant": "\"Show me the State Tree for BP_Turret: every state and each transition with the trigger that fires it.\"",
-            "description": "Aethyr walks the state hierarchy and lists each transition next to its trigger condition, so you can trace exactly how the turret moves from idle to acquire to fire.",
-            "tools": ["read_state_tree"]
+            "incant": "\"Turn on collision and bounds in the viewport, then show me which show flags are on.\"",
+            "description": "Toggles a viewport show flag such as Collision, Bounds, Wireframe, or Lighting, then reads back the common show flags. Needs a running editor.",
+            "tools": [
+              "set_show_flag",
+              "get_show_flags"
+            ]
           },
           {
-            "incant": "\"Read the Anim Blueprint for BP_Player and map out its state machines and the states inside them.\"",
-            "description": "Aethyr surfaces each AnimGraph state machine and the states it contains, so you can follow the locomotion flow from idle to walk to jump at a glance.",
-            "tools": ["read_anim_blueprint"]
+            "incant": "\"Is the viewport realtime? Turn it off to save my GPU.\"",
+            "description": "Reads the viewport's realtime flag, then switches realtime rendering on or off and echoes the new state. Needs a running editor.",
+            "tools": [
+              "get_viewport_realtime",
+              "set_viewport_realtime"
+            ]
           },
           {
-            "incant": "\"Inspect the AActor subclass behind /Game/Items/BP_HealthPickup: full ancestor chain, every UPROPERTY, every UFUNCTION.\"",
-            "description": "Aethyr reflects the UClass directly, reporting the parent chain plus all reflected properties and functions, so you know the native surface a Blueprint inherits before you touch it.",
-            "tools": ["get_class_info"]
+            "incant": "\"What's my viewport camera FOV, speed, and clip planes?\"",
+            "description": "Read-only. Returns the active viewport's FOV, camera speed, and near and far clip planes. Needs a running editor.",
+            "tools": [
+              "get_viewport_camera_settings"
+            ]
           },
           {
-            "incant": "\"Which functions on UGameplayStatics can I call from a graph, and which are pure?\"",
-            "description": "Aethyr lists every callable UFUNCTION with its flags, so you can tell BlueprintCallable from BlueprintPure before you drop a node into BP_Enemy.",
-            "tools": ["list_functions"]
+            "incant": "\"Switch the gizmo to rotate, and tell me what my grid snapping is set to.\"",
+            "description": "Sets the transform gizmo to translate, rotate, or scale. The snapping read is separate and returns grid, rotation snap, vertex snapping, and snap distance. Needs a running editor.",
+            "tools": [
+              "set_gizmo_mode",
+              "get_snapping_settings"
+            ]
+          },
+          {
+            "incant": "\"Jump the camera to bookmark 2.\"",
+            "description": "Moves the active viewport camera to a saved bookmark slot. It reports jumped:false if the slot is empty. It only changes the view, so it works in read-only mode. Needs a running editor.",
+            "tools": [
+              "goto_camera_bookmark"
+            ]
+          },
+          {
+            "incant": "\"Set r.ScreenPercentage to 50 for now.\"",
+            "description": "Sets a console variable with code-level priority, so it overrides ini and scalability values. For Blueprint variable defaults, use the typed Blueprint tools instead. Needs a running editor.",
+            "tools": [
+              "set_cvar"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-ed-b-level",
+        "heading": "Poke around the level",
+        "icon": "⌖",
+        "intro": "Spawn, hide, select, and inspect things in the open level.",
+        "spells": [
+          {
+            "incant": "\"Spawn a BP_Enemy at 0, 0, 100 facing yaw 90.\"",
+            "description": "Spawns an actor of the given class in the current level at the transform you pass. Location, rotation, and scale are all optional. Returns the new actor's name and label. Needs a running editor.",
+            "tools": [
+              "spawn_actor"
+            ]
+          },
+          {
+            "incant": "\"List the actors I can see within 2000 units that have 'Light' in the class name, then select them.\"",
+            "description": "Finds actors inside the viewport frustum, filtered by class substring and distance, then replaces the editor selection with them. The visible-actors list is capped at 500. Needs a running editor.",
+            "tools": [
+              "get_visible_actors",
+              "set_selection"
+            ]
+          },
+          {
+            "incant": "\"Hide SM_Wall_12 in the viewport, and show the 'Debug' layer.\"",
+            "description": "Hides an actor in the editor viewport only, which doesn't dirty the package. Layer visibility is a separate toggle by layer name. Both are blocked in read-only mode. Needs a running editor.",
+            "tools": [
+              "set_actor_visibility",
+              "set_layer_visibility"
+            ]
+          },
+          {
+            "incant": "\"Which levels are loaded right now?\"",
+            "description": "Read-only. Lists the persistent level and any streaming sublevels as package paths. Needs a running editor.",
+            "tools": [
+              "list_loaded_levels"
+            ]
+          },
+          {
+            "incant": "\"What folders do I have selected in the Content Browser?\"",
+            "description": "Read-only. Returns the selected Content Browser folder paths in package form. Needs a running editor.",
+            "tools": [
+              "get_selected_folders"
+            ]
+          },
+          {
+            "incant": "\"How many triangles does /Game/MyGame/Meshes/SM_Rock have per LOD, and is Nanite on?\"",
+            "description": "Reads LOD count, per-LOD triangle and vertex counts, and the Nanite flag straight from the static mesh asset. It needs no editor instance.",
+            "tools": [
+              "get_static_mesh_info"
+            ]
+          },
+          {
+            "incant": "\"What abilities does BP_Enemy_C_0 have?\"",
+            "description": "Lists the abilities granted to an actor's ability system component, with class, active state, and level. It looks at the PIE world first, then the editor. Needs a running editor and the GAS plugin.",
+            "tools": [
+              "list_actor_abilities"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-ed-b-worldpart",
+        "heading": "World Partition and streaming",
+        "icon": "☍",
+        "intro": "See what a big streamed world has loaded, pinned, and streaming around it.",
+        "spells": [
+          {
+            "incant": "\"Where are my streaming sources, and which partition cells are loaded because of them?\"",
+            "description": "Reads the World Partition streaming sources with their positions, then lists the loaded runtime cells with state and data layers. Both report valid:false or empty on a level without World Partition. Needs a running editor.",
+            "tools": [
+              "get_streaming_sources",
+              "list_loaded_partition_cells"
+            ]
+          },
+          {
+            "incant": "\"Which actors are pinned in the World Outliner?\"",
+            "description": "Read-only. Lists actors pinned for World Partition, and reports valid:false when the current level doesn't use World Partition.",
+            "tools": [
+              "get_pinned_actors"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-ed-b-panels",
+        "heading": "Drive the editor and watch its tools",
+        "icon": "⌘",
+        "intro": "Open assets, switch panels, run menu commands, and check what the editor is doing.",
+        "spells": [
+          {
+            "incant": "\"Open /Game/MyGame/Materials/M_Rock, then bring the Details tab to the front.\"",
+            "description": "Opens the asset's editor (or raises it if already open), then activates a dock tab by a substring of its label. If no tab matches, the error lists the tabs that exist. The tab step needs a GUI or -RenderOffscreen editor.",
+            "tools": [
+              "open_asset_editor",
+              "ui_focus_tab"
+            ]
+          },
+          {
+            "incant": "\"Run File > Save All from the level editor menu.\"",
+            "description": "Runs a menu command by its registered menu name and entry, as a click would, with no need for the menu to be open. If the entry isn't found, the error lists the available entries. Needs a GUI or -RenderOffscreen editor.",
+            "tools": [
+              "ui_invoke_menu"
+            ]
+          },
+          {
+            "incant": "\"Which widgets are selected in the UMG editor for /Game/MyGame/UI/WBP_HUD?\"",
+            "description": "Reads the selected widget names and current designer tab from an open Widget Blueprint editor. It reports valid:false if that editor isn't open. Needs a running editor.",
+            "tools": [
+              "get_umg_editor_state"
+            ]
+          },
+          {
+            "incant": "\"What did I open recently, and what has been saved this session?\"",
+            "description": "Read-only. Returns the editor's recently opened assets and the packages saved during this session, both most-recent first. Needs a running editor.",
+            "tools": [
+              "get_recently_opened_assets",
+              "get_recently_saved_packages"
+            ]
+          },
+          {
+            "incant": "\"What does the status bar say, and what's my workspace layout?\"",
+            "description": "Read-only. Reads the level editor status bar's current message text, plus the serialized docking layout of open tabs and panels. The layout comes back empty in a headless session. Needs a running editor.",
+            "tools": [
+              "get_status_bar_messages",
+              "get_workspace_layout"
+            ]
+          },
+          {
+            "incant": "\"Which pins am I watching in /Game/MyGame/AI/BP_Enemy?\"",
+            "description": "Read-only. Lists the watched pins on a Blueprint with pin name, node, and direction. Needs a running editor.",
+            "tools": [
+              "get_watched_pins"
+            ]
+          },
+          {
+            "incant": "\"Is Play-In-Editor running, and in what mode?\"",
+            "description": "Read-only. Returns whether PIE is playing, its mode, and the instance count (2 or more for a multi-PIE client and server split). Needs a running editor.",
+            "tools": [
+              "get_pie_state"
+            ]
+          },
+          {
+            "incant": "\"Is Take Recorder recording, and what's in the Movie Render Queue?\"",
+            "description": "Reads whether a take is recording (with sequence, slate, and take number), then lists queued render jobs and whether one is rendering. Both report valid:false with a reason if their plugin isn't enabled. Read-only. Needs a running editor.",
+            "tools": [
+              "get_take_recorder_state",
+              "get_render_queue"
+            ]
+          },
+          {
+            "incant": "\"What's my texture paint brush set to?\"",
+            "description": "Reads Mesh Paint mode's texture sub-mode state: active tool, brush size and strength, channel mask, UV channel, and paint texture. It reports valid:false when Mesh Paint isn't the active mode. Read-only.",
+            "tools": [
+              "get_texture_paint_state"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-ed-b-health",
+        "heading": "Is the editor okay?",
+        "icon": "⚙",
+        "intro": "Check health, logs, builds, and shaders when something feels stuck.",
+        "spells": [
+          {
+            "incant": "\"Calls are hanging. Is the editor paused or gone? Also, is there a newer Aethyr?\"",
+            "description": "Probes the editor without touching the game thread, so it answers even when the editor is stalled. It reports healthy, paused, or unreachable, which route answered, whether writes are enabled, and whether an update is available.",
+            "tools": [
+              "health_check"
+            ]
+          },
+          {
+            "incant": "\"Show me the last 50 warnings and errors from the output log.\"",
+            "description": "Reads recent output log entries from a ring buffer, up to your limit, filtered by minimum severity. Read-only.",
+            "tools": [
+              "read_output_log"
+            ]
+          },
+          {
+            "incant": "\"Kick off a Live Coding compile, then show me any errors from the log.\"",
+            "description": "Starts a Live Coding compile and patch. It runs asynchronously, so the result lands in the editor log, which you then read back at Error severity.",
+            "tools": [
+              "live_coding_compile",
+              "read_output_log"
+            ]
+          },
+          {
+            "incant": "\"Are shaders still compiling?\"",
+            "description": "Read-only. Reports whether shaders are compiling and how many jobs are outstanding or pending. Needs a running editor.",
+            "tools": [
+              "get_shader_compile_state"
+            ]
+          },
+          {
+            "incant": "\"Take a 1280 by 720 screenshot to Saved/shots/level.png and show it to me.\"",
+            "description": "Captures a high-res screenshot to the path you give, and can return the PNG inline when it fits under 1280px. Needs a GPU-capable editor. A headless session returns captured:false with a note.",
+            "tools": [
+              "take_screenshot"
+            ]
+          },
+          {
+            "incant": "\"Did the editor crash earlier? Is there anything to recover?\"",
+            "description": "Read-only. Reports whether a restore file is present and lists the packages waiting to be restored. Needs a running editor.",
+            "tools": [
+              "get_recovery_state"
+            ]
+          },
+          {
+            "incant": "\"Is Unreal Insights tracing right now, and to where?\"",
+            "description": "Read-only. Reports trace connection state, pause state, connection type, destination, and active trace channels.",
+            "tools": [
+              "get_trace_state"
+            ]
+          },
+          {
+            "incant": "\"Run a quick Python snippet in the editor to print the engine version. I'm okay with that.\"",
+            "description": "Last resort. Runs Unreal Python in the editor inside one undo transaction and returns the captured output. It skips the validation, backup, and compile steps typed tools give you, so use it only when no typed tool fits and you've agreed.",
+            "tools": [
+              "run_python_script"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-ed-b-project",
+        "heading": "Plugins, project settings and source control",
+        "icon": "✎",
+        "intro": "Read and change project settings and plugins, and check source control and cook targets.",
+        "spells": [
+          {
+            "incant": "\"Find the renderer settings section, show me its values, then turn on Nanite.\"",
+            "description": "Lists settings sections, reads every property of one section by class path, then sets one property by name and writes it to the class's Default ini. Best for simple values. The write is blocked in read-only mode. Needs a running editor.",
+            "tools": [
+              "list_project_settings",
+              "get_project_setting_values",
+              "set_project_setting"
+            ]
+          },
+          {
+            "incant": "\"Put that renderer setting back to its default.\"",
+            "description": "Resets one project setting to its true class default. It removes the saved override and reports the before and after values. Needs a running editor.",
+            "tools": [
+              "reset_project_setting"
+            ]
+          },
+          {
+            "incant": "\"What plugins are installed, what does the GameplayAbilities plugin depend on, and show me its descriptor.\"",
+            "description": "Lists all discovered plugins with their enabled state, then reads one plugin's dependencies and its full .uplugin descriptor. All read-only. Needs a running editor.",
+            "tools": [
+              "list_plugins",
+              "get_plugin_dependencies",
+              "get_plugin_descriptor"
+            ]
+          },
+          {
+            "incant": "\"Check what depends on the TakeRecorder plugin, then disable it in the project.\"",
+            "description": "Disables (or enables) a plugin in the .uproject, taking effect on the next editor restart. Look at the plugin's dependencies first. The write is blocked in read-only mode. Needs a running editor.",
+            "tools": [
+              "get_plugin_dependencies",
+              "set_plugin_enabled"
+            ]
+          },
+          {
+            "incant": "\"Which Game Feature plugins are loaded or active?\"",
+            "description": "Read-only. Lists Game Feature Plugins with their state: unknown, registered, loading, loaded, active, or deactivating. Needs a running editor.",
+            "tools": [
+              "list_game_features"
+            ]
+          },
+          {
+            "incant": "\"Which source control are we on, and is /Game/MyGame/AI/BP_Enemy checked out?\"",
+            "description": "Reads the active source-control provider, then the per-file status of one asset: controlled, checked out, modified, and current. Read-only. Needs a running editor.",
+            "tools": [
+              "get_source_control_provider",
+              "get_source_control_status"
+            ]
+          },
+          {
+            "incant": "\"Do I have any pending changelists?\"",
+            "description": "Refreshes and lists source-control changelists with file counts. Git and None providers don't use changelists, so they return an empty list. Read-only.",
+            "tools": [
+              "list_changelists"
+            ]
+          },
+          {
+            "incant": "\"Set my cook and package target to Linux.\"",
+            "description": "Checks the platform name against the installed targets, then saves it as the cook and package platform in the per-user config. Cook and package then default to it when you don't pass a platform.",
+            "tools": [
+              "set_active_cook_target"
+            ]
+          },
+          {
+            "incant": "\"Which automation tests are registered?\"",
+            "description": "Read-only. Lists registered automation tests with display name, full path, and test name, capped at 2000. Needs a running editor.",
+            "tools": [
+              "list_automation_tests"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-media-niagara-build",
+        "heading": "Build and tune a particle effect",
+        "icon": "✦",
+        "intro": "Make a Niagara system, fill it with emitters, modules and renderers, then dial it in.",
+        "spells": [
+          {
+            "incant": "\"List the Niagara systems under /Game/MyGame/FX, then show me what's inside FX_Spark.\"",
+            "description": "Lists the Niagara systems under that path, then reads one. You get its emitters (renderers, spawn and update modules, sim target) and its exposed parameters with current values. Reading the system needs a live editor backend.",
+            "tools": [
+              "list_niagara_systems",
+              "read_niagara_system"
+            ]
+          },
+          {
+            "incant": "\"Create /Game/MyGame/FX/FX_Burst and add the emitter at /Game/MyGame/FX/E_Sparks to it.\"",
+            "description": "Creates an empty Niagara system, or reports it already exists without overwriting. Then adds an emitter handle that inherits from your source emitter and saves. Needs a live editor backend.",
+            "tools": [
+              "create_niagara_system",
+              "add_niagara_emitter"
+            ]
+          },
+          {
+            "incant": "\"Give the Sparks emitter in FX_Burst a sprite renderer and point it at /Game/MyGame/Materials/M_Spark.\"",
+            "description": "Adds a sprite renderer to the emitter and returns its index. Then sets the renderer's Material by that index. The system recompiles and saves. Needs a live editor backend.",
+            "tools": [
+              "add_niagara_renderer",
+              "set_niagara_renderer_property"
+            ]
+          },
+          {
+            "incant": "\"Add the InitializeParticle module to the spawn stage of Sparks in FX_Burst, then set Gravity in GravityForce to 0,0,-980.\"",
+            "description": "Adds a module script to the emitter's spawn stage, then sets one of its inputs. Input modes are literal, linked, object, data_interface or dynamic. The reply echoes the value read back so you can confirm it took. Needs a live editor backend.",
+            "tools": [
+              "add_niagara_module",
+              "set_niagara_module_input"
+            ]
+          },
+          {
+            "incant": "\"Remove the GravityForce module from the update stage of Sparks in FX_Burst, then delete the Smoke emitter.\"",
+            "description": "Removes a module from the emitter stack and relinks the chain so the script stays valid. Then removes an emitter handle by name. Inherited modules can't be removed and you get an honest error. Needs a live editor backend.",
+            "tools": [
+              "remove_niagara_module",
+              "remove_niagara_emitter"
+            ]
+          },
+          {
+            "incant": "\"Set the Color parameter on FX_Burst to 1, 0.4, 0, 1.\"",
+            "description": "Sets an exposed user parameter on the system and saves. Vectors and colors take comma separated floats. If the parameter doesn't exist you get the list of ones that do. Needs a live editor backend.",
+            "tools": [
+              "set_niagara_parameter"
+            ]
+          },
+          {
+            "incant": "\"Move the Sparks emitter in FX_Burst to GPU simulation, and give the whole system a 2 second warmup.\"",
+            "description": "Sets an emitter property (like SimTarget or bLocalSpace), then a system property (like WarmupTime or bFixedBounds). Each reply shows the old and new value. Needs a live editor backend.",
+            "tools": [
+              "set_niagara_emitter_property",
+              "set_niagara_system_property"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-media-niagara-scripts",
+        "heading": "Write your own Niagara module",
+        "icon": "⚗",
+        "intro": "Make a module script and wire its math nodes by hand.",
+        "spells": [
+          {
+            "incant": "\"Create a Niagara module script at /Game/MyGame/FX/NM_Wobble, add a Numeric::Mul node and a float input called Speed, and wire Speed into it.\"",
+            "description": "Creates a module script with the standard parameter map nodes, adds an op node and an input node, then connects their pins. Each edit reports the script's compile status so a break isn't silent. Needs a live editor backend.",
+            "tools": [
+              "create_niagara_module_script",
+              "add_niagara_script_node",
+              "connect_niagara_script_pins"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-media-sequences",
+        "heading": "Cinematics in Sequencer",
+        "icon": "⟳",
+        "intro": "Create level sequences, add tracks and keys, and copy them around.",
+        "spells": [
+          {
+            "incant": "\"What level sequences do we have under /Game/MyGame/Cinematics? Read LS_Intro for me.\"",
+            "description": "Lists level sequences, then deep-reads one. You get the playback range, frame rates, bindings, tracks, sections and keyframes. Channel types it can't round-trip are listed separately.",
+            "tools": [
+              "list_level_sequences",
+              "read_level_sequence"
+            ]
+          },
+          {
+            "incant": "\"Create /Game/MyGame/Cinematics/LS_Door at 30 fps running 0 to 5 seconds.\"",
+            "description": "Creates a new level sequence with the display rate and playback range you give. If it already exists nothing is overwritten.",
+            "tools": [
+              "create_level_sequence"
+            ]
+          },
+          {
+            "incant": "\"Bind BP_Enemy_1 into LS_Door, give it a transform track, and add a section from 0 to 3 seconds.\"",
+            "description": "Adds an object binding and returns its GUID. Then adds a track on that binding and a section on the track. If no live actor resolves, the reply says `bound:false`.",
+            "tools": [
+              "add_sequence_binding",
+              "add_sequence_track",
+              "add_sequence_section"
+            ]
+          },
+          {
+            "incant": "\"On that section, key Location.Z at 0s = 0 and 2s = 200 with cubic interpolation.\"",
+            "description": "Sets typed keyframes on one channel of a section, using the section ref from reading the sequence. Covers float, double, int and bool channels. Other channel types are reported, not treated as errors.",
+            "tools": [
+              "set_channel_keys"
+            ]
+          },
+          {
+            "incant": "\"Trim LS_Door to run 1 to 4 seconds.\"",
+            "description": "Sets the sequence's playback range in seconds.",
+            "tools": [
+              "set_sequence_playback_range"
+            ]
+          },
+          {
+            "incant": "\"Copy LS_Door to LS_Door_Alt and rename the binding BP_Enemy_1 to BP_Enemy_2.\"",
+            "description": "Rebuilds the sequence at a new path by replaying its bindings, tracks, sections and keys. Spawnables and exotic channels are listed under `skipped`. Safe to re-run since it's idempotent.",
+            "tools": [
+              "recreate_level_sequence"
+            ]
+          },
+          {
+            "incant": "\"Copy every sequence in this list to its Variant twin in one go.\"",
+            "description": "Runs a batch of recreates in one editor launch. A failed pair is reported with its error and the rest carry on.",
+            "tools": [
+              "recreate_level_sequences"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-media-anim",
+        "heading": "Animation Blueprints and montages",
+        "icon": "◈",
+        "intro": "Look at state machines and montages, and scaffold a new state.",
+        "spells": [
+          {
+            "incant": "\"List the anim blueprints under /Game/MyGame/Characters, then walk ABP_Hero's state machines.\"",
+            "description": "Lists animation blueprints, then walks one. You get the parent class and each state machine's states, conduits and transitions.",
+            "tools": [
+              "list_anim_blueprints",
+              "read_anim_blueprint"
+            ]
+          },
+          {
+            "incant": "\"Add a Dodge state to the Locomotion state machine in ABP_Hero and compile it.\"",
+            "description": "Adds a state to a named state machine, then compiles. It's a scaffold only, so final state authoring still happens in the AnimGraph editor.",
+            "tools": [
+              "add_anim_state",
+              "compile_anim_blueprint"
+            ]
+          },
+          {
+            "incant": "\"List the montages under /Game/MyGame/Abilities, then show me the sections and notifies in AM_Slash.\"",
+            "description": "Lists montages, then reads one. You get its sections, notifies with trigger times, and slot tracks with their anim sequences.",
+            "tools": [
+              "list_anim_montages",
+              "read_anim_montage"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-media-metasound",
+        "heading": "Build a MetaSound",
+        "icon": "♪",
+        "intro": "Create a MetaSound, find node classes, then add, wire and set values.",
+        "spells": [
+          {
+            "incant": "\"Create a MetaSound source at /Game/MyGame/Audio/MS_Hum.\"",
+            "description": "Creates a valid MetaSound with a root graph and Source interface. Pass `kind:\"patch\"` for a patch instead. Existing assets are left alone.",
+            "tools": [
+              "create_metasound"
+            ]
+          },
+          {
+            "incant": "\"Which MetaSound node classes mention Sine? Add one to MS_Hum, add a float input called Pitch, and wire Pitch into it.\"",
+            "description": "Searches the node registry, then adds a node by class name and a graph input. Then connects them by node id and pin name.",
+            "tools": [
+              "list_metasound_node_classes",
+              "add_metasound_node",
+              "add_metasound_graph_io",
+              "connect_metasound_nodes"
+            ]
+          },
+          {
+            "incant": "\"Set the default on that node's Frequency input to 440 and make sure MS_Hum uses the UE.Source.OneShot interface.\"",
+            "description": "Sets a node input's default literal. Then adds or removes a MetaSound interface. The reply says if the interface name was unknown or already present.",
+            "tools": [
+              "set_metasound_input",
+              "set_metasound_interface"
+            ]
+          },
+          {
+            "incant": "\"List the MetaSounds under /Game/MyGame/Audio, then read MS_Hum's graph.\"",
+            "description": "Lists MetaSound sources and patches, then reads one. You get interfaces, graph inputs and outputs, every node and every edge.",
+            "tools": [
+              "list_metasounds",
+              "read_metasound"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-media-sound-assets",
+        "heading": "Mix, cues and sound settings",
+        "icon": "♫",
+        "intro": "Create and tune sound classes, attenuation, concurrency and cues, and read waves and mixes.",
+        "spells": [
+          {
+            "incant": "\"Create a sound class at /Game/MyGame/Audio/SC_Music, then set its Volume to 0.6.\"",
+            "description": "Creates a sound class, then sets a field of its properties struct. The value is the text form Unreal uses.",
+            "tools": [
+              "create_sound_class",
+              "set_sound_class_property"
+            ]
+          },
+          {
+            "incant": "\"List the sound classes under /Game/MyGame/Audio and show SC_Music's volume, pitch and parent.\"",
+            "description": "Lists sound classes, then reads one. You get its properties and its parent and child classes.",
+            "tools": [
+              "list_sound_classes",
+              "read_sound_class"
+            ]
+          },
+          {
+            "incant": "\"Create a sound attenuation at /Game/MyGame/Audio/ATT_Footstep and set FalloffDistance to 1500.\"",
+            "description": "Creates an attenuation asset, then sets a field of its attenuation settings.",
+            "tools": [
+              "create_sound_attenuation",
+              "set_attenuation_property"
+            ]
+          },
+          {
+            "incant": "\"Show me ATT_Footstep's settings.\"",
+            "description": "Reads every attenuation setting as name and text value. It's read only. The names match what `set_attenuation_property` takes.",
+            "tools": [
+              "read_sound_attenuation"
+            ]
+          },
+          {
+            "incant": "\"Create a sound concurrency at /Game/MyGame/Audio/SCON_Footsteps, then read its settings.\"",
+            "description": "Creates a concurrency asset, then dumps its settings such as MaxCount and ResolutionRule. There's no setter for concurrency, so reading is where it ends.",
+            "tools": [
+              "create_sound_concurrency",
+              "read_sound_concurrency"
+            ]
+          },
+          {
+            "incant": "\"What does the sound mix SMix_Combat do?\"",
+            "description": "Reads a sound mix's properties such as EQ settings, fade times and class effects. It's read only, and there's no setter for mixes.",
+            "tools": [
+              "read_sound_mix"
+            ]
+          },
+          {
+            "incant": "\"Build a sound cue at /Game/MyGame/Audio/SCue_Hit with a random node feeding a wave player, and make the random node the root.\"",
+            "description": "Creates a sound cue, adds nodes to its runtime tree, then wires them. Setting a node as root fills the cue's first node. Only the runtime tree is authored. The editor layout is separate.",
+            "tools": [
+              "create_sound_cue",
+              "add_sound_node",
+              "connect_sound_nodes"
+            ]
+          },
+          {
+            "incant": "\"List the sound cues under /Game/MyGame/Audio and walk SCue_Hit's node tree.\"",
+            "description": "Lists sound cues, then walks the runtime node tree. You get cue-level settings and each node's class, properties and children.",
+            "tools": [
+              "list_sound_cues",
+              "read_sound_cue"
+            ]
+          },
+          {
+            "incant": "\"List the sound waves under /Game/MyGame/Audio, then read SW_Hit's sample rate and duration.\"",
+            "description": "Lists sound waves, then reads one. You get every property, such as channels, sample rate and duration. It's read only.",
+            "tools": [
+              "list_sound_waves",
+              "read_sound_wave"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-as-find",
+        "heading": "Find and inspect assets",
+        "icon": "⌖",
+        "intro": "Look around the Content Browser without opening a single asset by hand.",
+        "spells": [
+          {
+            "incant": "\"List everything under /Game/MyGame/Characters, grouped by folder, and flag any redirectors or duplicate names.\"",
+            "description": "Reads the asset registry (no package loads) and returns the assets grouped by folder, with flags for redirectors, broken redirectors, redirector chains and duplicate names. Pass an export format and it writes the whole inventory to a file under the project's Saved folder instead.",
+            "tools": [
+              "list_assets"
+            ]
+          },
+          {
+            "incant": "\"Find every asset with 'Rock' in the name under /Game/MyGame, then show me what the project is and which engine version it targets.\"",
+            "description": "Searches asset names and paths for a substring (case-insensitive, 50 results per page by default) and returns each match's path and class. Then reads the .uproject and reports the project name and engine association.",
+            "tools": [
+              "find_asset",
+              "get_project_metadata"
+            ]
+          },
+          {
+            "incant": "\"This actor at /Game/__ExternalActors__/Maps/L_Arena/0/AB/SOMEGUID looks misconfigured. What did it override compared to its Blueprint?\"",
+            "description": "Opens a level-placed actor stored in its own external package and returns its class, label, transform, owning level and the properties it changed from its archetype. You can also pass a full object path into a subobject to read just that one.",
+            "tools": [
+              "read_actor_instance"
+            ]
+          },
+          {
+            "incant": "\"What graphs and subobjects live inside /Game/MyGame/Audio/SC_Explosion? Show me how its nodes point at each other.\"",
+            "description": "Lists every graph in the asset's package, then lists every subobject. With properties included, each entry carries its changed values and the same-package object references that wire a runtime-only graph together.",
+            "tools": [
+              "list_graphs",
+              "list_subobjects"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-as-organize",
+        "heading": "Tidy, move and check assets",
+        "icon": "⟳",
+        "intro": "Reorganize the Content Browser safely, and check config, versions and history first.",
+        "spells": [
+          {
+            "incant": "\"What uses /Game/MyGame/Props/SM_Crate, and what does it pull in itself?\"",
+            "description": "Reads the asset registry's dependency graph. Referencers shows who points at the asset, dependencies shows what it loads. Both are read-only and quick.",
+            "tools": [
+              "get_referencers",
+              "get_dependencies"
+            ]
+          },
+          {
+            "incant": "\"Make a /Game/MyGame/Props/Crates folder, then move SM_Crate into it.\"",
+            "description": "Creates the folder (it's fine if it already exists), then moves the asset. Aethyr updates the registry and fixes references in other assets, and tells you how many redirectors Unreal created.",
+            "tools": [
+              "create_folder",
+              "move_asset"
+            ]
+          },
+          {
+            "incant": "\"Check what references /Game/MyGame/Old/BP_Unused, and if nothing does, delete it.\"",
+            "description": "Looks up the referencers first, then deletes the asset. Delete refuses by default when other assets still reference it and lists them. Passing force deletes anyway and leaves those references null.",
+            "tools": [
+              "get_referencers",
+              "delete_asset"
+            ]
+          },
+          {
+            "incant": "\"Copy /Game/MyGame/AI/BP_Enemy to /Game/MyGame/AI/BP_EnemyBoss.\"",
+            "description": "Makes a file-level copy of the Blueprint with the same variables, functions, graphs and components. If the destination already exists it's left alone and reported as already existing.",
+            "tools": [
+              "duplicate_blueprint"
+            ]
+          },
+          {
+            "incant": "\"Rebuild /Game/MyGame/AI/BP_Enemy as /Game/MyGame/AI/BP_EnemyRanged, but with a different parent class.\"",
+            "description": "Recreates the Blueprint in one editor-side pass, including variables, functions, graphs with their wiring, and components. You can pass a parent class to reparent the copy. An existing destination is left alone.",
+            "tools": [
+              "recreate_blueprint"
+            ]
+          },
+          {
+            "incant": "\"Save everything you changed.\"",
+            "description": "Saves the dirty packages this session touched, and returns the saved count plus any asset paths that failed. Ask for scope all to include the editor's other unsaved edits too, which will persist someone's half-finished work.",
+            "tools": [
+              "save_all"
+            ]
+          },
+          {
+            "incant": "\"What's the value of r.DefaultFeature.AutoExposure in the RendererSettings section of DefaultEngine.ini?\"",
+            "description": "Reads one config value and tells you whether the key exists at all. Then, if you ask for a change, it writes the new value to the ini on disk and gives you the previous and new values back. That write changes a project file, so say it out loud first.",
+            "tools": [
+              "read_config_value",
+              "set_config_value"
+            ]
+          },
+          {
+            "incant": "\"Which engine version was /Game/MyGame/Maps/L_Arena saved with?\"",
+            "description": "Reads the package header off disk without loading the asset. Returns the file versions, the engine version that saved it and its custom versions, which helps when you're diagnosing a load mismatch.",
+            "tools": [
+              "get_asset_version"
+            ]
+          },
+          {
+            "incant": "\"Show me the history of /Game/MyGame/AI/BP_Enemy, then load the previous revision so I can compare it, and clean up afterwards.\"",
+            "description": "Reads the revision list from your source-control provider, loads one old revision into a temporary package you can read with the normal read tools, then unloads and deletes that temp copy. Source control has to be on and tracking the asset.",
+            "tools": [
+              "get_asset_history",
+              "load_asset_revision",
+              "unload_packages"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-as-data",
+        "heading": "Data tables, data assets and tags",
+        "icon": "☷",
+        "intro": "Edit the data your game runs on, one row or one tag at a time.",
+        "spells": [
+          {
+            "incant": "\"List my data tables under /Game/MyGame/Data, open DT_Items, and add a row called Potion with Price 50.\"",
+            "description": "Lists the data tables, reads DT_Items to see its row struct and columns, then adds the row. A name that already exists is reported and left alone unless you ask to overwrite.",
+            "tools": [
+              "list_data_tables",
+              "read_data_table",
+              "add_data_row"
+            ]
+          },
+          {
+            "incant": "\"In DT_Items, set the Price on the Potion row to 75.\"",
+            "description": "Updates one field on an existing row and returns the old and new values so you can see the value coerced correctly.",
+            "tools": [
+              "set_data_row_value"
+            ]
+          },
+          {
+            "incant": "\"Show me the data assets under /Game/MyGame/Data, make a new one called DA_Starter from my loadout class, and set its StartingGold to 100.\"",
+            "description": "Lists UDataAsset instances, creates a new one from the class you name, reads its properties, and sets one by name.",
+            "tools": [
+              "list_data_assets",
+              "create_data_asset",
+              "read_data_asset",
+              "set_data_asset_property"
+            ]
+          },
+          {
+            "incant": "\"Add the gameplay tag Status.Damage.Fire with a comment, and tell me about its parent and children.\"",
+            "description": "Adds the tag to the project's tag dictionary, then reads back whether it exists, where it comes from, its parent and its direct children.",
+            "tools": [
+              "add_gameplay_tag",
+              "get_tag_info"
+            ]
+          },
+          {
+            "incant": "\"List every gameplay tag containing 'Damage', and find the assets that use Status.Damage.Fire.\"",
+            "description": "Filters the tag list by substring, then finds assets that reference one tag. Coverage is limited to assets with registry-searchable tag properties, so a live editor gives fuller results.",
+            "tools": [
+              "list_gameplay_tags",
+              "find_tag_referencers"
+            ]
+          },
+          {
+            "incant": "\"Rename the tag Status.Damage.Fire to Status.Burn.Fire, and show me what abilities /Game/MyGame/GAS/AS_Hero grants.\"",
+            "description": "Renames a project-defined tag through a redirect, so existing assets resolve to the new name without being rewritten. Then reads an ability-set data asset and lists each granted ability class with its level. Native and plugin tags are refused.",
+            "tools": [
+              "rename_gameplay_tag",
+              "read_ability_set"
+            ]
+          },
+          {
+            "incant": "\"Remove the tag Status.Old.Test.\"",
+            "description": "Removes a project-defined tag from DefaultGameplayTags.ini. Native and plugin-defined tags are refused with a clear error.",
+            "tools": [
+              "remove_gameplay_tag"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-as-materials",
+        "heading": "Build and tweak materials",
+        "icon": "◈",
+        "intro": "Make a material, wire it up, spin off instances and recompile.",
+        "spells": [
+          {
+            "incant": "\"List the materials under /Game/MyGame/Materials and show me the node graph of M_Rock.\"",
+            "description": "Lists materials and material instances, then reads one material's expression nodes, its connections to slots like BaseColor and Roughness, and the names of its exposed parameters.",
+            "tools": [
+              "list_materials",
+              "read_material"
+            ]
+          },
+          {
+            "incant": "\"Create /Game/MyGame/Materials/M_Glow, add a vector constant and a scalar parameter named Intensity, wire the color into EmissiveColor, and recompile it.\"",
+            "description": "Creates the material, adds each expression node at a position you choose, connects an output to a master slot (or to another node) and recompiles the shaders. Each add call returns the new node id you use in the next connection.",
+            "tools": [
+              "create_material",
+              "add_material_expression",
+              "connect_material_expressions",
+              "compile_material"
+            ]
+          },
+          {
+            "incant": "\"Set the default Roughness parameter on M_Rock to 0.8.\"",
+            "description": "Sets the default of a named scalar or vector parameter on the base material and returns the old and new values.",
+            "tools": [
+              "set_material_parameter"
+            ]
+          },
+          {
+            "incant": "\"Make a material instance MI_RockWet under /Game/MyGame/Materials from M_Rock, then override its Roughness to 0.2.\"",
+            "description": "Creates an instance parented to the base material, then overrides one of its parameters. You choose scalar, vector or texture, and the parent has to declare that parameter.",
+            "tools": [
+              "create_material_instance",
+              "set_material_instance_parameter"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-as-ui-ai",
+        "heading": "UI widgets and AI trees",
+        "icon": "✎",
+        "intro": "Assemble a UMG screen, a behavior tree and a state tree from plain requests.",
+        "spells": [
+          {
+            "incant": "\"Show me the widget tree of /Game/MyGame/UI/WBP_MainMenu.\"",
+            "description": "Reads every widget in the tree with its class and parent, plus the root widget's name. Read-only.",
+            "tools": [
+              "read_widget_blueprint"
+            ]
+          },
+          {
+            "incant": "\"In WBP_MainMenu, add a Button called PlayButton inside the VerticalBox, set its text color to red, bind OnClicked to OnPlayClicked, and compile.\"",
+            "description": "Adds the widget under the parent you name (or at a set position), sets a property from its text form, binds the event to a handler (creating the handler if it's missing), then compiles. If the compile returns false, read the output log.",
+            "tools": [
+              "add_widget",
+              "set_widget_property",
+              "bind_widget_event",
+              "compile_widget_blueprint"
+            ]
+          },
+          {
+            "incant": "\"List the behavior trees under /Game/MyGame/AI and show me the nodes of BT_Patrol.\"",
+            "description": "Lists behavior tree assets, then walks one tree and returns every node with its id, class, kind and parent, plus the root node id.",
+            "tools": [
+              "list_behavior_trees",
+              "read_behavior_tree"
+            ]
+          },
+          {
+            "incant": "\"In BT_Patrol, add a Selector at the root, a MoveTo task under it, set the MoveTo AcceptableRadius to 150, and compile.\"",
+            "description": "Adds composite, decorator, service or task nodes by class name, sets a node property from its text form, and compiles the tree. The first composite you add with no parent becomes the root.",
+            "tools": [
+              "add_bt_node",
+              "set_bt_node_property",
+              "compile_behavior_tree"
+            ]
+          },
+          {
+            "incant": "\"List state trees under /Game/MyGame/AI, open ST_Guard, add a Chase state and a transition to it when the Idle state fails, then compile.\"",
+            "description": "Lists state trees, reads the state hierarchy and transitions, adds a state, adds a transition with the trigger you choose, and compiles. Adds and transitions save the asset right away, and compile returns error and warning counts.",
+            "tools": [
+              "list_state_trees",
+              "read_state_tree",
+              "add_state_tree_state",
+              "set_state_tree_transition",
+              "compile_state_tree"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "g-as-ship",
+        "heading": "Test, profile, ship and bridge",
+        "icon": "⚗",
+        "intro": "Run tests, capture a profile, cook and package, or reach Epic's own editor toolsets.",
+        "spells": [
+          {
+            "incant": "\"Run all the automation tests matching Aethyr.*.\"",
+            "description": "Kicks off the engine's automation framework with your name pattern. The run is async, so it returns right away. Follow the results in the output log or the Saved/Automation report.",
+            "tools": [
+              "run_automation_tests"
+            ]
+          },
+          {
+            "incant": "\"Start a CSV profile, let me play for a bit, then stop it and tell me where the file went.\"",
+            "description": "Starts a capture in insights or csv mode, then stops it and returns the real output path of the .utrace or .csv file. Stop only ends a capture that start began.",
+            "tools": [
+              "start_profile",
+              "stop_profile"
+            ]
+          },
+          {
+            "incant": "\"Turn on the Unit stat overlay in the editor.\"",
+            "description": "Toggles a stat group overlay. Despite the name it doesn't return numbers, so the first call turns it on and the second turns it off. Capture the output with the log or a screenshot.",
+            "tools": [
+              "get_stats"
+            ]
+          },
+          {
+            "incant": "\"Cook the content for Windows, then package the project into D:/Builds/MyGame.\"",
+            "description": "Both run RunUAT BuildCookRun as background tasks and hand back a task id you can poll. If the engine and project paths aren't configured, you get a stub with a command to run by hand.",
+            "tools": [
+              "cook_content",
+              "package_project"
+            ]
+          },
+          {
+            "incant": "\"Which Epic toolsets does my editor have turned on, and what can the Niagara one do?\"",
+            "description": "Needs a running editor with Epic's ModelContextProtocol plugin enabled. Lists the enabled toolsets, then describes one with each function and its schema.",
+            "tools": [
+              "epic_list_toolsets",
+              "epic_describe_toolset"
+            ]
+          },
+          {
+            "incant": "\"Call the function you just found on /Game/MyGame/FX/NS_Sparks.\"",
+            "description": "Needs a running editor with Epic's MCP server. Calls one Epic function by its Toolset.Function name. Calls that look like writes are refused in a read-only session, and Aethyr's compile gate and rollback don't apply, so read back the result.",
+            "tools": [
+              "epic_call_tool"
+            ]
           }
         ]
       }
     ],
     "pager": {
-      "prev": { "href": "/docs/tutorials/", "label": "Ritual walkthroughs" },
-      "next": { "href": "/docs/reference/", "label": "Reference: every tool" }
+      "prev": {
+        "href": "/docs/tutorials/",
+        "label": "Ritual walkthroughs"
+      },
+      "next": {
+        "href": "/docs/reference/",
+        "label": "Reference: every tool"
+      }
     }
   }
 }
