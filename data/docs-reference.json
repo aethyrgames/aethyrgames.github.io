@@ -168,7 +168,7 @@
           },
           {
             "name": "Blueprint",
-            "count": 41,
+            "count": 42,
             "tools": [
               { "name": "add_component", "description": "Add a component (StaticMeshComponent, AudioComponent, etc.) to a Blueprint's SimpleConstructionScript tree: author-time component setup, not runtime spawning." },
               { "name": "add_function", "description": "Create a new BP function graph with the given name." },
@@ -183,6 +183,7 @@
               { "name": "bp_structural_diff", "description": "Compare two Blueprints structurally: variables, components, function/macro/event-graph node signatures, connection counts." },
               { "name": "clone_graph", "description": "Copy every node in graph from the source Blueprint into the same-named graph of the target Blueprint, preserving wiring." },
               { "name": "create_blueprint", "description": "Create a new Blueprint asset under /Game/..." },
+              { "name": "create_enum", "description": "Create a new User Defined Enum (UUserDefinedEnum) under /Game/..." },
               { "name": "create_struct", "description": "Create a new User Defined Struct asset (UUserDefinedStruct) under /Game/...." },
               { "name": "delete_function", "description": "Delete a Blueprint function graph by name." },
               { "name": "delete_node", "description": "Delete a K2 node by GUID." },
@@ -316,6 +317,20 @@
             ]
           },
           {
+            "name": "Behavior Tree",
+            "count": 8,
+            "tools": [
+              { "name": "add_blackboard_key", "description": "Add one typed key to a Blackboard." },
+              { "name": "add_bt_node", "description": "Add a node (composite/decorator/service/task) to a UBehaviorTree." },
+              { "name": "compile_behavior_tree", "description": "Compile a behavior tree (recompiles + marks the asset dirty)." },
+              { "name": "create_behavior_tree", "description": "Create a new Behavior Tree (UBehaviorTree) under /Game/..., linked to the Blackboard at blackboard when given." },
+              { "name": "create_blackboard", "description": "Create a new, empty Blackboard (UBlackboardData) under /Game/...." },
+              { "name": "list_behavior_trees", "description": "List UBehaviorTree assets under a content path (default /Game)." },
+              { "name": "read_behavior_tree", "description": "Walk a UBehaviorTree's node graph." },
+              { "name": "set_bt_node_property", "description": "Set a UPROPERTY on a UBehaviorTree node (e.g. MoveTo's AcceptableRadius, Blackboard decorator's KeyName)." }
+            ]
+          },
+          {
             "name": "Class Info",
             "count": 7,
             "tools": [
@@ -354,6 +369,18 @@
             ]
           },
           {
+            "name": "Widget",
+            "count": 6,
+            "tools": [
+              { "name": "add_widget", "description": "Add a UWidget node (Button, TextBlock, etc.) to a UWidgetBlueprint's UMG tree." },
+              { "name": "bind_widget_event", "description": "Bind a widget's event (e.g. OnClicked on a Button) to a named handler function in the widget blueprint's graph." },
+              { "name": "compile_widget_blueprint", "description": "Compile a UWidgetBlueprint." },
+              { "name": "create_widget_blueprint", "description": "Create a new Widget Blueprint (UWidgetBlueprint) under /Game/..." },
+              { "name": "read_widget_blueprint", "description": "Read a UWidgetBlueprint's widget tree: every UWidget node (name, class, parent name) and the root widget's name." },
+              { "name": "set_widget_property", "description": "Set a UPROPERTY on a UWidget in a UWidgetBlueprint." }
+            ]
+          },
+          {
             "name": "Assets",
             "count": 5,
             "tools": [
@@ -365,14 +392,14 @@
             ]
           },
           {
-            "name": "Behavior Tree",
+            "name": "Data Table",
             "count": 5,
             "tools": [
-              { "name": "add_bt_node", "description": "Add a node (composite/decorator/service/task) to a UBehaviorTree." },
-              { "name": "compile_behavior_tree", "description": "Compile a behavior tree (recompiles + marks the asset dirty)." },
-              { "name": "list_behavior_trees", "description": "List UBehaviorTree assets under a content path (default /Game)." },
-              { "name": "read_behavior_tree", "description": "Walk a UBehaviorTree's node graph." },
-              { "name": "set_bt_node_property", "description": "Set a UPROPERTY on a UBehaviorTree node (e.g. MoveTo's AcceptableRadius, Blackboard decorator's KeyName)." }
+              { "name": "add_data_row", "description": "Add a row to an existing DataTable." },
+              { "name": "create_data_table", "description": "Create a new UDataTable under /Game/..." },
+              { "name": "list_data_tables", "description": "List all UDataTable assets under a content path." },
+              { "name": "read_data_table", "description": "Load a DataTable and return its row-struct type, column names, and every row's field values." },
+              { "name": "set_data_row_value", "description": "Update a single field on an existing DataTable row." }
             ]
           },
           {
@@ -387,17 +414,6 @@
             ]
           },
           {
-            "name": "Widget",
-            "count": 5,
-            "tools": [
-              { "name": "add_widget", "description": "Add a UWidget node (Button, TextBlock, etc.) to a UWidgetBlueprint's UMG tree." },
-              { "name": "bind_widget_event", "description": "Bind a widget's event (e.g. OnClicked on a Button) to a named handler function in the widget blueprint's graph." },
-              { "name": "compile_widget_blueprint", "description": "Compile a UWidgetBlueprint." },
-              { "name": "read_widget_blueprint", "description": "Read a UWidgetBlueprint's widget tree: every UWidget node (name, class, parent name) and the root widget's name." },
-              { "name": "set_widget_property", "description": "Set a UPROPERTY on a UWidget in a UWidgetBlueprint." }
-            ]
-          },
-          {
             "name": "Data Asset",
             "count": 4,
             "tools": [
@@ -405,16 +421,6 @@
               { "name": "list_data_assets", "description": "List all UDataAsset subclass instances under a content path." },
               { "name": "read_data_asset", "description": "Read every UPROPERTY on a UDataAsset." },
               { "name": "set_data_asset_property", "description": "Set a UPROPERTY on a UDataAsset instance." }
-            ]
-          },
-          {
-            "name": "Data Table",
-            "count": 4,
-            "tools": [
-              { "name": "add_data_row", "description": "Add a row to an existing DataTable." },
-              { "name": "list_data_tables", "description": "List all UDataTable assets under a content path." },
-              { "name": "read_data_table", "description": "Load a DataTable and return its row-struct type, column names, and every row's field values." },
-              { "name": "set_data_row_value", "description": "Update a single field on an existing DataTable row." }
             ]
           },
           {
@@ -498,6 +504,13 @@
             "count": 1,
             "tools": [
               { "name": "preview_ops", "description": "Validate an apply_ops batch without mutating anything." }
+            ]
+          },
+          {
+            "name": "Samples",
+            "count": 1,
+            "tools": [
+              { "name": "install_samples", "description": "Build the Aethyr sample content into /Game/AethyrSamples: BP_Enemy, BP_Boss, BP_Turret, BP_HealthPickup, BP_Door, BP_Crate, a struct, materials and a material instance, each with a small." }
             ]
           },
           {

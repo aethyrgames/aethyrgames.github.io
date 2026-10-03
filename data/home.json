@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Aethyr for Unreal Engine 5: AI that speaks Blueprint",
-    "description": "An MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 301 tools. No editor scripting."
+    "description": "An MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 308 tools. No editor scripting."
   },
   "nav": {
     "links": [
@@ -57,8 +57,8 @@
     },
     "stats": [
       {
-        "value": "301",
-        "dataCount": 301,
+        "value": "308",
+        "dataCount": 308,
         "label": "tools"
       },
       {
@@ -217,7 +217,7 @@
       {
         "feature": "Aethyr's own tools",
         "values": [
-          "301",
+          "308",
           "—"
         ]
       },
