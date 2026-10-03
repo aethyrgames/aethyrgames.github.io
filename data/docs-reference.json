@@ -510,7 +510,7 @@
             "name": "Samples",
             "count": 1,
             "tools": [
-              { "name": "install_samples", "description": "Build the Aethyr sample content into /Game/AethyrSamples: BP_Enemy, BP_Boss, BP_Turret, BP_HealthPickup, BP_Door, BP_Crate, a struct, materials and a material instance, each with a small." }
+              { "name": "install_samples", "description": "Build the Aethyr sample content into /Game/AethyrSamples." }
             ]
           },
           {
