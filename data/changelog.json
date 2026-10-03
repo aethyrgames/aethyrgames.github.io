@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-7", "label": "0.6.7, October 2026" },
           { "href": "#v0-6-6", "label": "0.6.6, October 2026" },
           { "href": "#v0-6-3", "label": "0.6.3, October 2026" },
           { "href": "#v0-6-2", "label": "0.6.2, October 2026" },
@@ -44,6 +45,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-7",
+        "heading": "0.6.7, October 2026",
+        "html": "<p>Aethyr's skills now install for whichever AI client you use. Setup puts the <code>aethyr-*</code> skills in <code>~/.agents/skills</code>, which Copilot CLI, VS Code, Codex, Gemini CLI, Cursor and Windsurf read, and in <code>~/.claude/skills</code> for Claude Code. The read-only audit agent, now called <code>aethyr-bp-audit</code>, goes to Claude Code, Copilot CLI and Gemini CLI in each one's own format.</p><p>Your assistant asks once whether to install the skills. Only an explicit no skips them. <code>--no-skills</code> now skips just the skills and the agent, and the new <code>--no-guidance</code> skips the short section in your clients' instruction files. The dry run lists everything the real run will do, including removing an old agent copy.</p><p>The <code>aethyr-core</code> skill also loads in Copilot CLI now. Its description wasn't valid YAML, so strict loaders skipped it.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-6",
         "heading": "0.6.6, October 2026",
