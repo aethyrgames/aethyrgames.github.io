@@ -525,13 +525,13 @@
       {
         "id": "skills",
         "heading": "Skills & the audit agent",
-        "html": "<p>These ship with the plugin under <code>Claude/</code>. <code>AethyrMcp.exe setup</code> installs them into <code>~/.claude/skills/</code> and <code>~/.claude/agents/</code>. From a source checkout, <code>Install-ClaudeAssets.ps1</code> does the same.</p>",
+        "html": "<p>These ship with the plugin under <code>AI/</code>. <code>AethyrMcp.exe setup</code> installs them for the AI clients you use: skills to <code>~/.agents/skills/</code> (Copilot CLI, VS Code, Codex, Gemini CLI, Cursor, Windsurf) and <code>~/.claude/skills/</code> (Claude Code), and the agent to <code>~/.claude/agents/</code>, <code>~/.copilot/agents/</code> or <code>~/.gemini/agents/</code>. <code>--no-skills</code> skips them.</p>",
         "skills": [
           { "name": "aethyr-core", "description": "Reading and the wire format.", "badge": null },
           { "name": "aethyr-edit", "description": "Writes and batches (<code>apply_ops</code>, <code>preview_ops</code>, <code>compile_function</code>).", "badge": null },
           { "name": "aethyr-live", "description": "Driving the running editor.", "badge": null },
           { "name": "aethyr-triage", "description": "Errors, recovery and updates.", "badge": null },
-          { "name": "bp-audit", "description": "A read-only auditor. Ask it \"audit /Game/AI\" and it fans out reads and returns a tight report without touching anything.", "badge": "agent" }
+          { "name": "aethyr-bp-audit", "description": "A read-only auditor. Ask it \"audit /Game/AI\" and it fans out reads and returns a tight report without touching anything.", "badge": "agent" }
         ]
       },
       {
