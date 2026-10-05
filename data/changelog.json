@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-9", "label": "0.6.9, October 2026" },
           { "href": "#v0-6-8", "label": "0.6.8, October 2026" },
           { "href": "#v0-6-7", "label": "0.6.7, October 2026" },
           { "href": "#v0-6-6", "label": "0.6.6, October 2026" },
@@ -46,6 +47,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-9",
+        "heading": "0.6.9, October 2026",
+        "html": "<p><code>get_class_info</code> now says where a class is declared, with <code>include_path</code>, <code>module_relative_path</code> and <code>module</code>. Function rows add <code>is_deprecated</code>, <code>deprecation_message</code> and a <code>defaults</code> object. <code>get_active_cook_target</code> reports <code>installed_platforms</code>, the exact values <code>set_active_cook_target</code>, <code>cook_content</code> and <code>package_project</code> accept. <code>list_metasound_node_classes</code> takes <code>include_all</code>. Results from commandlet ops carry <code>served_by</code>, and a fall back to a one-shot editor adds a warning. <code>set_config_value</code> replies with <code>persisted</code> and <code>disk_path</code>.</p><p><code>health_check</code> lists a plugin the <code>.uproject</code> enables but that is on disk nowhere in <code>plugin_warnings</code>, since the editor may crash on launch. The editor has <code>aethyr.live_server.start</code> and <code>aethyr.live_server.stop</code> console commands, and warns when another process holds Epic's MCP port. The Aethyr Project Settings now do something: <code>bAutoStartLiveServer</code> and <code>LiveServerPort</code> drive the live server, and <strong>Emit Tool Meta</strong> or <code>AETHYR_EMIT_TOOL_META</code> turn the <code>_meta</code> block on tool results off.</p><p><code>set_config_value</code> now writes where the value survives a restart, reads the file back before it says <code>ok</code>, and names the file when a write can't land. <code>delete_asset</code> refuses on soft referencers too unless <code>force</code> is true. <code>bp_structural_diff</code> returns <code>{ok, identical, differences}</code>, so a diff that finds differences no longer reads <code>ok:false</code>. <code>apply_ops</code> fails fast when the daemon can't start, and a failed atomic batch discards the assets it created.</p><p>Fixes: a <code>//</code> or <code>/..</code> in an Epic bridge or editor-state argument is a tool error before it can crash the editor. <code>set_niagara_module_input</code> with <code>mode=linked</code> no longer crashes on an enum input it can't resolve. <code>set_material_parameter</code> and <code>set_material_instance_parameter</code> refuse bad input instead of applying a zero. <code>read_material</code> reports the real input name in <code>to_pin</code>. <code>compile_function</code> wires <code>{var}</code> correctly. Property writes report the real value for a false bool or zero. The HTTP daemon no longer leaks memory, and a call to a wedged editor ends at its timeout.</p><p><strong>Upgrading:</strong> a 0.6.8 install can use <code>apply_update</code> as usual. A precompiled install from 0.6.7 or earlier should update with setup this once, by following <a href=\"/install.md\">install.md</a>, not with <code>apply_update</code>. A source install can use <code>apply_update</code> as usual.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-8",
         "heading": "0.6.8, October 2026",
