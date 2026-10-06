@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-11", "label": "0.6.11, October 2026" },
           { "href": "#v0-6-10", "label": "0.6.10, October 2026" },
           { "href": "#v0-6-9", "label": "0.6.9, October 2026" },
           { "href": "#v0-6-8", "label": "0.6.8, October 2026" },
@@ -48,6 +49,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-11",
+        "heading": "0.6.11, October 2026",
+        "html": "<p><code>health_check</code> reads healthy when it is. On every install from the GitHub zips it used to report <code>current.healthy: false</code> with a warning that it couldn't disable Epic's ModelContextProtocol plugin. Aethyr depends on that plugin, so the warning was always there and meant nothing. It's gone, and the headless daemon still keeps Epic's server off.</p><p><code>doctor</code> no longer says an update is available right after you install it. It now reads the update check the same way <code>health_check</code> does, against the version that is actually running.</p><p><strong>Upgrading:</strong> a 0.6.8 install or later can use <code>apply_update</code> as usual. A precompiled install from 0.6.7 or earlier should update with setup this once, by following <a href=\"/install.md\">install.md</a>, not with <code>apply_update</code>. A source install can use <code>apply_update</code> as usual.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-10",
         "heading": "0.6.10, October 2026",
