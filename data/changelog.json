@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-10", "label": "0.6.10, October 2026" },
           { "href": "#v0-6-9", "label": "0.6.9, October 2026" },
           { "href": "#v0-6-8", "label": "0.6.8, October 2026" },
           { "href": "#v0-6-7", "label": "0.6.7, October 2026" },
@@ -47,6 +48,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-10",
+        "heading": "0.6.10, October 2026",
+        "html": "<p><code>rollback_update</code> works while the server is running. Windows refused to overwrite the running exe, so every rollback failed with error 5. It now renames the running exe aside, puts the restored exe in its name, and returns <code>restart_required</code>. The restored exe runs from the next client start, so restart your AI client afterwards.</p><p>The first <code>health_check</code> after an update no longer reports a daemon start that the update cut off as a launch failure. A start whose process has exited reads as <code>interrupted</code>, and <code>doctor</code> lists it as a warning. A failure from a process that is still running, or one with a known cause, still reads as a failure.</p><p><strong>Upgrading:</strong> a 0.6.8 install or later can use <code>apply_update</code> as usual. A precompiled install from 0.6.7 or earlier should update with setup this once, by following <a href=\"/install.md\">install.md</a>, not with <code>apply_update</code>. A source install can use <code>apply_update</code> as usual.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-9",
         "heading": "0.6.9, October 2026",
