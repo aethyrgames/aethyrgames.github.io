@@ -96,6 +96,7 @@ main { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 
   </defs>
 </svg>
 
+<script src="../js/support.js"></script>
 <script>
 const FONTS = [
   { f: 'Fraunces', w: 700, group: 'current', cur: true, note: 'Today\'s face. A soft modern serif. Clean and legible, but it reads as print, not a hand.' },
@@ -140,7 +141,7 @@ function render() {
       <div class="hero"><span class="l1">${line1}</span><span class="l2">Blueprint</span></div>
       <div class="h2">Every tool. Full access.</div>
       <div class="row"><span class="step">03</span><span class="h3">Connect your AI client</span></div>
-      <div class="row"><span class="potion"><svg aria-hidden="true"><use href="#potion"/></svg>Buy me a Potion!</span></div>
+      ${window.AethyrSupport ? `<div class="row"><span class="potion"><svg aria-hidden="true"><use href="#potion"/></svg>Buy me a Potion!</span></div>` : ''}
       <p class="note" style="font-family:var(--f-body);font-weight:400">${x.note}</p>
     </article>`;
   }).join('') || '<p class="empty">No fonts in this group.</p>';

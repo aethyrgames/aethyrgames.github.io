@@ -105,6 +105,7 @@ main { max-width: 1180px; margin: 0 auto; display: grid; gap: 26px }
   </defs>
 </svg>
 
+<script src="../js/support.js"></script>
 <script>
 const PAPER = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.33 0 0 0 0 0.18 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")";
 const OPTS = [
@@ -166,7 +167,7 @@ function render() {
       <div class="stage ${stageCls}">
         <div class="bar">
           <span class="mark" style="color:${t.c1}"><svg aria-hidden="true"><use href="#crystal"/></svg><span style="color:${t.ink}">AETHYR</span></span>
-          <span class="chip"><svg aria-hidden="true" style="color:${t.c2}"><use href="#potion"/></svg>Buy me a Potion!</span>
+          ${window.AethyrSupport ? `<span class="chip"><svg aria-hidden="true" style="color:${t.c2}"><use href="#potion"/></svg>Buy me a Potion!</span>` : ''}
           <span class="nav"><span>POWERS</span><span>HOW IT WORKS</span><span>DOCS</span><span>CHANGELOG</span></span>
         </div>
         <div class="kicker">MCP SERVER · <b>UNREAL ENGINE 5</b></div>
