@@ -36,7 +36,8 @@
         "items": [
           { "href": "/docs/cookbook/", "label": "Spellbook: quick recipes →" },
           { "href": "/docs/reference/", "label": "Tool & config reference →" },
-          { "href": "/docs/", "label": "Quickstart & setup →" }
+          { "href": "/docs/", "label": "Quickstart & setup →" },
+          { "href": "/docs/epic-vs-aethyr/", "label": "Epic's MCP vs Aethyr →" }
         ]
       }
     ]

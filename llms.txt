@@ -15,4 +15,5 @@
 
 - [Download page](https://aethyr.gg/download/): the manual install steps.
 - [Documentation](https://aethyr.gg/docs/): setup, tutorials, and the tool and config reference.
+- [Epic's MCP vs Aethyr](https://aethyr.gg/docs/epic-vs-aethyr/): every toolset in Epic's UE 5.8 MCP plugin next to the matching Aethyr tool, how Aethyr works around Epic's rough edges, and which side to use for what.
 - [Changelog](https://aethyr.gg/changelog/): what changed in each release.

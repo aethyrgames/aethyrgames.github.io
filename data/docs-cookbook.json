@@ -173,6 +173,10 @@
           {
             "href": "/docs/",
             "label": "Quickstart & setup →"
+          },
+          {
+            "href": "/docs/epic-vs-aethyr/",
+            "label": "Epic's MCP vs Aethyr →"
           }
         ]
       }

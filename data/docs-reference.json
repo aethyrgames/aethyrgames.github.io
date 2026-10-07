@@ -29,6 +29,12 @@
           { "href": "#backends", "label": "Backends" },
           { "href": "#cli", "label": "Command line" }
         ]
+      },
+      {
+        "heading": "Compare",
+        "items": [
+          { "href": "/docs/epic-vs-aethyr/", "label": "Epic's MCP vs Aethyr →" }
+        ]
       }
     ]
   },
