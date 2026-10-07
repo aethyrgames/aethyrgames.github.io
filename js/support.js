@@ -3,6 +3,10 @@
 (function () {
   'use strict';
 
+  // Switched off for now. Flip to true to bring the chip back on every page.
+  var ENABLED = false;
+  if (!ENABLED) return;
+
   var URL = 'https://ko-fi.com/dougfessler';
 
   function chipHtml(extraClass) {
