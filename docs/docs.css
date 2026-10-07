@@ -193,6 +193,14 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opa
 .flag-table tr:last-child td{border-bottom:none;}
 .flag-table tr:hover td{background:var(--panel);}
 
+/* comparison table (Aethyr & Epic's MCP) */
+.compare-wrap{overflow-x:auto;margin:1rem 0;}
+.compare-table{width:100%;min-width:520px;border-collapse:collapse;font-size:.85rem;}
+.compare-table th{text-align:left;padding:.5rem .75rem;color:var(--ink-dim);font-weight:500;border-bottom:1px solid var(--line);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;}
+.compare-table td{padding:.5rem .75rem;border-bottom:1px solid var(--line);vertical-align:top;}
+.compare-table td:first-child{color:var(--ink);font-weight:500;white-space:nowrap;}
+.compare-table tr:last-child td{border-bottom:none;}
+
 /* backend table */
 .backend-table{width:100%;border-collapse:collapse;font-size:.85rem;}
 .backend-table th{text-align:left;padding:.5rem .75rem;color:var(--ink-dim);font-weight:500;border-bottom:1px solid var(--line);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;}
