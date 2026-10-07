@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-12", "label": "0.6.12, October 2026" },
           { "href": "#v0-6-11", "label": "0.6.11, October 2026" },
           { "href": "#v0-6-10", "label": "0.6.10, October 2026" },
           { "href": "#v0-6-9", "label": "0.6.9, October 2026" },
@@ -49,6 +50,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-12",
+        "heading": "0.6.12, October 2026",
+        "html": "<p>Epic's MCP now comes up on a normal editor launch in every project, with nothing for you to do. Once the editor has started, Aethyr switches on Epic's <code>ModelContextProtocol</code> plugin and every Epic toolset whose own plugins are already on in your project, then starts Epic's server. A Blueprint-only project on the precompiled zip no longer needs <code>Launch-Editor.bat</code>, and every project gets Niagara, GAS, UMG, Sequencer and the other toolsets without <code>launch-editor --epic-toolsets</code>. Nothing is written to your <code>.uproject</code>.</p><p>A toolset that would switch on a plugin your project doesn't use stays off, and so does anything your <code>.uproject</code> turns off. The editor log's <code>[Aethyr] Epic MCP mount</code> lines list what was switched on, and what was left off and why. Set <code>AETHYR_EPIC_AUTOMOUNT=0</code> in the editor's environment to turn it off. Setup now only asks for an editor restart, and writes the launcher only when Epic's binaries are missing or stale for your engine.</p><p><strong>Upgrading:</strong> a 0.6.8 install or later can use <code>apply_update</code> as usual, then restart the editor. A precompiled install from 0.6.7 or earlier should update with setup this once, by following <a href=\"/install.md\">install.md</a>, not with <code>apply_update</code>.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-11",
         "heading": "0.6.11, October 2026",
