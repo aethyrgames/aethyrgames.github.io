@@ -83,16 +83,19 @@ Each run stages into `Saved/Aethyr/setup-staging/<timestamp>-<pid>/`. The three 
 
 Setup ends with a `next_steps` list. Do these in order, and tell the user about the ones that need them:
 
-1. `build_editor`: run the command setup gives. It shows up for a source install, a custom engine, or a project with C++ modules. It builds the whole editor target, `Build.bat <EditorTarget> Win64 <Config> -Project="<uproject>"`, which compiles both `AethyrEditor` and `AethyrRuntime` and writes the manifest the editor needs. A build of one module leaves the headless editor unable to load the plugin, and the failure reads like a BuildId mismatch. On a source engine, this build can rewrite engine and third-party `.modules` manifests. `-NoEngineChanges` is an optional guard that makes the build fail instead of changing an existing engine file. It doesn't avoid the rewrite. If it fails because of the project's own source, another plugin, or other plugins' binaries built for a different engine build, stop and tell the user. Don't edit project source, other plugins or engine files to get past it.
+1. `build_editor`: run the command setup gives, once the user agrees. It shows up for a source install, a custom engine, or a project with C++ modules. It builds the whole editor target, `Build.bat <EditorTarget> Win64 <Config> -Project="<uproject>"`, which compiles both `AethyrEditor` and `AethyrRuntime` and writes the manifest the editor needs. A build of one module leaves the headless editor unable to load the plugin, and the failure reads like a BuildId mismatch. On a source engine, this build can rewrite engine and third-party `.modules` manifests. `-NoEngineChanges` is an optional guard that makes the build fail instead of changing an existing engine file. It doesn't avoid the rewrite. If it fails because of the project's own source, another plugin, or other plugins' binaries built for a different engine build, stop and tell the user. Don't edit project source, other plugins or engine files to get past it. When `project_build_check.state` is `mismatch`, the project's existing build doesn't match the engine, so this step rebuilds the whole project, not only Aethyr. Say so and get a yes first. A plugin-only build (`RunUAT BuildPlugin`) won't get Aethyr working there, because its headless editor loads the project's own modules too.
 2. `restart_clients`: close and reopen every AI client so it launches the new server and picks up the new skills.
-3. `restart_editor`: restart the Unreal Editor so it loads the plugins and Epic's MCP server.
-   When Epic's plugin binaries are missing or stale for the engine you get `launch_editor` instead: start the editor through `Saved/Aethyr/Launch-Editor.bat`. Its `why` field says what's wrong with the binaries.
+3. `restart_editor`: ask the user to restart the Unreal Editor so it loads the plugins and Epic's MCP server.
+   When Epic's plugin binaries are missing or stale for the engine you get `launch_editor` instead: the editor starts through `Saved/Aethyr/Launch-Editor.bat`. Its `why` field says what's wrong with the binaries.
+   Never start, restart or close an editor yourself without the user's yes. A bridge that isn't reachable is not permission to start one, and Aethyr's own read tools don't need it.
 4. `remove_old_project_guidance`: only when `project_guidance_leftovers` is not empty. Tell the user those project copies are safe to delete, since the user-scope install replaces them. Perforce users revert an add instead.
 5. `reconcile_scc`: Perforce users reconcile the files setup made writable.
 
 ## Verify
 
 Once the client has restarted, call `health_check`. It should report the new `current_version` and no errors. Read its `current` object first (`healthy`, `state`, `summary`, `warnings` as an array of strings, `notes`). What happened earlier in the session, such as a daemon start that has since recovered, sits in `history`. If you can't reach the tools yet, run `<Project>/Plugins/Aethyr/Binaries/Win64/AethyrMcp.exe doctor`. It prints findings and writes nothing.
+
+That proves the install. Then prove it works with one real read, such as `find_asset` and then `read_blueprint` on the asset the user asked about, and report the two results separately. Don't call setup tested until that read comes back. With no editor open, the first call starts Aethyr's headless editor (`UnrealEditor-Cmd.exe`, no window) in the background, which exits after 120 seconds idle. Tell the user before that first call.
 
 ## Flags
 
@@ -119,7 +122,7 @@ These are `AethyrMcp.exe setup` flags. Pass them through the bootstrap with `-Se
 
 ## Start the editor with Epic's MCP on
 
-Setup never edits the `.uproject` or the config files. Where `Aethyr.uplugin`'s dependency can't switch Epic's MCP on (a Blueprint-only project using the precompiled zip), or when you pass `--epic-mcp=launch`, Epic's `ModelContextProtocol` plugin and its server are switched on for one editor session through command line arguments. Setup writes `<Project>/Saved/Aethyr/Launch-Editor.bat`, which runs the launcher. You can run it yourself too:
+You rarely need this. From 0.6.12 Epic's MCP comes up on a normal editor launch. Setup never edits the `.uproject` or the config files. Where Epic's plugin binaries are missing or stale for the engine, or when you pass `--epic-mcp=launch`, Epic's `ModelContextProtocol` plugin and its server are switched on for one editor session through command line arguments. Setup writes `<Project>/Saved/Aethyr/Launch-Editor.bat`, which runs the launcher. You can run it yourself too:
 
 ```
 <Project>/Plugins/Aethyr/Binaries/Win64/AethyrMcp.exe launch-editor --project <Project> [--epic-toolsets core|all|none|<Name>,...] [--no-epic-mcp] [--build] [--private-epic-build] [--dry-run] [-- <extra editor args>]
