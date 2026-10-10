@@ -10,6 +10,7 @@
       {
         "heading": "Releases",
         "items": [
+          { "href": "#v0-6-13", "label": "0.6.13, October 2026" },
           { "href": "#v0-6-12", "label": "0.6.12, October 2026" },
           { "href": "#v0-6-11", "label": "0.6.11, October 2026" },
           { "href": "#v0-6-10", "label": "0.6.10, October 2026" },
@@ -50,6 +51,11 @@
     "heading": "Changelog",
     "lead": "What's new in the Aethyr MCP server for Unreal Engine 5.",
     "sections": [
+      {
+        "id": "v0-6-13",
+        "heading": "0.6.13, October 2026",
+        "html": "<p>Fixes from a setup report on a custom engine.</p><p><strong><code>find_asset</code> finds assets on a fresh headless editor.</strong> It was the one asset registry query that didn't scan its path first. A session whose first call was <code>find_asset</code> could report no match for an asset in a plugin's content, or anywhere the engine's startup scan doesn't cover. It scans its <code>path</code> now, the way <code>list_assets</code> does. An empty result also carries a <code>note</code> that says whether the <code>class_name</code> filter or the query ruled everything out, and <code>class_name</code> takes a full class path such as <code>/Script/Engine.Blueprint</code>.</p><p><strong>Setup compares your project's build with the engine before it installs.</strong> The new <code>project_build_check</code> shows up in a dry run too. When the project's editor build doesn't match the engine, setup warns that <code>build_editor</code> rebuilds the whole project, and that a plugin-only build won't get Aethyr working.</p><p><strong>Agents ask before starting an editor.</strong> The \"bridge isn't reachable\" message, the setup guide and the skills now tell your assistant to ask before it starts, restarts or closes an editor, and say Aethyr's own tools don't need the bridge. They also treat a real read of the asset you asked about as the proof that setup worked.</p><p><strong>Upgrading:</strong> a 0.6.8 install or later can use <code>apply_update</code> as usual, then restart the editor, since the <code>find_asset</code> fix is in the editor plugin. A precompiled install from 0.6.7 or earlier should update with setup, by following <a href=\"/install.md\">install.md</a>.</p><p>Downloads and the full notes, including known issues, are on the <a href=\"/download/\">download page</a>.</p>"
+      },
       {
         "id": "v0-6-12",
         "heading": "0.6.12, October 2026",
