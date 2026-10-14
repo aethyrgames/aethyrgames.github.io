@@ -1,4 +1,4 @@
-"""Phase 1 look check, no Unreal. Builds placeholder timelines (a darkened, lightly blurred Tether editor frame stands in for
+"""Phase 1 look check, no Unreal. Builds placeholder timelines (a sharp Tether editor frame stands in for
 the editor, and the tool results are placeholder text) and renders a contact sheet plus a short preview mp4 under .video/preview/.
 
     python scripts/video/preview.py [--theme <id>] [--no-video]
@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import render  # noqa: E402
@@ -20,12 +20,15 @@ STAND_IN = "D:/Projects/StableActorIDPlugin/Saved/video/04-use-it-in-blueprint/0
 FPS = 30
 
 
+CAPTURE = (1920, 1080)  # the editor capture size Phase 2 must record at (see scripts/video/README.md)
+
+
 def stand_in_frame(path):
+    """A sharp, undarkened 1:1 crop of a Tether editor frame at the documented capture size."""
     if Path(STAND_IN).exists():
-        image = Image.open(STAND_IN).convert("RGB").filter(ImageFilter.GaussianBlur(2.5))
-        image = ImageEnhance.Brightness(image).enhance(0.62)
+        image = Image.open(STAND_IN).convert("RGB").crop((0, 0) + CAPTURE)
     else:
-        image = Image.new("RGB", (2538, 1418), render.Theme().void)
+        image = Image.new("RGB", CAPTURE, render.Theme().void)
     image.save(path)
     return image.size
 
@@ -70,7 +73,6 @@ def main():
     tag = ("-" + theme_id) if theme_id else ""
     by_id = {r.id: r for r in rituals.load()}
     OUT.mkdir(parents=True, exist_ok=True)
-    sw, sh = 2538, 1418
 
     read = by_id["read"]
     editor_extra = [
@@ -97,7 +99,7 @@ def main():
         [{"type": "caption", "frame": int(5.0 * FPS), "text": "Object path in, package path out.", "step": 2},
          {"type": "highlight", "frame": int(5.2 * FPS), "items": [{"rect": [20, 560, 520, 90], "label": "Warm accent", "color": "warm"}]}], tail=2.0)
 
-    renderers = {k: render.make(str(f), theme_id) for k, f in (("a", a), ("b", b), ("c", c))}
+    renderers = {k: render.make(str(f), theme_id, name=n) for k, f, n in (("a", a, "a-tutorial"), ("b", b, "b-terminal"), ("c", c, "c-troubleshoot"))}
     shots = [("1-title", "a", 1.5), ("2-body-chat-highlight", "a", None), ("3-terminal", "b", None),
              ("4-troubleshoot", "c", None), ("5-end", "a", None)]
     frames = []
@@ -114,8 +116,7 @@ def main():
         frame = rd.play_frame(when)
         frame.save(OUT / (name + tag + ".png"))
         frames.append(frame)
-    sheet = Image.new("RGB", (1920 * 2 // 2 + 40, 0))
-    cell_w, cell_h, gap = 960, 540, 20
+    cell_w, cell_h, gap = 1280, 720, 20
     sheet = Image.new("RGB", (cell_w * 2 + gap * 3, (cell_h + gap) * 3 + gap), (8, 10, 14))
     for i, frame in enumerate(frames):
         x = gap + (i % 2) * (cell_w + gap)

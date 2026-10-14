@@ -1,4 +1,4 @@
-# Turns a recorded Ritual scene into a finished 1920x1080 mp4: title card, chat panel (or terminal readout), an eased camera on the
+# Turns a recorded Ritual scene into a finished 2560x1440 mp4: title card, chat panel (or terminal readout), an eased camera on the
 # editor footage, pointer and click ripple, dim plus glowing highlight boxes with label pills, captions with step numbers, key chips,
 # and an end card. Reads <scene>\timeline.json and the numbered frames beside it, pipes frames to ffmpeg.
 #
@@ -41,8 +41,14 @@ EDGE = [
 ]
 FFMPEG = r"C:\ffmpeg\bin\ffmpeg"
 
+# All layout below is written in 1920x1080 "design" units and drawn at S times that, so the output is 2560x1440 with the same
+# composition, only sharper. Face, D and paste_layer take design units. Anything that works on view/panel pixels says so.
+S = 4 / 3
 W, H = 1920, 1080
+OW, OH = round(W * S), round(H * S)
 FPS = 30
+# The editor footage must stay near 1:1. Effective scale = output panel pixels per source pixel, at every camera keyframe.
+MIN_SCALE, MAX_SCALE = 0.8, 1.25
 EASE = 0.9
 # Pacing (Tether's): the body plays a little slower than it was recorded and holds still for a moment after each new caption,
 # highlight or finished chat beat, so there's time to read before things move on.
@@ -187,6 +193,15 @@ def mix(a, b, k):
 # circled numbers) fall back to Segoe UI Symbol, the way the browser falls back on the site.
 # ---------------------------------------------------------------------------------------------------------------------------
 
+def sc(value):
+    """Design units to output pixels."""
+    return int(round(value * S))
+
+
+def sz(width, height):
+    return (sc(width), sc(height))
+
+
 def fetch_fonts():
     FONT_DIR.mkdir(parents=True, exist_ok=True)
     for name, path in FONT_URLS.items():
@@ -221,17 +236,29 @@ def _covers(kind, weight, ch):
 
 
 class Face:
-    """A site font plus the symbol fallback, with measuring and drawing that handle both."""
+    """A site font at a design size (drawn at S times that), plus the symbol fallback. Lengths come back in design units.
+
+    Circled Ritual numbers fall back to Segoe UI Symbol, where they are drawn small, so they get their own size: the circle is
+    scaled to the cap height of the main font."""
 
     def __init__(self, kind, size, weight=400):
         self.kind, self.size, self.weight = kind, size, weight
-        self.main = _pil(kind, size, weight)
-        self.fallback = ImageFont.truetype(SYMBOL_FONT, size)
+        self.px = sc(size)
+        self.main = _pil(kind, self.px, weight)
+        self.fallback = ImageFont.truetype(SYMBOL_FONT, self.px)
+        cap = self.main.getbbox("H")
+        probe = ImageFont.truetype(SYMBOL_FONT, 100).getbbox("\u2460")
+        self.circle = ImageFont.truetype(SYMBOL_FONT, max(6, int(100 * (cap[3] - cap[1]) * 1.2 / (probe[3] - probe[1]))))
 
     def runs(self, text):
         out = []
         for ch in text:
-            font = self.main if _covers(self.kind, self.weight, ch) else self.fallback
+            if _covers(self.kind, self.weight, ch):
+                font = self.main
+            elif "\u2460" <= ch <= "\u2473":
+                font = self.circle
+            else:
+                font = self.fallback
             if out and out[-1][0] is font:
                 out[-1][1] += ch
             else:
@@ -239,11 +266,14 @@ class Face:
         return out
 
     def length(self, text, track=0):
-        return sum(font.getlength(sub) for font, sub in self.runs(text)) + track * len(text)
+        return sum(font.getlength(sub) for font, sub in self.runs(text)) / S + track * len(text)
 
-    def draw(self, draw, xy, text, fill, anchor="la", track=0):
-        x, y = xy
-        width = self.length(text, track)
+    def draw(self, draw, xy, text, fill, anchor="la", track=0, px=False):
+        """Draws at xy (design units, or output pixels with px=True). Returns the width in design units."""
+        raw = getattr(draw, "raw", draw)
+        x, y = xy if px else (xy[0] * S, xy[1] * S)
+        gap = track * S
+        width = sum(font.getlength(sub) for font, sub in self.runs(text)) + gap * len(text)
         if anchor[0] == "m":
             x -= width / 2
         elif anchor[0] == "r":
@@ -251,19 +281,46 @@ class Face:
         asc, desc = self.main.getmetrics()
         base = {"a": y + asc, "m": y + (asc - desc) / 2, "s": y}[anchor[1]]
         for font, sub in self.runs(text):
-            if track:
+            if gap:
                 for ch in sub:
-                    draw.text((x, base), ch, font=font, fill=fill, anchor="ls")
-                    x += font.getlength(ch) + track
+                    raw.text((x, base), ch, font=font, fill=fill, anchor="ls")
+                    x += font.getlength(ch) + gap
             else:
-                draw.text((x, base), sub, font=font, fill=fill, anchor="ls")
+                raw.text((x, base), sub, font=font, fill=fill, anchor="ls")
                 x += font.getlength(sub)
-        return width
+        return width / S
 
 
 @lru_cache(maxsize=None)
 def F(kind, size, weight=400):
     return Face(kind, size, weight)
+
+
+class D:
+    """ImageDraw that takes design units and scales shapes by S."""
+
+    def __init__(self, image):
+        self.raw = ImageDraw.Draw(image)
+
+    @staticmethod
+    def _box(box):
+        return tuple(v * S for v in box)
+
+    @staticmethod
+    def _w(width):
+        return max(1, int(round(width * S)))
+
+    def rounded_rectangle(self, box, radius=0, fill=None, outline=None, width=1):
+        self.raw.rounded_rectangle(self._box(box), radius=radius * S, fill=fill, outline=outline, width=self._w(width))
+
+    def rectangle(self, box, fill=None, outline=None, width=1):
+        self.raw.rectangle(self._box(box), fill=fill, outline=outline, width=self._w(width))
+
+    def line(self, box, fill=None, width=1):
+        self.raw.line(self._box(box), fill=fill, width=self._w(width))
+
+    def ellipse(self, box, fill=None, outline=None, width=1):
+        self.raw.ellipse(self._box(box), fill=fill, outline=outline, width=self._w(width))
 
 
 def _break_long(word, face, width):
@@ -353,11 +410,11 @@ def _edge():
     raise RuntimeError("Edge not found, cannot rasterize the logo SVGs")
 
 
-def _shoot(html_name, svg_markup_name, size, out):
+def _shoot(html_name, svg_name, size, out):
     LOGO_DIR.mkdir(parents=True, exist_ok=True)
     html = LOGO_DIR / html_name
     html.write_text('<html><body style="margin:0;background:transparent"><img src="%s" width="%d" height="%d"></body></html>'
-                    % (svg_markup_name, size[0], size[1]), encoding="utf-8")
+                    % (svg_name, size[0], size[1]), encoding="utf-8")
     subprocess.run([_edge(), "--headless", "--disable-gpu", "--hide-scrollbars", "--default-background-color=00000000",
                     "--window-size=%d,%d" % size, "--screenshot=" + str(out), html.resolve().as_uri()],
                    check=True, capture_output=True)
@@ -376,14 +433,14 @@ def logo(name):
             (LOGO_DIR / "lockup-t.svg").write_text(svg, encoding="utf-8")
             _shoot("lockup.html", "lockup-t.svg", (1120, 380), out)
         else:
-            shutil_copy = (brand / "aethyr-crystal.svg").read_text(encoding="utf-8")
-            (LOGO_DIR / "crystal-t.svg").write_text(shutil_copy, encoding="utf-8")
+            (LOGO_DIR / "crystal-t.svg").write_text((brand / "aethyr-crystal.svg").read_text(encoding="utf-8"), encoding="utf-8")
             _shoot("crystal.html", "crystal-t.svg", (640, 640), out)
     image = Image.open(out).convert("RGBA")
     return image.crop(image.getchannel("A").getbbox())
 
 
 def fit_width(image, width):
+    """Scales to `width` output pixels."""
     return image.resize((int(width), int(round(image.height * width / image.width))), Image.LANCZOS)
 
 
@@ -392,14 +449,16 @@ def fit_width(image, width):
 # ---------------------------------------------------------------------------------------------------------------------------
 
 def paste_layer(frame, layer, at=(0, 0), alpha=1.0):
+    """Pastes an RGBA layer (output pixels) at `at` (design units)."""
     if alpha < 1.0:
         a = layer.getchannel("A").point(lambda v: int(v * alpha))
         layer = layer.copy()
         layer.putalpha(a)
-    frame.paste(layer, (int(at[0]), int(at[1])), layer)
+    frame.paste(layer, (int(round(at[0] * S)), int(round(at[1] * S))), layer)
 
 
 def rounded_mask(size, radius, alpha=255):
+    """A rounded-rectangle mask. size and radius are output pixels."""
     big = Image.new("L", (size[0] * 3, size[1] * 3), 0)
     ImageDraw.Draw(big).rounded_rectangle((0, 0, size[0] * 3 - 1, size[1] * 3 - 1), radius=radius * 3, fill=alpha)
     return big.resize(size, Image.LANCZOS)
@@ -452,23 +511,22 @@ class Scroller:
         for t, off in self.marks:
             if t > now:
                 break
-            prev_off = cur[1] if cur else 0
+            prev = cur[1] if cur else 0
             cur = (t, off)
-            prev = prev_off
         if not cur:
             return 0
         return lerp(prev, cur[1], ease((now - cur[0]) / 0.4))
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
-# Chat panel: styled like the site's .chat / .turn / .tools blocks (docs/docs.css).
+# Chat panel: styled like the site's .chat / .turn / .tools blocks (docs/docs.css). Sizes are design units, the image is output px.
 # ---------------------------------------------------------------------------------------------------------------------------
 
 class ChatPanel:
     PAD = 20
 
-    def __init__(self, theme, accent, size, events, fps):
-        self.th, self.accent, self.w, self.h = theme, accent, size[0], size[1]
+    def __init__(self, theme, accent, width, events, fps):
+        self.th, self.accent, self.w = theme, accent, width
         self.f_who = F("display", 15, 600)
         self.f_body = F("body", 21, 400)
         self.f_code = F("mono", 17, 500)
@@ -477,6 +535,12 @@ class ChatPanel:
         self.inner = self.w - self.PAD * 2
         self.turns = self.group([e for e in events if e["type"] == "chat"], fps)
         self.layout()
+        self.content_h = self.total + 4
+        self.fit(self.content_h)
+
+    def fit(self, height):
+        self.h = height
+        self.scroll = Scroller(self.steps, height)
 
     def group(self, events, fps):
         turns, ai = [], None
@@ -534,10 +598,10 @@ class ChatPanel:
             y += 16
             turn["h"] = y - turn["y"]
         self.total = y
-        self.scroll = Scroller(steps, self.h)
+        self.steps = steps
 
     def reveal(self, lines, frac, by_word):
-        """The lines with the first part of the text visible. Returns [(shown, full_length_line)]."""
+        """The lines with the first part of the text visible."""
         if by_word:
             total = sum(len(line.split()) for line in lines)
             left = math.ceil(total * frac)
@@ -557,10 +621,10 @@ class ChatPanel:
             out.append(line[:take])
         return out
 
-    def draw(self, now):
+    def render(self, now):
         th = self.th
-        image = Image.new("RGB", (self.w, self.h), th.void)
-        draw = ImageDraw.Draw(image)
+        image = Image.new("RGB", sz(self.w, self.h), th.void)
+        draw = D(image)
         off = self.scroll.offset(now)
         ai_bg = mix(th.c2, th.void, 0.05)
         for turn in self.turns:
@@ -574,16 +638,17 @@ class ChatPanel:
             fade = ease((now - turn["t0"]) / 0.2)
             label_color = th.c1 if turn["role"] == "you" else th.c2
             self.f_who.draw(draw, (self.PAD, top + 16), turn["who"].upper(), mix(label_color, bg, fade), "la", track=2.2)
+            text_top = top + turn["text_y"] - turn["y"]
             if turn["role"] == "you":
                 frac = (now - turn["t0"]) / turn["dur"]
                 shown = self.reveal(turn["lines"], max(0, min(1, frac)), by_word=False)
                 for i, part in enumerate(shown):
-                    self.f_body.draw(draw, (self.PAD, top + turn["text_y"] - turn["y"] + i * self.lh), part, th.ink, "la")
-                typing = frac < 1
-                if typing or int((now - turn["t0"] - turn["dur"]) * 2) % 2 == 0 and now - turn["t0"] - turn["dur"] < 3:
+                    self.f_body.draw(draw, (self.PAD, text_top + i * self.lh), part, th.ink, "la")
+                after = now - turn["t0"] - turn["dur"]
+                if frac < 1 or (int(after * 2) % 2 == 0 and after < 3):
                     last = max(0, sum(1 for part in shown if part) - 1)
                     cx = self.PAD + (self.f_body.length(shown[last]) if shown else 0) + 3
-                    cy = top + turn["text_y"] - turn["y"] + last * self.lh
+                    cy = text_top + last * self.lh
                     draw.rectangle((cx, cy + 5, cx + 2, cy + self.lh - 5), fill=th.c1)
             else:
                 for tool in turn["tools"]:
@@ -593,7 +658,7 @@ class ChatPanel:
                     frac = (now - turn["text_t0"]) / turn["dur"]
                     shown = self.reveal(turn["lines"], max(0, min(1, frac)), by_word=True)
                     for i, part in enumerate(shown):
-                        self.f_body.draw(draw, (self.PAD, top + turn["text_y"] - turn["y"] + i * self.lh), part, th.ink, "la")
+                        self.f_body.draw(draw, (self.PAD, text_top + i * self.lh), part, th.ink, "la")
         return image
 
     def draw_tool(self, draw, tool, shift, now, bg):
@@ -621,9 +686,6 @@ class ChatPanel:
             for i, line in enumerate(tool["res_lines"]):
                 self.f_res.draw(draw, (self.PAD + 14, y + 36 + 4 + i * self.res_lh), line, color, "la")
 
-    def render(self, now):
-        return self.draw(now)
-
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # Terminal readout: the tool results as a themed terminal (JetBrains Mono on --void, prompt in the accent).
@@ -633,8 +695,8 @@ class TermPanel:
     PAD = 22
     BAR = 44
 
-    def __init__(self, theme, accent, size, events, fps):
-        self.th, self.accent, self.w, self.h = theme, accent, size[0], size[1]
+    def __init__(self, theme, accent, width, events, fps):
+        self.th, self.accent, self.w = theme, accent, width
         self.f = F("mono", 19, 400)
         self.f_bar = F("mono", 15, 500)
         self.lh = 28
@@ -659,12 +721,19 @@ class TermPanel:
                 steps.append((t0 + run + 0.07 * i, y + self.lh * (len(head_lines) + i + 1)))
             y += self.lh * (len(head_lines) + len(out) + 1) + 10
             self.calls.append(call)
-        self.scroll = Scroller(steps, self.h - self.BAR - 10)
+        self.steps = steps
+        self.content_h = self.BAR + 10 + y + 14
+        self.fit(self.content_h)
 
-    def draw(self, now):
+    def fit(self, height):
+        self.h = height
+        self.scroll = Scroller(self.steps, height - self.BAR - 10)
+
+    def render(self, now):
         th = self.th
-        image = Image.new("RGB", (self.w, self.h), mix(th.void, (0, 0, 0), 0.92))
-        draw = ImageDraw.Draw(image)
+        bg = mix(th.void, (0, 0, 0), 0.92)
+        image = Image.new("RGB", sz(self.w, self.h), bg)
+        draw = D(image)
         bar_bg = mix(th.void2, th.void, 0.9)
         draw.rectangle((0, 0, self.w, self.BAR), fill=bar_bg)
         draw.line((0, self.BAR, self.w, self.BAR), fill=mix(th.line, bar_bg, th.line_alpha), width=1)
@@ -672,9 +741,8 @@ class TermPanel:
             draw.ellipse((self.PAD + i * 22, self.BAR / 2 - 6, self.PAD + i * 22 + 12, self.BAR / 2 + 6), fill=mix(col, bar_bg, 0.55))
         self.f_bar.draw(draw, (self.w / 2, self.BAR / 2), "AethyrMcp.exe  \u00b7  stdio", th.dim, "mm", track=1.5)
         off = self.scroll.offset(now)
-        bg = image.getpixel((2, self.BAR + 4))
-        body = Image.new("RGB", (self.w, self.h - self.BAR - 1), bg)
-        bd = ImageDraw.Draw(body)
+        body = Image.new("RGB", (image.width, image.height - sc(self.BAR + 1)), bg)
+        bd = D(body)
         for call in self.calls:
             if now < call["t0"]:
                 break
@@ -687,8 +755,7 @@ class TermPanel:
                     x += self.f.draw(bd, (x, y), "\u276f ", self.accent, "la")
                     shown = shown[2:]
                     name = call["name"]
-                    part = shown[: len(name)]
-                    x += self.f.draw(bd, (x, y), part, th.warm2, "la")
+                    x += self.f.draw(bd, (x, y), shown[: len(name)], th.warm2, "la")
                     shown = shown[len(name):]
                 self.f.draw(bd, (x, y + i * self.lh), shown, th.dim, "la")
             y += self.lh * len(call["head"])
@@ -710,11 +777,8 @@ class TermPanel:
             if now >= call["t0"] + call["run"] + 0.07 * max(0, len(call["out"]) - 1) + 0.1:
                 tail = ("\u2715 error" if failed else "\u2713 ok") + (("  %d ms" % call["ms"]) if call.get("ms") is not None else "")
                 self.f_bar.draw(bd, (self.PAD + 24, y + len(call["out"]) * self.lh + 1), tail, th.warm if failed else th.ok, "la")
-        image.paste(body, (0, self.BAR + 1))
+        image.paste(body, (0, sc(self.BAR + 1)))
         return image
-
-    def render(self, now):
-        return self.draw(now)
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -722,26 +786,42 @@ class TermPanel:
 # ---------------------------------------------------------------------------------------------------------------------------
 
 class Renderer:
-    def __init__(self, timeline, theme):
+    def __init__(self, timeline, theme, name=""):
         self.th = theme
         self.t = timeline
+        self.name = name or timeline.intro.get("id", "")
         self.accent = timeline.accent
         self.split = timeline.layout == "split"
-        self.vw, self.vh = (EDITOR[2], EDITOR[3]) if self.split else (W, H)
-        self.k = self.vw / 1920
-        self.full = self.fit((0, 0, timeline.src_w, timeline.src_h))
+        self.vw, self.vh = (EDITOR[2], EDITOR[3]) if self.split else (W, H)  # editor view, design units
+        self.vpx = sz(self.vw, self.vh)
+        self.min_cam_w = self.vpx[0] / MAX_SCALE  # never zoom in past MAX_SCALE output px per source px
         self.frames = {}
         self.glow_cache = {}
         self.focus_times = [e["frame"] / timeline.src_fps for e in timeline.all("focus")]
         self.highlights = timeline.all("highlight")
-        self.shown = [self.shown_at(e) for e in self.highlights]
         self.chat_events = timeline.all("chat")
+        self.scale_range = None
         if self.split:
-            self.chat = ChatPanel(theme, self.accent, CHAT_SPLIT[2:], timeline.events, timeline.src_fps)
-            self.term = None
+            self.full = self.fit((0, 0, timeline.src_w, timeline.src_h))
+            self.check_scale()
         else:
-            self.chat = ChatPanel(theme, self.accent, CHAT_TERM[2:], timeline.events, timeline.src_fps)
-            self.term = TermPanel(theme, self.accent, TERM_TERM[2:], timeline.events, timeline.src_fps)
+            print("%s: no editor footage (terminal layout)" % self.name)
+        self.shown = [self.shown_at(e) for e in self.highlights]
+        if self.split:
+            self.chat = ChatPanel(theme, self.accent, CHAT_SPLIT[2], timeline.events, timeline.src_fps)
+            self.chat.fit(CHAT_SPLIT[3])
+            self.term = None
+            self.chat_rect = CHAT_SPLIT
+        else:
+            self.chat = ChatPanel(theme, self.accent, CHAT_TERM[2], timeline.events, timeline.src_fps)
+            self.term = TermPanel(theme, self.accent, TERM_TERM[2], timeline.events, timeline.src_fps)
+            # Size both panels to their content (same height so they read as a pair), centred in the area above the caption.
+            height = max(360, min(CHAT_TERM[3], max(self.chat.content_h, self.term.content_h) + 24))
+            self.chat.fit(height)
+            self.term.fit(height)
+            top = CHAT_TERM[1] + (CHAT_TERM[3] - height) / 2
+            self.chat_rect = (CHAT_TERM[0], top, CHAT_TERM[2], height)
+            self.term_rect = (TERM_TERM[0], top, TERM_TERM[2], height)
         self.pauses = self.find_pauses()
         self.cache = {}
         self.base = self.build_base()
@@ -749,11 +829,12 @@ class Renderer:
     # --- camera, highlights and pointer (Tether's logic, scaled to the editor view) -----------------------------------------
 
     def fit(self, rect):
-        # Grow a rect to 16:9 around its centre and keep it inside the frame.
+        # Grow a rect to 16:9 around its centre and keep it inside the frame. The width never goes below min_cam_w, which is
+        # what keeps the editor from being enlarged past MAX_SCALE.
         x, y, w, h = rect
         cx, cy = x + w / 2, y + h / 2
-        w = max(w, 820)
-        h = max(h, 820 * 9 / 16)
+        w = max(w, self.min_cam_w)
+        h = max(h, self.min_cam_w * 9 / 16)
         if w / h > 16 / 9:
             h = w * 9 / 16
         else:
@@ -763,6 +844,20 @@ class Renderer:
         x = min(max(cx - w / 2, 0), self.t.src_w - w)
         y = min(max(cy - h / 2, 0), self.t.src_h - h)
         return (x, y, w, h)
+
+    def check_scale(self):
+        """Effective scale (output panel px per source px) at every camera keyframe. Fails the render outside the band."""
+        rects = [("full view", self.full)] + [("focus at frame %d" % e["frame"], self.fit(e["rect"])) for e in self.t.all("focus") if e.get("rect")]
+        scales = [(label, self.vpx[0] / r[2]) for label, r in rects]
+        self.scale_range = (min(s for _, s in scales), max(s for _, s in scales))
+        print("%s: editor scale min %.2f max %.2f (band %.2f to %.2f)" % (self.name, self.scale_range[0], self.scale_range[1], MIN_SCALE, MAX_SCALE))
+        bad = [(label, s) for label, s in scales if s < MIN_SCALE - 1e-6 or s > MAX_SCALE + 1e-6]
+        if bad:
+            raise RuntimeError(
+                "%s: editor scale outside %.2f to %.2f at %s. The panel is %d px wide, so the full view needs a capture roughly %d to %d px wide "
+                "(this one is %dx%d). Re-capture at the size in scripts/video/README.md."
+                % (self.name, MIN_SCALE, MAX_SCALE, ", ".join("%s (%.2f)" % b for b in bad), self.vpx[0],
+                   self.vpx[0] / MAX_SCALE, self.vpx[0] / MIN_SCALE, self.t.src_w, self.t.src_h))
 
     def source(self, index):
         if self.t.still:
@@ -886,8 +981,9 @@ class Renderer:
         return current, last_items, cleared_at, dim
 
     def to_out(self, cam, rect):
+        """Source rect to view pixels (the editor panel, at output resolution)."""
         cx, cy, cw, ch = cam
-        sx, sy = self.vw / cw, self.vh / ch
+        sx, sy = self.vpx[0] / cw, self.vpx[1] / ch
         x, y, w, h = rect
         return ((x - cx) * sx, (y - cy) * sy, w * sx, h * sy)
 
@@ -917,14 +1013,14 @@ class Renderer:
         key = (int(size[0]) // 2, int(size[1]) // 2, color)
         if key in self.glow_cache:
             return self.glow_cache[key]
-        margin = 28
+        margin = sc(28)
         w, h = int(size[0]) + margin * 2, int(size[1]) + margin * 2
         layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-        ImageDraw.Draw(layer).rounded_rectangle((margin, margin, w - margin, h - margin), radius=radius, outline=color + (255,), width=10)
-        glow = layer.filter(ImageFilter.GaussianBlur(10))
+        ImageDraw.Draw(layer).rounded_rectangle((margin, margin, w - margin, h - margin), radius=sc(radius), outline=color + (255,), width=sc(10))
+        glow = layer.filter(ImageFilter.GaussianBlur(sc(10)))
         glow.alpha_composite(glow)
         crisp = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-        ImageDraw.Draw(crisp).rounded_rectangle((margin, margin, w - margin, h - margin), radius=radius, outline=color + (255,), width=4)
+        ImageDraw.Draw(crisp).rounded_rectangle((margin, margin, w - margin, h - margin), radius=sc(radius), outline=color + (255,), width=sc(4))
         glow.alpha_composite(crisp)
         if len(self.glow_cache) > 200:
             self.glow_cache.clear()
@@ -946,15 +1042,15 @@ class Renderer:
         for item in (event["items"] if event else []):
             x, y, w, h = self.to_out(cam, item["rect"])
             # Thin rows sit close together, so they get less padding and don't run into each other.
-            pad = 8 if h >= 30 else 4
+            pad = sc(8) if h >= sc(30) else sc(4)
             boxes.append((x - pad, y - pad, w + pad * 2, h + pad * 2, item))
 
         # Dim everything outside the boxes. A box fading out lets the dim back in over it.
         mask = Image.new("L", frame.size, int(120 * dim))
         draw = ImageDraw.Draw(mask)
         for x, y, w, h, _ in boxes:
-            draw.rounded_rectangle((x, y, x + w, y + h), radius=12, fill=int(120 * dim * (1 - fade)))
-        mask = mask.filter(ImageFilter.GaussianBlur(4))
+            draw.rounded_rectangle((x, y, x + w, y + h), radius=sc(12), fill=int(120 * dim * (1 - fade)))
+        mask = mask.filter(ImageFilter.GaussianBlur(sc(4)))
         frame.paste((0, 0, 0), (0, 0) + frame.size, mask)
 
         overlay = Image.new("RGBA", frame.size, (0, 0, 0, 0))
@@ -975,26 +1071,27 @@ class Renderer:
                 labels.append(self.draw_label(frame, (x, y, w, h), item["label"], self.th.color(item.get("color", "c1")), fade, item.get("side"), others))
         return rects, labels
 
-    def label_place(self, box, pw, ph, side):
+    def label_place(self, frame_size, box, pw, ph, side):
         x, y, w, h = box
-        gap = 26
+        gap, half = sc(26), sc(11)
         if side == "above":
             px, py = x + w / 2 - pw / 2, y - ph - gap
-            tip = (x + w / 2, y - 4)
-            base = ((tip[0] - 11, py + ph), (tip[0] + 11, py + ph))
+            tip = (x + w / 2, y - sc(4))
+            base = ((tip[0] - half, py + ph), (tip[0] + half, py + ph))
         elif side == "below":
             px, py = x + w / 2 - pw / 2, y + h + gap
-            tip = (x + w / 2, y + h + 4)
-            base = ((tip[0] - 11, py), (tip[0] + 11, py))
+            tip = (x + w / 2, y + h + sc(4))
+            base = ((tip[0] - half, py), (tip[0] + half, py))
         elif side == "left":
             px, py = x - pw - gap, y + h / 2 - ph / 2
-            tip = (x - 4, y + h / 2)
-            base = ((px + pw, tip[1] - 11), (px + pw, tip[1] + 11))
+            tip = (x - sc(4), y + h / 2)
+            base = ((px + pw, tip[1] - half), (px + pw, tip[1] + half))
         else:
             px, py = x + w + gap, y + h / 2 - ph / 2
-            tip = (x + w + 4, y + h / 2)
-            base = ((px, tip[1] - 11), (px, tip[1] + 11))
-        clamped = (max(12, min(self.vw - pw - 12, px)), max(12, min(self.vh - ph - 12, py)))
+            tip = (x + w + sc(4), y + h / 2)
+            base = ((px, tip[1] - half), (px, tip[1] + half))
+        m = sc(12)
+        clamped = (max(m, min(frame_size[0] - pw - m, px)), max(m, min(frame_size[1] - ph - m, py)))
         # A pill pushed back on screen has drifted off its side, so the drift counts against the placement.
         drift = abs(clamped[0] - px) + abs(clamped[1] - py)
         if clamped != (px, py):
@@ -1005,15 +1102,15 @@ class Renderer:
 
     def draw_label(self, frame, box, text, color, fade, side=None, others=()):
         face = F("display", 22, 600)
-        pw, ph = face.length(text, 0.8) + 28, 40
+        pw, ph = face.length(text, 0.8) * S + sc(28), sc(40)
         # Try the sides in a sensible order and keep the one that covers the least of the other boxes and labels. A thin row
         # usually has neighbours above and below, so its label prefers to sit beside it. A side the scene asked for wins ties.
-        order = ["right", "left", "above", "below"] if box[3] < 52 else ["above", "below", "right", "left"]
+        order = ["right", "left", "above", "below"] if box[3] < sc(52) else ["above", "below", "right", "left"]
         if side:
             order = [side] + [o for o in order if o != side]
         best = None
         for candidate in order:
-            (px, py), tip, base, drift = self.label_place(box, pw, ph, candidate)
+            (px, py), tip, base, drift = self.label_place(frame.size, box, pw, ph, candidate)
             cost = sum(overlap((px, py, pw, ph), other) for other in others) + overlap((px, py, pw, ph), box) + drift * ph
             if best is None or cost < best[0]:
                 best = (cost, px, py, tip, base)
@@ -1024,8 +1121,8 @@ class Renderer:
         draw = ImageDraw.Draw(layer)
         a = int(255 * fade)
         draw.polygon([tip, base[0], base[1]], fill=color + (a,))
-        draw.rounded_rectangle((px, py, px + pw, py + ph), radius=20, fill=color + (a,))
-        face.draw(draw, (px + 14, py + ph / 2), text, self.th.on_c1 + (a,), "lm", track=0.8)
+        draw.rounded_rectangle((px, py, px + pw, py + ph), radius=sc(20), fill=color + (a,))
+        face.draw(draw, (px + sc(14), py + ph / 2), text, self.th.on_c1 + (a,), "lm", track=0.8, px=True)
         frame.paste(layer, (0, 0), layer)
         return (px, py, pw, ph)
 
@@ -1035,23 +1132,22 @@ class Renderer:
             return
         x, y, _, _ = self.to_out(cam, (pos[0], pos[1], 0, 0))
         # A pointer parked outside the zoomed view would show cut off at the frame's edge, so it isn't drawn.
-        if not (0 <= x < self.vw - 20 and 0 <= y < self.vh - 30):
+        if not (0 <= x < frame.width - sc(20) and 0 <= y < frame.height - sc(30)):
             return
         layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(layer)
         if click:
             cx, cy, _, _ = self.to_out(cam, (click[0], click[1], 0, 0))
             k = click[2] / 0.5
-            r = 8 + 36 * k
-            draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=self.accent + (int(255 * (1 - k)),), width=5)
-        s = 1.0
+            r = sc(8) + sc(36) * k
+            draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=self.accent + (int(255 * (1 - k)),), width=sc(5))
         arrow = [(0, 0), (0, 34), (9, 26), (15, 40), (21, 37), (15, 24), (27, 24)]
-        pts = [(x + px * s, y + py * s) for px, py in arrow]
-        shadow = [(px + 3, py + 4) for px, py in pts]
+        pts = [(x + px * S, y + py * S) for px, py in arrow]
+        shadow = [(px + sc(3), py + sc(4)) for px, py in pts]
         outline = self.th.void + (255,)
         draw.polygon(shadow, fill=(0, 0, 0, 110))
         draw.polygon(pts, fill=self.th.ink + (255,), outline=outline)
-        draw.line(pts + [pts[0]], fill=outline, width=2)
+        draw.line(pts + [pts[0]], fill=outline, width=sc(2))
         frame.paste(layer, (0, 0), layer)
 
     def draw_caption(self, frame, time):
@@ -1069,20 +1165,20 @@ class Renderer:
         height = lh * len(lines) + 36
         x = zone[0] + zone[2] / 2 - width / 2
         y = zone[1] + (zone[3] - height) / 2 + (1 - fade) * 14
-        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(layer)
+        # Drawn on a small layer positioned at (x, y), with a 2-unit margin so the outline isn't clipped.
+        layer = Image.new("RGBA", sz(width + 4, height + 4), (0, 0, 0, 0))
+        draw = D(layer)
         a = fade
         th = self.th
-        fill = th.void2 + (int(240 * a),)
-        draw.rounded_rectangle((x, y, x + width, y + height), radius=16, fill=fill, outline=self.accent + (int(170 * a),), width=2)
-        draw.rounded_rectangle((x, y, x + 7, y + height), radius=4, fill=self.accent + (int(255 * a),))
+        draw.rounded_rectangle((2, 2, 2 + width, 2 + height), radius=16, fill=th.void2 + (int(240 * a),), outline=self.accent + (int(170 * a),), width=2)
+        draw.rounded_rectangle((2, 2, 9, 2 + height), radius=4, fill=self.accent + (int(255 * a),))
         if step:
-            cx, cy = x + 50, y + height / 2
+            cx, cy = 52, 2 + height / 2
             draw.ellipse((cx - 23, cy - 23, cx + 23, cy + 23), fill=self.accent + (int(255 * a),))
             F("display", 28, 700).draw(draw, (cx, cy + 1), str(step), th.on_c1 + (int(255 * a),), "mm")
         for i, line in enumerate(lines):
-            face.draw(draw, (x + left, y + 18 + i * lh + lh / 2), line, th.ink + (int(255 * a),), "lm")
-        frame.paste(layer, (0, 0), layer)
+            face.draw(draw, (2 + left, 2 + 18 + i * lh + lh / 2), line, th.ink + (int(255 * a),), "lm")
+        paste_layer(frame, layer, (x - 2, y - 2))
 
     def draw_keys(self, frame, time, avoid=()):
         face = F("display", 26, 600)
@@ -1095,20 +1191,21 @@ class Renderer:
             parts = [part.strip() for part in event["text"].split("+")]
             layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
             draw = ImageDraw.Draw(layer)
-            widths = [face.length(part) + 34 for part in parts]
-            plus = 38
+            widths = [face.length(part) * S + sc(34) for part in parts]
+            plus = sc(38)
             total = sum(widths) + plus * (len(parts) - 1)
+            kh, edge = sc(56), sc(40)
             # Top right unless that covers a highlight or label, then top left, then just above the bottom edge.
-            spots = [(self.vw - 40 - total, 40), (40, 40), (self.vw - 40 - total, self.vh - 110)]
-            x, top = min(spots, key=lambda spot: (sum(overlap((spot[0], spot[1], total, 56), r) for r in avoid), spots.index(spot)))
-            mid = top + 28
+            spots = [(frame.width - edge - total, edge), (edge, edge), (frame.width - edge - total, frame.height - sc(110))]
+            x, top = min(spots, key=lambda spot: (sum(overlap((spot[0], spot[1], total, kh), r) for r in avoid), spots.index(spot)))
+            mid = top + kh / 2
             for i, part in enumerate(parts):
                 kw = widths[i]
-                draw.rounded_rectangle((x, top, x + kw, top + 56), radius=10, fill=self.th.ink + (int(245 * a),), outline=self.th.line + (int(255 * a),), width=3)
-                face.draw(draw, (x + kw / 2, mid), part, self.th.void + (int(255 * a),), "mm")
+                draw.rounded_rectangle((x, top, x + kw, top + kh), radius=sc(10), fill=self.th.ink + (int(245 * a),), outline=self.th.line + (int(255 * a),), width=sc(3))
+                face.draw(draw, (x + kw / 2, mid), part, self.th.void + (int(255 * a),), "mm", px=True)
                 x += kw
                 if i < len(parts) - 1:
-                    face.draw(draw, (x + plus / 2, mid), "+", self.th.ink + (int(255 * a),), "mm")
+                    face.draw(draw, (x + plus / 2, mid), "+", self.th.ink + (int(255 * a),), "mm", px=True)
                     x += plus
             frame.paste(layer, (0, 0), layer)
 
@@ -1116,7 +1213,7 @@ class Renderer:
         cam = self.camera(time)
         src = self.source(int(time * self.t.src_fps))
         x, y, w, h = cam
-        frame = src.resize((self.vw, self.vh), Image.BICUBIC, box=(x, y, x + w, y + h))
+        frame = src.resize(self.vpx, Image.LANCZOS, box=(x, y, x + w, y + h))
         boxes, labels = self.draw_highlights(frame, cam, time)
         if pointer:
             self.draw_pointer(frame, cam, time)
@@ -1127,20 +1224,20 @@ class Renderer:
 
     def ambient(self):
         th = self.th
-        image = Image.new("RGB", (W, H), th.void)
-        grad = Image.radial_gradient("L").resize((1500, 1100), Image.BICUBIC)
-        grad = ImageChops.invert(grad)
+        image = Image.new("RGB", (OW, OH), th.void)
+        grad = ImageChops.invert(Image.radial_gradient("L").resize(sz(1500, 1100), Image.BICUBIC))
         for color, centre, strength in ((th.c1, (360, 140), 0.20), (th.c2, (1640, 980), 0.14)):
             k = strength * (0.6 + 0.4 * th.glow_k)
             mask = grad.point(lambda v: int(v * v / 255 * k))
-            image.paste(color, (centre[0] - 750, centre[1] - 550), mask)
-        grid = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            image.paste(color, (sc(centre[0] - 750), sc(centre[1] - 550)), mask)
+        grid = Image.new("RGBA", (OW, OH), (0, 0, 0, 0))
         gd = ImageDraw.Draw(grid)
         colour = th.grid + (int(255 * min(1.0, th.grid_alpha * 1.6)),)
-        for gx in range(0, W, th.grid_size):
-            gd.line((gx, 0, gx, H), fill=colour, width=1)
-        for gy in range(0, H, th.grid_size):
-            gd.line((0, gy, W, gy), fill=colour, width=1)
+        step = th.grid_size * S
+        for i in range(int(OW / step) + 1):
+            gd.line((round(i * step), 0, round(i * step), OH), fill=colour, width=1)
+        for i in range(int(OH / step) + 1):
+            gd.line((0, round(i * step), OW, round(i * step)), fill=colour, width=1)
         image.paste(grid, (0, 0), grid)
         return image
 
@@ -1148,37 +1245,38 @@ class Renderer:
         th = self.th
         info = self.t.intro
         base = self.ambient()
-        draw = ImageDraw.Draw(base)
+        draw = D(base)
         kicker = "AETHYR  \u00b7  RITUAL %s" % info.get("circled", info.get("number", ""))
         w = F("display", 24, 600).draw(draw, (40, HEADER_H / 2 + 2), kicker, self.accent, "lm", track=3.5)
         title = "%s  %s" % (info.get("glyph", ""), info.get("title", ""))
         F("body", 22, 400).draw(draw, (40 + w + 26, HEADER_H / 2 + 2), title, th.dim, "lm")
-        bug = fit_width(logo("crystal"), 40)
-        paste_layer(base, bug, (1880 - bug.width, (HEADER_H - bug.height) // 2 + 2), 0.55)
+        bug = fit_width(logo("crystal"), sc(40))
+        paste_layer(base, bug, (1880 - bug.width / S, (HEADER_H - bug.height / S) / 2 + 2), 0.55)
         if self.split:
             ex, ey, ew, eh = EDITOR
-            shadow = Image.new("RGBA", (ew + 120, eh + 120), (0, 0, 0, 0))
-            ImageDraw.Draw(shadow).rounded_rectangle((60, 70, 60 + ew, 70 + eh), radius=14, fill=(0, 0, 0, 150))
-            paste_layer(base, shadow.filter(ImageFilter.GaussianBlur(16)), (ex - 60, ey - 60))
+            shadow = Image.new("RGBA", sz(ew + 120, eh + 120), (0, 0, 0, 0))
+            D(shadow).rounded_rectangle((60, 70, 60 + ew, 70 + eh), radius=14, fill=(0, 0, 0, 150))
+            paste_layer(base, shadow.filter(ImageFilter.GaussianBlur(sc(16))), (ex - 60, ey - 60))
         return base
 
     def frame_chrome(self, frame):
-        """Border around the editor window and the panel borders, drawn over the pasted content."""
+        """Borders around the editor window and the panels, drawn over the pasted content."""
         th = self.th
 
         def outline(rect, color, alpha, radius=12):
-            x, y, w, h = rect
+            x, y, w, h = sc(rect[0]), sc(rect[1]), sc(rect[2]), sc(rect[3])
             edge = Image.new("L", (w * 3, h * 3), 0)
-            ImageDraw.Draw(edge).rounded_rectangle((0, 0, w * 3 - 1, h * 3 - 1), radius=radius * 3, outline=255, width=6)
+            ImageDraw.Draw(edge).rounded_rectangle((0, 0, w * 3 - 1, h * 3 - 1), radius=sc(radius) * 3, outline=255, width=sc(2) * 3)
             edge = edge.resize((w, h), Image.LANCZOS).point(lambda v: int(v * alpha))
             frame.paste(color, (x, y), edge)
 
+        line_alpha = min(1.0, th.line_alpha * 2.2)
         if self.split:
             outline(EDITOR, self.accent, 0.55, 14)
-            outline(CHAT_SPLIT, th.line, min(1.0, th.line_alpha * 2.2))
+            outline(self.chat_rect, th.line, line_alpha)
         else:
-            outline(CHAT_TERM, th.line, min(1.0, th.line_alpha * 2.2))
-            outline(TERM_TERM, self.accent, 0.5)
+            outline(self.chat_rect, th.line, line_alpha)
+            outline(self.term_rect, self.accent, 0.5)
 
     def body_frame(self, time, pointer=True):
         frame = self.base.copy()
@@ -1186,14 +1284,12 @@ class Renderer:
         if self.split:
             view = self.view_frame(time, pointer)
             ex, ey, ew, eh = EDITOR
-            frame.paste(view, (ex, ey), self.mask("editor", (ew, eh), 14))
-            chat = self.chat.render(time)
-            frame.paste(chat, CHAT_SPLIT[:2], self.mask("chat", chat.size, 12, panel_alpha))
-        else:
-            chat = self.chat.render(time)
-            frame.paste(chat, CHAT_TERM[:2], self.mask("chat", chat.size, 12, panel_alpha))
+            frame.paste(view, (sc(ex), sc(ey)), self.mask("editor", view.size, sc(14)))
+        chat = self.chat.render(time)
+        frame.paste(chat, (sc(self.chat_rect[0]), sc(self.chat_rect[1])), self.mask("chat%d" % chat.height, chat.size, sc(12), panel_alpha))
+        if not self.split:
             term = self.term.render(time)
-            frame.paste(term, TERM_TERM[:2], self.mask("term", term.size, 12, panel_alpha))
+            frame.paste(term, (sc(self.term_rect[0]), sc(self.term_rect[1])), self.mask("term%d" % term.height, term.size, sc(12), panel_alpha))
         self.frame_chrome(frame)
         self.draw_caption(frame, time)
         return frame
@@ -1212,65 +1308,60 @@ class Renderer:
         return self.cache[key]
 
     def gradient_text(self, text, face, colors):
-        probe = Image.new("L", (1, 1))
-        width = int(face.length(text)) + 40
-        height = int(face.size * 1.5)
+        """Gradient-filled text as an RGBA layer in output pixels."""
+        width = int(face.length(text) * S) + sc(40)
+        height = int(face.size * 1.5 * S)
         mask = Image.new("L", (width, height), 0)
-        face.draw(ImageDraw.Draw(mask), (20, height / 2), text, 255, "lm")
+        face.draw(ImageDraw.Draw(mask), (sc(20), height / 2), text, 255, "lm", px=True)
         grad = Image.new("RGB", (width, height))
         gd = ImageDraw.Draw(grad)
-        # linear-gradient(100deg, a, b): close enough to a left to right sweep with a slight tilt.
+        # linear-gradient(100deg, a, b): close enough to a left to right sweep.
         for gx in range(width):
-            c = mix(colors[1], colors[0], gx / max(1, width - 1))
-            gd.line((gx, 0, gx, height), fill=c)
+            gd.line((gx, 0, gx, height), fill=mix(colors[1], colors[0], gx / max(1, width - 1)))
         layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         layer.paste(grad, (0, 0), mask)
-        del probe
         return layer
 
     def card_stack(self):
-        """Title card pieces laid out top to bottom: (name, sprite, y) centred on x, plus the bar's y."""
         th, info = self.th, self.t.intro
 
         def build():
             parts = {}
-            parts["lockup"] = fit_width(logo("lockup"), 560)
+            parts["lockup"] = fit_width(logo("lockup"), sc(560))
             kicker = "AETHYR  \u00b7  RITUAL %s" % info.get("circled", info.get("number", ""))
             kface = F("display", 30, 600)
-            kw = int(kface.length(kicker, 5)) + 20
-            layer = Image.new("RGBA", (kw, 50), (0, 0, 0, 0))
-            kface.draw(ImageDraw.Draw(layer), (kw / 2, 25), kicker, self.accent + (255,), "mm", track=5)
+            kw = int(kface.length(kicker, 5) * S) + sc(20)
+            layer = Image.new("RGBA", (kw, sc(50)), (0, 0, 0, 0))
+            kface.draw(ImageDraw.Draw(layer), (kw / 2, sc(25)), kicker, self.accent + (255,), "mm", track=5, px=True)
             parts["kicker"] = layer
-            gface = F("display", 84, 400)
-            glyph = Image.new("RGBA", (160, 110), (0, 0, 0, 0))
-            F("display", 84, 400).draw(ImageDraw.Draw(glyph), (80, 55), info.get("glyph", ""), th.c2 + (255,), "mm")
-            halo = glyph.filter(ImageFilter.GaussianBlur(16))
+            glyph = Image.new("RGBA", sz(160, 110), (0, 0, 0, 0))
+            F("display", 84, 400).draw(ImageDraw.Draw(glyph), (sc(80), sc(55)), info.get("glyph", ""), th.c2 + (255,), "mm", px=True)
+            halo = glyph.filter(ImageFilter.GaussianBlur(sc(16)))
             halo.putalpha(halo.getchannel("A").point(lambda v: int(v * (0.5 + 0.5 * th.glow_k))))
             halo.alpha_composite(glyph)
             parts["glyph"] = halo
-            del gface
             title = info.get("title", "").upper()
             size = 96
             while size > 52:
-                face = F("arcane", size)
-                lines = wrap_even(title, face, 1560)
+                lines = wrap_even(title, F("arcane", size), 1560)
                 if len(lines) <= 2:
                     break
                 size -= 6
             face = F("arcane", size)
             rows = [self.gradient_text(line, face, th.grad) for line in lines]
-            gap = int(size * 1.05)
-            tl = Image.new("RGBA", (max(r.width for r in rows), gap * len(rows) + int(size * 0.5)), (0, 0, 0, 0))
+            gap = int(size * 1.05 * S)
+            tl = Image.new("RGBA", (max(r.width for r in rows), gap * len(rows) + int(size * 0.5 * S)), (0, 0, 0, 0))
             for i, row in enumerate(rows):
                 tl.alpha_composite(row, ((tl.width - row.width) // 2, i * gap))
             parts["title"] = tl
-            sub = Image.new("RGBA", (W, 130), (0, 0, 0, 0))
-            sd = ImageDraw.Draw(sub)
             sface = F("body", 32, 400)
-            for i, line in enumerate(wrap_even(info.get("subtitle", ""), sface, 1300)):
-                sface.draw(sd, (W / 2, 24 + i * 46), line, th.dim + (255,), "mm")
+            sub_lines = wrap_even(info.get("subtitle", ""), sface, 1300)
+            sub = Image.new("RGBA", (OW, sc(130)), (0, 0, 0, 0))
+            for i, line in enumerate(sub_lines):
+                sface.draw(ImageDraw.Draw(sub), (W / 2, 24 + i * 46), line, th.dim + (255,), "mm")
             parts["sub"] = sub
-            via = Image.new("RGBA", (W, 40), (0, 0, 0, 0))
+            parts["sub_lines"] = len(sub_lines)
+            via = Image.new("RGBA", (OW, sc(40)), (0, 0, 0, 0))
             if info.get("via"):
                 F("mono", 21, 500).draw(ImageDraw.Draw(via), (W / 2, 20), info["via"], self.accent + (255,), "mm", track=2)
             parts["via"] = via
@@ -1285,23 +1376,23 @@ class Renderer:
         p = self.card_stack()
         frame = self.card_backdrop().copy()
         a = ease(age / 0.5)
-        heights = [("lockup", 0), ("kicker", 34), ("glyph", 12), ("title", 4), ("bar", 28), ("sub", 30), ("via", 4)]
-        sizes = {k: (p[k].height if k in p else 8) for k, _ in heights}
-        sizes["sub"] = 56 * max(1, len(wrap_even(self.t.intro.get("subtitle", ""), F("body", 32, 400), 1300))) + 6
-        total = sum(sizes[k] + gap for k, gap in heights)
+        order = [("lockup", 0), ("kicker", 34), ("glyph", 12), ("title", 4), ("bar", 28), ("sub", 30), ("via", 4)]
+        sizes = {k: (p[k].height / S if k in p else 8) for k, _ in order}
+        sizes["sub"] = 56 * max(1, p["sub_lines"]) + 6
+        total = sum(sizes[k] + gap for k, gap in order)
         y = (H - total) / 2 + 10
         pos = {}
-        for key, gap in heights:
+        for key, gap in order:
             y += gap
             pos[key] = y
             y += sizes[key]
         rise = (1 - a) * 18
         for key in ("lockup", "kicker", "glyph"):
-            paste_layer(frame, p[key], ((W - p[key].width) // 2, pos[key] + rise), a)
+            paste_layer(frame, p[key], ((W - p[key].width / S) / 2, pos[key] + rise), a)
         title_a = ease((age - 0.1) / 0.5)
-        paste_layer(frame, p["title"], ((W - p["title"].width) // 2, pos["title"] + (1 - title_a) * 20), title_a)
+        paste_layer(frame, p["title"], ((W - p["title"].width / S) / 2, pos["title"] + (1 - title_a) * 20), title_a)
         bar = 420 * ease((age - 0.25) / 0.6)
-        ImageDraw.Draw(frame).rounded_rectangle((W / 2 - bar / 2, pos["bar"], W / 2 + bar / 2, pos["bar"] + 6), radius=3, fill=self.accent)
+        D(frame).rounded_rectangle((W / 2 - bar / 2, pos["bar"], W / 2 + bar / 2, pos["bar"] + 6), radius=3, fill=self.accent)
         paste_layer(frame, p["sub"], (0, pos["sub"] - 24), ease((age - 0.45) / 0.5))
         paste_layer(frame, p["via"], (0, pos["via"]), ease((age - 0.6) / 0.5))
         return frame
@@ -1310,36 +1401,35 @@ class Renderer:
         th, info = self.th, self.t.outro
         frame = self.card_backdrop().copy()
         a = ease(age / 0.4)
-        lock = fit_width(logo("lockup"), 640)
+        lock = fit_width(logo("lockup"), sc(640))
         url = "aethyr.gg/docs/tutorials/#%s" % info.get("id", "")
 
         def build():
             kface = F("display", 26, 600)
             ktext = "READ THE RITUAL"
-            kw = int(kface.length(ktext, 5)) + 20
-            kicker = Image.new("RGBA", (kw, 44), (0, 0, 0, 0))
-            kface.draw(ImageDraw.Draw(kicker), (kw / 2, 22), ktext, self.accent + (255,), "mm", track=5)
+            kw = int(kface.length(ktext, 5) * S) + sc(20)
+            kicker = Image.new("RGBA", (kw, sc(44)), (0, 0, 0, 0))
+            kface.draw(ImageDraw.Draw(kicker), (kw / 2, sc(22)), ktext, self.accent + (255,), "mm", track=5, px=True)
             uface = F("mono", 44, 500)
-            uw = int(uface.length(url)) + 90
-            pill = Image.new("RGBA", (uw, 100), (0, 0, 0, 0))
-            pd = ImageDraw.Draw(pill)
-            pd.rounded_rectangle((0, 0, uw - 1, 99), radius=16, fill=th.void2 + (int(255 * 0.92),), outline=self.accent + (200,), width=2)
+            uw = uface.length(url) + 90
+            pill = Image.new("RGBA", sz(uw, 100), (0, 0, 0, 0))
+            pd = D(pill)
+            pd.rounded_rectangle((0, 0, uw - 0.5, 99.5), radius=16, fill=th.void2 + (int(255 * 0.92),), outline=self.accent + (200,), width=2)
             uface.draw(pd, (uw / 2, 50), url, th.ink + (255,), "mm")
             return kicker, pill
 
         kicker, pill = self.sprite(("outro", url), build)
-        glyph_face = F("display", 36, 600)
         label = "%s  %s" % (self.t.intro.get("glyph", ""), self.t.intro.get("title", ""))
-        total = lock.height + 56 + kicker.height + 18 + pill.height + 46 + 44
+        lock_h, kick_h, pill_h = lock.height / S, kicker.height / S, pill.height / S
+        total = lock_h + 56 + kick_h + 18 + pill_h + 46 + 44
         y = (H - total) / 2
-        paste_layer(frame, lock, ((W - lock.width) // 2, y), a)
-        y += lock.height + 56
-        paste_layer(frame, kicker, ((W - kicker.width) // 2, y), ease((age - 0.2) / 0.4))
-        y += kicker.height + 18
-        paste_layer(frame, pill, ((W - pill.width) // 2, y), ease((age - 0.3) / 0.4))
-        y += pill.height + 46
-        d = ImageDraw.Draw(frame)
-        glyph_face.draw(d, (W / 2, y + 22), label, mix(th.dim, th.void, ease((age - 0.5) / 0.4)), "mm")
+        paste_layer(frame, lock, ((W - lock.width / S) / 2, y), a)
+        y += lock_h + 56
+        paste_layer(frame, kicker, ((W - kicker.width / S) / 2, y), ease((age - 0.2) / 0.4))
+        y += kick_h + 18
+        paste_layer(frame, pill, ((W - pill.width / S) / 2, y), ease((age - 0.3) / 0.4))
+        y += pill_h + 46
+        F("display", 36, 600).draw(D(frame), (W / 2, y + 22), label, mix(th.dim, th.void, ease((age - 0.5) / 0.4)), "mm")
         return frame
 
     # --- assembly ---------------------------------------------------------------------------------------------------------
@@ -1349,7 +1439,7 @@ class Renderer:
         blend = 0.5
         body_len = self.body_length()
         last = self.t.count / self.t.src_fps - 1 / self.t.src_fps
-        black = Image.new("RGB", (W, H), (0, 0, 0))
+        black = Image.new("RGB", (OW, OH), (0, 0, 0))
         if time < INTRO_LEN:
             frame = self.intro_frame(time)
             if time < 0.35:
@@ -1372,10 +1462,11 @@ class Renderer:
 
     def render(self, out, poster=None, limit=None):
         # Written under a temporary name and renamed at the end, so an interrupted render never leaves a broken video behind.
+        # Tuned for screen content: -tune animation keeps flat UI areas and fine text clean, CRF 18 keeps the edges.
         partial = out[:-4] + ".part.mp4"
-        ff = subprocess.Popen([FFMPEG, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (W, H), "-r", str(FPS),
-                               "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart", partial],
-                              stdin=subprocess.PIPE)
+        ff = subprocess.Popen([FFMPEG, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (OW, OH), "-r", str(FPS),
+                               "-i", "-", "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", "18", "-pix_fmt", "yuv420p",
+                               "-movflags", "+faststart", partial], stdin=subprocess.PIPE)
         total = int(self.total_length() * FPS)
         if limit:
             total = min(total, int(limit * FPS))
@@ -1390,14 +1481,14 @@ class Renderer:
         return out
 
     def save_poster(self, poster):
-        # The poster is the title card as it stands one second in, once the logo, title, bar and subtitle are all in.
-        self.intro_frame(1.4).resize((1280, 720), Image.LANCZOS).save(poster, quality=88)
+        # The poster is the title card as it stands once the logo, title, bar and subtitle are all in. 1280x720, LANCZOS.
+        self.intro_frame(1.4).resize((1280, 720), Image.LANCZOS).save(poster, quality=90)
 
 
-def make(folder, theme_id=None):
+def make(folder, theme_id=None, name=""):
     fetch_fonts()
     theme = Theme(theme_id)
-    return Renderer(Timeline(folder, theme), theme)
+    return Renderer(Timeline(folder, theme), theme, name or os.path.basename(os.path.normpath(folder)))
 
 
 def render(folder, out, poster=None, theme_id=None):
