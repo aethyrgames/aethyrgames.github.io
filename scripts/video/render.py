@@ -10,7 +10,8 @@
 #   python scripts/video/render.py <scene dir> <out.mp4> [poster.jpg] [--theme <id>]
 #
 # timeline.json (the Tether shape, plus the Aethyr additions marked +):
-#   fps, size [w, h] of the editor frames, frames (count: the length of the body), still (+, optional: one image used for every frame)
+#   fps, size [w, h] of the editor frames, frames (count: the length of the body), still (+, optional: one image used for every frame),
+#   files (+, optional: a file name per frame, so a hold repeats one PNG)
 #   layout (+): "split" (editor on the left, chat on the right) or "terminal" (chat and terminal readout, no editor)
 #   intro (+): {id, number, glyph, title, subtitle, via, kind: "tutorial" | "troubleshoot"}    outro (+): {id}
 #   events: caption {text, step, pos}, highlight {items: [{rect, label, color: c1|c2|warm}]}, focus {rect}, pointer {x, y, click},
@@ -20,13 +21,16 @@
 #         "ms": 41, "run": 0.5, "output": ["line", ...]}      (output feeds the terminal readout)
 #     {"type": "chat", "frame": F, "role": "ai",   "who": "Aethyr · your AI", "text": "...", "dur": secs}
 #     A tool event attaches to the AI turn that follows the latest "you" line. The AI text streams in after its tool chips.
+import bisect
 import json
 import math
 import os
+import random
 import re
 import subprocess
 import sys
 import urllib.request
+import zlib
 from functools import lru_cache
 from pathlib import Path
 
@@ -280,6 +284,9 @@ class Face:
             x -= width
         asc, desc = self.main.getmetrics()
         base = {"a": y + asc, "m": y + (asc - desc) / 2, "s": y}[anchor[1]]
+        height = raw.im.size[1]
+        if base - asc > height + 8 or base + desc < -8:
+            return width / S  # entirely off the image (a panel scrolled past it): nothing to draw, and PIL rejects the empty mask
         for font, sub in self.runs(text):
             if gap:
                 for ch in sub:
@@ -472,6 +479,7 @@ class Timeline:
         self.src_w, self.src_h = data["size"]
         self.count = data["frames"]
         self.still = data.get("still")
+        self.files = data.get("files")  # one file name per frame (holds repeat a name), instead of numbered frames
         self.layout = data.get("layout", "split")
         self.intro = data["intro"]
         self.outro = data.get("outro", {"id": self.intro.get("id", "")})
@@ -522,6 +530,97 @@ class Scroller:
 # Chat panel: styled like the site's .chat / .turn / .tools blocks (docs/docs.css). Sizes are design units, the image is output px.
 # ---------------------------------------------------------------------------------------------------------------------------
 
+THINK = 0.9  # seconds of "thinking" before an AI turn's first chip or text
+TYPE_CAP = 6.5  # the longest a question takes to type, whatever its length
+TYPE_LEAD = 0.25  # a beat before the first key
+
+
+def _rng(text, salt):
+    return random.Random(zlib.crc32((salt + text).encode("utf-8")))
+
+
+def _codeish(word):
+    core = word.strip(".,?!;:()\"'")
+    return core.startswith("/") or "_" in core or "." in core or bool(re.search(r"[a-z][A-Z]", core))
+
+
+def typing_schedule(text):
+    """Seconds after the start of typing at which each character appears: a person at a keyboard, 40 to 90 ms a key with
+    jitter, a little extra after spaces, a longer stop after commas and full stops, and a slower start on a path or other code-ish
+    token. Seeded from the text so every render comes out the same."""
+    rng = _rng(text, "type")
+    code_start = {m.start() for m in re.finditer(r"\S+", text) if _codeish(m.group(0))}
+    times, t = [], TYPE_LEAD
+    for i, ch in enumerate(text):
+        d = rng.uniform(0.040, 0.090)
+        if i in code_start:
+            d += rng.uniform(0.12, 0.25)
+        if i > 0:
+            prev = text[i - 1]
+            if prev == " ":
+                d += rng.uniform(0.02, 0.07)
+            if prev in ",;:.?!":
+                d += rng.uniform(0.15, 0.35)
+        t += d
+        times.append(t)
+    return times
+
+
+def typing_plan(text, cap=TYPE_CAP):
+    """(times, total): the schedule squeezed to fit `cap` seconds when a human cadence would run longer."""
+    times = typing_schedule(text)
+    natural = (times[-1] + 0.2) if times else 0.0
+    total = min(natural, cap)
+    k = total / natural if natural else 1.0
+    return [t * k for t in times], total
+
+
+def stream_plan(count, seed):
+    """Token-sized bursts for a streamed reply: chunks of 1 to 4 words arriving at an uneven but fast rate. Returns the chunk
+    boundaries and each chunk's arrival as a fraction (0 to 0.92) of the streaming time."""
+    rng = _rng(seed, "stream")
+    chunks, i = [], 0
+    while i < count:
+        k = rng.choice([1, 1, 2, 2, 2, 3, 3, 4])
+        chunks.append((i, min(count, i + k)))
+        i += k
+    gaps = [rng.uniform(0.5, 1.6) * (0.6 + 0.4 * (b - a)) for a, b in chunks]
+    arrivals, total = [], 0.0
+    for gap in gaps[:-1]:
+        arrivals.append(total)
+        total += gap
+    arrivals.append(total)
+    scale = 0.92 / total if total > 0 else 0.0
+    return chunks, [a * scale for a in arrivals]
+
+
+def reveal_chars(lines, count):
+    """The wrapped lines with the first `count` characters of the text visible. Lines fill strictly in order, and a line not yet
+    reached comes back empty."""
+    out, left = [], count
+    for line in lines:
+        take = max(0, min(len(line), left))
+        left -= len(line) + 1
+        out.append(line[:take])
+    return out
+
+
+def selftest():
+    """Guards against typing several wrapped lines at once (a negative slice once showed most of every later line)."""
+    lines = ["aaaa bbbb", "cccc dddd", "eeee"]
+    got = reveal_chars(lines, int(sum(len(x) + 1 for x in lines) * 0.3))
+    assert got[0] == "aaaa bb" and got[1] == "" and got[2] == "", got
+    assert reveal_chars(lines, 0) == ["", "", ""]
+    assert reveal_chars(lines, 11) == ["aaaa bbbb", "c", ""], reveal_chars(lines, 11)
+    assert reveal_chars(lines, 999) == lines
+    times, total = typing_plan("What does /Game/AethyrSamples/AI/BP_Enemy do? Give me the gist, then the event graph.")
+    assert all(b >= a for a, b in zip(times, times[1:])) and 2.0 < total <= TYPE_CAP, (total,)
+    assert typing_plan("same text")[0] == typing_plan("same text")[0]
+    chunks, arrivals = stream_plan(40, "x")
+    assert chunks[0][0] == 0 and chunks[-1][1] == 40 and all(b >= a for a, b in zip(arrivals, arrivals[1:])) and arrivals[-1] <= 0.92 + 1e-9
+    return True
+
+
 class ChatPanel:
     PAD = 20
 
@@ -534,7 +633,7 @@ class ChatPanel:
         self.lh, self.res_lh = 32, 22
         self.inner = self.w - self.PAD * 2
         self.turns = self.group([e for e in events if e["type"] == "chat"], fps)
-        self.layout()
+        self.bind(lambda t: t)
         self.content_h = self.total + 4
         self.fit(self.content_h)
 
@@ -563,108 +662,163 @@ class ChatPanel:
                 ai["text"], ai["text_t0"] = e["text"], t0
                 ai["who"] = e.get("who", ai["who"])
                 ai["dur"] = e.get("dur") or max(1.0, len(e["text"].split()) / 7)
+        for turn in turns:
+            if turn["role"] == "you":
+                turn["type_times"], turn["type_total"] = typing_plan(turn["text"])
         return turns
 
-    def layout(self):
+    def extra_pauses(self):
+        """Pauses the animation needs on top of the recording: time for a question to be typed at a human pace when the recorded
+        hold was shorter, and a thinking beat before each AI turn. Returned as (recorded time, seconds)."""
+        out = []
+        for turn in self.turns:
+            if turn["role"] == "you":
+                extra = turn["type_total"] - turn["dur"]
+                if extra > 0.01:
+                    out.append((turn["t0"], extra))
+            else:
+                out.append((turn["t0"] - 1e-4, THINK))
+        return out
+
+    def bind(self, vt):
+        """Lays the turns out and fixes every animation time in virtual time: the unslowed time of the finished video, where the
+        pauses above are real time. vt maps recorded time to it."""
         y = 0
         steps = []
         for turn in self.turns:
             turn["y"] = y
             y += 16 + 20 + 6  # padding, label, gap
-            steps.append((turn["t0"], y))
             if turn["role"] == "you":
+                turn["v0"] = vt(turn["t0"])
+                steps.append((turn["v0"], y))
                 turn["lines"] = wrap(turn["text"], self.f_body, self.inner)
                 turn["text_y"] = y
-                n = max(1, len(turn["lines"]))
-                for i in range(n):
-                    steps.append((turn["t0"] + turn["dur"] * i / n, y + (i + 1) * self.lh))
-                y += n * self.lh
+                start = 0
+                for i, line in enumerate(turn["lines"]):
+                    first = min(start, len(turn["type_times"]) - 1)
+                    steps.append((turn["v0"] + (turn["type_times"][first] if turn["type_times"] else 0), y + (i + 1) * self.lh))
+                    start += len(line) + 1
+                y += max(1, len(turn["lines"])) * self.lh
             else:
+                turn["vfirst"] = vt(turn["t0"])
+                turn["vstart"] = turn["vfirst"] - THINK
+                steps.append((turn["vstart"], y))
                 for tool in turn["tools"]:
+                    tool["v0"] = vt(tool["t0"])
                     tool["y"] = y
                     tool["res_lines"] = wrap(tool["result"], self.f_res, self.inner - 14) if tool["result"] else []
-                    steps.append((tool["t0"], y + 36))
+                    steps.append((tool["v0"], y + 36))
                     y += 36
                     if tool["res_lines"]:
-                        steps.append((tool["t0"] + tool["run"], y + 4 + self.res_lh * len(tool["res_lines"])))
+                        steps.append((tool["v0"] + tool["run"], y + 4 + self.res_lh * len(tool["res_lines"])))
                         y += 4 + self.res_lh * len(tool["res_lines"])
                     y += 12
                 turn["lines"] = wrap(turn["text"], self.f_body, self.inner) if turn["text"] else []
                 turn["text_y"] = y
-                n = max(1, len(turn["lines"]))
-                for i in range(len(turn["lines"])):
-                    steps.append((turn["text_t0"] + turn["dur"] * i / n, y + (i + 1) * self.lh))
+                if turn["lines"]:
+                    turn["vtext"] = vt(turn["text_t0"])
+                    tokens = [line.split() for line in turn["lines"]]
+                    count = sum(len(t) for t in tokens)
+                    chunks, arrivals = stream_plan(count, turn["text"])
+                    when = [0.0] * count
+                    for (a, b), frac in zip(chunks, arrivals):
+                        for k in range(a, b):
+                            when[k] = frac * turn["dur"]
+                    turn["tokens"], turn["token_when"] = tokens, when
+                    index = 0
+                    for i, toks in enumerate(tokens):
+                        steps.append((turn["vtext"] + (when[index] if toks else 0), y + (i + 1) * self.lh))
+                        index += len(toks)
                 y += len(turn["lines"]) * self.lh
             y += 16
             turn["h"] = y - turn["y"]
         self.total = y
         self.steps = steps
-
-    def reveal(self, lines, frac, by_word):
-        """The lines with the first part of the text visible."""
-        if by_word:
-            total = sum(len(line.split()) for line in lines)
-            left = math.ceil(total * frac)
-            out = []
-            for line in lines:
-                words = line.split()
-                take = min(len(words), left)
-                left -= take
-                out.append(" ".join(words[:take]))
-            return out
-        total = sum(len(line) + 1 for line in lines)
-        left = int(total * frac)
-        out = []
-        for line in lines:
-            take = min(len(line), left)
-            left -= len(line) + 1
-            out.append(line[:take])
-        return out
+        if hasattr(self, "h"):
+            self.scroll = Scroller(self.steps, self.h)
 
     def render(self, now):
+        """The panel at virtual time `now`."""
         th = self.th
         image = Image.new("RGB", sz(self.w, self.h), th.void)
         draw = D(image)
         off = self.scroll.offset(now)
         ai_bg = mix(th.c2, th.void, 0.05)
         for turn in self.turns:
-            if now < turn["t0"]:
+            begin = turn["v0"] if turn["role"] == "you" else turn["vstart"]
+            if now < begin:
                 break
             top = turn["y"] - off
             if turn["role"] == "ai":
                 draw.rectangle((0, top, self.w, top + turn["h"]), fill=ai_bg)
             draw.line((0, top + turn["h"], self.w, top + turn["h"]), fill=mix(th.line, th.void, th.line_alpha), width=1)
             bg = ai_bg if turn["role"] == "ai" else th.void
-            fade = ease((now - turn["t0"]) / 0.2)
+            fade = ease((now - begin) / 0.2)
             label_color = th.c1 if turn["role"] == "you" else th.c2
             self.f_who.draw(draw, (self.PAD, top + 16), turn["who"].upper(), mix(label_color, bg, fade), "la", track=2.2)
             text_top = top + turn["text_y"] - turn["y"]
             if turn["role"] == "you":
-                frac = (now - turn["t0"]) / turn["dur"]
-                shown = self.reveal(turn["lines"], max(0, min(1, frac)), by_word=False)
-                for i, part in enumerate(shown):
-                    self.f_body.draw(draw, (self.PAD, text_top + i * self.lh), part, th.ink, "la")
-                after = now - turn["t0"] - turn["dur"]
-                if frac < 1 or (int(after * 2) % 2 == 0 and after < 3):
-                    last = max(0, sum(1 for part in shown if part) - 1)
-                    cx = self.PAD + (self.f_body.length(shown[last]) if shown else 0) + 3
-                    cy = text_top + last * self.lh
-                    draw.rectangle((cx, cy + 5, cx + 2, cy + self.lh - 5), fill=th.c1)
+                self.draw_you(draw, turn, now, text_top)
             else:
-                for tool in turn["tools"]:
-                    if now >= tool["t0"]:
-                        self.draw_tool(draw, tool, top - turn["y"], now, bg)
-                if turn["lines"] and turn["text_t0"] is not None and now >= turn["text_t0"]:
-                    frac = (now - turn["text_t0"]) / turn["dur"]
-                    shown = self.reveal(turn["lines"], max(0, min(1, frac)), by_word=True)
-                    for i, part in enumerate(shown):
-                        self.f_body.draw(draw, (self.PAD, text_top + i * self.lh), part, th.ink, "la")
+                self.draw_ai(draw, turn, now, top, text_top, bg)
         return image
+
+    def draw_you(self, draw, turn, now, text_top):
+        th = self.th
+        elapsed = now - turn["v0"]
+        times = turn["type_times"]
+        count = bisect.bisect_right(times, elapsed)
+        shown = reveal_chars(turn["lines"], count)
+        for i, part in enumerate(shown):
+            if part:
+                self.f_body.draw(draw, (self.PAD, text_top + i * self.lh), part, th.ink, "la")
+        typing = elapsed < turn["type_total"] + 0.1
+        after = elapsed - turn["type_total"]
+        # The caret sits at the typing point the whole time. It blinks once the typing has stopped, and goes after a few seconds.
+        if typing or (after < 3.0 and int(after * 2) % 2 == 0):
+            last = max(0, sum(1 for part in shown if part) - 1)
+            if count >= len(turn["text"]):
+                last = max(0, len(turn["lines"]) - 1)
+            cx = self.PAD + (self.f_body.length(shown[last]) if shown and shown[last] else 0) + 3
+            draw.rectangle((cx, text_top + last * self.lh + 5, cx + 2, text_top + last * self.lh + self.lh - 5), fill=th.c1)
+
+    def draw_ai(self, draw, turn, now, top, text_top, bg):
+        th = self.th
+        shift = top - turn["y"]
+        # Thinking: three pulsing dots in the accent until the first chip or text arrives.
+        if now < turn["vfirst"]:
+            y = turn["y"] + 16 + 20 + 6 + shift
+            for i in range(3):
+                level = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(2 * math.pi * (now * 1.7 - i * 0.2)))
+                x = self.PAD + 5 + i * 15
+                draw.ellipse((x - 4, y + self.lh / 2 - 4, x + 4, y + self.lh / 2 + 4), fill=mix(th.c2, bg, level))
+            return
+        for tool in turn["tools"]:
+            if now >= tool["v0"]:
+                self.draw_tool(draw, tool, shift, now, bg)
+        if not turn["lines"] or now < turn["vtext"]:
+            return
+        elapsed = now - turn["vtext"]
+        index, last_pos, streaming = 0, None, elapsed < turn["dur"] + 0.25
+        for i, toks in enumerate(turn["tokens"]):
+            x = self.PAD
+            y = text_top + i * self.lh
+            for tok in toks:
+                arrive = turn["token_when"][index]
+                index += 1
+                if elapsed >= arrive:
+                    k = ease((elapsed - arrive) / 0.16)
+                    self.f_body.draw(draw, (x, y), tok, mix(th.ink, bg, k), "la")
+                    last_pos = (x + self.f_body.length(tok), y)
+                x += self.f_body.length(tok + " ")
+        if streaming and last_pos:
+            cx, cy = last_pos
+            draw.rectangle((cx + 4, cy + 6, cx + 6, cy + self.lh - 6), fill=th.c2)
 
     def draw_tool(self, draw, tool, shift, now, bg):
         th = self.th
         y = tool["y"] + shift
-        age = now - tool["t0"]
+        age = now - tool["v0"]
         fade = ease(age / 0.18)
         done = age >= tool["run"]
         name = tool["name"]
@@ -675,7 +829,7 @@ class ChatPanel:
         if not done:
             icon, icon_col = "." * (int(age * 6) % 3 + 1), th.c1
         else:
-            icon, icon_col = ("\u2715", th.warm) if failed else ("\u2713", th.ok)
+            icon, icon_col = ("✕", th.warm) if failed else ("✓", th.ok)
         self.f_code.draw(draw, (self.PAD + 14, y + 15), icon, mix(icon_col, bg, fade), "lm")
         self.f_code.draw(draw, (self.PAD + 38, y + 15), name, mix(th.warm2, bg, fade), "lm")
         if done and tool.get("ms") is not None:
@@ -685,6 +839,7 @@ class ChatPanel:
             color = mix(th.warm if failed else th.dim, bg, k)
             for i, line in enumerate(tool["res_lines"]):
                 self.f_res.draw(draw, (self.PAD + 14, y + 36 + 4 + i * self.res_lh), line, color, "la")
+
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -714,11 +869,13 @@ class TermPanel:
             lines = e.get("output") or ([e["result"]] if e.get("result") else [])
             for line in lines:
                 out += wrap(line, self.f, self.inner - 24) or [""]
+            td = min(1.6, 0.35 + 0.012 * len(head))  # the command types out over this long, one character budget across its lines
+            out_at = max(run, td + 0.1)
             call = {"t0": t0, "run": run, "name": e["name"], "head": head_lines, "out": out, "y": y,
-                    "status": e.get("status", "ok"), "ms": e.get("ms")}
+                    "status": e.get("status", "ok"), "ms": e.get("ms"), "td": td, "out_at": out_at}
             steps.append((t0, y + self.lh * len(head_lines)))
             for i in range(len(out)):
-                steps.append((t0 + run + 0.07 * i, y + self.lh * (len(head_lines) + i + 1)))
+                steps.append((t0 + out_at + 0.07 * i, y + self.lh * (len(head_lines) + i + 1)))
             y += self.lh * (len(head_lines) + len(out) + 1) + 10
             self.calls.append(call)
         self.steps = steps
@@ -747,9 +904,13 @@ class TermPanel:
             if now < call["t0"]:
                 break
             y = 10 + call["y"] - off
-            typed = ease((now - call["t0"]) / 0.35)
+            typed = max(0.0, min(1.0, (now - call["t0"]) / call["td"]))
+            budget = sum(len(part) for part in call["head"])
+            left = budget if typed >= 1 else int(budget * typed) + 1
             for i, line in enumerate(call["head"]):
-                shown = line[: int(len(line) * typed) + 1] if typed < 1 else line
+                take = max(0, min(len(line), left))  # lines fill in order, never in parallel
+                left -= len(line)
+                shown = line[:take]
                 x = self.PAD
                 if i == 0 and shown.startswith("\u276f "):
                     x += self.f.draw(bd, (x, y), "\u276f ", self.accent, "la")
@@ -761,7 +922,7 @@ class TermPanel:
             y += self.lh * len(call["head"])
             failed = call["status"] == "error"
             for i, line in enumerate(call["out"]):
-                shown_at = call["t0"] + call["run"] + 0.07 * i
+                shown_at = call["t0"] + call["out_at"] + 0.07 * i
                 if now < shown_at:
                     break
                 k = ease((now - shown_at) / 0.15)
@@ -774,7 +935,7 @@ class TermPanel:
                     self.f.draw(bd, (self.PAD + 24 + w, ly), m.group(2), mix(th.ink2, bg, k), "la")
                 else:
                     self.f.draw(bd, (self.PAD + 24, ly), line, mix(th.ink2, bg, k), "la")
-            if now >= call["t0"] + call["run"] + 0.07 * max(0, len(call["out"]) - 1) + 0.1:
+            if now >= call["t0"] + call["out_at"] + 0.07 * max(0, len(call["out"]) - 1) + 0.1:
                 tail = ("\u2715 error" if failed else "\u2713 ok") + (("  %d ms" % call["ms"]) if call.get("ms") is not None else "")
                 self.f_bar.draw(bd, (self.PAD + 24, y + len(call["out"]) * self.lh + 1), tail, th.warm if failed else th.ok, "la")
         image.paste(body, (0, sc(self.BAR + 1)))
@@ -823,6 +984,10 @@ class Renderer:
             self.chat_rect = (CHAT_TERM[0], top, CHAT_TERM[2], height)
             self.term_rect = (TERM_TERM[0], top, TERM_TERM[2], height)
         self.pauses = self.find_pauses()
+        # The chat animation needs real time of its own (a question typed at a human pace, a thinking beat before each answer).
+        # It goes in as extra pauses, so the recording itself is never touched.
+        self.pauses = sorted(self.pauses + self.chat.extra_pauses())
+        self.chat.bind(self.vt)
         self.cache = {}
         self.base = self.build_base()
 
@@ -865,11 +1030,12 @@ class Renderer:
                 self.frames["still"] = Image.open(os.path.join(self.t.folder, self.t.still)).convert("RGB")
             return self.frames["still"]
         index = max(0, min(self.t.count - 1, index))
-        if index not in self.frames:
+        name = self.t.files[index] if self.t.files else "%05d.png" % index
+        if name not in self.frames:
             if len(self.frames) > 8:
                 self.frames.clear()
-            self.frames[index] = Image.open(os.path.join(self.t.folder, "%05d.png" % index)).convert("RGB")
-        return self.frames[index]
+            self.frames[name] = Image.open(os.path.join(self.t.folder, name)).convert("RGB")
+        return self.frames[name]
 
     def camera(self, time):
         current, previous = self.t.at("focus", time)
@@ -942,6 +1108,10 @@ class Renderer:
                 pauses.append((at, length))
         self.busy = busy
         return pauses
+
+    def vt(self, recorded):
+        """Recorded time to virtual time, the unslowed time of the finished video (pauses count as real time)."""
+        return recorded + sum(length for at, length in self.pauses if at < recorded)
 
     def body_length(self):
         return (self.t.count / self.t.src_fps + sum(length for _, length in self.pauses)) * SLOW
@@ -1278,14 +1448,14 @@ class Renderer:
             outline(self.chat_rect, th.line, line_alpha)
             outline(self.term_rect, self.accent, 0.5)
 
-    def body_frame(self, time, pointer=True):
+    def body_frame(self, time, pointer=True, v=None):
         frame = self.base.copy()
         panel_alpha = 0.95
         if self.split:
             view = self.view_frame(time, pointer)
             ex, ey, ew, eh = EDITOR
             frame.paste(view, (sc(ex), sc(ey)), self.mask("editor", view.size, sc(14)))
-        chat = self.chat.render(time)
+        chat = self.chat.render(self.vt(time) if v is None else v)
         frame.paste(chat, (sc(self.chat_rect[0]), sc(self.chat_rect[1])), self.mask("chat%d" % chat.height, chat.size, sc(12), panel_alpha))
         if not self.split:
             term = self.term.render(time)
@@ -1445,14 +1615,14 @@ class Renderer:
             if time < 0.35:
                 frame = Image.blend(black, frame, ease(time / 0.35))
             if time > INTRO_LEN - blend:
-                frame = Image.blend(frame, self.body_frame(0.0), ease((time - (INTRO_LEN - blend)) / blend))
+                frame = Image.blend(frame, self.body_frame(0.0, v=0.0), ease((time - (INTRO_LEN - blend)) / blend))
         elif time < INTRO_LEN + body_len:
-            frame = self.body_frame(min(self.recorded_time(time - INTRO_LEN), last))
+            frame = self.body_frame(min(self.recorded_time(time - INTRO_LEN), last), v=(time - INTRO_LEN) / SLOW)
         else:
             age = time - INTRO_LEN - body_len
             frame = self.outro_frame(age)
             if age < blend:
-                frame = Image.blend(self.body_frame(last, pointer=False), frame, ease(age / blend))
+                frame = Image.blend(self.body_frame(last, pointer=False, v=1e6), frame, ease(age / blend))
             if age > OUTRO_LEN - 0.5:
                 frame = Image.blend(frame, black, ease((age - (OUTRO_LEN - 0.5)) / 0.5))
         return frame
@@ -1462,10 +1632,10 @@ class Renderer:
 
     def render(self, out, poster=None, limit=None):
         # Written under a temporary name and renamed at the end, so an interrupted render never leaves a broken video behind.
-        # Tuned for screen content: -tune animation keeps flat UI areas and fine text clean, CRF 18 keeps the edges.
+        # Tuned for screen content: -tune animation keeps flat UI areas and fine text clean, CRF 20 keeps the edges.
         partial = out[:-4] + ".part.mp4"
         ff = subprocess.Popen([FFMPEG, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (OW, OH), "-r", str(FPS),
-                               "-i", "-", "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", "18", "-pix_fmt", "yuv420p",
+                               "-i", "-", "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", "20", "-pix_fmt", "yuv420p",
                                "-movflags", "+faststart", partial], stdin=subprocess.PIPE)
         total = int(self.total_length() * FPS)
         if limit:
