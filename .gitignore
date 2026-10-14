@@ -1,2 +1,5 @@
 .DS_Store
 Thumbs.db
+
+# Video tutorial pipeline: host project, raw frames, fonts cache, briefs
+.video/
