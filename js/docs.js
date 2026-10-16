@@ -70,8 +70,25 @@ function renderBackends(backends) {
   return h + '</tbody></table>';
 }
 
-function renderSection(sec) {
+function renderLegend(data) {
+  // The colour legend for the Ritual videos: one list, built from the same data the videos draw their legend card from.
+  const lg = data.legend;
+  if (!lg || !lg.rows) return '';
+  const colors = data.colors || {};
+  const css = { c1: 'var(--c1)', c2: 'var(--c2)', warm: 'var(--warm)', ok: colors.ok || '#58eb6e', error: colors.error || '#e84050' };
+  let h = '<ul class="legend">';
+  for (const row of lg.rows) {
+    h += '<li><span class="sw" style="--sw:' + esc(css[row.swatch] || 'var(--c1)') + '"' + (row.icon ? '' : ' aria-hidden="true"') + '>' + esc(row.icon || '') + '</span>'
+      + '<span class="lg-text"><b>' + esc(row.label) + '</b> ' + esc(row.text) + '</span></li>';
+  }
+  h += '</ul>';
+  if (lg.note) h += '<p class="legend-note">' + esc(lg.note) + '</p>';
+  return h;
+}
+
+function renderSection(sec, data) {
   let h = '';
+  if (sec.legendFrom)  h += renderLegend(data || {});
   if (sec.html)        h += sec.html;
   if (sec.intro)       h += '<p class="section-intro">' + esc(sec.intro) + '</p>';
   if (sec.spells)      h += renderSpells(sec);
@@ -101,6 +118,12 @@ async function loadDocsPage(jsonPath) {
         const el = document.getElementById('page-desc');
         if (el) el.setAttribute('content', data.meta.description);
       }
+    }
+
+    // the two status colours the Ritual videos use (data.colors), so the failure tag and the legend match the videos
+    if (data.colors) {
+      if (data.colors.error) document.documentElement.style.setProperty('--fail', data.colors.error);
+      if (data.colors.ok) document.documentElement.style.setProperty('--good', data.colors.ok);
     }
 
     // sidebar
@@ -189,8 +212,9 @@ async function loadDocsPage(jsonPath) {
       // all pages: sections
       for (const sec of (a.sections || [])) {
         const icon = sec.icon ? ' <span class="sec-icon">' + sec.icon + '</span>' : '';
-        articleHTML += '<h2 id="' + esc(sec.id) + '">' + (sec.heading || '') + icon + '</h2>';
-        articleHTML += renderSection(sec);
+        const tag = sec.failure ? ' <span class="tag fail"><span aria-hidden="true">✕</span> ' + esc(data.failure_tag || 'When it goes wrong') + '</span>' : '';
+        articleHTML += '<h2 id="' + esc(sec.id) + '">' + (sec.heading || '') + icon + tag + '</h2>';
+        articleHTML += renderSection(sec, data);
       }
 
       // pager

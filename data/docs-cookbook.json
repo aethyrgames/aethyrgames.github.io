@@ -167,6 +167,10 @@
             "label": "Ritual walkthroughs →"
           },
           {
+            "href": "/docs/videos/",
+            "label": "Watch the Rituals →"
+          },
+          {
             "href": "/docs/reference/",
             "label": "Tool & config reference →"
           },
@@ -2048,8 +2052,8 @@
     ],
     "pager": {
       "prev": {
-        "href": "/docs/tutorials/",
-        "label": "Ritual walkthroughs"
+        "href": "/docs/videos/",
+        "label": "Watch the Rituals"
       },
       "next": {
         "href": "/docs/reference/",
