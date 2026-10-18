@@ -585,7 +585,8 @@
           { "name": "AETHYR_HUB_IDLE_SECONDS", "description": "Default <code>600</code>. How long the shared server keeps running with no attached clients." },
           { "name": "AETHYR_HUB_BUSY_WAIT_MS", "description": "Default <code>5000</code>. How long a client's call waits for the shared backend to free up before it gets a retryable busy error." },
           { "name": "AETHYR_UPDATE_CHECK", "description": "<code>1</code> by default. Controls the once-a-day release check and the \"update available\" notice at connect. Set <code>0</code> to turn both off. The Fab build has no update check." },
-          { "name": "AETHYR_UPDATE_REPO", "description": "Where the update check and <code>apply_update</code> look for releases, as <code>owner/repo</code>. For a private mirror." }
+          { "name": "AETHYR_UPDATE_REPO", "description": "Where the update check and <code>apply_update</code> look for releases, as <code>owner/repo</code>. For a private mirror." },
+          { "name": "AETHYR_RUNTIME_LISTEN", "description": "Set in a <strong>game</strong> process's environment, not your MCP client's. <code>1</code> starts the runtime listener so the server can read that running game build. <code>bp.reader.listen 1</code> does the same. Development, DebugGame and Test builds can carry it, and Shipping builds never do." }
         ]
       },
       {
@@ -595,6 +596,7 @@
           { "name": "auto", "description": "The default. Probes each call and routes to live if an editor is open, else commandlet." },
           { "name": "live", "description": "Talks to a running editor over a local TCP socket (fast; great while you're working in-editor)." },
           { "name": "commandlet", "description": "Spawns a headless editor to serve calls when none is open." },
+          { "name": "game", "description": "A running game build of the same project, Development, DebugGame or Test, started with <code>AETHYR_RUNTIME_LISTEN=1</code>. It answers <code>list_blueprints</code>, <code>read_blueprint</code>, <code>list_variables</code>, <code>get_components</code> and <code>get_function</code>, and everything else stays with the editor. The editor is the default. When both are running, your AI asks you before it calls <code>select_target</code>, and <code>served_by</code> on each result says who answered. A cooked build's reads carry <code>stripped_by_cook: true</code>. Shipping builds carry no listener, and a Blueprint-only project's packaged build can't be read." },
           { "name": "mock", "description": "Fixtures only, no engine; for trying the wire format without a project. Writes are blocked." }
         ]
       },
