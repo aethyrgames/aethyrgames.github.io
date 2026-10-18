@@ -167,6 +167,10 @@
             "label": "Ritual walkthroughs →"
           },
           {
+            "href": "/docs/videos/",
+            "label": "Watch the Rituals →"
+          },
+          {
             "href": "/docs/reference/",
             "label": "Tool & config reference →"
           },
@@ -554,10 +558,10 @@
           },
           {
             "incant": "\"Nudge that Branch node to 400,200, then tidy the whole EventGraph.\"",
-            "description": "Moves one node by GUID. Then it spreads all nodes into a column layout so they stop overlapping. The layout is basic, not the engine's own tidy.",
+            "description": "Moves one node by GUID. Then it lays the whole graph out: exec flow left to right, pure nodes next to the node that uses them, and comment boxes fitted around their members. Links and pin values never change.",
             "tools": [
               "set_node_position",
-              "auto_layout_graph"
+              "format_graph"
             ]
           },
           {
@@ -2048,8 +2052,8 @@
     ],
     "pager": {
       "prev": {
-        "href": "/docs/tutorials/",
-        "label": "Ritual walkthroughs"
+        "href": "/docs/videos/",
+        "label": "Watch the Rituals"
       },
       "next": {
         "href": "/docs/reference/",

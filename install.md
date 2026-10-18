@@ -88,7 +88,7 @@ Setup ends with a `next_steps` list. Do these in order, and tell the user about 
 3. `restart_editor`: ask the user to restart the Unreal Editor so it loads the plugins and Epic's MCP server.
    When Epic's plugin binaries are missing or stale for the engine you get `launch_editor` instead: the editor starts through `Saved/Aethyr/Launch-Editor.bat`. Its `why` field says what's wrong with the binaries.
    Never start, restart or close an editor yourself without the user's yes. A bridge that isn't reachable is not permission to start one, and Aethyr's own read tools don't need it.
-4. `remove_old_project_guidance`: only when `project_guidance_leftovers` is not empty. Tell the user those project copies are safe to delete, since the user-scope install replaces them. Perforce users revert an add instead.
+4. `review_project_guidance`: only when `project_guidance_leftovers` is not empty. The project holds skills, agents, guidance or client entries that setup doesn't manage. Setup lists them and leaves them alone. Show the user the list and let them decide what to keep.
 5. `reconcile_scc`: Perforce users reconcile the files setup made writable.
 
 ## Verify
