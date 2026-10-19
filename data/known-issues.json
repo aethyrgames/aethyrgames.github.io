@@ -1,0 +1,21 @@
+{
+  "tag": "v0.7.0-1435",
+  "items": [
+    "**A very quick incremental build can hit a file lock.** If the build reaches the link step before Aethyr has stepped aside, run `AethyrMcp.exe daemon stop` first.",
+    "**The Epic bridge checks most free-text parameters as paths.** A value holding `//` (outside a URL), `/..` or `/./` is refused unless the parameter is named `script`, `code`, `text`, `command`, `query`, `content`, `comment`, `description`, `node_comment`, `prompt` or `message`. A parameter such as `Pattern` or `FilterExpression` is refused with such a value.",
+    "**A comma inside an Epic toolset name can break a lookup by class name.** A fully qualified `Module.Class` name works.",
+    "**A full editor build on a source engine rewrites engine and third-party `.modules` manifests.** `launch-editor --private-epic-build` has run end to end only on an installed engine.",
+    "**`served_by` is missing on some results.** Cached reads and calls that go to the live editor or the daemon socket don't carry it.",
+    "**The first `set_project_setting` after `set_active_cook_target` can overwrite a hand edit** you made to the saved `Game.ini`. Later calls leave your edit alone.",
+    "**A `warnings` field has five shapes.** `SETUP.md` lists them.",
+    "**`rollback_update` restores only the server exe.** After a rollback the plugin's editor DLLs and other files stay at the newer version until the next update or setup.",
+    "**`hub status` and `hub stop` can't see a hub that belongs to a different build.** That hub should exit on its own once no session has used it for `AETHYR_HUB_IDLE_SECONDS` (default 600). It can hold files until then.",
+    "**A session that only calls `health_check` and `apply_update` starts a headless daemon that the update cuts off.** `last_daemon_start` then reports `interrupted`.",
+    "**`read_blueprint` and the other tools that take `fields` can drop keys their output schema lists as `required`.** A client that validates results against the schema can reject a successful projected result.",
+    "**`open_asset_editor` and `create_level_sequence` can crash an editor launched with `-RenderOffScreen`.** Opening and closing Blueprint editors in quick succession can crash a normal editor too. Leave a short pause between asset-editor operations.",
+    "**Claude Desktop, Windsurf and Cursor don't document which folder they start servers in.** If Aethyr picks the wrong project, set `AETHYR_PROJECT` in that client's entry. Setup pins it for you in a new Cursor entry and in a VS Code user-scope entry. VS Code is expected to start the server in the workspace folder, which hasn't been checked in a real VS Code window.",
+    "**A client config file with comments or trailing commas is refused untouched.** Setup reads every client's JSON config strictly, VS Code's `mcp.json` included. Add the `aethyr` entry by hand. You can also delete the comments and run `setup` again.",
+    "**`format_graph` can lay a graph out differently on a second run.** When a comment box is left as it is and ends up holding a node the formatter can't move, the next run treats that node as part of the comment. The result's `warnings` names the comment and the node.",
+    "**A client that restarts its server just as `apply_update` swaps the exe can keep running the old build.** Restart that client once more. `health_check`'s `current_version` shows which build is running."
+  ]
+}
