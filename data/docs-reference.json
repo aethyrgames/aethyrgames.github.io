@@ -186,7 +186,7 @@
               { "name": "add_variable", "description": "Add a member variable to a Blueprint class." },
               { "name": "apply_ops", "description": "Execute a batch of write operations sequentially in a single tool call." },
               { "name": "attach_component", "description": "Re-parent an SCS component on a Blueprint." },
-                            { "name": "bp_structural_diff", "description": "Compare two Blueprints structurally: variables, components, function/macro/event-graph node signatures, connection counts." },
+              { "name": "bp_structural_diff", "description": "Compare two Blueprints structurally: variables, components, function/macro/event-graph node signatures, connection counts." },
               { "name": "clone_graph", "description": "Copy every node in graph from the source Blueprint into the same-named graph of the target Blueprint, preserving wiring." },
               { "name": "create_blueprint", "description": "Create a new Blueprint asset under /Game/..." },
               { "name": "create_enum", "description": "Create a new User Defined Enum (UUserDefinedEnum) under /Game/..." },
@@ -197,7 +197,7 @@
               { "name": "find_dangling_references", "description": "Walk a Blueprint's function bodies (and optionally top-level graphs) for nodes referencing variables / intra-BP functions that no longer exist on the BP." },
               { "name": "find_node", "description": "Search all nodes in a Blueprint by class name or title substring (case-insensitive): searches ALL graphs at once, unlike get_graph which reads one named graph." },
               { "name": "find_overriders", "description": "Find Blueprints under path that match a structural query: extend parent_class, override function_name, and/or implement interface." },
-              { "name": "format_graph", "description": "Lay a Blueprint graph out cleanly: exec flow left to right, pure nodes beside their consumer, comment boxes fitted. Never changes a link or a value." },
+              { "name": "format_graph", "description": "Format a Blueprint graph or a behavior tree so it reads like one a careful person laid out by hand." },
               { "name": "get_components", "description": "List the SCS components (StaticMeshComponent, LightComponent, child actors, etc.) attached to a blueprint, with parent/child hierarchy." },
               { "name": "get_function", "description": "Fetch a specific Blueprint function by name: signature (inputs, outputs, locals) + body graph (node list + connections)." },
               { "name": "get_graph", "description": "Read one graph by name (default: EventGraph) or by full object path, from ANY asset that owns UEdGraph objects." },
@@ -383,7 +383,7 @@
               { "name": "bind_widget_event", "description": "Bind a widget's event (e.g. OnClicked on a Button) to a named handler function in the widget blueprint's graph." },
               { "name": "compile_widget_blueprint", "description": "Compile a UWidgetBlueprint." },
               { "name": "create_widget_blueprint", "description": "Create a new Widget Blueprint (UWidgetBlueprint) under /Game/..." },
-              { "name": "read_widget_blueprint", "description": "Read a UWidgetBlueprint's widget tree: every UWidget node (name, class, parent name) and the root widget's name." },
+              { "name": "read_widget_blueprint", "description": "Read a UWidgetBlueprint's widget tree: every UWidget node (name, class, parent name, and a compact slot object with the panel slot's class and layout fields) and the root widget's name." },
               { "name": "set_widget_property", "description": "Set a UPROPERTY on a UWidget in a UWidgetBlueprint." }
             ]
           },
@@ -410,6 +410,17 @@
             ]
           },
           {
+            "name": "Discover",
+            "count": 5,
+            "tools": [
+              { "name": "list_macro_library_functions", "description": "Enumerate the instantiable macro graphs in a Blueprint Macro Library (ForEachLoop, Gate, DoOnce, FlipFlop, IsValid, ...)." },
+              { "name": "list_node_kinds", "description": "List the kind values that add_node accepts, with required extras for each." },
+              { "name": "list_pin_categories", "description": "List the canonical BPPinType.category values + container modifiers." },
+              { "name": "select_target", "description": "Choose where Aethyr's reads go: the project's editor (live editor, daemon or headless commandlet, the default) or a running game build of the project that has the Aethyr runtime listener on..." },
+              { "name": "shutdown_daemon", "description": "Force-terminate the backing editor daemon process." }
+            ]
+          },
+          {
             "name": "State Tree",
             "count": 5,
             "tools": [
@@ -428,16 +439,6 @@
               { "name": "list_data_assets", "description": "List all UDataAsset subclass instances under a content path." },
               { "name": "read_data_asset", "description": "Read every UPROPERTY on a UDataAsset." },
               { "name": "set_data_asset_property", "description": "Set a UPROPERTY on a UDataAsset instance." }
-            ]
-          },
-          {
-            "name": "Discover",
-            "count": 4,
-            "tools": [
-              { "name": "list_macro_library_functions", "description": "Enumerate the instantiable macro graphs in a Blueprint Macro Library (ForEachLoop, Gate, DoOnce, FlipFlop, IsValid, ...)." },
-              { "name": "list_node_kinds", "description": "List the kind values that add_node accepts, with required extras for each." },
-              { "name": "list_pin_categories", "description": "List the canonical BPPinType.category values + container modifiers." },
-              { "name": "shutdown_daemon", "description": "Force-terminate the backing editor daemon process." }
             ]
           },
           {
@@ -532,7 +533,7 @@
       {
         "id": "skills",
         "heading": "Skills & the audit agent",
-        "html": "<p>These ship with the plugin under <code>AI/</code>. <code>AethyrMcp.exe setup</code> installs them for the AI clients you use: skills to <code>~/.agents/skills/</code> (Copilot CLI, VS Code, Codex, Gemini CLI, Cursor, Windsurf) and <code>~/.claude/skills/</code> (Claude Code), and the agent to <code>~/.claude/agents/</code>, <code>~/.copilot/agents/</code> or <code>~/.gemini/agents/</code>. <code>--no-skills</code> skips them.</p>",
+        "html": "<p>These ship with the plugin under <code>AI/</code>. <code>AethyrMcp.exe setup</code> installs them for the AI clients you use. Claude Code, Copilot CLI and VS Code Copilot get the skills in <code>&lt;Project&gt;/.claude/skills/</code> and the agent in <code>&lt;Project&gt;/.claude/agents/</code> (Claude Code) or <code>&lt;Project&gt;/.github/agents/</code> (Copilot CLI). Codex, Gemini CLI, Cursor and Windsurf get skills in <code>~/.agents/skills/</code>, and <code>--user-scope</code> moves the three project clients to <code>~/.claude/skills/</code>, <code>~/.claude/agents/</code>, <code>~/.copilot/agents/</code> and <code>~/.gemini/agents/</code> in your profile. <code>--no-skills</code> skips them.</p>",
         "skills": [
           { "name": "aethyr-core", "description": "Reading and the wire format.", "badge": null },
           { "name": "aethyr-edit", "description": "Writes and batches (<code>apply_ops</code>, <code>preview_ops</code>, <code>compile_function</code>).", "badge": null },
@@ -559,7 +560,7 @@
           { "name": "AETHYR_TIMEOUT_SECONDS", "description": "Per-call subprocess timeout (default <code>120</code>)." },
           { "name": "AETHYR_STARTUP_TIMEOUT_SECONDS", "description": "How long to wait for the headless editor's first ready signal. Default <code>600</code>. A big project with a cold cache can take 5 to 10 minutes the first time." },
           { "name": "AETHYR_DAEMON", "description": "<code>1</code> by default. Set <code>0</code> to fall back to a one-shot editor launch per call." },
-          { "name": "AETHYR_DAEMON_IDLE_SECONDS", "description": "Default <code>300</code>. The headless editor exits after this many seconds with no connected clients. The minimum is 5." },
+          { "name": "AETHYR_DAEMON_IDLE_SECONDS", "description": "Default <code>120</code>. The headless editor exits after this many seconds with no connected clients. The minimum is 5." },
           { "name": "AETHYR_DAEMON_MAX_LIFETIME_SECONDS", "description": "Default <code>3600</code>. The headless editor exits after this long no matter what. Set <code>0</code> to turn the limit off." },
           { "name": "AETHYR_PREWARM", "description": "<code>0</code> by default. Set <code>1</code> to start the headless editor when the server starts, so the first call doesn't pay the cold start." },
           { "name": "AETHYR_EDITOR_ARGS", "description": "Extra arguments added to the headless editor's command line, separated by spaces. Avoid <code>-EnableAllPlugins</code>." },

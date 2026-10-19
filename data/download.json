@@ -17,7 +17,8 @@
           { "href": "#install", "label": "Install" },
           { "href": "#build", "label": "Build for your engine" },
           { "href": "#verify", "label": "Check the download" },
-          { "href": "#updating", "label": "Updating" }
+          { "href": "#updating", "label": "Updating" },
+          { "href": "#known-issues", "label": "Known Issues" }
         ]
       },
       {
@@ -51,7 +52,7 @@
       {
         "id": "which",
         "heading": "Which zip?",
-        "html": "<ul><li><strong>On UE 5.8 installed from the Epic Games Launcher?</strong> Take the precompiled zip. Unzip it and launch the editor, nothing to build.</li><li><strong>On a custom or source-built engine, even one that says 5.8?</strong> Take <code>Aethyr-plugin.zip</code>. Precompiled modules only load on the exact engine build they were compiled for, so a custom engine needs the source zip built against it. A quick way to tell: a Launcher engine has <code>Engine/Build/InstalledBuild.txt</code>, a custom one doesn't.</li><li><strong>On another engine version, or you'd rather build it yourself?</strong> Take <code>Aethyr-plugin.zip</code>. The Unreal modules come as C++ source and compile against your engine.</li></ul><p>Aethyr 0.5.0 and later need UE 5.8 or later. For UE 5.6 or 5.7, use Aethyr 0.4.2 from the <a href='https://github.com/aethyrgames/aethyr-mcp-releases/releases'>releases page</a>.</p>"
+        "html": "<ul><li><strong>On UE 5.8 installed from the Epic Games Launcher?</strong> Take the precompiled zip. Unzip it and launch the editor, nothing to build.</li><li><strong>On a custom or source-built engine, even one that says 5.8?</strong> Take <code>Aethyr-plugin.zip</code>. Precompiled modules only load on the exact engine build they were compiled for, so a custom engine needs the source zip built against it. A quick way to tell: a Launcher engine has <code>Engine/Build/InstalledBuild.txt</code>, a custom one doesn't.</li><li><strong>On another engine version, or you'd rather build it yourself?</strong> Take <code>Aethyr-plugin.zip</code>. The Unreal modules come as C++ source and compile against your engine.</li></ul><p>Aethyr needs UE 5.8 or later. Setup checks the engine version itself.</p>"
       },
       {
         "id": "contents",
@@ -77,6 +78,11 @@
         "id": "updating",
         "heading": "Updating",
         "html": "<ol><li><strong>Ask your assistant.</strong> Say <strong>\"update Aethyr\"</strong>. If Aethyr's tools respond, it previews with <code>apply_update</code>, asks you, and applies it. If they don't, it runs the same setup as a first install, which detects the existing install and updates it.</li><li><strong>Or run the script.</strong> <a href='/install.ps1'>install.ps1</a> updates an existing install the same way it installs a new one.</li><li><strong>Or do it by hand.</strong> Close the editor and your MCP client, download the new zip, and replace the <code>Plugins/Aethyr</code> folder with its contents. Delete <code>Plugins/Aethyr/Intermediate</code> first, so stale generated files can't break the build. Source zip users rebuild afterward.</li></ol><p>After an update, restart your MCP client and the editor. <code>health_check</code> reports the new version. Fab installs update through Fab.</p>"
+      },
+      {
+        "id": "known-issues",
+        "heading": "Known Issues",
+        "html": "<p class=\"rel-line\" data-known-line></p><ul data-known-issues></ul>"
       }
     ],
     "pager": {

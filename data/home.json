@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Aethyr for Unreal Engine 5: AI that speaks Blueprint",
-    "description": "An MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 308 tools. No editor scripting."
+    "description": "An MCP server that lets any MCP client read and author Unreal Engine 5 Blueprints in plain language. 309 tools. No editor scripting."
   },
   "nav": {
     "links": [
@@ -57,8 +57,8 @@
     },
     "stats": [
       {
-        "value": "308",
-        "dataCount": 308,
+        "value": "309",
+        "dataCount": 309,
         "label": "tools"
       },
       {
@@ -217,7 +217,7 @@
       {
         "feature": "Aethyr's own tools",
         "values": [
-          "308",
+          "309",
           "—"
         ]
       },
@@ -276,7 +276,7 @@
       },
       {
         "q": "Which UE versions are supported?",
-        "a": "Aethyr 0.5.0 and later need UE 5.8 or later, which is compile-checked and live-tested on every release."
+        "a": "Aethyr needs UE 5.8 or later, which is compile-checked and live-tested on every release."
       }
     ]
   },

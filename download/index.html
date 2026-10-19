@@ -117,6 +117,28 @@ loadDocsPage('../data/download.json').then(function () {
       }
     })
     .catch(function (err) { console.warn('release lookup skipped:', err); });
+
+  // Known Issues come from data/known-issues.json, which names the release they describe.
+  var list = document.querySelector('[data-known-issues]');
+  var line = document.querySelector('[data-known-line]');
+  if (list) {
+    var esc = function (s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    };
+    // Text is escaped first, then `code` and **bold** become tags.
+    var md = function (s) {
+      return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    };
+    fetch('../data/known-issues.json', { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (ki) {
+        if (line) line.textContent = 'These are the known issues in release ' + ki.tag + '.';
+        list.innerHTML = (ki.items || []).map(function (i) { return '<li>' + md(i) + '</li>'; }).join('');
+      })
+      .catch(function (err) { console.warn('known-issues.json skipped:', err); });
+  }
 });
 </script>
 </body>
