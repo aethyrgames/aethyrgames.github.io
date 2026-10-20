@@ -21,7 +21,7 @@
       {
         "heading": "Learn by doing",
         "items": [
-          { "href": "/docs/rituals/", "label": "Rituals →" },
+          { "href": "/docs/rituals/", "label": "Rituals: starter recipes →" },
           { "href": "/docs/cookbook/", "label": "Spellbook: quick recipes →" }
         ]
       },
