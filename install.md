@@ -166,6 +166,7 @@ Read the JSON it prints. Find the line `"ok"`.
 - `restart_editor`: tell the user to restart the Unreal Editor if it is open.
 - `close_editor_first`: go to step 3.
 - `confirm_plugin_removed`: the plugin folder is deleted in the background right after the command exits. Wait 10 seconds. Then check whether the folder `<Project>/Plugins/Aethyr` exists. If it is gone, go on. If it still exists, tell the user "The Aethyr folder is still there. Close anything that uses the project, then delete the folder `<Project>/Plugins/Aethyr` yourself." and go on.
+- `delete_plugin_folder_by_hand`: the project path has a `%` or a quote in it, so the plugin folder could not be scheduled for deletion. Do not run the command again, it cannot help. Say this to the user, word for word, with the folder path filled in: "Everything else is removed, but I could not delete the folder <Project>/Plugins/Aethyr. Please delete that folder yourself in File Explorer." Then go on.
 - `reconcile_scc`: say this one sentence to the user, and nothing else about it: "Some removed files may need reconciling in your Perforce client." Do not run any `p4` command.
 
 When every entry is done, go to step 7.
