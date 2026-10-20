@@ -163,12 +163,8 @@
         "heading": "Go deeper",
         "items": [
           {
-            "href": "/docs/tutorials/",
-            "label": "Ritual walkthroughs →"
-          },
-          {
-            "href": "/docs/videos/",
-            "label": "Watch the Rituals →"
+            "href": "/docs/rituals/",
+            "label": "Rituals: walkthroughs &amp; videos →"
           },
           {
             "href": "/docs/reference/",
@@ -198,7 +194,7 @@
     "lead": "Bite-sized incantations: one sentence you say, one thing Aethyr does. Skim for the move you need, say it in your own words, and let your AI pick the tools. Every recipe here lives inside the shipping build.",
     "note": {
       "type": "tip",
-      "html": "<p>Most of these are <strong>reads</strong>: they can't change anything, so they're always safe to run. Recipes that write keep a backup of each asset before its first save, and a batch rolls back if its compile fails. Every tool Aethyr ships appears in at least one recipe. Paths under <code>/Game/AethyrSamples</code> work once you've asked your AI to install the samples (the first section). Paths under <code>/Game/MyGame</code> stand in for your own assets. Want the long-form stories instead? See the <a href=\"/docs/tutorials/\">ritual walkthroughs</a>.</p>"
+      "html": "<p>Most of these are <strong>reads</strong>: they can't change anything, so they're always safe to run. Recipes that write keep a backup of each asset before its first save, and a batch rolls back if its compile fails. Every tool Aethyr ships appears in at least one recipe. Paths under <code>/Game/AethyrSamples</code> work once you've asked your AI to install the samples (the first section). Paths under <code>/Game/MyGame</code> stand in for your own assets. Want the long-form stories instead? See the <a href=\"/docs/rituals/\">Rituals</a>.</p>"
     },
     "spellnav": [
       {
@@ -2052,8 +2048,8 @@
     ],
     "pager": {
       "prev": {
-        "href": "/docs/videos/",
-        "label": "Watch the Rituals"
+        "href": "/docs/rituals/",
+        "label": "Rituals: walkthroughs and videos"
       },
       "next": {
         "href": "/docs/reference/",
