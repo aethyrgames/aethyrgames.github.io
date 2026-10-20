@@ -164,7 +164,7 @@
         "items": [
           {
             "href": "/docs/rituals/",
-            "label": "Rituals →"
+            "label": "Rituals: starter recipes →"
           },
           {
             "href": "/docs/reference/",
@@ -2049,7 +2049,7 @@
     "pager": {
       "prev": {
         "href": "/docs/rituals/",
-        "label": "Rituals"
+        "label": "Rituals: starter recipes"
       },
       "next": {
         "href": "/docs/reference/",
