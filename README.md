@@ -12,12 +12,12 @@ Live at https://aethyr.gg
 | `download/index.html` | `/download/` | Download page. Links to `releases/latest/download/` on the public `aethyrgames/aethyr-mcp-releases` repo |
 | `data/download.json` | - | Content for the download page |
 | `docs/index.html` | `/docs/` | Get Started (quickstart, concepts) |
-| `docs/tutorials/index.html` | `/docs/tutorials/` | User-story tutorials |
+| `docs/rituals/index.html` | `/docs/rituals/` | Rituals: walkthroughs and videos |
 | `docs/reference/index.html` | `/docs/reference/` | Tool and config reference |
 | `docs/cookbook/index.html` | `/docs/cookbook/` | Spellbook: quick recipes |
 | `data/home.json` | — | Content for the landing page |
 | `data/docs-index.json` | — | Content for the Get Started page |
-| `data/docs-tutorials.json` | — | Content for the tutorials page |
+| `data/docs-rituals.json` | — | Content for the Rituals page |
 | `data/docs-reference.json` | — | Content for the reference page |
 | `data/docs-cookbook.json` | — | Content for the cookbook page |
 | `js/docs.js` | — | Shared renderer for all docs pages |
@@ -52,7 +52,7 @@ No build step. Serve from the repo root (required — relative asset paths depen
 npx serve .
 ```
 
-Then visit `http://localhost:3000/docs/tutorials/` etc. Opening HTML files directly won't work for the folder-based pages because the JSON fetch uses a relative path.
+Then visit `http://localhost:3000/docs/rituals/` etc. Opening HTML files directly won't work for the folder-based pages because the JSON fetch uses a relative path.
 
 ## Deploying
 

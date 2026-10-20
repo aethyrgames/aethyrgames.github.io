@@ -233,6 +233,11 @@ async function loadDocsPage(jsonPath) {
     if (window.AethyrSupport) window.AethyrSupport.wire();
     initScrollSpy();
     initMobileNav();
+    // the content arrives after the browser's own hash jump, so jump again once it's there
+    if (location.hash) {
+      const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      if (target) target.scrollIntoView();
+    }
 
   } catch (err) {
     const main = document.getElementById('main-content');
