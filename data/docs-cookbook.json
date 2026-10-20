@@ -164,7 +164,7 @@
         "items": [
           {
             "href": "/docs/rituals/",
-            "label": "Rituals: walkthroughs &amp; videos →"
+            "label": "Rituals →"
           },
           {
             "href": "/docs/reference/",
@@ -2049,7 +2049,7 @@
     "pager": {
       "prev": {
         "href": "/docs/rituals/",
-        "label": "Rituals: walkthroughs and videos"
+        "label": "Rituals"
       },
       "next": {
         "href": "/docs/reference/",
