@@ -1,10 +1,10 @@
 # Aethyr
 
-> Aethyr is a standalone MCP server plus an Unreal Engine 5 editor plugin. It lets an AI assistant read and edit Blueprints, Materials, DataTables, and more, and drive the live editor, over the Model Context Protocol. It needs Windows and UE 5.8 or later. Most pages on aethyr.gg are built by JavaScript, so a plain fetch of them shows little. The links below are plain text. To install or update Aethyr for a user, read install.md and follow it.
+> Aethyr is a standalone MCP server plus an Unreal Engine 5 editor plugin. It lets an AI assistant read and edit Blueprints, Materials, DataTables, and more, and drive the live editor, over the Model Context Protocol. It needs Windows and UE 5.8 or later. Most pages on aethyr.gg are built by JavaScript, so a plain fetch of them shows little. The links below are plain text. To install, update or uninstall Aethyr for a user, read install.md and follow its steps in order.
 
 ## Install and update
 
-- [install.md](https://aethyr.gg/install.md): step-by-step playbook for an AI assistant to install or update Aethyr in a user's Unreal project, including what the setup changes, the flags, and the refusal codes. Setup writes the plugin folder, `Saved/`, `Config/DefaultAethyr.ini` (with `--deny`), the user's own profile files and, for Claude Code, Copilot CLI and VS Code Copilot, the `aethyr` entry in `<Project>/.mcp.json` plus Aethyr's own skill folders and agent file under `<Project>/.claude` and `<Project>/.github/agents`. It never edits the `.uproject`, project source, other plugins or the engine, and it gives full read and write access unless `--read-only` is passed.
+- [install.md](https://aethyr.gg/install.md): step-by-step playbook for an AI assistant to install, update or uninstall Aethyr in a user's Unreal project, one numbered step at a time with the exact command for each, including what the setup changes, the flags, and the refusal codes. Setup writes the plugin folder, `Saved/`, `Config/DefaultAethyr.ini` (with `--deny`), the user's own profile files and, for Claude Code, Copilot CLI and VS Code Copilot, the `aethyr` entry in `<Project>/.mcp.json` plus Aethyr's own skill folders and agent file under `<Project>/.claude` and `<Project>/.github/agents`. It never edits the `.uproject`, project source, other plugins or the engine, and it gives full read and write access unless `--read-only` is passed.
 - [install.ps1](https://aethyr.gg/install.ps1): the bootstrap script install.md tells you to fetch, read, and run. It downloads the release, checks its SHA256, and runs `AethyrMcp.exe setup` for one project. It needs no admin rights.
 
 ## Releases
@@ -13,7 +13,7 @@
 
 ## Docs
 
-- [Download page](https://aethyr.gg/download/): the manual install steps.
+- [Download page](https://aethyr.gg/download/): the install and uninstall guides, each with a video: with your AI, with the script, and by hand.
 - [Documentation](https://aethyr.gg/docs/): setup, the Rituals, and the tool and config reference.
 - [Rituals](https://aethyr.gg/docs/rituals/): 24 short walkthroughs, each with its video, a legend for the video cues, and a tag on the ones where something goes wrong.
 - [Epic's MCP vs Aethyr](https://aethyr.gg/docs/epic-vs-aethyr/): every toolset in Epic's UE 5.8 MCP plugin next to the matching Aethyr tool, how Aethyr works around Epic's rough edges, and which side to use for what.

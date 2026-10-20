@@ -247,7 +247,8 @@ if (-not $summary) {
 # ---- 5. Print the summary ---------------------------------------------------
 Write-Host ''
 if ($summary.ok) { $verdict = 'ok' } else { $verdict = 'NOT ok' }
-Write-Host "$tag Setup finished: $verdict. Version $($summary.version_before) -> $($summary.version_after), flavor $($summary.flavor)."
+if ($summary.version_before) { $versionText = "Version $($summary.version_before) -> $($summary.version_after)" } else { $versionText = "Version $($summary.version_after) (new install)" }
+Write-Host "$tag Setup finished: $verdict. $versionText, flavor $($summary.flavor)."
 if ($summary.refused) { Write-Host "$tag Refused ($($summary.refused.code)): $($summary.refused.message)" }
 
 Write-Host ''
