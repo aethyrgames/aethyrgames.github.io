@@ -12,7 +12,7 @@ Live at https://aethyr.gg
 | `download/index.html` | `/download/` | Download page. Links to `releases/latest/download/` on the public `aethyrgames/aethyr-mcp-releases` repo |
 | `data/download.json` | - | Content for the download page |
 | `docs/index.html` | `/docs/` | Get Started (quickstart, concepts) |
-| `docs/rituals/index.html` | `/docs/rituals/` | Rituals: walkthroughs and videos |
+| `docs/rituals/index.html` | `/docs/rituals/` | Rituals: walkthroughs with videos |
 | `docs/reference/index.html` | `/docs/reference/` | Tool and config reference |
 | `docs/cookbook/index.html` | `/docs/cookbook/` | Spellbook: quick recipes |
 | `data/home.json` | — | Content for the landing page |
