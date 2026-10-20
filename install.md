@@ -8,6 +8,8 @@ Aethyr is an MCP server plus an Unreal editor plugin. It lets an AI assistant re
 
 Do the steps of one flow in order, one step at a time. Each step says what to run, what to look for in the output, and which step comes next. Don't skip a step, don't add steps, and don't change a command except to put the user's project folder where it says `<Project>`. `<Project>` is the folder that holds the `.uproject` file, for example `C:\Work\MyGame`. If a step's output matches none of its cases, stop and show the user the output.
 
+Every command on this page is PowerShell. If the tool you run commands with uses bash or another shell, run each one as `powershell -NoProfile -Command '<the command>'`. Keep the double quotes inside it as they are.
+
 The sections after the flows are reference. You only need them when a step sends you there.
 
 ## Rules for every flow
@@ -109,7 +111,7 @@ Use this when the user says "update Aethyr".
 
 Use this when the user says "uninstall Aethyr", or asks to remove or get rid of it. The same steps are in `Plugins/Aethyr/SETUP.md` inside the project, under "Uninstall Aethyr". Follow the steps in order. Do each step exactly as written. Do not improvise, and do not delete anything by hand.
 
-`<Project>` below is the folder that holds the project's `.uproject` file. Fill it in with that folder's full path. Nothing else in the commands changes.
+`<Project>` below is the folder that holds the project's `.uproject` file. Fill it in with that folder's full path. Keep the double quotes around the exe path and around `<Project>` exactly as written, because a path with a space in it (for example `C:\Users\Name\Documents\Unreal Projects\MyGame`) breaks without them. Nothing else in the commands changes.
 
 **Step 1. Check that Aethyr is installed.** Run:
 
@@ -122,8 +124,8 @@ Test-Path "<Project>\Plugins\Aethyr\Binaries\Win64\AethyrMcp.exe"
 
 **Step 2. Preview.** Run this command. It changes nothing.
 
-```
-<Project>/Plugins/Aethyr/Binaries/Win64/AethyrMcp.exe uninstall --project <Project> --dry-run --json
+```powershell
+& "<Project>\Plugins\Aethyr\Binaries\Win64\AethyrMcp.exe" uninstall --project "<Project>" --dry-run --json
 ```
 
 Read the JSON it prints. Find the line `"refused"`.
@@ -148,8 +150,8 @@ Wait for the user to say the editor is closed. Then go back to step 2. Do not cl
 
 **Step 5. Run it.** Run this command. It is the same as step 2 without `--dry-run`.
 
-```
-<Project>/Plugins/Aethyr/Binaries/Win64/AethyrMcp.exe uninstall --project <Project> --json
+```powershell
+& "<Project>\Plugins\Aethyr\Binaries\Win64\AethyrMcp.exe" uninstall --project "<Project>" --json
 ```
 
 Read the JSON it prints. Find the line `"ok"`.
@@ -164,7 +166,7 @@ Read the JSON it prints. Find the line `"ok"`.
 - `restart_editor`: tell the user to restart the Unreal Editor if it is open.
 - `close_editor_first`: go to step 3.
 - `confirm_plugin_removed`: the plugin folder is deleted in the background right after the command exits. Wait 10 seconds. Then check whether the folder `<Project>/Plugins/Aethyr` exists. If it is gone, go on. If it still exists, tell the user "The Aethyr folder is still there. Close anything that uses the project, then delete the folder `<Project>/Plugins/Aethyr` yourself." and go on.
-- `reconcile_scc`: say this one sentence to the user, and nothing else about it: "Some removed files may need reconciling in your Perforce client." Do not run any `p4` command, whatever the entry says.
+- `reconcile_scc`: say this one sentence to the user, and nothing else about it: "Some removed files may need reconciling in your Perforce client." Do not run any `p4` command.
 
 When every entry is done, go to step 7.
 
@@ -297,7 +299,7 @@ Setup stops with a `refused.code` instead of guessing. Report the message to the
 | `download_failed` | Show the user the message. If it says HTTP 403 or 429, GitHub refused the request (usually its hourly limit). Tell the user: "GitHub refused the download. Please download Aethyr-plugin-precompiled.zip and SHA256SUMS from github.com/aethyrgames/aethyr-mcp-releases/releases into one folder and tell me where." Then run step 4 again with `-Zip "<that folder>\Aethyr-plugin-precompiled.zip"` added. The script checks the zip against the SHA256SUMS beside it. |
 | `checksum_mismatch` | The zip doesn't match `SHA256SUMS`. Don't use it. Download again. |
 | `buildid_mismatch` | You asked for `--flavor precompiled`, and the zip's modules were built for another engine build than the user's. Nothing was written. Run setup with `--flavor source`, or leave `--flavor` off so setup picks the zip that fits. |
-| `locked_files` | Something holds files in the plugin folder open, or a file is opened in another Perforce workspace. Setup only sees that the write failed, because it never runs `p4`. Tell the user: "Some Aethyr files are locked. Close the Unreal Editor and any tool using them, then tell me to try again." If the message prints a `p4 opened` command, show it to the user so they can run it. Don't run it yourself. When the user says to try again, go back to the step that failed. |
+| `locked_files` | Something holds files in the plugin folder open, or another Perforce workspace has a file open. Setup only sees that the write failed. Tell the user: "Some Aethyr files are locked. Close the Unreal Editor and any tool using them, then tell me to try again." When the user says to try again, go back to the step that failed. |
 | `servers_running` | Most often this is `--no-stop-servers` with Aethyr processes still running for the project. Close them, or drop the flag. It also fires when setup can't read a process's command line or can't stop a pid. The message names the pid, so stop it yourself and run setup again. |
 | `internal_error` | Setup hit an unexpected error. The message says where. Run with `-DryRun` to see how far it gets, then report it. |
 
