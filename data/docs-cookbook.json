@@ -527,6 +527,35 @@
             "tools": [
               "delete_function"
             ]
+          },
+          {
+            "incant": "\"Change the Damage member of S_ItemRow to a float and move it to the top.\"",
+            "description": "Retypes, moves or removes one member of a User Defined Struct. A retype resets that member's default value.",
+            "tools": [
+              "edit_struct_member"
+            ]
+          },
+          {
+            "incant": "\"Add a Mythic entry to E_Rarity and rename Common to Basic.\"",
+            "description": "Adds an enumerator at the end of a User Defined Enum, or renames one by its display name.",
+            "tools": [
+              "edit_enum"
+            ]
+          },
+          {
+            "incant": "\"Override K2_ValidateLoadedAsset on my validator Blueprint so I can fill it in.\"",
+            "description": "Adds the override graph of an inherited function that has outputs, with the entry and result nodes already placed.",
+            "tools": [
+              "add_function_override"
+            ]
+          },
+          {
+            "incant": "\"Replicate Health on BP_Enemy with an OnRep function, and make FireWeapon a reliable server RPC.\"",
+            "description": "Sets a variable's replicated flag, RepNotify function and lifetime condition, or a function's RPC mode. The read tool shows the whole setup first.",
+            "tools": [
+              "set_replication",
+              "read_replication"
+            ]
           }
         ]
       },
@@ -588,6 +617,20 @@
             "tools": [
               "clone_graph"
             ]
+          },
+          {
+            "incant": "\"Add two more outputs to the Sequence node in BeginPlay.\"",
+            "description": "Adds a pin to, or removes a pin from, a placed Sequence, Make Array or operator node, one op per call. Pass dry_run to check first.",
+            "tools": [
+              "edit_node_pins"
+            ]
+          },
+          {
+            "incant": "\"Read me the TakeDamage graph as pseudocode so I can follow it.\"",
+            "description": "Reads a graph as structured pseudocode, one section per entry point, with exec flow, defaults and targets. The dsl format gives a compile_function body.",
+            "tools": [
+              "read_graph_text"
+            ]
           }
         ]
       },
@@ -641,6 +684,20 @@
               "get_struct_info",
               "get_enum_info"
             ]
+          },
+          {
+            "incant": "\"What does the ExposeOnSpawn meta key do, and which UPROPERTY specifiers control editing?\"",
+            "description": "Lists the reflection specifiers and meta keys C++ can put on each macro, with a one-line meaning for each.",
+            "tools": [
+              "list_metadata_specifiers"
+            ]
+          },
+          {
+            "incant": "\"Scaffold a gameplay attribute set for Health and Stamina in my game module.\"",
+            "description": "Writes new C++ class files from a built-in template: an attribute set, a graph node with its compiler handler, or an animation node pair. It never edits a Build.cs and needs an editor rebuild.",
+            "tools": [
+              "create_cpp_class"
+            ]
           }
         ]
       },
@@ -690,6 +747,20 @@
             "description": "Stops the backing editor daemon to free its file locks. It affects every session on the project, so it needs force_shared set to true. The next call starts a fresh one.",
             "tools": [
               "shutdown_daemon"
+            ]
+          },
+          {
+            "incant": "\"What differs between the two turret data assets, property by property?\"",
+            "description": "Compares two objects and lists each difference as a path with its before and after values, using the same path syntax read_object takes.",
+            "tools": [
+              "diff_objects"
+            ]
+          },
+          {
+            "incant": "\"Show BP_Enemy and its older revision side by side in the editor's diff window.\"",
+            "description": "Opens two assets in the editor's own diff view, the one the Content Browser's Diff menu opens. Pass close to shut the windows it opened.",
+            "tools": [
+              "open_asset_diff"
             ]
           }
         ]
@@ -746,6 +817,20 @@
             "description": "Drains buffered editor events such as selection changes, asset opens, saves, and Blueprint compiles. Draining clears the buffer. Needs a running editor.",
             "tools": [
               "get_editor_events"
+            ]
+          },
+          {
+            "incant": "\"What has the other session been asking the server to do in the last few minutes?\"",
+            "description": "Reads the project's call journal: every tool call from every session, newest first, with masked secrets. Ask for one call's full body by its sequence number.",
+            "tools": [
+              "get_call_history"
+            ]
+          },
+          {
+            "incant": "\"Switch Aethyr's reads over to the running game build.\"",
+            "description": "Picks the editor or a running game build of the project as the target for reads. Ask the user before switching, and switch back with target editor.",
+            "tools": [
+              "select_target"
             ]
           }
         ]
@@ -1147,6 +1232,50 @@
             "tools": [
               "list_actor_abilities"
             ]
+          },
+          {
+            "incant": "\"List the static mesh actors in the Props folder of this level.\"",
+            "description": "Lists the current level's actors with a class filter, a name match and a folder filter, sorted by name.",
+            "tools": [
+              "list_level_actors"
+            ]
+          },
+          {
+            "incant": "\"Make five copies of the crate actor, each one 200 units further along X.\"",
+            "description": "Duplicates an actor with its components and properties, the way the editor's Duplicate command does, with a count and an offset.",
+            "tools": [
+              "duplicate_actor"
+            ]
+          },
+          {
+            "incant": "\"Attach every torch to the wall it sits on, snap them to the grid and put them in a Lighting folder.\"",
+            "description": "Runs a batch of actor edits as one step. Every op is checked before any runs, and a failure undoes the earlier ones.",
+            "tools": [
+              "edit_level_actors"
+            ]
+          },
+          {
+            "incant": "\"Make an empty level called L_TestArena, open it, and save it when I'm done.\"",
+            "description": "Creates a new empty level, opens a saved level in the editor (which changes what the user sees) and saves the open level or every dirty sublevel.",
+            "tools": [
+              "create_level",
+              "load_level",
+              "save_level"
+            ]
+          },
+          {
+            "incant": "\"Scatter a hundred of these rock meshes across the open level.\"",
+            "description": "Adds foliage instances to the level's foliage actor. Pass a foliage type asset, or a static mesh and a type is made for it.",
+            "tools": [
+              "add_foliage_instances"
+            ]
+          },
+          {
+            "incant": "\"Build the navmesh and tell me when it's done.\"",
+            "description": "Builds the open level's navigation mesh and waits for it. The level needs a NavMeshBoundsVolume, which spawn_actor can place.",
+            "tools": [
+              "build_navigation"
+            ]
           }
         ]
       },
@@ -1169,6 +1298,14 @@
             "description": "Read-only. Lists actors pinned for World Partition, and reports valid:false when the current level doesn't use World Partition.",
             "tools": [
               "get_pinned_actors"
+            ]
+          },
+          {
+            "incant": "\"Add L_Interior as an always-loaded sublevel, offset 500 units up.\"",
+            "description": "Adds a saved level to the open level as a streaming sublevel, always loaded or dynamic, with an offset. The remove op takes it out again without touching its file.",
+            "tools": [
+              "add_streaming_level",
+              "remove_streaming_level"
             ]
           }
         ]
@@ -1244,6 +1381,20 @@
             "description": "Reads Mesh Paint mode's texture sub-mode state: active tool, brush size and strength, channel mask, UV channel, and paint texture. It reports valid:false when Mesh Paint isn't the active mode. Read-only.",
             "tools": [
               "get_texture_paint_state"
+            ]
+          },
+          {
+            "incant": "\"Run the EUW_AssetRenamer utility widget.\"",
+            "description": "Runs an Editor Utility Widget or Editor Utility Blueprint the way the editor's Run command does. A widget opens as a tab, so it changes what the user sees.",
+            "tools": [
+              "run_editor_utility"
+            ]
+          },
+          {
+            "incant": "\"Run the Python script at D:/Tools/fix_lods.py in the editor.\"",
+            "description": "Runs an Unreal Python file by its full path, a last resort with the same guards as run_python_script. Ask first, since it skips the typed tools' checks.",
+            "tools": [
+              "run_python_file"
             ]
           }
         ]
@@ -1387,6 +1538,49 @@
             "tools": [
               "list_automation_tests"
             ]
+          },
+          {
+            "incant": "\"Check out BP_Enemy and BP_Boss, then submit them with the message 'Boss phase two'.\"",
+            "description": "Checks out, adds, reverts, submits or syncs assets through the editor's active source-control provider. Needs confirm, and a submit needs a description.",
+            "tools": [
+              "source_control_write"
+            ]
+          },
+          {
+            "incant": "\"What's in shelved changelist 4821?\"",
+            "description": "Lists the files shelved in one pending changelist without unshelving anything.",
+            "tools": [
+              "list_shelved_files"
+            ]
+          },
+          {
+            "incant": "\"Add a core redirect from the old BP_Guard class to BP_Sentry.\"",
+            "description": "Reads the project's CoreRedirects section as written on disk, and adds or removes lines in it. Never touches the engine's config.",
+            "tools": [
+              "list_core_redirects",
+              "edit_core_redirects"
+            ]
+          },
+          {
+            "incant": "\"Which localization targets do we have, and is the French text compiled?\"",
+            "description": "Lists the Localization Dashboard's targets with each culture's word count and compiled state.",
+            "tools": [
+              "list_localization_targets"
+            ]
+          },
+          {
+            "incant": "\"Gather and compile the Game localization target.\"",
+            "description": "Runs the gather and compile steps for a target, each in its own editor process, and reports the manifest, archive and locres paths. Needs confirm.",
+            "tools": [
+              "run_localization"
+            ]
+          },
+          {
+            "incant": "\"Switch the editor to Japanese so I can check the UI.\"",
+            "description": "Sets the editor's language and locale and the game's preview language. Needs confirm.",
+            "tools": [
+              "set_culture"
+            ]
           }
         ]
       },
@@ -1527,6 +1721,41 @@
             "tools": [
               "recreate_level_sequences"
             ]
+          },
+          {
+            "incant": "\"Add an event key at two seconds in LS_Intro that fires OnDoorOpen.\"",
+            "description": "Adds or removes event keys on a Level Sequence's event track, each bound to a custom event in its Director Blueprint. The read tool lists tracks, sections and keys with the refs the edit takes.",
+            "tools": [
+              "edit_sequence_events",
+              "read_sequence_events"
+            ]
+          },
+          {
+            "incant": "\"Queue LS_Intro for a 4K render and start it.\"",
+            "description": "Adds, changes and removes jobs of a Movie Render Queue asset or the open editor's queue, then renders the queue with the PIE executor. Start needs confirm and a live editor.",
+            "tools": [
+              "edit_render_queue",
+              "start_render",
+              "cancel_render"
+            ]
+          },
+          {
+            "incant": "\"Build a render graph with a deferred renderer node and a PNG output.\"",
+            "description": "Adds, removes and wires nodes of a Movie Render Graph. Make the asset with create_asset first. The read tool lists its nodes, pins and edges.",
+            "tools": [
+              "edit_render_graph",
+              "read_render_graph"
+            ]
+          },
+          {
+            "incant": "\"Set up a take preset that records the player and the camera, then record a take.\"",
+            "description": "Adds, switches off and removes a Take Preset's recording sources, then starts and stops a Take Recorder recording in a live editor. Start needs confirm.",
+            "tools": [
+              "edit_take_preset",
+              "read_take_preset",
+              "start_take_recording",
+              "stop_take_recording"
+            ]
           }
         ]
       },
@@ -1558,6 +1787,72 @@
             "tools": [
               "list_anim_montages",
               "read_anim_montage"
+            ]
+          },
+          {
+            "incant": "\"List the notifies on A_Attack and move the Hit notify to frame 12.\"",
+            "description": "Reads an Animation Sequence's curves, notifies and sync markers, then edits them in one call. Every op is checked first, and dry_run shows the plan.",
+            "tools": [
+              "read_anim_sequence",
+              "edit_anim_sequence"
+            ]
+          },
+          {
+            "incant": "\"Build an IK Rig for SK_Mannequin with a two-bone solver on each arm, then retarget it to SK_Robot.\"",
+            "description": "Edits an IK Rig's mesh, solvers, goals and chains, or an IK Retargeter's rigs, ops and chain mapping, as one all-or-nothing op list. The read tool shows either asset.",
+            "tools": [
+              "edit_ik_rig",
+              "edit_ik_retargeter",
+              "read_ik_asset"
+            ]
+          },
+          {
+            "incant": "\"Add a WeaponSocket to hand_r on the mannequin skeleton.\"",
+            "description": "Adds or removes a socket or a virtual bone on a Skeleton, one op per call. The read tool lists bones, sockets and virtual bones.",
+            "tools": [
+              "edit_skeleton_sockets",
+              "read_skeleton_sockets"
+            ]
+          },
+          {
+            "incant": "\"Rename the poses in PA_Face to match the ARKit names.\"",
+            "description": "Renames and removes a Pose Asset's poses and renames its curves, with a list of ops. The read tool lists poses and curves with their indexes.",
+            "tools": [
+              "edit_pose_asset",
+              "read_pose_asset"
+            ]
+          },
+          {
+            "incant": "\"Set the trajectory channel weight to 2 in the locomotion schema, and add the new run cycles to the database.\"",
+            "description": "Sets a Pose Search Schema's sample rate and channel weights, and adds, switches off or removes a Pose Search Database's animations. Both read tools give the indexes the edits take.",
+            "tools": [
+              "edit_pose_search_schema",
+              "read_pose_search_schema",
+              "edit_pose_search_database",
+              "read_pose_search_database"
+            ]
+          },
+          {
+            "incant": "\"Add a control for the spine to CR_Mannequin and wire a Set Transform unit to it.\"",
+            "description": "Changes a Control Rig's hierarchy, graph and modules with an all-or-nothing op list. Module ops work on a Control Rig Blueprint. The read tool returns the hierarchy and graph.",
+            "tools": [
+              "edit_control_rig",
+              "read_control_rig"
+            ]
+          },
+          {
+            "incant": "\"What sources and subjects does the mocap Live Link preset hold, and which subjects are live right now?\"",
+            "description": "Reads a Live Link Preset's sources and subjects, and lists the subjects the open editor's Live Link client sees.",
+            "tools": [
+              "read_live_link_preset",
+              "list_live_link_subjects"
+            ]
+          },
+          {
+            "incant": "\"Which animations trained the face ML Deformer?\"",
+            "description": "Reads an ML Deformer asset's model class, skeletal mesh and training inputs.",
+            "tools": [
+              "read_ml_deformer"
             ]
           }
         ]
@@ -1717,6 +2012,13 @@
               "list_graphs",
               "list_subobjects"
             ]
+          },
+          {
+            "incant": "\"Read the Stats struct and the loot table reference off DA_Goblin.\"",
+            "description": "Reads any object's editable properties as typed JSON, or only the property paths you name. Works on data assets, component templates and placed actors.",
+            "tools": [
+              "read_object"
+            ]
           }
         ]
       },
@@ -1793,6 +2095,41 @@
               "get_asset_history",
               "load_asset_revision",
               "unload_packages"
+            ]
+          },
+          {
+            "incant": "\"Fix up the redirectors left under /Game/Props after the move.\"",
+            "description": "Repoints every referencer of a redirector, saves it and deletes the redirector, the way the Content Browser does.",
+            "tools": [
+              "fix_up_redirectors"
+            ]
+          },
+          {
+            "incant": "\"Replace every use of M_Rock_Old and M_Rock_Older with M_Rock, then delete them.\"",
+            "description": "Replaces references to some assets with one asset of the same class and deletes them. dry_run lists the referencers, confirm runs it.",
+            "tools": [
+              "consolidate_assets"
+            ]
+          },
+          {
+            "incant": "\"Run data validation on everything under /Game/AI.\"",
+            "description": "Runs the editor's data validation on assets or a folder and returns each asset's errors and warnings.",
+            "tools": [
+              "validate_assets"
+            ]
+          },
+          {
+            "incant": "\"Import D:/Art/noise.png as T_Noise under /Game/Textures.\"",
+            "description": "Imports an image file from disk as a texture asset and saves it.",
+            "tools": [
+              "import_texture"
+            ]
+          },
+          {
+            "incant": "\"Make a float curve asset called C_Falloff with a linear ramp.\"",
+            "description": "Creates an asset of any class with initial properties, so a new asset family needs no tool family of its own.",
+            "tools": [
+              "create_asset"
             ]
           }
         ]
@@ -1877,6 +2214,13 @@
               "add_struct_member",
               "create_data_table"
             ]
+          },
+          {
+            "incant": "\"Set Stats.MaxHealth to 250 and the third loot entry's weight to 0.1 on DA_Goblin, in one go.\"",
+            "description": "Writes properties by path in one transaction, adds instanced subobjects and structs, and removes array elements. Pass dry_run to see the plan.",
+            "tools": [
+              "set_object_property"
+            ]
           }
         ]
       },
@@ -1917,6 +2261,14 @@
             "tools": [
               "create_material_instance",
               "set_material_instance_parameter"
+            ]
+          },
+          {
+            "incant": "\"Add a Moss layer on top of M_Rock's layer stack, blended with MLB_HeightLerp.\"",
+            "description": "Adds, changes, removes or hides layers of a Material's layer stack. The read tool lists each stack's layers and blends in order.",
+            "tools": [
+              "edit_material_layer_stack",
+              "read_material_layer_stack"
             ]
           }
         ]
@@ -1989,6 +2341,50 @@
               "add_blackboard_key",
               "create_behavior_tree"
             ]
+          },
+          {
+            "incant": "\"Which events can I bind on the Play button in WBP_MainMenu?\"",
+            "description": "Lists the delegates a widget can bind, the names bind_widget_event takes.",
+            "tools": [
+              "list_widget_events"
+            ]
+          },
+          {
+            "incant": "\"Add a FadeIn animation to WBP_HUD that ramps the root's opacity over half a second.\"",
+            "description": "Creates or changes a Widget Animation with float tracks and keys, and the read tool lists each animation's tracks.",
+            "tools": [
+              "edit_widget_animation",
+              "read_widget_animations"
+            ]
+          },
+          {
+            "incant": "\"Wrap the health bar in a Size Box and move the ammo text under the right column.\"",
+            "description": "Removes, moves, renames or wraps one widget of a Widget Blueprint's tree, one op per call.",
+            "tools": [
+              "edit_widget_hierarchy"
+            ]
+          },
+          {
+            "incant": "\"Bind the score text to a GetScoreText pure function.\"",
+            "description": "Binds a widget property to a pure function or a member variable, removes the binding, or adds an MVVM viewmodel and view binding. The read tool lists every binding.",
+            "tools": [
+              "edit_widget_binding",
+              "read_widget_bindings"
+            ]
+          },
+          {
+            "incant": "\"Give ST_Guard a Gameplay schema and bind the target parameter to the chase task's input.\"",
+            "description": "Sets a StateTree's schema, adds or removes root parameters and binds a parameter or node output to a node input. The ops run as one call that compiles and saves.",
+            "tools": [
+              "edit_state_tree"
+            ]
+          },
+          {
+            "incant": "\"Make BB_Enemy inherit the keys of BB_Base.\"",
+            "description": "Sets or clears a Blackboard's parent, so it inherits the parent's keys. A cycle is refused.",
+            "tools": [
+              "set_blackboard_parent"
+            ]
           }
         ]
       },
@@ -2041,6 +2437,37 @@
             "description": "Needs a running editor with Epic's MCP server. Calls one Epic function by its Toolset.Function name. Calls that look like writes are refused in a read-only session, and Aethyr's compile gate and rollback don't apply, so read back the result.",
             "tools": [
               "epic_call_tool"
+            ]
+          },
+          {
+            "incant": "\"Run the Aethyr.Editor tests and give me each result.\"",
+            "description": "Runs the automation tests matching a pattern, waits for them and returns each test's result, so no log polling is needed.",
+            "tools": [
+              "run_automation_tests_blocking"
+            ]
+          },
+          {
+            "incant": "\"In the running game, which actors are alive and what are the player's current health and tags?\"",
+            "description": "Reads from a running game build: the live actors, one actor's properties and components, and an actor's or the game's gameplay tags. Needs the game as the target.",
+            "tools": [
+              "list_live_actors",
+              "read_live_actor",
+              "get_gameplay_tags"
+            ]
+          },
+          {
+            "incant": "\"What are the r.ScreenPercentage and every sg. cvar set to in the running game?\"",
+            "description": "Reads console variable values from a running game build, by exact name or prefix. Read only.",
+            "tools": [
+              "get_cvars"
+            ]
+          },
+          {
+            "incant": "\"Which data assets has the running game loaded, and what's in the loot table it's using?\"",
+            "description": "Lists the data assets a running game holds and reads one of them. Neither loads anything the game hasn't.",
+            "tools": [
+              "list_loaded_data_assets",
+              "read_loaded_data_asset"
             ]
           }
         ]

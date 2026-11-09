@@ -4,27 +4,45 @@
     "description": "Release notes for the Aethyr MCP server for Unreal Engine 5."
   },
   "sidebar": {
-    "brand": { "href": "/", "label": "Aethyr" },
+    "brand": {
+      "href": "/",
+      "label": "Aethyr"
+    },
     "backHref": "/",
     "sections": [
       {
         "heading": "Releases",
         "items": [
-          { "href": "#v0-7-0", "label": "0.7.0, October 2026" }
+          {
+            "href": "#v0-7-0",
+            "label": "0.7.0, October to November 2026"
+          }
         ]
       },
       {
         "heading": "Resources",
         "items": [
-          { "href": "/docs/", "label": "Documentation" },
-          { "href": "/security/", "label": "Security & Privacy" },
-          { "href": "/", "label": "← Back to site" }
+          {
+            "href": "/docs/",
+            "label": "Documentation"
+          },
+          {
+            "href": "/security/",
+            "label": "Security & Privacy"
+          },
+          {
+            "href": "/",
+            "label": "← Back to site"
+          }
         ]
       }
     ]
   },
   "topbar": {
-    "crumbs": ["aethyr.gg", "changelog"]
+    "crumbs": [
+      "aethyr.gg",
+      "changelog"
+    ]
   },
   "article": {
     "heading": "Changelog",
@@ -32,12 +50,15 @@
     "sections": [
       {
         "id": "v0-7-0",
-        "heading": "0.7.0, October 2026",
-        "html": "<p>The first public release of Aethyr: an MCP server and editor plugin that lets your AI assistant read and author Unreal Engine 5 projects.</p><ul><li><strong>Versions.</strong> A version is <code>0.7.0-N</code>, where <code>N</code> is the build number, the commit count of the build's commit. <code>AethyrMcp.exe --version</code> prints it, and the update check orders releases by <code>N</code>.</li><li><strong>MCP server.</strong> <code>AethyrMcp.exe</code> is a standalone, engine-free server that speaks JSON-RPC 2.0 over stdio, and over HTTP with a bearer token. It exposes the tool catalog in the <a href=\"/docs/reference/\">reference</a>. Progressive disclosure advertises a small core set first, and <code>enable_tool_category</code> or <code>call_tool</code> reaches the rest.</li><li><strong>Editor plugin.</strong> <code>AethyrEditor</code> does Blueprint introspection and every write. <code>AethyrRuntime</code> reads UClass reflection and survives a cook. Both load on Unreal Engine 5.8 or later.</li><li><strong>Backends.</strong> Calls go to a running editor when one is open and to a headless commandlet daemon otherwise. A running game build of the project is a second target: the editor stays the default, <code>select_target</code> switches after the user agrees, and <code>served_by</code> says who answered. A mock backend serves fixtures for client testing. Writes are on by default, and <code>AETHYR_READ_ONLY=1</code> turns them off.</li><li><strong>Atomic batches.</strong> <code>apply_ops</code> runs a batch with one compile and one save, and rolls the whole batch back when any op fails.</li><li><strong>Engine Toolset Bridge.</strong> Epic's own ModelContextProtocol toolsets are reachable through <code>epic_list_toolsets</code>, <code>epic_describe_toolset</code> and <code>epic_call_tool</code>, with a read or write classification on every bridged call.</li><li><strong>Setup and health.</strong> <code>AethyrMcp.exe setup</code> installs the plugin for one project. For Claude Code, Copilot CLI and VS Code Copilot it writes the <code>aethyr</code> entry in <code>&lt;Project&gt;/.mcp.json</code> and the skills and agent in the project, and for the other clients and the guidance it writes to your profile. <code>doctor</code> and <code>health_check</code> report what is healthy and what is not.</li><li><strong>Self-update.</strong> <code>apply_update</code> previews, verifies and swaps in a release, and <code>rollback_update</code> restores the previous one. The Fab build updates through Fab.</li><li><strong>Skills and agent.</strong> Four <code>aethyr-*</code> skills and the <code>aethyr-bp-audit</code> agent ship with the plugin.</li><li><strong>Sample content.</strong> <code>install_samples</code> builds a small set of sample assets from a text recipe.</li><li><strong>Project-bound discovery.</strong> The server connects to, reuses, waits for or stops only an editor, daemon, game build or Epic server it can prove belongs to its own project. Anything else reads as nothing running, with a <code>health_check</code> note.</li><li><strong>Game builds.</strong> A Development, DebugGame or Test game with the runtime listener on (<code>AETHYR_RUNTIME_LISTEN=1</code>) answers <code>list_blueprints</code>, <code>read_blueprint</code>, <code>list_variables</code>, <code>get_components</code> and <code>get_function</code>. Shipping builds carry no listener.</li><li><strong>Graph layout.</strong> <code>format_graph</code> lays a Blueprint graph or a behavior tree out. A Blueprint graph gets exec flow left to right, pure nodes beside their consumers and comment boxes fitted. A behavior tree grows downward with every parent centred over its children, and it keeps the order the children run in: a layout that would change that order fails with <code>execution_order_would_change</code> and writes nothing. It is repeatable, supports <code>dry_run</code>, and is also an <code>apply_ops</code> op.</li><li><strong>Widgets and structs.</strong> <code>set_widget_property</code> sets a widget's slot properties with <code>Slot.&lt;Name&gt;</code>, like <code>Slot.Padding</code>, and <code>read_widget_blueprint</code> reports each slot. <code>create_struct</code> takes <code>members</code> and makes the struct with exactly those members.</li><li><strong>Name limits.</strong> A name or path of 1024 characters or more is refused before it reaches the engine, and names given to created things are capped at 128 characters.</li><li><strong>Value validation.</strong> The shared value import refuses text that doesn't parse as the property's type instead of storing zero.</li></ul>"
+        "heading": "0.7.0, October to November 2026",
+        "html": "<p>The first public release of Aethyr: an MCP server and editor plugin that lets your AI assistant read and author Unreal Engine 5 projects.</p><ul><li><strong>Versions.</strong> A version is <code>0.7.0-N</code>, where <code>N</code> is the build number, the commit count of the build's commit. <code>AethyrMcp.exe --version</code> prints it, and the update check orders releases by <code>N</code>.</li><li><strong>MCP server.</strong> <code>AethyrMcp.exe</code> is a standalone, engine-free server that speaks MCP 2026-07-28 as JSON-RPC 2.0 over stdio, and over HTTP with a bearer token. It needs a client that speaks that revision (Claude Code does by default). It exposes the tool catalog in the <a href=\"/docs/reference/\">reference</a>. Progressive disclosure advertises a small core set first, and <code>enable_tool_category</code> or <code>call_tool</code> reaches the rest.</li><li><strong>Protocol.</strong> The server speaks MCP 2026-07-28, and only that revision. Every request carries its protocol version, the client's capabilities and the client's name in <code>params._meta</code>. <code>server/discover</code> describes the server, every result carries <code>resultType</code>, and list and read results carry cache hints. <code>subscriptions/listen</code> is the one way to ask for notifications, over stdio and over HTTP. Long jobs are the <code>io.modelcontextprotocol/tasks</code> extension: <code>cook_content</code> and <code>package_project</code> always run as a task, a <code>tools/call</code> with a <code>task</code> object runs as one, and <code>tasks/get</code>, <code>tasks/cancel</code> and <code>notifications/tasks</code> follow it. The Engine Toolset Bridge talks to Epic's 5.8 server in that server's own dialect.</li><li><strong>Editor plugin.</strong> <code>AethyrEditor</code> does Blueprint introspection and every write. <code>AethyrRuntime</code> reads UClass reflection and survives a cook. Both load on Unreal Engine 5.8 or later.</li><li><strong>Backends.</strong> Calls go to a running editor when one is open and to a headless commandlet daemon otherwise. A running game build of the project is a second target: the editor stays the default, <code>select_target</code> switches after the user agrees, and <code>served_by</code> says who answered. A mock backend serves fixtures for client testing. Writes are on by default, and <code>AETHYR_READ_ONLY=1</code> turns them off.</li><li><strong>Atomic batches.</strong> <code>apply_ops</code> runs a batch with one compile and one save, and rolls the whole batch back when any op fails.</li><li><strong>Engine Toolset Bridge.</strong> Epic's own ModelContextProtocol toolsets are reachable through <code>epic_list_toolsets</code>, <code>epic_describe_toolset</code> and <code>epic_call_tool</code>, with a read or write classification on every bridged call.</li><li><strong>Setup and health.</strong> <code>AethyrMcp.exe setup</code> installs the plugin for one project. For Claude Code, Copilot CLI and VS Code Copilot it writes the <code>aethyr</code> entry in <code>&lt;Project&gt;/.mcp.json</code> and the skills and agent in the project, and for the other clients and the guidance it writes to your profile. <code>doctor</code> and <code>health_check</code> report what is healthy and what is not.</li><li><strong>Self-update.</strong> <code>apply_update</code> previews, verifies and swaps in a release, and <code>rollback_update</code> restores the previous one. The Fab build updates through Fab.</li><li><strong>Skills and agent.</strong> Four <code>aethyr-*</code> skills and the <code>aethyr-bp-audit</code> agent ship with the plugin.</li><li><strong>Sample content.</strong> <code>install_samples</code> builds a small set of sample assets from a text recipe.</li><li><strong>Project-bound discovery.</strong> The server connects to, reuses, waits for or stops only an editor, daemon, game build or Epic server it can prove belongs to its own project. Anything else reads as nothing running, with a <code>health_check</code> note.</li><li><strong>Game builds.</strong> A Development, DebugGame or Test game with the runtime listener on (<code>AETHYR_RUNTIME_LISTEN=1</code>) answers <code>list_blueprints</code>, <code>read_blueprint</code>, <code>list_variables</code>, <code>get_components</code> and <code>get_function</code>. Shipping builds carry no listener.</li><li><strong>Graph layout.</strong> <code>format_graph</code> lays a Blueprint graph or a behavior tree out. A Blueprint graph gets exec flow left to right, pure nodes beside their consumers and comment boxes fitted. A behavior tree grows downward with every parent centred over its children, and it keeps the order the children run in: a layout that would change that order fails with <code>execution_order_would_change</code> and writes nothing. It is repeatable, supports <code>dry_run</code>, and is also an <code>apply_ops</code> op.</li><li><strong>Widgets and structs.</strong> <code>set_widget_property</code> sets a widget's slot properties with <code>Slot.&lt;Name&gt;</code>, like <code>Slot.Padding</code>, and <code>read_widget_blueprint</code> reports each slot. <code>create_struct</code> takes <code>members</code> and makes the struct with exactly those members.</li><li><strong>Name limits.</strong> A name or path of 1024 characters or more is refused before it reaches the engine, and names given to created things are capped at 128 characters.</li><li><strong>Value validation.</strong> The shared value import refuses text that doesn't parse as the property's type instead of storing zero.</li></ul>"
       }
     ],
     "pager": {
-      "next": { "href": "/docs/", "label": "Read the documentation →" }
+      "next": {
+        "href": "/docs/",
+        "label": "Read the documentation →"
+      }
     }
   }
 }
