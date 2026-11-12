@@ -1,5 +1,5 @@
 {
-  "tag": "v0.7.0-1507",
+  "tag": "v0.7.0-1528",
   "items": [
     "**The Epic bridge checks most free-text parameters as paths.** A value holding `//` (outside a URL), `/..` or `/./` is refused unless the parameter is named `script`, `code`, `text`, `command`, `query`, `content`, `comment`, `description`, `node_comment`, `prompt` or `message`. A parameter such as `Pattern` or `FilterExpression` is refused with such a value.",
     "**`edit_state_tree` and an open StateTree editor.** With the StateTree editor open on the same tree, a rolled-back call can miss the editor's own copy. Close the tree's editor before a call you expect might fail.",
